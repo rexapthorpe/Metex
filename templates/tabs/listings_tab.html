@@ -1,0 +1,78 @@
+<div class="listings-tab">
+  <h2 class="tab-heading">My Active Listings</h2>
+
+  {% if listings %}
+    <div class="listing-grid">
+      {% for listing in listings %}
+        <div 
+          class="listing-tile" 
+          id="listing-{{ listing.listing_id }}"
+          data-quantity="{{ listing.quantity }}">
+
+          <!-- Header -->
+          <div class="tile-header">
+            <h3>{{ listing.metal }} {{ listing.product_type }}</h3>
+            <span class="status-dot active"></span>
+            <span class="status-text">Active Listing</span>
+          </div>
+          <hr>
+
+          <!-- Details -->
+          <div class="details-grid">
+            <div>Metal: {{ listing.metal }}</div>
+            <div>Shape: {{ listing.product_type }}</div>
+            <div>Weight: {{ listing.weight }}</div>
+            <div>Mint: {{ listing.mint }}</div>
+            <div>Year Minted: {{ listing.year }}</div>
+            <div>Finish: {{ listing.finish }}</div>
+            <div>Grade: {{ listing.grade }}</div>
+            <div>3rd-Party Grading:
+              {% if listing.graded %}
+                {{ listing.grading_service or 'Unknown' }}
+              {% else %}
+                Not graded
+              {% endif %}
+            </div>
+            <div></div>
+          </div>
+          <hr>
+
+          <!-- Price & Quantity -->
+          <div class="price-quantity-grid">
+            <div>Price: ${{ listing.price_per_coin }}</div>
+            <div id="listing-qty-{{ listing.listing_id }}">Quantity: {{ listing.quantity }}</div>
+          </div>
+
+          <!-- Actions -->
+          <div class="tile-actions">
+            <button
+              type="button"
+              onclick="openEditListingModal({{ listing.listing_id }})"
+              class="listing-action listing-action--edit"
+            >
+              <i class="fas fa-pencil-alt"></i> Edit
+            </button>
+            <a
+              href="{{ url_for('buy.view_bucket', bucket_id=listing.bucket_id) }}"
+              class="listing-action listing-action--view"
+            >
+              <i class="fas fa-binoculars"></i> View
+            </a>
+            <!-- now opens our custom confirmation -->
+            <button
+              type="button"
+              onclick="openCancelModal({{ listing.listing_id }})"
+              class="listing-action listing-action--cancel"
+            >
+              <i class="fas fa-trash"></i> Cancel
+            </button>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty-message">You have no listings yet!</p>
+  {% endif %}
+
+  <div id="cancelModalContainer"></div>
+</div>

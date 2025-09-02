@@ -1,0 +1,107 @@
+/* account.css */
+
+.account-layout {
+  display: flex;
+  font-family: Arial, sans-serif;
+}
+
+/* Sidebar */
+.account-sidebar {
+  width: 250px;
+  background-color: #f7f7f7;
+  padding-top: 20px;
+  position: fixed;
+  top: 60px; /* Adjust to match your site header */
+  bottom: 0;
+  left: 0;
+  overflow-y: auto;
+}
+
+.account-sidebar h2 {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 20px 0 10px 0; /* Top: 0px, Right: 1px, Bottom: 15px, Left: 5px — controls spacing around the divider */
+  padding-left: 20px;
+}
+
+.account-sidebar .sidebar-divider {
+  height: 1px;
+  background-color: #c0c0c0;
+  margin: 10px 20px 15px 20px; /* Top: 0px, Right: 1px, Bottom: 15px, Left: 5px — controls spacing around the divider */
+  border-radius: 1px;
+}
+
+.account-sidebar ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.account-sidebar li {
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-radius 0.2s ease;
+  border-bottom: none; /* Remove separating lines */
+  border-radius: 0;
+  margin: 0px 10px 0px 10px;/* Top: 0px, Right: 1px, Bottom: 15px, Left: 5px — controls spacing around the divider */
+}
+
+.account-sidebar li:hover,
+.account-sidebar li.active {
+  background-color: #e0e0e0;
+  border-radius: 15px;
+}
+
+.account-sidebar a {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+/* Content Panel */
+.account-content {
+  margin-left: 250px;
+  background-color: #fff;
+  width: calc(100% - 250px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  min-height: 100vh;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.tab-inner-wrapper {
+  padding: 60px 40px 30px; /* Top matches header height */
+  box-sizing: border-box;
+}
+
+.tab-inner-wrapper > *:first-child {
+  margin-top: 0;
+}
+
+/* Headings */
+.account-content h2,
+.account-content h3 {
+  margin-top: 0;
+  font-weight: 600;
+}
+
+.account-sidebar li {
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.account-sidebar li.active {
+  background-color: #3da6ff;
+  color: white;
+  font-weight: bold;
+}
+

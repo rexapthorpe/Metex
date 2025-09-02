@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block title %}Order Successful{% endblock %}
+
+{% block content %}
+
+    <h2>✅ Order Completed!</h2>
+    <p>The bid has been accepted and the order is now completed.</p>
+    <p><a href="{{ url_for('buy.buy') }}">Back to Buy Page</a></p>
+{% endblock %}

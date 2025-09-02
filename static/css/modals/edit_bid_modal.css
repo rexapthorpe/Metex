@@ -1,0 +1,157 @@
+/* = Modal Overlay & Centering = */
+#editBidModal,
+#editBidModal .modal-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden !important;
+}
+#editBidModal .modal-content {
+  max-height: 90vh;
+}
+
+/* = Inner Modal Window = */
+.edit-bid-modal {
+  display: flex;
+  flex-direction: column;
+  width: 500px;
+  max-height: 100%;
+  padding: 30px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* = Close Button = */
+.close-button {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* = Heading = */
+.edit-bid-modal h2 {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+/* = Market Metrics (two‐column) = */
+.modal-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1rem;
+}
+.metric-labels {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.metric-values {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.metric-label {
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 0.25rem;
+}
+.metric-value {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #222;
+  margin-bottom: 0.25rem;
+}
+
+/* = Suggested Bid Buttons = */
+.modal-suggestions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.suggestion-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.suggestion-btn.best {
+  background: #e6f7ff;
+  color: #007bff;
+}
+.suggestion-btn.good {
+  background: #e6f7ff;
+  color: #007bff;
+}
+.suggestion-btn:hover {
+  opacity: 0.9;
+}
+
+/* = Custom Bid Entry = */
+.modal-custom {
+  margin-bottom: 1rem;
+}
+.modal-custom label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  color: #555;
+}
+.input-prefix {
+  display: flex;
+  align-items: center;
+  background: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.input-prefix span {
+  padding: 0 0.75rem;
+  color: #555;
+  font-size: 1.1rem;
+}
+.input-prefix input {
+  border: none;
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1.1rem;
+  line-height: 1.2;
+  outline: none;
+  background: transparent;
+}
+
+/* Remove default number‐input spinners */
+.input-prefix input::-webkit-inner-spin-button,
+.input-prefix input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+/* = Footer / Next Button = */
+.modal-footer {
+  margin-top: auto;
+  text-align: right;
+}
+.next-button {
+  background: #007bff;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.next-button:hover {
+  background: #0056b3;
+}

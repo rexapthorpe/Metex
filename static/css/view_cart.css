@@ -1,0 +1,130 @@
+.cart-page-content-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.cart-page-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 30px;
+  flex-wrap: nowrap;
+}
+
+/* -------- 3-column tile -------- */
+.cart-item-tile {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 25px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+.tile-col { box-sizing: border-box; }
+
+.tile-image {
+  flex: 0 0 180px;
+  background: #eee;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 25px;
+  aspect-ratio: 1/1;
+}
+
+.tile-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tile-controls {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Price & QTY */
+.price-qty {
+  text-align: right;
+  margin-bottom: 8px;
+}
+.avg-price {
+  font-size: 18px;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 6px;
+}
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.quantity-input {
+  width: 60px;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* Buttons row */
+.tile-actions-inline {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.icon-button {
+  background: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 9999px;
+  cursor: pointer;
+  color: #000000;
+  font-size: 14px;
+}
+.icon-button:hover {
+  background: #3da6ff;
+  color: #fff;
+  
+}
+
+/* Summary panel */
+.cart-summary-fixed {
+  position: sticky;
+  top: 100px;
+  width: 35%;
+  max-width: 300px;
+  flex-shrink: 0;
+  background: #fafafa;
+  border: 1px solid #ccc;
+  padding: 20px;
+  border-radius: 25px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  height: fit-content;
+}
+
+/* Flash container */
+.flash-container .flash-success { color: green; }
+.flash-container .flash-warning { color: orange; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .cart-item-tile { flex-direction: column; }
+  .tile-controls, .tile-image { width: 100%; flex: none; }
+}
+@media (max-width: 600px) {
+  .cart-page-layout { flex-direction: column; }
+}

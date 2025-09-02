@@ -1,0 +1,35 @@
+<!-- individual items slider modal -->
+<div id="priceBreakdownModal" class="modal">
+  <div class="priceBreakdown-modal-content">
+    <div class="priceBreakdown-modal-header">
+      <button
+        id="pb-prev"
+        class="priceBreakdown-nav-arrow"
+        onclick="prevPriceListing()"
+      >←</button>
+      <span id="pb-username" class="priceBreakdown-modal-title"></span>
+      <button
+        id="pb-next"
+        class="priceBreakdown-nav-arrow"
+        onclick="nextPriceListing()"
+      >→</button>
+    </div>
+    
+    <div class="priceBreakdown-modal-body">
+      <div class="priceBreakdown-listing-photo">Image</div>
+      <div class="priceBreakdown-stats-row">
+        <div id="pb-quantity" class="priceBreakdown-unit-count"></div>
+        <div id="pb-price" class="priceBreakdown-unit-price"></div>
+      </div>
+    </div>
+    <div class="priceBreakdown-modal-footer">
+      <button
+        type="button"
+        class="priceBreakdown-remove-btn"
+        onclick="removePriceListing()"
+      >
+        <i class="fas fa-trash"></i> Remove Item
+      </button>
+    </div>
+  </div>
+</div>

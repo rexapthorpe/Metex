@@ -1,0 +1,118 @@
+/* Overlay + centering */
+.edit-listing-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.edit-listing-modal .modal-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  width: 90%;
+  max-width: 600px;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+
+    /* center and pad */
+  margin: 20px auto;                /* 20px from top & bottom, auto left/right */
+  
+  /* limit height */
+  max-height: calc(100vh - 40px);   /* viewport height minus top+bottom margins */
+  
+  /* allow internal scrolling if content overflows */
+  overflow-y: auto;
+}
+
+.edit-listing-modal h2 {
+  margin-top: 0;
+}
+
+/* Close “×” */
+.edit-listing-modal .close-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+/* Change color when hovering */
+.edit-listing-modal .close-button:hover {
+    background: #3da6ff;
+    color: #ffffff; /* ← your desired hover color */
+}
+
+/* Shared two-column grids */
+.details-grid,
+.grading-section,
+.list-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  row-gap: 8px;   /* tightened from 12px */
+  column-gap: 12px;
+  margin: 16px 0;
+}
+
+/* Field-group wrapper */
+.field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Individual headers TEXT */
+.field-group label {
+  font-weight: 500;
+  margin-bottom: 4px;
+  font-size: 1.0rem;
+  color: rgb(0, 0, 0);    /* header color */
+}
+
+/* Inputs and selects */
+.field-group select,
+.field-group input {
+  width: 100%;
+  padding: 8px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Descriptions TEXT */
+.field-group .description {
+  font-size: 0.85rem;
+  color: #888;      /* description color */
+  margin-top: 2px;
+}
+
+/* Buttons */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modal-actions .btn-save {
+  background: #3da6ff;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-actions .btn-cancel {
+  background: #fff;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}

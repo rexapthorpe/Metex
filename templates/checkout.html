@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout{% endblock %}
+
+{% block content %}
+<h2 class="cart-title">Checkout</h2>
+
+{% if buckets %}
+    {% for bucket_id, bucket in buckets.items() %}
+        <div class="bucket-tile">
+            <h3 class="bucket-title">{{ bucket['category']['metal'] }} {{ bucket['category']['product_type'] }} — Grade {{ bucket['category']['grade'] }}</h3>
+            <div class="bucket-info">
+                <p><strong>Weight:</strong> {{ bucket.category.weight }}</p>
+                <p><strong>Mint:</strong> {{ bucket.category.mint }}</p>
+                <p><strong>Year:</strong> {{ bucket.category.year }}</p>
+                <p><strong>Finish:</strong> {{ bucket.category.finish }}</p>
+                {% if 'grading_preference' in bucket %}
+                    <p><strong>Grading Preference:</strong> {{ bucket['grading_preference'] }}</p>
+                    <p>DEBUG: {{ bucket }}</p>
+                {% endif %}
+
+            </div>
+
+            <h4 class="seller-breakdown-title">Seller Breakdown</h4>
+            <ul class="seller-breakdown">
+                {% for seller in bucket.sellers %}
+                    <li class="seller-tile">
+                        <p><strong>Seller:</strong> {{ seller.username }}</p>
+                        <p><strong>Quantity:</strong> {{ seller.quantity }}</p>
+                        <p><strong>Price Each:</strong> ${{ '%.2f' % seller.price_each }}</p>
+                        <p><strong>Line Total:</strong> ${{ '%.2f' % seller.subtotal }}</p>
+                        <p><strong>Rating:</strong> 
+                            {% if seller.rating %}
+                                {{ seller.rating }} ({{ seller.rating_count }} reviews)
+                            {% else %}
+                                No ratings yet
+                            {% endif %}
+                        </p>
+
+                        <button onclick="openSellerPopup({{ bucket_id }})" class="btn btn-sm btn-secondary">View Sellers</button>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <p><strong>Total Quantity:</strong> {{ bucket.total_qty }}</p>
+            {% if bucket.total_qty > 0 %}
+                <p><strong>Average Price:</strong> ${{ '%.2f' % bucket.avg_price }}</p>
+            {% else %}
+                <p><strong>Average Price:</strong> N/A</p>
+            {% endif %}
+            <p><strong>Total for This Item:</strong> ${{ '%.2f' % bucket.total_price }}</p>
+        </div>
+    {% endfor %}
+
+    <h3>Total for All Items: ${{ '%.2f' % cart_total }}</h3>
+    <form method="POST" action="{{ url_for('checkout.checkout') }}">
+        <button type="submit" class="btn btn-primary">Place Order</button>
+    </form>
+{% else %}
+    <p>Your checkout cart is empty.</p>
+{% endif %}
+
+{% if get_flashed_messages() %}
+    <div class="cart-flash">
+        {% for msg in get_flashed_messages(with_categories=true) %}
+            <p class="alert alert-{{ msg[0] }}">{{ msg[1] }}</p>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Seller Modal -->
+<div id="sellerModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeSellerPopup()">&times;</span>
+        <div id="sellerDetails">Loading...</div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Your Cart{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cart.css') }}">
+
+<div class="cart-page-content-container">
+  <h2>Your Cart</h2>
+
+  <div class="cart-page-layout">
+    <div class="cart-items-column">
+      {% if buckets %}
+        {% for bucket_id, bucket in buckets.items() %}
+        <div class="cart-item-tile" data-bucket-id="{{ bucket_id }}">
+          <div class="tile-image">Image</div>
+
+          <div class="tile-info">
+            <!-- INFO + PRICE + QTY ROW -->
+            <div class="tile-info-main">
+              <div class="tile-info-left">
+                <h3>{{ bucket.category.weight }} {{ bucket.category.metal }} {{ bucket.category.product_type }}</h3>
+                <p>
+                  <strong>Mint:</strong> {{ bucket.category.mint }}<br>
+                  <strong>Year:</strong> {{ bucket.category.year }}<br>
+                  <strong>Finish:</strong> {{ bucket.category.finish }}<br>
+                  <strong>Grade:</strong> {{ bucket.category.grade }}
+                </p>
+                {% if 'grading_preference' in bucket %}
+                  <p><strong>Grading Preference:</strong> {{ bucket.grading_preference }}</p>
+                {% endif %}
+              </div>
+
+              <div class="tile-info-right">
+                <!-- PRICE ABOVE THE QTY -->
+                <div class="item-price">
+                  ${{ '%.2f' % bucket.avg_price }}
+                </div>
+                <div class="quantity-controls">
+                  <label for="quantity-{{ bucket_id }}">Qty:</label>
+                  <input
+                    type="number"
+                    name="quantity"
+                    id="quantity-{{ bucket_id }}"
+                    min="1"
+                    max="99"
+                    value="{{ bucket.total_qty }}"
+                    class="quantity-input">
+                </div>
+              </div>
+            </div>
+
+            <div class="tile-actions-inline right-align-buttons">
+              <button class="icon-button" title="View Sellers" onclick="openSellerPopup({{ bucket_id }})">
+                <i class="fa-solid fa-user"></i>
+                <span class="icon-label">Sellers</span>
+              </button>
+
+              <button class="icon-button" title="View Items" onclick="openPriceBreakdown({{ bucket_id }})">
+                <i class="fa-solid fa-list"></i>
+                <span class="icon-label">Items</span>
+              </button>
+
+              {% for listing in bucket.listings %}
+                <button
+                  class="icon-button"
+                  title="Remove from Cart"
+                  onclick="removeCartItem({{ listing.listing_id }}, this)">
+                  <i class="fa-solid fa-trash"></i>
+                  <span class="icon-label">Remove</span>
+                </button>
+              {% endfor %}
+            </div>
+
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p>Your cart is empty.</p>
+      {% endif %}
+    </div>
+
+    <div class="cart-summary-fixed">
+      <h3>Order Summary</h3>
+      {% for bucket_id, bucket in buckets.items() %}
+        <div class="summary-line" data-bucket-id="{{ bucket_id }}">
+          <p><strong>{{ bucket.category.metal }} {{ bucket.category.product_type }}</strong></p>
+          <p class="summary-qty" id="summary-qty-{{ bucket_id }}">
+            Quantity: {{ bucket.total_qty }}
+          </p>
+          <p>Avg Price: ${{ '%.2f' % bucket.avg_price }}</p>
+          <p class="summary-total" id="summary-total-{{ bucket_id }}">
+            Total: ${{ '%.2f' % bucket.total_price }}
+          </p>
+          <hr>
+        </div>
+      {% endfor %}
+      <p><strong>Total for All Items:</strong> ${{ '%.2f' % cart_total }}</p>
+      {% if session.get('user_id') %}
+        <a href="{{ url_for('checkout.checkout') }}">
+          <button class="btn proceed-btn">Proceed to Checkout</button>
+        </a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">
+          <button class="btn login-btn">Login to Checkout</button>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Pass per‐unit price arrays to JS -->
+<script>
+  const cartData = {
+  {% for bucket_id, bucket in buckets.items() %}
+    "{{ bucket_id }}": [
+      {% for listing in bucket.listings %}
+        {% for _ in range(listing.quantity) %}
+          {{ listing.price_per_coin }},
+        {% endfor %}
+      {% endfor %}
+    ],
+  {% endfor %}
+  };
+</script>
+
+<!-- Flash Messages -->
+{% set flashed = get_flashed_messages(with_categories=true) %}
+{% if flashed %}
+  <div class="flash-container">
+    {% for msg in flashed %}
+      <p class="flash-{{ msg[0] }}">{{ msg[1] }}</p>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<script>
+  setTimeout(() => {
+    const flashContainer = document.querySelector('.flash-container');
+    if (flashContainer) {
+      flashContainer.style.transition = 'opacity 0.5s ease';
+      flashContainer.style.opacity = '0';
+      setTimeout(() => flashContainer.remove(), 500);
+    }
+  }, 3500);
+</script>
+
+<!-- Modals -->
+<div id="sellerModal" class="modal">
+  <div class="modal-content">
+    <div id="sellerDetails" class="seller-scroll-container"></div>
+  </div>
+</div>
+
+<div id="priceBreakdownModal" class="modal">
+  <div class="modal-content">
+    <div id="priceBreakdownDetails" class="seller-scroll-container"></div>
+  </div>
+</div>
+
+<script>
+  const sessionUserId = {{ 'null' if session.get('user_id') is none else session.get('user_id') }};
+</script>
+<script src="{{ url_for('static', filename='js/view_cart.js') }}"></script>
+{% endblock %}

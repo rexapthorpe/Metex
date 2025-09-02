@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Edit Your Rating{% endblock %}
+
+{% block content %}
+<h2>Edit Rating</h2>
+
+<form method="POST">
+    <label for="rating">Rating (1 to 5 stars):</label><br>
+    <select name="rating" required>
+        {% for i in range(1, 6) %}
+        <option value="{{ i }}" {% if i == rating %}selected{% endif %}>{{ i }} Star{{ 's' if i > 1 }}</option>
+        {% endfor %}
+    </select><br><br>
+
+    <label for="comment">Comment:</label><br>
+    <textarea name="comment" rows="4" cols="50">{{ comment }}</textarea><br><br>
+
+    <button type="submit">Update Rating</button>
+</form>
+
+<p><a href="{{ url_for('account.account') }}">Back to My Account</a></p>
+{% endblock %}

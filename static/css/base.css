@@ -1,0 +1,118 @@
+/* === Global Defaults === */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+@media (max-width: 768px) {
+    html {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    html {
+        font-size: 14px;
+    }
+}
+
+html, body {
+    min-height: 100vh;
+    background-color: #ffffff !important;
+}
+
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #ffffff !important;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden; /* prevent horizontal scroll */
+}
+
+/* === Layout Containers === */
+main, .container {
+    padding-top: 90px; /* Header offset for fixed positioning */
+}
+
+.container {
+    width: 90vw;                /* 80% of viewport */
+    margin: 0 auto;             /* center horizontally */
+    padding-bottom: 30px;
+}
+
+/* Optional reusable section wrapper */
+.section {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* === BUTTONS === */
+button, .btn {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+button:hover, .btn:hover {
+    background-color: #0056b3;
+    transform: scale(1.03);
+}
+
+@media (max-width: 480px) {
+    button, .btn {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+}
+
+/* === Typography === */
+.page-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.empty-message {
+    font-size: 1rem;
+    color: #777;
+}
+
+/* === Utility Classes === */
+.flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* === Breakpoint Variables === */
+:root {
+    --break-sm: 480px;
+    --break-md: 768px;
+    --break-lg: 1024px;
+}

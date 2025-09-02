@@ -1,0 +1,90 @@
+/* Overlay */
+.order-sellers-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+/* White box */
+.order-sellers-modal-content {
+  background: #fff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  overflow: hidden;
+}
+
+/* Header: nav arrows + title */
+.order-sellers-modal-content .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+}
+.order-sellers-modal-content .nav-arrow {
+  width: 32px; height: 32px;
+  border: none; background: transparent;
+  font-size: 1.2rem; cursor: pointer;
+}
+.order-sellers-modal-content .nav-arrow:disabled {
+  visibility: hidden;
+}
+.order-sellers-modal-content .modal-title {
+  flex: 1;
+  text-align: center;
+  font-size: 1.7rem;
+  font-weight: bold;
+}
+
+/* Body */
+.order-sellers-modal-content .modal-body {
+  padding: 20px;
+  text-align: center;
+}
+.order-sellers-modal-content .seller-photo {
+  width: 150px; height: 150px;
+  margin: 0 auto 16px;
+  background: #eee;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+}
+.order-sellers-modal-content .stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0 20px;
+}
+.order-sellers-modal-content .avg-rating {
+  font-size: 1.7rem;
+  font-weight: bold;
+}
+.order-sellers-modal-content .stars .star {
+  font-size: 1.5rem;
+  margin-right: 4px;
+  color: #ccc;
+}
+.order-sellers-modal-content .stars .star.filled {
+  color: #000;
+}
+.order-sellers-modal-content .review-count {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* Footer: close button */
+.order-sellers-modal-content .modal-footer {
+  padding: 16px;
+  background: #ffffff;
+  text-align: right;
+}
+

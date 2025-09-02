@@ -1,0 +1,174 @@
+<div class="edit-listing-modal" id="editListingModalWrapper-{{ listing.listing_id }}">
+  <div class="modal-content">
+    <button class="close-button"
+            onclick="closeEditListingModal({{ listing.listing_id }})">
+      &times;
+    </button>
+    <h2>Edit Listing</h2>
+
+    <form id="editListingForm-{{ listing.listing_id }}">
+      <div class="details-grid">
+
+        <!-- Metal -->
+        <div class="field-group">
+          <label>Metal</label>
+          <select name="metal">
+            {% for m in metals %}
+              <option value="{{ m }}" {% if m == listing.metal %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: Gold</p>
+        </div>
+
+        <!-- Coin Series -->
+        <div class="field-group">
+          <label>Coin Series</label>
+          <select name="coin_series">
+            {% for series in coin_series %}
+              <option value="{{ series }}" {% if series == listing.coin_series %}selected{% endif %}>
+                {{ series }}
+              </option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: American Eagle</p>
+        </div>
+
+        <!-- Product Type -->
+        <div class="field-group">
+          <label>Product Type</label>
+          <select name="product_type">
+            {% for pt in product_types %}
+              <option value="{{ pt }}" {% if pt == listing.product_type %}selected{% endif %}>{{ pt }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: Coin</p>
+        </div>
+
+        <!-- Special Designation -->
+        <div class="field-group">
+          <label>Special Designation</label>
+          <select name="special_designation">
+            {% for sd in special_designations %}
+              <option value="{{ sd }}" {% if sd == listing.special_designation %}selected{% endif %}>{{ sd }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: First Strike</p>
+        </div>
+
+        <!-- Purity -->
+        <div class="field-group">
+          <label>Purity</label>
+          <select name="purity">
+            {% for p in purities %}
+              <option value="{{ p }}" {% if p == listing.purity %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: .9999</p>
+        </div>
+
+        <!-- Weight -->
+        <div class="field-group">
+          <label>Weight</label>
+          <select name="weight">
+            {% for w in weights %}
+              <option value="{{ w }}" {% if w == listing.weight %}selected{% endif %}>{{ w }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: 1 oz</p>
+        </div>
+
+        <!-- Mint -->
+        <div class="field-group">
+          <label>Mint</label>
+          <select name="mint">
+            {% for mn in mints %}
+              <option value="{{ mn }}" {% if mn == listing.mint %}selected{% endif %}>{{ mn }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: US Mint</p>
+        </div>
+
+        <!-- Year -->
+        <div class="field-group">
+          <label>Year</label>
+          <select name="year">
+            {% for y in years %}
+              <option value="{{ y }}" {% if y == listing.year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: 2025</p>
+        </div>
+
+        <!-- Finish -->
+        <div class="field-group">
+          <label>Finish</label>
+          <select name="finish">
+            {% for f in finishes %}
+              <option value="{{ f }}" {% if f == listing.finish %}selected{% endif %}>{{ f }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: Proof</p>
+        </div>
+
+        <!-- Grade -->
+        <div class="field-group">
+          <label>Grade</label>
+          <select name="grade">
+            {% for g in grades %}
+              <option value="{{ g }}" {% if g == listing.grade %}selected{% endif %}>{{ g }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: MS-70</p>
+        </div>
+      </div>
+
+      <!-- Grading Section -->
+      <div class="grading-section">
+        <div class="field-group">
+          <label>Item Has Been Graded</label>
+          <select name="graded" id="gradedSelect-{{ listing.listing_id }}">
+            <option value="no"  {% if not listing.graded %}selected{% endif %}>No</option>
+            <option value="yes" {% if listing.graded     %}selected{% endif %}>Yes</option>
+          </select>
+          <p class="description">Example: Yes</p>
+        </div>
+
+        <div class="field-group grading-service"
+             id="gradingServiceContainer-{{ listing.listing_id }}">
+          <label>Grading Service</label>
+          <select name="grading_service">
+            {% for s in grading_services %}
+              <option value="{{ s }}" {% if s == listing.grading_service %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+          <p class="description">Example: PCGS</p>
+        </div>
+      </div>
+
+      <!-- Quantity & Price -->
+      <div class="list-specs-grid">
+        <div class="field-group">
+          <label>Quantity</label>
+          <input type="number" name="quantity" min="1"
+                 value="{{ listing.quantity }}" placeholder="Quantity">
+          <p class="description">Example: 5 Items</p>
+        </div>
+        <div class="field-group">
+          <label>Price Per Coin ($)</label>
+          <input type="number" name="price_per_coin" step="0.01"
+                 value="{{ listing.price_per_coin }}" placeholder="Price per Item">
+          <p class="description">Enter your listing price</p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-save">Save Changes</button>
+        <button type="button" class="btn btn-cancel"
+                onclick="closeEditListingModal({{ listing.listing_id }})">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

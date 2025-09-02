@@ -1,0 +1,75 @@
+<div class="sold-tab">
+  <h2 class="tab-heading">Sold Items</h2>
+
+  {% if sales %}
+    <div class="order-grid">
+      {% for sale in sales %}
+        <div class="order-tile" id="order-{{ sale.order_id }}">
+          <!-- Header -->
+          <div class="tile-header">
+            <h3>Order #{{ sale.order_id }}</h3>
+            <span class="status-dot {% if sale.status == 'Delivered' %}active{% else %}pending{% endif %}"></span>
+            <span class="status-text">{{ sale.status }}</span>
+          </div>
+          <hr>
+
+          <!-- Item Details -->
+          <div class="details-grid">
+            <div>Metal: {{ sale.metal }}</div>
+            <div>Shape: {{ sale.product_type }}</div>
+            <div>Weight: {{ sale.weight }}</div>
+            <div>Mint: {{ sale.mint }}</div>
+            <div>Year Minted: {{ sale.year }}</div>
+            <div>Finish: {{ sale.finish }}</div>
+            <div>Grade: {{ sale.grade }}</div>
+          </div>
+          <hr>
+
+          <!-- Quantity & Price -->
+          <div class="price-quantity-grid">
+            <div>Quantity Sold: {{ sale.quantity }}</div>
+            <div>Price / Item: ${{ sale.price_each }}</div>
+          </div>
+          <hr>
+
+          <!-- Buyer & Address -->
+          <div class="buyer-address-grid">
+            <div>Buyer: {{ sale.buyer_username }}</div>
+            <div>Address: {{ sale.delivery_address or '— (not collected)' }}</div>
+          </div>
+          <hr>
+
+          <!-- Actions -->
+          <div class="sold-actions">
+            <button
+              class="sold-btn sold-btn--message"
+              onclick="openMessageModal({{ sale.order_id }}, 'buyer')"
+            >
+              <i class="fas fa-envelope"></i>
+              <span>Message</span>
+            </button>
+
+            <button
+              class="sold-btn sold-btn--rate"
+              onclick="openRateModal({{ sale.order_id }}, 'buyer')"
+            >
+              <i class="fas fa-star"></i>
+              <span>Rate</span>
+            </button>
+
+            <button
+              type="button"
+              class="sold-btn sold-btn--tracking"
+              onclick="addTrackingNumber({{ sale.order_id }})"
+            >
+              <i class="fas fa-box"></i>
+              <span>Tracking</span>
+            </button>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty-message">You have no sold items yet!</p>
+  {% endif %}
+</div>

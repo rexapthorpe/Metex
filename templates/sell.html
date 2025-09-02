@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}List an Item for Sale{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sell.css') }}">
+
+<div class="sell-container">
+  <form method="POST" class="sell-form">
+    <div class="input-grid">
+
+      <h2 class="sell-header">List an Item</h2>
+
+
+        <div class="input-group">
+            <label for="metal">Metal</label>
+            <select name="metal" autocomplete="off" required>
+                {% for metal in metals %}
+                <option value="{{ metal }}">{{ metal }}</option>
+                {% endfor %}
+            </select>
+            <small class="example-text">Example: Gold</small>
+        </div>
+          
+
+        <div class="input-group">
+            <label for="product_line">Product Line</label>
+            <select name="product_line" required>
+                {% for line in product_lines %}
+                <option value="{{ line }}">{{ line }}</option>
+                {% endfor %}
+            </select>
+            <small class="example-text">Example: American Eagle</small>
+        </div>
+
+      <!-- Divider between rows -->
+        <div class="row-divider"></div>
+        <h3 class="section-header">Product Specifications</h3>
+
+        <div class="input-group">
+            <label for="product_type">Product Type</label>
+            <select name="product_type" required>
+                {% for type in product_types %}
+                <option value="{{ type }}">{{ type }}</option>
+                {% endfor %}
+            </select>
+            <small class="example-text">Example: Coin</small>
+        </div>
+
+        <div class="input-group">
+            <label for="weight">Weight</label>
+            <select name="weight" required>
+                {% for weight in weights %}
+                <option value="{{ weight }}">{{ weight }}</option>
+                {% endfor %}
+            </select>
+            <small class="example-text">Example: 1 oz</small>
+        </div>
+
+        <div class="input-group">
+            <label for="mint">Mint</label>
+            <select name="mint" required>
+                {% for mint in mints %}
+                <option value="{{ mint }}">{{ mint }}</option>
+                {% endfor %}
+            </select>
+            <small class="example-text">Example: US Mint</small>
+        </div>
+
+        <div class="input-group">
+            <label for="year">Year</label>
+            <select name="year" required>
+                {% for year in years %}
+                <option value="{{ year }}">{{ year }}</option>
+                {% endfor %}
+            </select>
+            <small class="example-text">Example: 2025</small>
+        </div>
+
+        <div class="input-group">
+            <label for="finish">Finish</label>
+            <select name="finish" required>
+                {% for finish in finishes %}
+                <option value="{{ finish }}">{{ finish }}</option>
+                {% endfor %}
+            </select>
+            <small class="example-text">Example: Proof</small>
+        </div>
+
+        <div class="input-group">
+            <label for="grade">Grade</label>
+            <select name="grade" required>
+                {% for grade in grades %}
+                <option value="{{ grade }}">{{ grade }}</option>
+                {% endfor %}
+            </select>
+            <small class="example-text">Example: MS-70</small>
+
+        </div>
+
+      <!-- Divider between rows -->
+        <div class="row-divider"></div>
+        <h3 class="section-header">Listing Specifications</h3>
+
+        <div class="input-group">
+            <label for="quantity">Quantity</label>
+            <input type="number" name="quantity" min="1" required>
+            <small class="example-text">Example: 5 Items</small>
+
+        </div>
+
+        <div class="input-group">
+            <label for="price_per_coin">Price Per Coin ($)</label>
+            <input type="number" name="price_per_coin" step="0.01" required>
+            <small class="example-text">Input Listing Price </small>
+
+        </div>
+
+        <div class="input-group">
+            <label for="graded">Item has been graded</label>
+            <select name="graded" id="graded" onchange="toggleGradingService()" required>
+                <option value="0" selected>No</option>
+                <option value="1">Yes</option>
+            </select>
+            <small class="example-text">Example: Yes</small>
+
+        </div>
+
+        <div class="input-group" id="grading-service-section">
+            <label for="grading_service">Grading Service</label>
+            <select name="grading_service" id="grading_service">
+                <option value="PCGS">PCGS</option>
+                <option value="NBS">NBS</option>
+            </select>
+            <small class="example-text">Example: PCGS</small>
+
+        </div>
+
+      <!-- Final divider -->
+      <div class="row-divider"></div>
+
+      <!-- Submit button aligned with full input grid -->
+      <button type="submit" class="btn submit-btn full-width-button">List Item</button>
+
+    </div>
+
+  </form>
+</div>
+
+<script src="{{ url_for('static', filename='js/sell.js') }}"></script>
+{% endblock %}

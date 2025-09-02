@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Bid' if is_edit else 'Make a Bid' }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/submit_bid.css') }}">
+
+<div class="submit-bid-wrapper">
+  <div class="submit-bid-box">
+    <!-- Left section: header and back button -->
+    <div class="submit-bid-left">
+      <div class="left-header-row">
+        <div class="back-button-container">
+          <a href="{{ url_for('buy.view_bucket', bucket_id=bucket.id) }}">
+            <button type="button" class="back-btn">← Back</button>
+          </a>
+        </div>
+        <div class="item-title-container">
+          <h2 class="item-title-left">
+            {{ bucket.coin_series or (bucket.metal ~ ' ' ~ bucket.product_type) }}
+          </h2>
+        </div>
+        <div class="right-placeholder"></div>
+      </div>
+    </div>
+
+    <div class="submit-bid-divider"></div>
+
+    <!-- Right section: multi-step bid form -->
+    <div class="submit-bid-right">
+      {% include 'tabs/bid_form.html' %}
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/submit_bid.js') }}"></script>
+{% endblock %}

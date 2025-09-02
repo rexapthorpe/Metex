@@ -1,0 +1,10 @@
+<div class="cancel-overlay" id="cancelModalWrapper-{{ listing_id }}">
+  <div class="cancel-modal-content">
+    <h2>Are you sure?</h2>
+    <p>This will permanently remove your listing.</p>
+    <div class="cancel-actions">
+      <button onclick="confirmCancel({{ listing_id }})" class="btn btn-confirm">Yes, cancel</button>
+      <button onclick="closeCancelModal({{ listing_id }})" class="btn btn-abort">No</button>
+    </div>
+  </div>
+</div>

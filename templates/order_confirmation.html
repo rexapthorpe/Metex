@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Order Confirmed{% endblock %}
+
+{% block content %}
+    <h2>Order Confirmed!</h2>
+
+    <p>Thank you for your purchase!</p>
+    <p>Your Order ID is <strong>{{ order_id }}</strong>.</p>
+
+    <p><a href="{{ url_for('buy.buy') }}">Return to Home</a></p>
+
+{% endblock %}

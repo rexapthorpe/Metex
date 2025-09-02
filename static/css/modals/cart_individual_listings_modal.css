@@ -1,0 +1,142 @@
+/* overlay */
+#priceBreakdownModal.modal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+}
+
+/* white box */
+#priceBreakdownModal .priceBreakdown-modal-content {
+  background: #fff;
+  margin: 60px auto;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 350px;
+  max-height: 500px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  overflow: hidden;
+}
+
+/* header with arrows + centered title */
+/* ── HEADER: arrows + centered title ── */
+#priceBreakdownModal .priceBreakdown-modal-header {
+  display: flex;
+  align-items: center;               /* vertical align all items */
+  justify-content: space-between;    /* spread arrows & title */
+  padding: 20px 16px 12px;           /* extra top padding for more breathing room */
+  background: transparent;
+}
+
+/* arrows live in identical flex‐boxes */
+#priceBreakdownModal .priceBreakdown-nav-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 5px;                       /* match seller‐modal spacing */
+  padding: 0;
+  font-size: 1.4rem;                 /* match seller arrow size */
+  line-height: 1;                    /* no extra line-height */
+  background: transparent;
+  border: none;
+  border-radius: 20px;               /* circular hit area */
+  cursor: pointer;
+  color: #000000;
+  transition: background-color 0.2s, color 0.2s;
+}
+#priceBreakdownModal .priceBreakdown-nav-arrow:disabled {
+  visibility: hidden;                /* keeps the space */
+}
+#priceBreakdownModal .priceBreakdown-nav-arrow:hover:not(:disabled) {
+  background-color: #3da6ff;
+  color: #ffffff;
+}
+
+/* dead-centered title, exactly aligned with arrow boxes */
+#priceBreakdownModal .priceBreakdown-modal-title {
+  flex: 1;
+  margin: 0;                         
+  text-align: center;
+  line-height: 1;                    /* same as arrow line-height */
+  font-size: 22px;                   /* same as seller title */
+  font-weight: bold;
+}
+
+
+/* ── Seller Username Styling ── */
+#priceBreakdownModal #pb-username {
+  font-family: 'Arial', sans-serif;     /* change to your desired font */
+  font-size: 1.7rem;                     /* adjust size */
+  font-weight: bold;                      /* boldness */
+  color: #000000;                        /* text color */
+  letter-spacing: 0.5px;                 /* spacing between letters */
+  max-width: 60%;                        /* constrain width */
+  white-space: nowrap;                   /* prevent wrap */
+  overflow: hidden;
+  text-overflow: ellipsis;               /* show “…” if too long */
+  padding: 0 8px;                        /* horizontal breathing room */
+  text-align: center;                    /* ensure it stays centered */
+  margin-bottom: 16px;
+}
+
+
+/* body content */
+#priceBreakdownModal .priceBreakdown-modal-body {
+  padding: 20px;
+  text-align: center;
+}
+
+#priceBreakdownModal .priceBreakdown-listing-photo {
+  width: 250px;
+  height: 250px;
+  background: #eee;
+  border: transparent;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: #777;
+  font-size: 0.9rem;
+}
+
+/* stats row below image */
+#priceBreakdownModal .priceBreakdown-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  margin-bottom: 20px;
+}
+#priceBreakdownModal .priceBreakdown-unit-count,
+#priceBreakdownModal .priceBreakdown-unit-price {
+  font-size: 1rem;
+  color: #333;
+  white-space: nowrap;
+}
+
+/* footer remove button */
+#priceBreakdownModal .priceBreakdown-modal-footer {
+  padding: 15px;
+  text-align: right;
+  background: transparent;
+}
+#priceBreakdownModal .priceBreakdown-remove-btn {
+  text-align: right;
+  background: transparent;
+  border: none;
+  color: #000000;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+#priceBreakdownModal .priceBreakdown-remove-btn:hover {
+  background: #3da6ff ;
+  color: #ffffff ;
+}

@@ -1,0 +1,105 @@
+/* Namespacing everything under .bids-tab */
+.bids-tab .tab-heading {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.bids-tab .no-bids {
+  color: #000;
+  text-align: left;
+  margin-top: 20px;
+}
+
+.bids-tab .bids-container {
+  padding: 0;
+}
+
+.bids-tab .bids-group {
+  margin-bottom: 2rem;
+}
+
+.bids-tab .bids-group-title {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.bids-tab .bids-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.bids-tab .bid-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  padding: 1rem;
+  transition: transform 0.1s ease-in-out;
+}
+.bids-tab .bid-card:hover {
+  transform: translateY(-2px);
+}
+
+.bids-tab .bid-card-header,
+.bids-tab .bid-card-subheader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.bids-tab .bid-price {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #111;
+}
+
+.bids-tab .bid-quantity {
+  font-size: 1rem;
+  color: #555;
+}
+
+.bids-tab .bid-current,
+.bids-tab .bid-filled {
+  font-size: 0.95rem;
+  color: #666;
+}
+
+.bids-tab .bid-card-timestamp {
+  font-size: 0.85rem;
+  color: #999;
+  margin-top: auto;
+}
+
+.bids-tab .bid-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.bids-tab .bid-card-actions .icon-text-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.bids-tab .bid-card-actions .icon-text-btn:hover {
+  background-color: #3da6ff;
+  color: #fff;
+}

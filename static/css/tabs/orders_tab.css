@@ -1,0 +1,118 @@
+/* namespaced under .orders-tab */
+.orders-tab .tab-heading {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+.orders-tab .group-heading {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  text-align: left;
+}
+.orders-tab .empty-message {
+  font-size: 1rem;
+  color: #000;
+  text-align: left;
+  margin-top: 1rem;
+}
+
+/* Tile as grid: image | details | meta + footer */
+.orders-tab .order-tile {
+  display: grid;
+  grid-template-columns: 100px 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "image details meta"
+    "footer footer  footer";
+  gap: 16px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  min-width: 700px;
+}
+
+/* Grid areas */
+.orders-tab .order-image  { grid-area: image; }
+.orders-tab .order-details { grid-area: details; }
+.orders-tab .order-meta    { grid-area: meta; }
+.orders-tab .order-footer  { grid-area: footer; }
+
+/* Image */
+.orders-tab .order-image img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* Details (left) */
+.orders-tab .order-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.95rem;
+}
+
+/* Meta (right) */
+.orders-tab .order-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 0.95rem;
+}
+.orders-tab .order-meta .price {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+.orders-tab .order-meta .status {
+  color: #555;
+}
+.orders-tab .order-meta .qty {
+  color: #666;
+}
+
+/* Footer: full width, right-aligned buttons */
+.orders-tab .order-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Button styling */
+.orders-tab .order-btn {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background-color: transparent;
+  color: #000000;
+  border: transparent;
+  border-radius: 9999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.orders-tab .order-btn:hover {
+  background-color: #3da6ff;
+  color: #ffffff;
+}
+
+.orders-tab .seller {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background-color: transparent;
+  color: #000000;
+  border: transparent;
+  border-radius: 9999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.orders-tab .seller:hover {
+  background-color: #3da6ff;
+  color: #ffffff;
+}

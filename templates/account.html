@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}My Account{% endblock %}
+
+{% block content %}
+
+  <script>
+    window.CURRENT_USER_ID = {{ session.get('user_id') }};
+  </script>
+
+  <!-- HTML -->
+  {% include 'modals/message_sellers_modal.html' %}
+  {% include 'modals/order_sellers_modal.html' %}
+  {% include 'modals/order_items_modal.html' %}
+  {% include 'modals/ratings_modal.html' %}
+  {% include 'modals/edit_bid_modal.html' %}
+
+
+  <!-- Account Page Layout -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
+  <!-- Tab Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/cart_tab.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/bids_tab.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/listings_tab.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/sold_tab.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/orders_tab.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/ratings_tab.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/messages_tab.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/account_details_tab.css') }}">
+
+  <!-- Modals CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_sellers_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_individual_listings_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/remove_seller_confirmation_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_bid_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_listing_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cancel_listing_confirmation_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/order_sellers_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/order_items_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/message_sellers_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/ratings_modal.css') }}">
+
+
+  <div class="account-layout">
+    <!-- Sidebar -->
+    <div class="account-sidebar">
+      <ul>
+        <h2>My Account</h2>
+        <div class="sidebar-divider"></div>
+        <li onclick="showTab('cart')">Cart Items</li>
+        <li onclick="showTab('bids')">My Bids</li>
+        <li onclick="showTab('listings')">Listings</li>
+        <li onclick="showTab('sold')">Sold Items</li>
+        <li onclick="showTab('orders')">Orders</li>
+        <li onclick="showTab('ratings')">Ratings</li>
+        <li onclick="showTab('messages')">Messages</li>
+        <li onclick="showTab('details')">Account Details</li>
+        <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+      </ul>
+    </div>
+
+    <!-- Content Area -->
+    <div class="account-content">
+      <div id="cart-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/cart_tab.html' %}</div></div>
+      <div id="bids-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/bids_tab.html' %}</div></div>
+      <div id="listings-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/listings_tab.html' %}</div></div>
+      <div id="sold-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/sold_tab.html' %}</div></div>
+      <div id="orders-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/orders_tab.html' %}</div></div>
+      <div id="ratings-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/ratings_tab.html' %}</div></div>
+      <div id="messages-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/messages_tab.html' %}</div></div>
+      <div id="details-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/account_details_tab.html' %}</div></div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/account.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/submit_bid.js') }}"></script>
+
+  <!-- Tabs -->
+  <script src="{{ url_for('static', filename='js/tabs/cart_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/bids_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/listings_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/sold_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/orders_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/ratings_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/messages_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/account_details_tab.js') }}"></script>
+  
+  <!-- cart modals -->
+  <script src="{{ url_for('static', filename='js/modals/cart_sellers_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/cart_individual_listings_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/remove_seller_confirmation_modal.js') }}"></script>
+
+  <!-- listings modals -->
+  <script src="{{ url_for('static', filename='js/modals/edit_listing_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/cancel_listing_confirmation_modal.js') }}"></script>
+
+  <!-- orders modals -->
+  <script src="{{ url_for('static', filename='js/modals/order_sellers_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/order_items_modal.js') }}"></script>
+
+  <!-- orders modals -->
+  <script src="{{ url_for('static', filename='js/modals/ratings_modal_v2.js') }}?cb=12345"></script>
+
+  <!-- message modal -->
+  <script src="{{ url_for('static', filename='js/modals/message_sellers_modal.js') }}?v={{ config.VERSION }}"></script>
+
+  <!-- bids modal -->
+  <script src="{{ url_for('static', filename='js/modals/edit_bid_modal.js') }}"></script>
+
+  {% endblock %}

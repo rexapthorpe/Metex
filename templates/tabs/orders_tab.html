@@ -1,0 +1,131 @@
+<div class="orders-tab">
+  <h2 class="tab-heading">Your Orders</h2>
+
+  {% if pending_orders %}
+    <h3 class="group-heading">Pending Orders</h3>
+    {% for order in pending_orders %}
+      <div class="order-tile" id="order-{{ order.id }}">
+        <div class="order-image">
+          <img
+            src="{{ order.image_url or url_for('static', filename='img/placeholder.png') }}"
+            alt="Product"
+          >
+        </div>
+
+        <div class="order-details">
+          <div><strong>Mint:</strong> {{ order.mint }}</div>
+          <div><strong>Metal:</strong> {{ order.metal }}</div>
+          <div><strong>Weight:</strong> {{ order.weight }}</div>
+          <div><strong>Year:</strong> {{ order.year }}</div>
+          <div><strong>Ordered:</strong> {{ order.order_date }}</div>
+        </div>
+
+        <div class="order-meta">
+          <div class="price">${{ order.price_each }}</div>
+          <div class="status">{{ order.status }}</div>
+          <div class="qty">Qty: {{ order.quantity }}</div>
+        </div>
+
+        <div class="order-footer">
+          <button
+            class="order-btn"
+            onclick="openOrderSellerPopup({{ order.id }})">
+            <i class="fa-solid fa-user"></i>
+            <span>Sellers</span>
+          </button>
+
+          <button 
+            class="order-btn" 
+            onclick="openOrderItemsPopup({{ order.id }})">
+            <i class="fa-solid fa-list"></i>
+            <span>Items</span>
+          </button>
+
+          <button
+            class="order-btn"
+            onclick="addTrackingNumber({{ order.id }})">
+            <i class="fas fa-box"></i>
+            <span>Track</span>
+          </button>
+
+          <button class="order-btn" onclick="openMessageModal({{ order.id }}, 'seller')">
+            <i class="fas fa-envelope"></i>
+            <span>Message</span>
+          </button>
+
+          <button
+            class="order-btn"
+            onclick="openRateModal({{ order.id }}, 'seller')">
+            <i class="fas fa-star"></i>
+            <span>Rate</span>
+          </button>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty-message">You have no pending orders yet!</p>
+  {% endif %}
+
+  {% if completed_orders %}
+    <h3 class="group-heading">Completed Orders</h3>
+    {% for order in completed_orders %}
+      <div class="order-tile" id="order-{{ order.id }}">
+        <div class="order-image">
+          <img
+            src="{{ order.image_url or url_for('static', filename='img/placeholder.png') }}"
+            alt="Product"
+          >
+        </div>
+        <div class="order-details">
+          <div><strong>Mint:</strong> {{ order.mint }}</div>
+          <div><strong>Metal:</strong> {{ order.metal }}</div>
+          <div><strong>Weight:</strong> {{ order.weight }}</div>
+          <div><strong>Year:</strong> {{ order.year }}</div>
+          <div><strong>Ordered:</strong> {{ order.order_date }}</div>
+        </div>
+        <div class="order-meta">
+          <div class="price">${{ order.price_each }}</div>
+          <div class="status">{{ order.status }}</div>
+          <div class="qty">Qty: {{ order.quantity }}</div>
+        </div>
+        <div class="order-footer">
+          <button
+            class="order-btn"
+            onclick="openOrderSellerPopup({{ order.id }})">
+            <i class="fa-solid fa-user"></i>
+            <span>Sellers</span>
+          </button>
+
+          <button 
+            class="order-btn" 
+            onclick="openOrderItemsPopup({{ order.id }})">
+            <i class="fa-solid fa-list"></i>
+            <span>Items</span>
+          </button>
+
+          <button
+            class="order-btn"
+            onclick="addTrackingNumber({{ order.id }})">
+            <i class="fas fa-box"></i>
+            <span>Track</span>
+          </button>
+
+          <button class="order-btn" onclick="openMessageModal({{ order.id }}, 'seller')">
+            <i class="fas fa-envelope"></i>
+            <span>Message</span>
+          </button>
+          
+          <button
+            class="order-btn"
+            onclick="openRateModal({{ order.id }}, 'seller')">
+            <i class="fas fa-star"></i>
+            <span>Rate</span>
+          </button>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty-message">You have no completed purchases yet!</p>
+  {% endif %}
+</div>
+

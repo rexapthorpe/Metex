@@ -1,0 +1,95 @@
+.sell-container {
+    padding: 2rem;
+    max-width: 900px;
+    margin: auto;
+}
+
+.sell-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.sell-form .input-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.input-group label {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.input-group select,
+.input-group input {
+    padding: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 1.15rem;
+    width: 100%;            /* 🟢 NEW LINE: match column width */
+    box-sizing: border-box; /* 🟢 Prevent overflow due to padding */
+}
+
+.example-text {
+    font-size: 0.85rem;
+    color: #888;
+    margin-top: 0.25rem;
+  }  
+
+#grading-service-section {
+    display: none;
+}
+
+/* Full-width divider line between rows */
+.row-divider {
+    grid-column: 1 / -1;
+    width: 100%;
+    border-bottom: 1px solid #ccc;
+    margin: 1.5rem 0;
+}
+
+/* Submit button spans both columns and aligns with input fields */
+.submit-btn.full-width-button {
+    grid-column: 1 / -1;
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.submit-btn.full-width-button:hover {
+    background-color: #0056b3;
+}
+
+
+.section-header {
+    grid-column: 1 / -1;
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 1.4;
+    color: #333;
+    margin: 0.5rem 0 0.75rem 0;
+    white-space: nowrap;           /* ✅ Don't wrap to next line */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  
+.sell-header {
+    grid-column: 1 / -1;
+    text-align: left;
+    margin: 0 0 1.5rem 0;
+    font-size: 2rem;
+  }
+  
+  
+  

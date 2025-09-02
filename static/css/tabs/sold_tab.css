@@ -1,0 +1,103 @@
+/* === sold_tab.css === */
+
+/* reuse the same grid & tile styles as listings_tab */
+.order-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  margin-top: 16px;
+}
+.order-tile {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.tile-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tile-header h3 {
+  flex-grow: 1;
+  margin: 0;
+  font-size: 1.25rem;
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.status-dot.active  { background: #4CAF50; }
+.status-dot.pending { background: #FFC107; }
+.status-text { font-size: 0.9rem; color: #555; }
+
+.details-grid,
+.price-quantity-grid,
+.buyer-address-grid {
+  display: grid;
+  column-gap: 16px;
+  row-gap: 8px;
+}
+.details-grid {
+  grid-template-columns: 1fr 1fr;
+  font-size: 0.95rem;
+  color: #333;
+}
+.price-quantity-grid {
+  grid-template-columns: 1fr 1fr;
+  font-weight: bold;
+  margin-top: 8px;
+}
+.buyer-address-grid {
+  grid-template-columns: 1fr 1fr;
+  font-size: 0.95rem;
+  margin: 8px 0;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 12px 0;
+}
+
+/* Sold tab action area */
+.sold-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Distinct Sold tab buttons */
+.sold-tab .sold-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: transparent;
+  border-radius: 9999px;
+  background: transparent; /* neutral base so no global backgrounds leak in */
+  color: #000000;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  text-decoration: none;
+}
+
+/* Hover state for all three */
+.sold-tab .sold-btn:hover {
+  background-color: #3da6ff;
+  color: #ffffff;
+}
+
+/* Optional: per-button tweaks (kept neutral for now) */
+.sold-tab .sold-btn--message { /* custom overrides if desired */ }
+.sold-tab .sold-btn--rate     { /* custom overrides if desired */ }
+.sold-tab .sold-btn--tracking { /* custom overrides if desired */ }

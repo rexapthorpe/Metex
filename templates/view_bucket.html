@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}View Item{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}">
+
+<div id="popup-message-container"></div>
+
+<div class="bucket-page">
+  <div class="bucket-card">
+
+    <!-- LEFT COLUMN -->
+    <div class="bucket-main-column">
+      <!-- Image -->
+      <div class="bucket-main-image">
+        <div class="image-box large-image">
+          <span>Item Image</span>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="description-section">
+        <div class="desc-row"><span class="desc-label">Mint</span><span class="desc-value">{{ bucket['mint'] }}</span></div>
+        <div class="desc-row"><span class="desc-label">Year</span><span class="desc-value">{{ bucket['year'] }}</span></div>
+        <div class="desc-row"><span class="desc-label">Grade</span><span class="desc-value">{{ bucket['grade'] or 'N/A' }}</span></div>
+        <div class="desc-row"><span class="desc-label">Finish</span><span class="desc-value">{{ bucket['finish'] or 'N/A' }}</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="bucket-controls">
+
+      <!-- Pricing & Quantity -->
+      <p class="price-label">
+        {% if availability['lowest_price'] %}
+          ${{ availability['lowest_price'] }} per coin
+        {% else %}
+          Price Unavailable
+        {% endif %}
+      </p>
+
+      <p class="quantity-label">
+        {% if availability['total_available'] and availability['total_available'] > 0 %}
+          {{ availability['total_available'] }} available
+        {% else %}
+          Out of stock
+        {% endif %}
+      </p>
+
+      <!-- Purchase Controls -->
+      {% if availability['total_available'] > 0 %}
+      <div class="action-buttons button-stack">
+        <label for="quantityInput"><strong>Quantity:</strong></label>
+        <input type="number" id="quantityInput" name="quantity" value="1" min="1" max="{{ availability['total_available'] }}">
+
+        <!-- Buy Form -->
+        <form method="POST" action="{{ url_for('checkout.checkout') }}">
+          <input type="hidden" name="bucket_id" value="{{ bucket['id'] }}">
+          <input type="hidden" name="quantity" id="buyQuantityInput">
+          <button type="submit" class="btn buy-btn" onclick="syncQuantity('buyQuantityInput')">Buy Item</button>
+        </form>
+
+        <!-- Bid Link -->
+        <a href="{{ url_for('bid.bid_page', bucket_id=bucket['id']) }}">
+          <button class="btn bid-btn">Make a Bid</button>
+        </a>
+
+        <!-- Cart Form -->
+        <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['id']) }}">
+          <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
+          <button type="submit" class="btn add-cart-btn" onclick="syncQuantity('cartQuantityInput')">Add to Cart</button>
+        </form>
+      </div>
+      {% else %}
+      <p style="color: red;">Currently out of stock. Check back later or place a bid below.</p>
+      {% endif %}
+
+      <!-- Grading Filter Form (no reload toggles) -->
+      <form method="GET" id="grading-filter-form" class="grading-toggle-panel">
+        <h4>Require items with 3rd party grading:</h4>
+        <label>
+          <input type="checkbox" class="grader-toggle" name="any_grader" id="any-grader"> Any Grader
+        </label>
+        <label>
+          <input type="checkbox" class="grader-toggle" name="pcgs" id="pcgs"> PCGS
+        </label>
+        <label>
+          <input type="checkbox" class="grader-toggle" name="ngc" id="ngc"> NGC
+        </label>
+      </form>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- Active Bids -->
+{% if user_bids %}
+<h3>Your Active Bids</h3>
+<div class="bid-grid">
+  {% for bid in user_bids %}
+  <div class="bid-tile">
+    <p><strong>Quantity:</strong> {{ bid['quantity_requested'] }}</p>
+    <p><strong>Bid Price:</strong> ${{ '%.2f' | format(bid['price_per_coin']) }}</p>
+    <p><strong>Status:</strong> {{ bid['status'] }}</p>
+    <div class="action-buttons">
+      <form method="GET" action="{{ url_for('bid.edit_bid', bid_id=bid['id']) }}">
+        <button type="submit" class="btn btn-sm">Edit</button>
+      </form>
+      <form method="POST"
+        action="{{ url_for('bid.cancel_bid', bid_id=bid['id']) }}"
+        onsubmit="return confirm('Cancel this bid?');">
+        <button type="submit" class="btn btn-sm danger">Cancel</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Open Bids -->
+<h3>All Open Bids for This Item</h3>
+<form method="POST" action="{{ url_for('bid.accept_bid', bucket_id=bucket['id']) }}">
+  {% if bids %}
+    {% for bid in bids if bid['status']|lower in ['open', 'pending', 'partially filled'] %}
+    <div class="bid-tile">
+      <input type="checkbox" name="selected_bids" value="{{ bid['id'] }}" class="bid-checkbox" data-bid-id="{{ bid['id'] }}">
+      <div class="quantity-controls" id="quantity_controls_{{ bid['id'] }}" style="display: none;">
+        <button type="button" onclick="adjustQty({{ bid['id'] }}, -1)">−</button>
+        <input type="number" name="quantity_{{ bid['id'] }}" id="quantity_{{ bid['id'] }}" value="{{ bid['quantity_requested'] }}" min="1" max="{{ bid['quantity_requested'] }}" readonly>
+        <button type="button" onclick="adjustQty({{ bid['id'] }}, 1)">+</button>
+      </div>
+
+      {% if bid['requires_grading'] %}
+      <div class="grading-dot" title="This bid is for a graded item."></div>
+      {% endif %}
+
+      <h3>{{ bid['buyer_name'] }}</h3>
+      <p><strong>Quantity:</strong> {{ bid['quantity_requested'] }}</p>
+      <p><strong>Bid Price:</strong> ${{ '%.2f' | format(bid['price_per_coin']) }}</p>
+      <p><strong>Status:</strong> {{ bid['status'] }}</p>
+
+      {% if session.get('user_id') == bid['buyer_id'] %}
+      <div class="action-buttons">
+        <form method="GET" action="{{ url_for('bid.edit_bid', bid_id=bid['id']) }}">
+          <button type="submit" class="btn btn-primary">Edit Bid</button>
+        </form>
+        <form method="POST" action="{{ url_for('bid.cancel_bid', bid_id=bid['id']) }}" onsubmit="return confirm('Are you sure you want to cancel your bid?');">
+          <button type="submit" class="btn btn-danger">Cancel Bid</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <div style="margin-top: 20px;">
+      <button type="submit" class="btn btn-success" id="acceptBidsButton">✅ Accept Selected Bids</button>
+    </div>
+  {% else %}
+    <p>No open bids at this time.</p>
+  {% endif %}
+</form>
+
+<script>
+  window.flashMessages = {{ get_flashed_messages(with_categories=true) | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/view_bucket.js') }}"></script>
+{% endblock %}

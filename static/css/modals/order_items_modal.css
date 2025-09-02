@@ -1,0 +1,98 @@
+/* overlay */
+#orderItemsModal.order-items-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+/* white box */
+#orderItemsModal .order-items-modal-content {
+  background: #fff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ── HEADER: arrows + centered title ── */
+#orderItemsModal .order-items-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+/* arrow buttons */
+#orderItemsModal .order-items-nav-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 1.4rem;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  color: #000;
+  transition: background-color 0.2s, color 0.2s;
+}
+#orderItemsModal .order-items-nav-arrow:hover:not(:disabled) {
+  background-color: #3da6ff;
+  color: #fff;
+}
+#orderItemsModal .order-items-nav-arrow:disabled {
+  visibility: hidden;  /* keeps the space so title stays centered */
+}
+
+/* dead-centered title */
+#orderItemsModal .order-items-modal-title {
+  flex: 1;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* body content */
+#orderItemsModal .item-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+}
+#orderItemsModal .item-row:last-child {
+  border-bottom: none;
+}
+#orderItemsModal .item-detail {
+  flex: 1;
+}
+#orderItemsModal .item-qty,
+#orderItemsModal .item-price {
+  width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* footer */
+#orderItemsModal .modal-footer {
+  text-align: center;
+  padding: 12px;
+}
+#orderItemsModal .close-btn {
+  background: #3da6ff;
+  border: none;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}

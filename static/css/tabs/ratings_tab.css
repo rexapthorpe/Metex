@@ -1,0 +1,94 @@
+/* Namespaced under .ratings-tab */
+.ratings-tab .tab-heading {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+/* empty state */
+.ratings-tab .empty-message {
+  text-align: left;
+  font-size: 1rem;
+  color: #666;
+  margin-top: 1rem;
+}
+
+/* average */
+.ratings-tab .rating-average-container {
+  text-align: center;
+  margin-top: 2rem;
+}
+.ratings-tab .rating-average-text {
+  font-size: 5rem;
+  font-weight: bold;
+  color: #333;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+}
+.ratings-tab .rating-average-text.show {
+  opacity: 1;
+}
+.ratings-tab .rating-count-text {
+  font-size: 0.95rem;
+  color: #777;
+  margin-top: 0.5rem;
+}
+
+/* divider */
+.ratings-tab .rating-divider {
+  margin: 2rem auto 1rem;
+  width: 90%;
+  border: none;
+  border-top: 1px solid #ccc;
+}
+
+/* tiles container */
+.ratings-tab .rating-tiles-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin: 1.5rem auto;
+  max-width: 90%;
+}
+
+/* individual tile */
+.ratings-tab .rating-tile {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+  font-size: 1rem;
+  animation: fadeSlideUp 0.6s ease both;
+}
+
+/* header row */
+.ratings-tab .rating-stars-date {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.ratings-tab .stars {
+  font-size: 1.3rem;
+  color: #1b1b1b;
+}
+.ratings-tab .rating-meta {
+  font-size: 0.9rem;
+  color: #777;
+}
+
+/* comment */
+.ratings-tab .rating-comment {
+  font-style: italic;
+  color: #333;
+  padding-left: 0.5rem;
+  border-left: 4px solid #eee;
+}
+
+/* animation */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

@@ -1,0 +1,79 @@
+{# templates/tabs/bids_tab.html — My Bids + Edit‐Bid Modal container #}
+
+<div class="bids-container bids-tab">
+  <h2 class="tab-heading">My Bids</h2>
+
+  {% set groups = {
+    'Open Bids': bids   | selectattr('status','equalto','Open')    | list,
+    'Partially Filled Bids': bids | selectattr('status','equalto','Partial') | list,
+    'Filled Bids': bids | selectattr('status','equalto','Filled')  | list,
+  } %}
+
+  {% for heading, items in groups.items() %}
+    {% if items %}
+      <section class="bids-group">
+        <h3 class="bids-group-title">{{ heading }}</h3>
+        <div class="bids-grid">
+          {% for bid in items %}
+            <div class="bid-card">
+              <div class="bid-card-header">
+                <span class="bid-price">${{ '%.2f'|format(bid.price_per_coin) }} BID</span>
+                <span class="bid-quantity">{{ bid.quantity_requested }} units</span>
+              </div>
+              <div class="bid-card-subheader">
+                <span class="bid-current">
+                  Curr
+                  {% if bid.current_price is not none %}
+                    ${{ '%.2f'|format(bid.current_price) }}
+                  {% else %}
+                    —    
+                  {% endif %}
+                </span>
+                <span class="bid-filled">Filled: {{ bid.quantity_filled or 0 }}</span>
+              </div>
+              <div class="bid-card-timestamp">{{ bid.created_at }}</div>
+              <div class="bid-card-actions">
+                {% if bid.status == 'Open' %}
+                  <button
+                    type="button"
+                    onclick="openEditBidModal({{ bid.id }})"
+                    class="icon-text-btn btn-edit"
+                  >
+                    <i class="fas fa-pencil-alt"></i> Edit
+                  </button>
+                  <a
+                    href="{{ url_for('buy.view_bucket', bucket_id=bid.category_id) }}"
+                    class="icon-text-btn btn-view"
+                  >
+                    <i class="fas fa-binoculars"></i> View
+                  </a>
+                  <button
+                    type="button"
+                    onclick="closeBid({{ bid.id }})"
+                    class="icon-text-btn btn-close"
+                  >
+                    <i class="fas fa-trash"></i> Close
+                  </button>
+                {% else %}
+                  <a
+                    href="{{ url_for('buy.view_bucket', bucket_id=bid.category_id) }}"
+                    class="icon-text-btn btn-view"
+                  >
+                    <i class="fas fa-binoculars"></i> View
+                  </a>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
+
+  {% if not bids %}
+    <p class="no-bids">You have no bids yet!</p>
+  {% endif %}
+</div>
+
+{# include the empty modal container; edit_bid_modal.js will load the form into #editBidModalContent #}
+{% include 'modals/edit_bid_modal.html' %}
