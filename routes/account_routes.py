@@ -15,7 +15,7 @@ def _purge_zero_quantity_listings(conn):
     """Hard-delete any listings whose quantity is <= 0.
     This ensures zero-quantity listings never appear anywhere.
     """
-    conn.execute("DELETE FROM listings WHERE quantity <= 0")
+    conn.execute("UPDATE listings SET active = 0 WHERE quantity <= 0")
     conn.commit()
 
 

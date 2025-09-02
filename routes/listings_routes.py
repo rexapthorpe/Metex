@@ -12,7 +12,7 @@ listings_bp = Blueprint('listings', __name__)
 
 def _purge_zero_quantity_listings(conn):
     """Hard-delete any listings whose quantity is <= 0."""
-    conn.execute("DELETE FROM listings WHERE quantity <= 0")
+    conn.execute("UPDATE listings SET active = 0 WHERE quantity <= 0")
     conn.commit()
 
 
@@ -86,10 +86,11 @@ def edit_listing(listing_id):
 
         # If quantity becomes 0 or negative, hard-delete this listing
         if new_quantity <= 0:
-            conn.execute(
-                "DELETE FROM listings WHERE id = ? AND seller_id = ?",
-                (listing_id, session['user_id'])
-            )
+            conn.execute("""
+                UPDATE listings
+                SET quantity = 0, active = 0
+                WHERE id = ? AND seller_id = ?
+            """, (listing_id, session['user_id']))
             conn.commit()
             conn.close()
 
