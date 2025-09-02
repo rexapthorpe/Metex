@@ -1,24 +1,11 @@
-# ==============================
-# routes/account_routes.py (UPDATED)
-# ==============================
 
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
 from database import get_db_connection
 from utils.cart_utils import get_cart_data
 from collections import defaultdict
-import sqlite3
+import os
 
 account_bp = Blueprint('account', __name__)
-
-
-def _purge_zero_quantity_listings(conn):
-    """Hard-delete any listings whose quantity is <= 0.
-    This ensures zero-quantity listings never appear anywhere.
-    """
-    conn.execute("UPDATE listings SET active = 0 WHERE quantity <= 0")
-    conn.commit()
-
-
 @account_bp.route('/account')
 def account():
     # 1) Authentication guard
@@ -27,10 +14,6 @@ def account():
     user_id = session['user_id']
 
     conn = get_db_connection()
-    conn.row_factory = sqlite3.Row
-
-    # Always purge zero-qty artifacts before we compute anything
-    _purge_zero_quantity_listings(conn)
 
     # 2) Bids
     bids = conn.execute(
@@ -129,7 +112,7 @@ def account():
     pending_orders   = attach_sellers(raw_pending)
     completed_orders = attach_sellers(raw_completed)
 
-    # 5) Active listings & sales (restrict to active, qty>0)
+    # 5) Active listings & sales
     active_listings = conn.execute(
         """SELECT l.id   AS listing_id,
                   l.quantity,
@@ -140,8 +123,6 @@ def account():
            FROM listings l
            JOIN categories c ON l.category_id = c.id
           WHERE l.seller_id = ?
-            AND l.active = 1
-            AND l.quantity > 0
         """, (user_id,)
     ).fetchall()
 
@@ -168,6 +149,7 @@ def account():
 
     # 6) Cart
     buckets, cart_total = get_cart_data(conn)
+    # compute avg_price & total_quantity per bucket...
     for bucket in buckets.values():
         total_qty = sum(item['quantity'] for item in bucket['listings'])
         bucket['total_quantity'] = total_qty
@@ -199,6 +181,9 @@ def account():
 
     conversations = []
     for r in conv_rows:
+        # decide which endpoint to call
+        typ = 'seller' if r['order_buyer_id'] == user_id else 'buyer'
+
         convo = {
             'order_id':             r['order_id'],
             'other_user_id':        r['other_user_id'],
@@ -229,7 +214,6 @@ def account():
             for m in history
         ]
         conversations.append(convo)
-
     conn.close()
 
     # 8) Single return with _all_ context
@@ -255,12 +239,11 @@ def my_orders():
         return redirect(url_for('auth.login'))
 
     conn = get_db_connection()
-    conn.row_factory = sqlite3.Row
 
     pending_orders = conn.execute(''' ... ''', (session['user_id'], session['user_id'])).fetchall()
     completed_orders = conn.execute(''' ... ''', (session['user_id'], session['user_id'])).fetchall()
 
-    # Attach seller lists to each order
+    # NEW: attach seller lists to each order
     def fetch_sellers_for_orders(conn, orders):
         for order in orders:
             sellers = conn.execute('''
@@ -290,7 +273,6 @@ def view_order_details(order_id):
         return redirect(url_for('auth.login'))
 
     conn = get_db_connection()
-    conn.row_factory = sqlite3.Row
 
     order = conn.execute('''
         SELECT orders.id, orders.total_price, orders.status, orders.shipping_address, orders.created_at
@@ -328,7 +310,6 @@ def sold_orders():
         return redirect(url_for('auth.login'))
 
     conn = get_db_connection()
-    conn.row_factory = sqlite3.Row
 
     orders = conn.execute('''
         SELECT orders.id,
@@ -351,13 +332,15 @@ def sold_orders():
 
 @account_bp.route('/messages')
 def my_messages():
+    print("⚡ /messages route hit!")
+
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
 
     user_id = session['user_id']
     conn = get_db_connection()
-    conn.row_factory = sqlite3.Row
 
+    # First, get list of distinct conversations with latest message details
     base_conversations = conn.execute('''
         SELECT
             users.id AS other_user_id,
@@ -397,6 +380,7 @@ def my_messages():
             'messages': []
         }
 
+        # Now get all messages for this conversation
         convo_data['messages'] = conn.execute('''
             SELECT sender_id, receiver_id, content, timestamp
             FROM messages
@@ -408,9 +392,9 @@ def my_messages():
         conversations.append(convo_data)
 
     conn.close()
+    print("Loaded messages route. Conversations found:", len(conversations))
 
     return render_template('partials/my_messages.html', conversations=conversations, current_user_id=user_id)
-
 
 @account_bp.route('/orders/api/<int:order_id>/order_sellers')
 def order_sellers(order_id):
@@ -418,7 +402,6 @@ def order_sellers(order_id):
         return jsonify(error="Authentication required"), 401
 
     conn = get_db_connection()
-    conn.row_factory = sqlite3.Row
     rows = conn.execute("""
         SELECT 
           u.id                     AS seller_id,
@@ -453,7 +436,6 @@ def order_items(order_id):
         return jsonify(error="Authentication required"), 401
 
     conn = get_db_connection()
-    conn.row_factory = sqlite3.Row
     rows = conn.execute(
         """
         SELECT
