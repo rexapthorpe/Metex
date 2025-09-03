@@ -1,9 +1,8 @@
+# routes/checkout_routes.py
 from flask import Blueprint, render_template, redirect, url_for, request, session, flash
 from database import get_db_connection
 from services.order_service import create_order
 from utils.cart_utils import get_cart_items
-
-# In cart_routes.py (or a new api_routes.py if you're organizing API calls separately)
 
 checkout_bp = Blueprint('checkout', __name__)
 
@@ -20,6 +19,7 @@ def checkout():
         quantity = int(request.form.get('quantity', 1))
 
         if bucket_id:
+            # User is buying directly from a bucket (not from cart)
             graded_only = request.form.get('graded_only') == '1'
             any_grader = request.form.get('any_grader') == '1'
             pcgs = request.form.get('pcgs') == '1'
@@ -46,6 +46,7 @@ def checkout():
                         query += f" AND grading_service IN ({', '.join(services)})"
                     else:
                         flash("No matching graded listings found.", "error")
+                        conn.close()
                         return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
             query += ' ORDER BY price_per_coin ASC'
@@ -67,29 +68,52 @@ def checkout():
 
             if remaining > 0:
                 flash("Not enough inventory to fulfill your request.")
+                conn.close()
                 return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
+            # Keep the selection in session for the GET render and final POST
             session['checkout_items'] = selected
+            conn.close()
             return redirect(url_for('checkout.checkout'))
 
         else:
+            # Final submit: create the order from either session-selected items or the cart
             shipping_address = request.form.get('shipping_address')
 
-            cart_items = conn.execute('''
-                SELECT cart.id, cart.quantity, cart.listing_id, listings.price_per_coin
-                FROM cart
-                JOIN listings ON cart.listing_id = listings.id
-                WHERE cart.user_id = ?
-            ''', (user_id,)).fetchall()
+            # Prefer direct-bucket selection if present
+            session_items = session.pop('checkout_items', None)
+            if session_items:
+                cart_data = [{
+                    'listing_id': item['listing_id'],
+                    'quantity': item['quantity'],
+                    'price_each': item['price_each']
+                } for item in session_items]
+            else:
+                # Fallback to the user's cart
+                cart_items = conn.execute('''
+                    SELECT cart.id, cart.quantity, cart.listing_id, listings.price_per_coin
+                    FROM cart
+                    JOIN listings ON cart.listing_id = listings.id
+                    WHERE cart.user_id = ?
+                      AND listings.active = 1
+                      AND listings.quantity > 0
+                ''', (user_id,)).fetchall()
 
-            cart_data = [{
-                'listing_id': item['listing_id'],
-                'quantity': item['quantity'],
-                'price_each': item['price_per_coin']
-            } for item in cart_items]
+                cart_data = [{
+                    'listing_id': item['listing_id'],
+                    'quantity': item['quantity'],
+                    'price_each': item['price_per_coin']
+                } for item in cart_items]
 
+            if not cart_data:
+                flash("Your cart is empty or items are no longer available.")
+                conn.close()
+                return redirect(url_for('cart.view_cart'))
+
+            # Create the order record (service inserts into orders & order_items)
             order_id = create_order(user_id, cart_data, shipping_address)
 
+            # Decrement inventory and deactivate when needed
             for item in cart_data:
                 listing = conn.execute('SELECT quantity FROM listings WHERE id = ?', (item['listing_id'],)).fetchone()
                 if listing:
@@ -99,6 +123,7 @@ def checkout():
                     else:
                         conn.execute('UPDATE listings SET quantity = ? WHERE id = ?', (new_quantity, item['listing_id']))
 
+            # Clear cart regardless (safe if buying from bucket)
             conn.execute('DELETE FROM cart WHERE user_id = ?', (user_id,))
             conn.commit()
             conn.close()
@@ -106,11 +131,12 @@ def checkout():
             return redirect(url_for('checkout.order_confirmation', order_id=order_id))
 
     else:
-        session_items = session.pop('checkout_items', None)
+        # Render the checkout page
+        # IMPORTANT: do NOT pop here; we still need the selection for the final POST
+        session_items = session.get('checkout_items')
 
         if session_items:
             cart_data = session_items
-
             listings_info = []
             for item in cart_data:
                 listing = conn.execute('''
@@ -128,7 +154,6 @@ def checkout():
                     listing_dict['quantity'] = item['quantity']
                     listing_dict['price_per_coin'] = item['price_each']
                     listings_info.append(listing_dict)
-
         else:
             raw_items = get_cart_items(conn)
             listings_info = [dict(row) for row in raw_items]
@@ -158,7 +183,7 @@ def checkout():
                     'avg_price': 0
                 }
 
-                # ✅ Properly attach grading_preference
+                # Attach grading_preference when present
                 if 'grading_preference' in item and item['grading_preference']:
                     buckets[bucket_key]['grading_preference'] = item['grading_preference']
 
@@ -171,9 +196,6 @@ def checkout():
         for bucket in buckets.values():
             if bucket['quantity'] > 0:
                 bucket['avg_price'] = round(bucket['total_price'] / bucket['quantity'], 2)
-
-        import pprint
-        pprint.pprint(buckets)
 
         return render_template(
             'checkout.html',

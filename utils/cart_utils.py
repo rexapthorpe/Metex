@@ -37,6 +37,8 @@ def get_cart_items(conn):
             JOIN categories ON listings.category_id = categories.id
             JOIN users ON listings.seller_id = users.id
             WHERE cart.user_id = ?
+              AND listings.active = 1
+              AND listings.quantity > 0
             ORDER BY categories.id, price_per_coin ASC
         ''', (user_id,)).fetchall()
 
@@ -79,6 +81,8 @@ def get_cart_items(conn):
             JOIN categories ON listings.category_id = categories.id
             JOIN users ON listings.seller_id = users.id
             WHERE listings.id IN ({placeholders})
+              AND listings.active = 1
+              AND listings.quantity > 0
         ''', listing_ids).fetchall()
 
         unified_items = []
@@ -125,6 +129,8 @@ def get_cart_data(conn):
             JOIN categories ON listings.category_id = categories.id
             JOIN users ON listings.seller_id = users.id
             WHERE cart.user_id = ?
+              AND listings.active = 1
+              AND listings.quantity > 0
             ORDER BY categories.id, price_per_coin ASC
         ''', (user_id,)).fetchall()
         rows = [dict(row) for row in rows]  # Ensure rows are dicts so .get works
@@ -162,6 +168,8 @@ def get_cart_data(conn):
             JOIN categories ON listings.category_id = categories.id
             JOIN users ON listings.seller_id = users.id
             WHERE listings.id IN ({placeholders})
+              AND listings.active = 1
+              AND listings.quantity > 0
         ''', listing_ids).fetchall()
 
         rows = [dict(row) for row in rows]  # Ensure rows are dicts

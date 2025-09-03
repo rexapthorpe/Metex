@@ -112,25 +112,29 @@ def account():
     pending_orders   = attach_sellers(raw_pending)
     completed_orders = attach_sellers(raw_completed)
 
-    # 5) Active listings & sales
+        # 5) Active listings & sales
     active_listings = conn.execute(
         """SELECT l.id   AS listing_id,
-                  l.quantity,
-                  l.price_per_coin,
-                  c.bucket_id, c.metal, c.product_type,
-                  c.special_designation,
-                  c.weight, c.mint, c.year, c.finish, c.grade
-           FROM listings l
-           JOIN categories c ON l.category_id = c.id
-          WHERE l.seller_id = ?
+                l.quantity,
+                l.price_per_coin,
+                c.bucket_id, c.metal, c.product_type,
+                c.special_designation,
+                c.weight, c.mint, c.year, c.finish, c.grade
+        FROM listings l
+        JOIN categories c ON l.category_id = c.id
+        WHERE l.seller_id = ?
+            AND l.active = 1
+            AND l.quantity > 0
         """, (user_id,)
     ).fetchall()
+
 
     sales = conn.execute(
         """SELECT o.id AS order_id,
                   c.metal, c.product_type,
                   oi.quantity, oi.price_each,
                   u.username AS buyer_username,
+                  o.shipping_address AS shipping_address,
                   o.shipping_address AS delivery_address,
                   o.status,
                   (SELECT 1 FROM ratings r
