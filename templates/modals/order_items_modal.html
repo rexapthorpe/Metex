@@ -1,21 +1,24 @@
 <div id="orderItemsModal" class="order-items-modal-overlay" style="display: none;">
-  <div class="order-items-modal-content">
+  <div class="order-items-modal-content" role="dialog" aria-modal="true" aria-labelledby="orderItemsModalTitle">
     <div class="order-items-modal-header">
       <button
         id="oi-prev"
         class="order-items-nav-arrow"
         onclick="prevOrderItem()"
+        aria-label="Previous item"
       >←</button>
-      <span class="order-items-modal-title">Order Items</span>
+
+      <span id="orderItemsModalTitle" class="order-items-modal-title">Item</span>
+
       <button
         id="oi-next"
         class="order-items-nav-arrow"
         onclick="nextOrderItem()"
+        aria-label="Next item"
       >→</button>
     </div>
-    <div id="orderItemsModalContent"></div>
-    <div class="modal-footer">
-      <button class="close-btn" onclick="closeOrderItemsPopup()">Close</button>
-    </div>
+
+    <div id="orderItemsModalContent" class="order-items-modal-body"></div>
+    <!-- Intentionally no footer and no Close/X buttons -->
   </div>
 </div>

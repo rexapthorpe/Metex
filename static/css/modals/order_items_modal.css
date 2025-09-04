@@ -13,8 +13,8 @@
 #orderItemsModal .order-items-modal-content {
   background: #fff;
   border-radius: 12px;
-  width: 90%;
-  max-width: 500px;
+  width: 92%;
+  max-width: 620px;
   max-height: 80vh;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -25,11 +25,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 16px 12px;
+  padding: 18px 14px 10px;
   border-bottom: 1px solid #eee;
 }
 
-/* arrow buttons */
 #orderItemsModal .order-items-nav-arrow {
   display: inline-flex;
   align-items: center;
@@ -51,48 +50,83 @@
   color: #fff;
 }
 #orderItemsModal .order-items-nav-arrow:disabled {
-  visibility: hidden;  /* keeps the space so title stays centered */
+  visibility: hidden; /* keeps the space so title stays centered */
 }
 
-/* dead-centered title */
 #orderItemsModal .order-items-modal-title {
   flex: 1;
   text-align: center;
   font-size: 1.2rem;
-  font-weight: bold;
+  font-weight: 700;
   line-height: 1;
 }
 
-/* body content */
-#orderItemsModal .item-row {
-  display: flex;
-  justify-content: space-between;
+/* ── BODY: two-column details ── */
+#orderItemsModal .order-items-modal-body {
   padding: 16px;
-  border-bottom: 1px solid #eee;
-}
-#orderItemsModal .item-row:last-child {
-  border-bottom: none;
-}
-#orderItemsModal .item-detail {
-  flex: 1;
-}
-#orderItemsModal .item-qty,
-#orderItemsModal .item-price {
-  width: 60px;
-  text-align: right;
-  flex-shrink: 0;
 }
 
-/* footer */
-#orderItemsModal .modal-footer {
-  text-align: center;
-  padding: 12px;
+#orderItemsModal .order-items-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
 }
-#orderItemsModal .close-btn {
-  background: #3da6ff;
-  border: none;
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 6px;
+
+/* Left column list */
+#orderItemsModal .kv-list {
+  margin: 0;
+}
+#orderItemsModal .kv-list dt {
+  font-size: 0.9rem;
+  color: #555;
+}
+#orderItemsModal .kv-list dd {
+  margin: 4px 0 12px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 6px;
+}
+
+/* Right column figures */
+#orderItemsModal .order-items-col-right {
+  border-left: 1px solid #eee;
+  padding-left: 16px;
+}
+#orderItemsModal .kv {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+#orderItemsModal .kv.total {
+  font-weight: 600;
+}
+
+/* Remove button (cart-only) */
+#orderItemsModal .order-items-remove-btn {
+  margin-top: 10px;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #ddd;
+  color: #333;
+  padding: 10px 12px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+#orderItemsModal .order-items-remove-btn:hover {
+  background: #ffefef;
+  border-color: #f3bcbc;
+}
+
+/* Responsive: single column on narrow screens */
+@media (max-width: 520px) {
+  #orderItemsModal .order-items-two-col {
+    grid-template-columns: 1fr;
+  }
+  #orderItemsModal .order-items-col-right {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid #eee;
+    padding-top: 12px;
+  }
 }
