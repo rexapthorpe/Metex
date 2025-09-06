@@ -26,12 +26,17 @@
   color: #333;
 }
 
+/* Grid placement (no tile stretching): use flex-wrap instead of CSS Grid */
 .bids-tab .bids-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: flex;
+  flex-wrap: wrap;             /* naturally 1 → 2 → 3+ columns as space allows */
   gap: 1rem;
+  align-items: flex-start;
+  align-content: flex-start;
+  justify-content: flex-start; /* prevent auto-centering/stretching */
 }
 
+/* Tile (card) — lock size so it never expands/condenses with viewport */
 .bids-tab .bid-card {
   display: flex;
   flex-direction: column;
@@ -40,6 +45,14 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   padding: 1rem;
   transition: transform 0.1s ease-in-out;
+
+  /* Rigid width: adjust px value if you want a different footprint */
+  box-sizing: border-box;
+  width: 360px;
+  max-width: 360px;
+  flex: 0 0 360px;     /* do not grow/shrink inside the flex grid */
+  flex-grow: 0;
+  flex-shrink: 0;
 }
 .bids-tab .bid-card:hover {
   transform: translateY(-2px);

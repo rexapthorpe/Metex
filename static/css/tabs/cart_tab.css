@@ -1,11 +1,13 @@
 /* —— NAMESPACE: everything under .cart-tab —— */
-.cart-tab .cart-page-layout { /* if you had any layout styles here */ }
+.cart-tab .cart-page-layout { /* reserved for page-level styles if needed */ }
+
 .cart-tab .tab-heading {
   font-size: 1.5rem;
   font-weight: bold;
   margin-bottom: 1rem;
   text-align: left;
 }
+
 .cart-tab .empty-message {
   font-size: 1rem;
   color: #000000;
@@ -13,7 +15,16 @@
   margin-top: 1rem;
 }
 
-/* tile */
+/* === Container that lays out tiles as columns/rows (3 → 2 → 1 as space narrows) === */
+.cart-tab .cart-items-column {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;                 /* spacing between tiles */
+  align-items: flex-start;
+  align-content: flex-start;
+}
+
+/* === Tile === */
 .cart-tab .cart-item-tile {
   display: flex;
   align-items: stretch;
@@ -22,45 +33,62 @@
   border: 1px solid #ccc;
   border-radius: 25px;
   padding: 15px;
-  margin-bottom: 20px;
-  min-width: 700px;
+  /* You can keep margin-bottom if you prefer extra vertical spacing.
+     gap on the container already handles spacing, so it's optional. */
+  /* margin-bottom: 20px; */
+  min-width: 700px;          /* your original intrinsic tile width */
   box-sizing: border-box;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  flex-shrink: 0;
+  flex-shrink: 0;            
 }
+
 .cart-tab .cart-item-tile:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-/* column wrappers */
+/* === Column wrappers inside the tile === */
 .cart-tab .tile-col {
   box-sizing: border-box;
 }
+
+/* Fixed-size thumbnail column: stays the same at all viewport sizes */
 .cart-tab .tile-image {
-  flex: 0 0 180px;
+  flex: 0 0 180px;           /* fixed column width */
+  min-width: 180px;
+  aspect-ratio: 1 / 1;       /* square thumbnail area */
   background: #eee;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 25px;
-  aspect-ratio: 1/1;
-  min-width: 180px;
+  overflow: hidden;          /* prevents image overflow */
 }
+
+/* If an <img> is present, fill the box without distortion */
+.cart-tab .tile-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;       /* contain or cover, your choice */
+  display: block;
+}
+
 .cart-tab .tile-info {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;              /* allows text to wrap/ellipsis rather than push layout */
 }
+
 .cart-tab .tile-controls {
-  flex: 0 0 200px;
+  flex: 0 0 200px;           /* fixed controls column */
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 
-/* price & qty */
+/* === Price & qty === */
 .cart-tab .price-qty {
   text-align: right;
   margin-bottom: 8px;
@@ -85,7 +113,7 @@
   border-radius: 6px;
 }
 
-/* actions */
+/* === Actions === */
 .cart-tab .tile-actions-inline {
   display: flex;
   gap: 10px;
@@ -107,16 +135,4 @@
 .cart-tab .icon-button:hover {
   background: #3da6ff;
   color: #fff;
-}
-
-/* responsive */
-@media (max-width: 768px) {
-  .cart-tab .cart-item-tile {
-    flex-direction: column;
-  }
-  .cart-tab .tile-image,
-  .cart-tab .tile-controls {
-    width: 100%;
-    flex: none;
-  }
 }

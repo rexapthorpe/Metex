@@ -19,6 +19,16 @@
   overflow: hidden;
   box-shadow: 0 2px 5px rgba(0,0,0,0.05);
   transition: all 0.3s ease;
+  box-sizing: border-box;
+  width: 520px;
+  max-width: 520px;
+  flex: 0 0 520px;
+  flex-grow: 0;
+  flex-shrink: 0;
+
+  /* hard cap (we’ll reinforce below with !important for safety) */
+  height: 50px;
+  overflow: hidden;
 }
 
 /* Header */
@@ -133,4 +143,38 @@
 }
 .messages-tab .message-input-row .send-button:hover {
   background: #0056b3;
+}
+
+/* ===================== */
+/* Strong height overrides */
+/* ===================== */
+
+/* Ensure the grid doesn’t force equal heights */
+#messages-tab .conversation-list,
+.messages-tab .conversation-list,
+#messages-tab .conversation-list.tile-grid,
+.messages-tab .conversation-list.tile-grid {
+  align-items: flex-start !important;
+}
+
+/* Hard cap the tile height */
+#messages-tab .conversation-tile,
+.messages-tab .conversation-tile {
+  height: 65px !important;
+  max-height: 65px !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  align-self: flex-start !important;
+}
+
+/* Prevent expanded body from lifting height past the cap */
+#messages-tab .conversation-tile .message-body,
+.messages-tab .conversation-tile .message-body {
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+#messages-tab .conversation-tile.expanded .message-body,
+.messages-tab .conversation-tile.expanded .message-body {
+  max-height: 50px !important; /* still within tile cap */
 }

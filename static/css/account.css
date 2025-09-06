@@ -1,11 +1,12 @@
 /* account.css */
 
+/* ===== Layout ===== */
 .account-layout {
   display: flex;
   font-family: Arial, sans-serif;
 }
 
-/* Sidebar */
+/* ===== Sidebar ===== */
 .account-sidebar {
   width: 250px;
   background-color: #f7f7f7;
@@ -20,14 +21,14 @@
 .account-sidebar h2 {
   font-size: 20px;
   font-weight: bold;
-  margin: 20px 0 10px 0; /* Top: 0px, Right: 1px, Bottom: 15px, Left: 5px — controls spacing around the divider */
+  margin: 20px 0 10px 0;
   padding-left: 20px;
 }
 
 .account-sidebar .sidebar-divider {
   height: 1px;
   background-color: #c0c0c0;
-  margin: 10px 20px 15px 20px; /* Top: 0px, Right: 1px, Bottom: 15px, Left: 5px — controls spacing around the divider */
+  margin: 10px 20px 15px 20px;
   border-radius: 1px;
 }
 
@@ -41,9 +42,9 @@
   padding: 10px 20px;
   cursor: pointer;
   transition: background 0.2s ease, border-radius 0.2s ease;
-  border-bottom: none; /* Remove separating lines */
+  border-bottom: none;
   border-radius: 0;
-  margin: 0px 10px 0px 10px;/* Top: 0px, Right: 1px, Bottom: 15px, Left: 5px — controls spacing around the divider */
+  margin: 0 10px;
 }
 
 .account-sidebar li:hover,
@@ -58,7 +59,21 @@
   display: block;
 }
 
-/* Content Panel */
+/* (kept for compatibility with your original styles) */
+.account-sidebar li {
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.account-sidebar li.active {
+  background-color: #3da6ff;
+  color: white;
+  font-weight: bold;
+}
+
+/* ===== Content Panel ===== */
 .account-content {
   margin-left: 250px;
   background-color: #fff;
@@ -68,13 +83,8 @@
   min-height: 100vh;
 }
 
-.tab-content {
-  display: none;
-}
-
-.tab-content.active {
-  display: block;
-}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
 
 .tab-inner-wrapper {
   padding: 60px 40px 30px; /* Top matches header height */
@@ -92,16 +102,30 @@
   font-weight: 600;
 }
 
-.account-sidebar li {
-  padding: 10px 20px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: background-color 0.3s ease;
+/* =========================================================
+   GRID-ONLY BEHAVIOR (does not touch tile internals/sizes)
+   ========================================================= */
+
+/* Keep the tab wrapper simple; allow scroll if a single tile overflows */
+.tab-content.tiles-tab .tab-inner-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding-bottom: 8px;
 }
 
-.account-sidebar li.active {
-  background-color: #3da6ff;
-  color: white;
-  font-weight: bold;
+/* Reusable grid: apply ONLY to containers you mark with .tile-grid
+   This controls tile placement (rows/columns) without affecting internals. */
+.tiles-tab .tile-grid {
+  display: flex;
+  flex-wrap: wrap;      /* naturally 3 → 2 → 1 columns as space narrows */
+  gap: 16px;
+  align-items: flex-start;
+  align-content: flex-start;
 }
 
+/* Important: do not set widths here.
+   We only prevent shrinking so each tile keeps whatever size its OWN tab CSS gives it. */
+.tiles-tab .tile-grid > * {
+  flex: 0 0 auto;       /* keep intrinsic/tab-defined width; no shrinking */
+}

@@ -14,7 +14,6 @@
   margin-top: 1rem;
 }
 
-/* Grid of tiles */
 .listings-tab .listing-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -22,7 +21,6 @@
   margin-top: 16px;
 }
 
-/* Individual tile */
 .listings-tab .listing-tile {
   background: #fff;
   border: 1px solid #e0e0e0;
@@ -32,6 +30,12 @@
   display: flex;
   flex-direction: column;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  width: 420px;
+  max-width: 420px;
+  flex: 0 0 420px;
+  flex-grow: 0;
+  flex-shrink: 0;
 }
 .listings-tab .listing-tile:hover {
   transform: translateY(-2px);
@@ -93,6 +97,7 @@
   justify-content: flex-end;
   gap: 12px;
 }
+
 .listings-tab .listing-action {
   display: inline-flex;
   align-items: center;

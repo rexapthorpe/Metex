@@ -34,7 +34,12 @@
   padding: 16px;
   margin-bottom: 20px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  min-width: 700px;
+  box-sizing: border-box;
+  width: 700px;
+  max-width: 700px;
+  flex: 0 0 700px;   /* when placed inside a flex .tile-grid */
+  flex-grow: 0;
+  flex-shrink: 0;
 }
 
 /* Grid areas */

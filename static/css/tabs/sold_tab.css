@@ -17,6 +17,17 @@
   flex-direction: column;
 }
 
+/* lock size without touching internals */
+#sold-tab .order-tile {
+  box-sizing: border-box;
+  width: 420px;
+  max-width: 420px;
+  flex: 0 0 420px;
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+
+
 .tile-header {
   display: flex;
   align-items: center;
