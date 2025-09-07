@@ -9,31 +9,9 @@ let orderItemsOptions = {
   onRemove: null              // function(item, index) { ... }
 };
 
-function openOrderItemsPopup(orderId, options = {}) {
-  orderItemsOptions = { context: 'orders', onRemove: null, ...options };
-
-  fetch(`/orders/api/${orderId}/order_items`)
-    .then(res => (res.ok ? res.json() : Promise.reject()))
-    .then(data => {
-      orderItemsData = Array.isArray(data) ? data : [];
-      currentItemIndex = 0;
-      renderOrderItem();
-      showOrderItemsModal();
-    })
-    .catch(() => alert('Could not load order items'));
-}
-
-// Use this for the Cart context (you provide the items array)
-function openCartItemsPopup(items, options = {}) {
-  orderItemsOptions = { context: 'cart', onRemove: null, ...options };
-  orderItemsData = Array.isArray(items) ? items : [];
-  currentItemIndex = 0;
-  renderOrderItem();
-  showOrderItemsModal();
-}
-
 function showOrderItemsModal() {
   const modal = document.getElementById('orderItemsModal');
+  if (!modal) return;
   modal.style.display = 'flex';
   modal.addEventListener('click', outsideClickItems);
   document.addEventListener('keydown', keyNavHandler);
@@ -41,15 +19,75 @@ function showOrderItemsModal() {
 
 function closeOrderItemsPopup() {
   const modal = document.getElementById('orderItemsModal');
+  if (!modal) return;
   modal.style.display = 'none';
   modal.removeEventListener('click', outsideClickItems);
   document.removeEventListener('keydown', keyNavHandler);
 }
 
+function outsideClickItems(e) {
+  if (e.target && e.target.id === 'orderItemsModal') {
+    closeOrderItemsPopup();
+  }
+}
+
 function keyNavHandler(e) {
   if (e.key === 'ArrowLeft') prevOrderItem();
   else if (e.key === 'ArrowRight') nextOrderItem();
-  else if (e.key === 'Escape') closeOrderItemsPopup(); // keeps accessibility without UI close/x
+  else if (e.key === 'Escape') closeOrderItemsPopup(); // keep keyboard accessibility
+}
+
+function showOrderItemsError(message) {
+  const body = document.getElementById('orderItemsModalContent');
+  if (!body) return;
+  body.innerHTML = `
+    <div class="order-items-error">
+      <div class="order-items-error-title">Couldn’t load items</div>
+      <div class="order-items-error-msg">${message ? String(message) : 'Please try again.'}</div>
+    </div>
+  `;
+}
+
+function openOrderItemsPopup(orderId, options = {}) {
+  orderItemsOptions = { context: 'orders', onRemove: null, ...options };
+
+  // Open with loading state (no alerts)
+  showOrderItemsModal();
+  const body = document.getElementById('orderItemsModalContent');
+  if (body) body.innerHTML = '<div class="order-items-loading">Loading…</div>';
+
+  fetch(`/orders/api/${orderId}/order_items`)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then(data => {
+      orderItemsData = Array.isArray(data) ? data : [];
+      currentItemIndex = 0;
+      if (!orderItemsData.length) {
+        showOrderItemsError('No items found for this order.');
+        return;
+      }
+      renderOrderItem();
+    })
+    .catch(err => {
+      showOrderItemsError(err?.message || 'Unexpected error.');
+      console.error('order_items fetch error:', err);
+    });
+}
+
+// Use this for the Cart context (you provide the items array)
+function openCartItemsPopup(items, options = {}) {
+  orderItemsOptions = { context: 'cart', onRemove: null, ...options };
+  orderItemsData = Array.isArray(items) ? items : [];
+  currentItemIndex = 0;
+  showOrderItemsModal();
+
+  if (!orderItemsData.length) {
+    showOrderItemsError('No items in this cart view.');
+    return;
+  }
+  renderOrderItem();
 }
 
 function prevOrderItem() {
@@ -66,71 +104,134 @@ function nextOrderItem() {
   }
 }
 
-function outsideClickItems(e) {
-  if (e.target.id === 'orderItemsModal') {
-    closeOrderItemsPopup();
-  }
-}
-
 function renderOrderItem() {
-  if (!orderItemsData.length) return;
+  if (!orderItemsData.length) {
+    showOrderItemsError('No items to display.');
+    return;
+  }
 
   const item = orderItemsData[currentItemIndex];
 
   // Helpers
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => (
-    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
-  ));
-  const fmtMoney = n =>
-    (n == null || Number.isNaN(Number(n)))
-      ? '—'
-      : Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])
+  );
+  const DASH = '--';
+  const show = v => {
+    if (v === null || v === undefined) return DASH;
+    if (typeof v === 'string' && v.trim() === '') return DASH;
+    return esc(v);
+  };
+  const showNum = v =>
+    (v === null || v === undefined || v === '' || Number.isNaN(Number(v)))
+      ? DASH
+      : String(Number(v));
+  const showMoney = v =>
+    (v === null || v === undefined || v === '' || Number.isNaN(Number(v)))
+      ? DASH
+      : '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const qty = item.total_quantity ?? item.quantity ?? 0;
-  const priceEach =
-    item.price_each ?? item.unit_price ?? item.price_per_coin ?? 0;
-  const total = Number(qty) * Number(priceEach);
+  // Normalize/alias fields (tolerate name drift from backend)
+  const metal        = item.metal ?? item.metal_type ?? null;
+  const productLine  = item.product_line ?? item.series ?? item.program ?? null;
+  const productType  = item.product_type ?? item.type ?? item.form ?? null;
 
+  // Weight: prefer explicit unit if provided
+  let weightDisplay = null;
+  if (item.weight != null) {
+    weightDisplay = String(item.weight) + (item.weight_unit ? ` ${item.weight_unit}` : '');
+  } else if (item.weight_oz != null) {
+    weightDisplay = `${item.weight_oz} oz`;
+  } else if (item.weight_g != null) {
+    weightDisplay = `${item.weight_g} g`;
+  }
+
+  const year         = item.year ?? null;
+  const mint         = item.mint ?? item.mint_name ?? null;
+  const purityRaw    = item.purity ?? item.fineness ?? item.purity_pct ?? null;
+  const finish       = item.finish ?? item.condition ?? null;
+  const grading      = item.grading ?? item.grade ?? null;
+  const gradingSvc   = item.grading_service ?? item.grader ?? null;
+  const seller       = item.seller_username ?? item.seller_name ?? item.seller ?? null;
+
+  // Purity formatting: show provided text as-is; if numeric, render as 0.999
+  const purity = (() => {
+    if (purityRaw == null || purityRaw === '') return null;
+    const n = Number(purityRaw);
+    if (Number.isNaN(n)) return purityRaw;
+    return n.toFixed(3); // e.g., 0.999
+  })();
+
+  // Numbers: do not default to 0; show "--" if missing
+  const qtyRaw   = (item.total_quantity ?? item.quantity ?? null);
+  const priceRaw = (item.price_each ?? item.unit_price ?? item.price_per_coin ?? null);
+  const totalVal = (qtyRaw != null && priceRaw != null &&
+                    !Number.isNaN(Number(qtyRaw)) && !Number.isNaN(Number(priceRaw)))
+    ? Number(qtyRaw) * Number(priceRaw)
+    : null;
+
+  // Title
   const title =
     item.title
     ?? item.category_name
     ?? [
-         (item.weight ? `${item.weight}` : ''),
-         (item.metal ? `${item.metal}` : '')
+         (weightDisplay ? `${weightDisplay}` : ''),
+         (metal ? `${metal}` : '')
        ].join(' ').trim() +
-       (item.mint || item.year ? ` (${[item.mint, item.year].filter(Boolean).join(', ')})` : '');
+       (mint || year ? ` (${[mint, year].filter(Boolean).join(', ')})` : '');
 
-  // Header title
   const titleEl = document.getElementById('orderItemsModalTitle');
   if (titleEl) titleEl.textContent = title || 'Item';
 
-  // Optional fields
-  const purity = item.purity ?? item.fineness;
-  const grading = item.grading_service ?? item.grader;
-  const seller  = item.seller_username ?? item.seller;
+  // Determine image source (fallback to built-in SVG placeholder)
+  const imgSrc = (() => {
+    const candidates = [
+      item.image_url, item.photo_url, item.photo, item.image,
+      item.listing_image_url, item.image_src, item.img_src
+    ];
+    for (const c of candidates) {
+      if (typeof c === 'string' && c.trim() !== '') return c;
+    }
+    const svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f3f4f6'/><text x='200' y='205' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-size='28' fill='%239ca3af'>No Image</text></svg>";
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  })();
 
   // Right column: show Remove only in cart context
   const removeBtnHTML = (orderItemsOptions.context === 'cart')
     ? `<button class="order-items-remove-btn" type="button">Remove Item</button>`
     : '';
 
-  document.getElementById('orderItemsModalContent').innerHTML = `
+  // Left column: ALWAYS render these 11 rows (label left, value right)
+  const leftHTML = `
+    <div><dt>Metal</dt><dd>${show(metal)}</dd></div>
+    <div><dt>Product line</dt><dd>${show(productLine)}</dd></div>
+    <div><dt>Product type</dt><dd>${show(productType)}</dd></div>
+    <div><dt>Weight</dt><dd>${show(weightDisplay)}</dd></div>
+    <div><dt>Year</dt><dd>${show(year)}</dd></div>
+    <div><dt>Mint</dt><dd>${show(mint)}</dd></div>
+    <div><dt>Purity</dt><dd>${show(purity)}</dd></div>
+    <div><dt>Finish</dt><dd>${show(finish)}</dd></div>
+    <div><dt>Grading</dt><dd>${show(grading)}</dd></div>
+    <div><dt>Grading service</dt><dd>${show(gradingSvc)}</dd></div>
+    <div><dt>Seller</dt><dd>${show(seller)}</dd></div>
+  `;
+
+  const body = document.getElementById('orderItemsModalContent');
+  if (!body) return;
+  body.innerHTML = `
     <div class="order-items-two-col">
       <div class="order-items-col-left">
-        <dl class="kv-list">
-          ${item.mint   ? `<div><dt>Mint</dt><dd>${esc(item.mint)}</dd></div>` : ''}
-          ${item.metal  ? `<div><dt>Metal</dt><dd>${esc(item.metal)}</dd></div>` : ''}
-          ${item.year   ? `<div><dt>Year</dt><dd>${esc(item.year)}</dd></div>` : ''}
-          ${purity      ? `<div><dt>Purity</dt><dd>${esc(purity)}</dd></div>` : ''}
-          ${grading     ? `<div><dt>Grading</dt><dd>${esc(grading)}</dd></div>` : ''}
-          ${seller      ? `<div><dt>Seller</dt><dd>${esc(seller)}</dd></div>` : ''}
-        </dl>
+        <dl class="kv-list">${leftHTML}</dl>
       </div>
 
       <div class="order-items-col-right">
-        <div class="kv"><span>Quantity</span><span class="value">${esc(qty)}</span></div>
-        <div class="kv"><span>Price / item</span><span class="value">$${fmtMoney(priceEach)}</span></div>
-        <div class="kv total"><span>Total</span><span class="value">$${fmtMoney(total)}</span></div>
+        <div class="order-items-image-wrap">
+          <img class="order-items-image" src="${imgSrc}" alt="Product image">
+        </div>
+
+        <div class="kv"><span>Quantity</span><span class="value">${showNum(qtyRaw)}</span></div>
+        <div class="kv"><span>Price / item</span><span class="value">${showMoney(priceRaw)}</span></div>
+        <div class="kv total"><span>Total</span><span class="value">${showMoney(totalVal)}</span></div>
         ${removeBtnHTML}
       </div>
     </div>
@@ -139,24 +240,22 @@ function renderOrderItem() {
   // Hook remove action if present
   if (orderItemsOptions.context === 'cart') {
     const btn = document.querySelector('.order-items-remove-btn');
-    if (btn) {
-      btn.addEventListener('click', () => {
-        if (typeof orderItemsOptions.onRemove === 'function') {
-          orderItemsOptions.onRemove(item, currentItemIndex);
-        }
-      });
+    if (btn && typeof orderItemsOptions.onRemove === 'function') {
+      btn.addEventListener('click', () => orderItemsOptions.onRemove(item, currentItemIndex));
     }
   }
 
   // Nav enable/disable
   const prevBtn = document.getElementById('oi-prev');
   const nextBtn = document.getElementById('oi-next');
-  if (orderItemsData.length <= 1) {
-    prevBtn.disabled = true;
-    nextBtn.disabled = true;
-  } else {
-    prevBtn.disabled = (currentItemIndex === 0);
-    nextBtn.disabled = (currentItemIndex === orderItemsData.length - 1);
+  if (prevBtn && nextBtn) {
+    if (orderItemsData.length <= 1) {
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+    } else {
+      prevBtn.disabled = (currentItemIndex === 0);
+      nextBtn.disabled = (currentItemIndex === orderItemsData.length - 1);
+    }
   }
 }
 

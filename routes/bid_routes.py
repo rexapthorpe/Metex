@@ -299,15 +299,21 @@ def accept_bid(bucket_id):
     total_filled = 0
     for bid_id in selected_bid_ids:
         bid = cursor.execute('''
-            SELECT category_id, quantity_requested, price_per_coin, buyer_id, delivery_address
-            FROM bids WHERE id = ?
+            SELECT category_id,
+                   quantity_requested,     
+                   remaining_quantity,    
+                   price_per_coin,
+                   buyer_id,
+                   delivery_address
+            FROM bids
+            WHERE id = ?
         ''', (bid_id,)).fetchone()
 
         if not bid:
             continue
 
         category_id = bid['category_id']
-        quantity_needed = bid['quantity_requested']
+        quantity_needed = bid['remaining_quantity']
         price_limit = bid['price_per_coin']
         buyer_id = bid['buyer_id']
         delivery_address = bid['delivery_address']
@@ -369,10 +375,20 @@ def accept_bid(bucket_id):
         total_filled += filled
 
         if filled >= quantity_needed:
-            cursor.execute('UPDATE bids SET quantity_requested = 0, active = 0, status = "Filled" WHERE id = ?', (bid_id,))
+            cursor.execute('''
+                UPDATE bids
+                   SET remaining_quantity = 0,
+                       active = 0,
+                       status = 'Filled'
+                 WHERE id = ?
+            ''', (bid_id,))
         elif filled > 0:
-            cursor.execute('UPDATE bids SET quantity_requested = ?, status = "Partially Filled" WHERE id = ?', (quantity_needed - filled, bid_id))
-        # Else: no update to bid status
+            cursor.execute('''
+                UPDATE bids
+                   SET remaining_quantity = ?,
+                       status = 'Partially Filled'
+                 WHERE id = ?
+            ''', (quantity_needed - filled, bid_id)) # Else: no update to bid status
 
     conn.commit()
     conn.close()

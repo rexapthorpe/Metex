@@ -3,10 +3,11 @@
 <div class="bids-container bids-tab">
   <h2 class="tab-heading">My Bids</h2>
 
+  {# Group by status. Note: backend uses 'Partially Filled' (not 'Partial'). #}
   {% set groups = {
-    'Open Bids': bids   | selectattr('status','equalto','Open')    | list,
-    'Partially Filled Bids': bids | selectattr('status','equalto','Partial') | list,
-    'Filled Bids': bids | selectattr('status','equalto','Filled')  | list,
+    'Open Bids': bids | selectattr('status','equalto','Open') | list,
+    'Partially Filled Bids': bids | selectattr('status','equalto','Partially Filled') | list,
+    'Filled Bids': bids | selectattr('status','equalto','Filled') | list
   } %}
 
   {% for heading, items in groups.items() %}
@@ -15,23 +16,42 @@
         <h3 class="bids-group-title">{{ heading }}</h3>
         <div class="bids-grid">
           {% for bid in items %}
+            {% set remaining = (bid.remaining_quantity if bid.remaining_quantity is not none else bid.quantity_requested) %}
+            {% set filled_units_calc = (bid.quantity_requested or 0) - (remaining or 0) %}
+            {% set filled_units = 0 if filled_units_calc < 0 else filled_units_calc %}
+
             <div class="bid-card">
               <div class="bid-card-header">
                 <span class="bid-price">${{ '%.2f'|format(bid.price_per_coin) }} BID</span>
-                <span class="bid-quantity">{{ bid.quantity_requested }} units</span>
+
+                {# Show remaining units; avoid "or" fallback because 0 is falsy in Jinja. #}
+                {% if bid.status == 'Filled' %}
+                  <span class="bid-quantity">0 units</span>
+                {% else %}
+                  <span class="bid-quantity">{{ remaining }} units</span>
+                {% endif %}
               </div>
+
               <div class="bid-card-subheader">
                 <span class="bid-current">
                   Curr
                   {% if bid.current_price is not none %}
                     ${{ '%.2f'|format(bid.current_price) }}
                   {% else %}
-                    —    
+                    —
                   {% endif %}
                 </span>
-                <span class="bid-filled">Filled: {{ bid.quantity_filled or 0 }}</span>
+
+                {# Filled = original - remaining. For 'Filled', this equals original. #}
+                {% if bid.status == 'Filled' %}
+                  <span class="bid-filled">Filled: {{ bid.quantity_requested or 0 }}</span>
+                {% else %}
+                  <span class="bid-filled">Filled: {{ filled_units }}</span>
+                {% endif %}
               </div>
+
               <div class="bid-card-timestamp">{{ bid.created_at }}</div>
+
               <div class="bid-card-actions">
                 {% if bid.status == 'Open' %}
                   <button
