@@ -1,15 +1,98 @@
 {% extends "base.html" %}
-
 {% block title %}Login{% endblock %}
 
 {% block content %}
-<h2>Login</h2>
-<form method="POST">
-    <input type="text" name="username" placeholder="Username" required><br><br>
-    <input type="password" name="password" placeholder="Password" required><br><br>
-    <button type="submit">Login</button>
-</form>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 
-<p><a href="{{ url_for('auth.forgot_password') }}">Forgot Password?</a></p>
-<p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a></p>
-{% endblock %} 
+<div class="login-page">
+  <!-- Background -->
+  <div id="bg-animated" class="bg-animated" aria-hidden="true">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+  </div>
+
+  <div class="header-spacer"></div>
+
+  <main class="auth-shell" role="main">
+    <!-- auth-card gets class .signup-mode when user toggles -->
+    <section class="auth-card" id="authCard">
+      <!-- Fixed side-by-side panes -->
+      <div class="panes">
+        <!-- LOGIN PANE -->
+        <div class="pane pane-login" aria-labelledby="login-title">
+          <h1 id="login-title" class="title">Login</h1>
+          <p class="subtitle">Sign in to your account</p>
+
+          <form class="login-form" method="POST" action="">
+            <div class="form-row">
+              <label for="username">Username</label>
+              <input id="username" name="username" type="text" placeholder="Username" required
+                     value="{{ request.form.get('username','') }}">
+            </div>
+
+            <div class="form-row">
+              <div class="label-row">
+                <label for="password">Password</label>
+                <button class="ghost" type="button" id="togglePassword" aria-controls="password" aria-pressed="false">
+                  Show
+                </button>
+              </div>
+              <input id="password" name="password" type="password" placeholder="Password" required>
+            </div>
+
+            <div class="form-meta">
+              <span></span>
+              <a class="link" href="{{ url_for('auth.forgot_password') }}">Forgot Password?</a>
+            </div>
+
+            <button class="primary-btn" type="submit">Login</button>
+          </form>
+        </div>
+
+        <!-- SIGN-UP PANE (kept here so slide-over feels instant) -->
+        <div class="pane pane-signup" aria-labelledby="signup-title">
+          <h1 id="signup-title" class="title">Create Account</h1>
+          <p class="subtitle">Get started in seconds</p>
+
+          <!-- If your register flow is a separate page, you can change action to url_for('auth.register') -->
+          <form class="signup-form" method="POST" action="{{ url_for('auth.register') }}">
+            <div class="form-row">
+              <label for="new_username">Username</label>
+              <input id="new_username" name="username" type="text" placeholder="Choose a username" required>
+            </div>
+
+            <div class="form-row">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" placeholder="you@example.com" required>
+            </div>
+
+            <div class="form-row">
+              <div class="label-row">
+                <label for="new_password">Password</label>
+                <button class="ghost" type="button" id="togglePasswordSignup" aria-controls="new_password" aria-pressed="false">
+                  Show
+                </button>
+              </div>
+              <input id="new_password" name="password" type="password" placeholder="Create a password" required>
+            </div>
+
+            <button class="primary-btn" type="submit">Sign Up</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- SLIDING OVERLAY (CTA always shows the opposite action) -->
+      <aside class="overlay" aria-hidden="true">
+        <div class="overlay-inner">
+          <h2 class="overlay-title" id="overlayTitle">Welcome Back!</h2>
+          <p class="overlay-text" id="overlayText">Enter your details to sign in.</p>
+          <button id="overlayToggle" class="overlay-btn" type="button">Sign Up</button>
+        </div>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
+{% endblock %}

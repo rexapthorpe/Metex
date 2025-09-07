@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/grid.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
     <!--<link rel="stylesheet" href="{{ url_for('static', filename='css/view_cart.css') }}"> -->
 
 
@@ -42,7 +43,8 @@
                 <a href="{{ url_for('account.account') }}#cart" class="btn-pill">My Account</a>
             {% else %}
                 <a href="{{ url_for('auth.login') }}" class="btn-pill">Login</a>
-                <a href="{{ url_for('auth.register') }}" class="btn-pill signup-btn">Sign Up</a>
+                <!-- Updated: point Sign Up to the dual page in Sign-up mode -->
+                <a href="{{ url_for('auth.login', mode='signup') }}" class="btn-pill signup-btn">Sign Up</a>
             {% endif %}
         </div>
     </div>
@@ -58,12 +60,13 @@
     <script src="{{ url_for('static', filename='js/modals/tracking_modal.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modals/cart_remove_item_confirmation_modal.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modals/universal_outside_click_close.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modals/login.js') }}"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // Force‐hide every modal container on first paint
             document.querySelectorAll('.modal').forEach(modal => {
-            modal.style.display = 'none';
+              modal.style.display = 'none';
             });
         });
     </script>
