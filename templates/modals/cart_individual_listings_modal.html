@@ -1,35 +1,30 @@
-<!-- individual items slider modal -->
-<div id="priceBreakdownModal" class="modal">
-  <div class="priceBreakdown-modal-content">
-    <div class="priceBreakdown-modal-header">
+<!-- Cart Items (individual listings) modal -->
+<div id="priceBreakdownModal" class="cart-items-modal-overlay" style="display: none;">
+  <div class="cart-items-modal-content" role="dialog" aria-modal="true" aria-labelledby="pb-username">
+    <div class="cart-items-modal-header">
       <button
         id="pb-prev"
-        class="priceBreakdown-nav-arrow"
-        onclick="prevPriceListing()"
+        class="cart-items-nav-arrow"
+        onclick="event.stopPropagation(); prevPriceListing()"
+        aria-label="Previous item"
+        type="button"
       >←</button>
-      <span id="pb-username" class="priceBreakdown-modal-title"></span>
+
+      <!-- Kept id for compatibility; serves as centered title -->
+      <span id="pb-username" class="cart-items-modal-title">Item</span>
+
       <button
         id="pb-next"
-        class="priceBreakdown-nav-arrow"
-        onclick="nextPriceListing()"
+        class="cart-items-nav-arrow"
+        onclick="event.stopPropagation(); nextPriceListing()"
+        aria-label="Next item"
+        type="button"
       >→</button>
     </div>
-    
-    <div class="priceBreakdown-modal-body">
-      <div class="priceBreakdown-listing-photo">Image</div>
-      <div class="priceBreakdown-stats-row">
-        <div id="pb-quantity" class="priceBreakdown-unit-count"></div>
-        <div id="pb-price" class="priceBreakdown-unit-price"></div>
-      </div>
+
+    <div id="pb-modal-content" class="cart-items-modal-body">
+      <!-- Filled by JS: loading | error | two-column details with image -->
     </div>
-    <div class="priceBreakdown-modal-footer">
-      <button
-        type="button"
-        class="priceBreakdown-remove-btn"
-        onclick="removePriceListing()"
-      >
-        <i class="fas fa-trash"></i> Remove Item
-      </button>
-    </div>
+    <!-- No footer and no Close/X buttons (outside click + Esc to close) -->
   </div>
 </div>

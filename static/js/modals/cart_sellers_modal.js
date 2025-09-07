@@ -94,8 +94,7 @@ function renderSeller() {
       <button
         type="button"
         class="remove-btn"
-        onclick="openRemoveSellerConfirmation(${currentBucketId}, ${seller.seller_id}, ${seller.can_refill})"
-      >
+        onclick="openRemoveSellerConfirmation(${currentBucketId}, ${seller.seller_id}, ${seller.can_refill})">
         <i class="fas fa-trash"></i> Remove Seller
       </button>
     </div>`;
