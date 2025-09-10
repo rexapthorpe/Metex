@@ -26,7 +26,7 @@
     card.classList.toggle('signup-mode', isSignup);
 
     // Opposite action on the overlay button
-    overlayBtn.textContent = isSignup ? 'Log In' : 'Sign Up';
+    overlayBtn.textContent = isSignup ? 'Sign Up' : 'Log In';
     overlayBtn.setAttribute('aria-label', isSignup ? 'Go to Login' : 'Go to Sign Up');
 
     // Overlay copy

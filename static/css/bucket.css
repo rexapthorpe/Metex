@@ -1,310 +1,521 @@
-/* === Bucket Page Layout === */
+/* ==============================
+   LAYOUT WRAPPERS
+   ============================== */
 .bucket-page {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    padding: 0 0%;
-    box-sizing: border-box;
-    flex-wrap: wrap;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0 0%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
 }
 
 .bucket-card {
-    width: 100%;
-    max-width: 1200px;
-    min-width: 500px;
-    margin: 40px auto;
-    background-color: white;
-    border-radius: 20px;
-    padding: 40px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 40px;
-    box-sizing: border-box;
+  width: 100%;
+  max-width: 1200px;
+  min-width: 500px;
+  margin: 40px auto;
+  background-color: #ffffff;
+  border-radius: 20px;
+  padding: 40px;
+  box-sizing: border-box;
+  box-shadow:
+      0 24px 60px rgba(24, 119, 255, 0.12),
+      0 12px 28px rgba(0, 0, 0, 0.10),
+      0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
-.bucket-main-image {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    margin-bottom: 40px;
+.bucket-card.three-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* LEFT specs, MIDDLE image, RIGHT actions */
+  gap: 40px;
+    align-items: start;            /* NEW */
 }
 
+.bucket-card .left-panel,
+.bucket-card .bucket-main-image {
+  align-self: start;             /* NEW */
+  height: auto;                  /* explicit */
+}
+
+/* Reusable inner white tiles */
+.content-tile {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid rgba(13, 42, 82, 0.06);
+  box-shadow:
+      0 20px 50px rgba(24, 119, 255, 0.10),
+      0 8px 20px rgba(0, 0, 0, 0.08),
+      0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 20px;
+}
+
+/* LEFT column */
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ==============================
+   SPECS LIST (LEFT TILE)
+   ============================== */
+.specs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  font-size: 14px;
+}
+
+.specs-heading {
+  margin: 0 0 8px 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0b1222;
+}
+
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.spec-row + .spec-row {
+  border-top: 1px solid #e5e7eb; /* divider bar */
+}
+
+.spec-label { font-weight: 600; color: #0b1222; }
+.spec-value { color: #374151; }
+
+/* ==============================
+   IMAGE (center column)
+   ============================== */
 .bucket-main-image .large-image {
-    width: 400px;
-    height: 400px;
-    background-color: #f5f5f5;
-    border-radius: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 16px;
-    min-width: 280px;
-    max-width: 400px;
-    flex-shrink: 0;
+  width: 400px;
+  height: 400px;
+  background-color: #ffffff;
+  border-radius: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 16px;
+  min-width: 280px;
+  max-width: 400px;
+  flex-shrink: 0;
+  box-shadow:
+      0 20px 50px rgba(24, 119, 255, 0.10),
+      0 8px 20px rgba(0, 0, 0, 0.08),
+      0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
+/* ==============================
+   RIGHT column (controls)
+   ============================== */
 .bucket-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 400px;
+  width: 100%;
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+.right-title {
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #0b1222;
+  margin: 0;
+}
+
+
+.price-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0b1222;
+}
+
+/* ==============================
+   GRADING ACCORDION (RIGHT TILE)
+   ============================== */
+.grading-accordion {
+    width: 100%; 
+    font-size: 1.125rem;   /* ← adjust size (e.g., 1rem/16px, 1.25rem/20px) */
+    font-weight: 350;      /* ← 400=normal, 600=semi-bold, 700=bold, 800=extra-bold */
+    letter-spacing: 0.2px; /* optional */
+}
+
+/* Inner toggle block default text size */
+.grading-accordion .grading-toggles {
+  font-size: 0.95rem;    /* ← adjust label size inside the dropdown */
+}
+
+/* Label on each toggle row (the left text like "Any Grader", "PCGS", "NGC") */
+.grading-accordion .grading-row > span:first-child {
+  font-weight: 350;       /* ← adjust label weight */
+  /* optional: font-size: 1rem; */
+}
+
+.accordion-trigger {
     width: 100%;
-    overflow: visible;
-    flex-shrink: 0;
-}
-
-/* === Thumbnails === */
-.bucket-thumbnails {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.thumbnail {
-    width: 60px;
-    height: 60px;
-    background-color: #f5f5f5;
-    border-radius: 12px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 12px;
-}
-
-/* === Product Info === */
-.product-name {
-    font-size: 22px;
-    font-weight: bold;
-    margin-bottom: 6px;
-}
-
-.price-label {
-    font-weight: bold;
-    font-size: 20px;
-}
-
-.quantity-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.quantity-controls button {
-    background-color: #eee;
-    border: none;
-    padding: 6px 12px;
-    font-size: 18px;
-    border-radius: 6px;
-    width: 30px;
-    cursor: pointer;
-}
-
-.quantity-controls input {
-    width: 60px;
-    text-align: center;
-    font-size: 16px;
-    padding: 4px;
-    margin: 0 5px;
-}
-
-/* === Action Buttons === */
-.action-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 20px;
-}
-
-.action-buttons .btn {
-    width: 100%;
-    max-width: 100%;
-    padding: 12px 0;
-    font-size: 16px;
-    font-weight: bold;
-    border-radius: 9999px;
-    border: none;
-    cursor: pointer;
-    box-sizing: border-box;
-    transform-origin: center;
-}
-
-.action-buttons .btn:hover {
-    transform: scale(1.05);
-    transition: transform 0.2s ease;
-    z-index: 2;
-    position: relative;
-}
-
-.buy-btn {
-    background-color: #1877ff;
-    color: white;
-}
-
-.bid-btn {
-    background-color: #63c9f5;
-    color: white;
-}
-
-.add-cart-btn {
-    background-color: white;
-    color: #63c9f5;
-    border: 2px solid #63c9f5;
-}
-
-/* === Grading Toggle === */
-.grading-toggle-panel {
-    background: white;
+    text-align: left;
+    background: #ffffff;
     border: 1px solid #ccc;
-    border-radius: 14px;
-    padding: 16px;
-    font-size: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
-    transition: box-shadow 0.2s ease;
+    border-radius: 9999px;
+    padding: 10px 12px;
+    font-weight: 350;
+    cursor: pointer;
+    position: relative;
+    color: #000000;
     
 }
 
-.grading-toggle-panel:hover {
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
-}
-
-.grading-toggle-panel label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-}
-
-.grading-toggle-panel input[type="checkbox"] {
-    appearance: none;
-    width: 36px;
-    height: 20px;
-    background-color: #ccc;
-    border-radius: 20px;
-    position: relative;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.grading-toggle-panel input[type="checkbox"]:checked {
-    background-color: #1877ff;
-}
-
-.grading-toggle-panel input[type="checkbox"]::before {
-    content: "";
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background-color: white;
-    top: 2px;
-    left: 2px;
-    transition: transform 0.35s ease-in-out;
-}
-
-.grading-toggle-panel input[type="checkbox"]:checked::before {
-    transform: translateX(16px);
-}
-
-/* === Bid Tiles === */
-.bid-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.bid-tile {
-    border: 1px solid #ccc;
-    padding: 15px;
-    border-radius: 8px;
-    background: #f9f9f9;
-}
-
-/* === Description Rows === */
-.description-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    font-size: 14px;
-    margin-bottom: 12px;
-}
-
-.desc-row {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-}
-
-.desc-label {
-    font-weight: 500;
-    color: #333;
-}
-
-.desc-value {
-    color: #555;
-}
-
-/* === Grading Status Dot === */
-.grading-dot {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    width: 12px;
-    height: 12px;
-    background-color: #00cc66;
-    border-radius: 50%;
-    border: 2px solid white;
-    z-index: 10;
-}
-
-/* === Form Buttons === */
-.btn-success {
-    background-color: #28a745;
-    color: white;
-    padding: 10px 18px;
+.accordion-trigger:hover {
+    transform: scale(1.05); 
     border: none;
-    border-radius: 6px;
-    font-size: 16px;
-    cursor: pointer;
+    background: #ededed;
+    border: none;
+
 }
 
-.btn-success:hover {
-    background-color: #218838;
+
+.accordion-trigger .chev {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  width: 10px; height: 10px;
+  border-right: 2px solid #374151;
+  border-bottom: 2px solid #374151;
+  transform-origin: 50% 50%;
+  transition: transform 160ms ease;
+}
+.accordion-trigger[aria-expanded="true"] .chev {
+  transform: translateY(-50%) rotate(-135deg);
 }
 
-/* === Responsive: Mobile === */
+.accordion-content {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 200ms ease;
+}
+
+.grading-toggles {
+  margin-top: 10px;
+  padding: 10px 12px 2px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+/* Toggle rows */
+.grading-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  user-select: none;
+}
+.grading-row input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.grading-switch {
+  width: 44px; height: 26px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  position: relative;
+  display: inline-block;
+  transition: background 160ms ease;
+}
+.grading-switch::after {
+  content: ""; position: absolute;
+  top: 3px; left: 3px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  transition: transform 160ms ease;
+}
+.grading-row input:checked + .grading-switch { background: #1877ff; }
+.grading-row input:checked + .grading-switch::after { transform: translateX(18px); }
+
+/* ==============================
+   BUTTONS & QTY ROW
+   ============================== */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* Make the wrappers full-width so inner controls can span */
+.action-buttons > form,
+.action-buttons > a { display: block; width: 100%; }
+
+/* ---- Dedicated, full-width CTAs ---- */
+.buy-btn {
+  display: block;
+  width: 100%;
+  padding: 18px, 22px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  background-color: #1877ff;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transform-origin: center;
+}
+.buy-btn:hover { transform: scale(1.05); }
+
+.bid-btn {
+  display: block;
+  width: 100%;
+  padding: 18px, 22px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  background-color: #63c9f5;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transform-origin: center;
+}
+.bid-btn:hover { transform: scale(1.05); }
+
+/* If .bid-btn is an <a>, remove underline */
+a.bid-btn,
+a.bid-btn:visited,
+a.bid-btn:hover,
+a.bid-btn:active { text-decoration: none; color: #ffffff; }
+
+.add-cart-btn {
+  display: block;
+  width: 100%;
+  padding: 18px, 22px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #63c9f5;
+  background-color: #ffffff;
+  border: 2px solid #63c9f5;
+  border-radius: 9999px;
+  cursor: pointer;
+  transform-origin: center;
+}
+.add-cart-btn:hover {
+    transform: scale(1.05); 
+    border: none;
+}
+
+.out-of-stock { color: #dc2626; }
+
+/* Qty row */
+.qty-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.qty-label { color: #0b1222; }
+.qty-available { margin-left: auto; color: #374151; font-weight: 500; }
+
+/* Quantity pill (reuse existing styles) */
+.dial-pill {
+  position: relative;
+  height: 40px;
+  width: 135px;
+  border-radius: 9999px;
+  background: #0b74ff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+.dial-value {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 16px;
+  margin: 0 8px;
+  flex: 0 0 auto;
+}
+.dial-btn {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  color: #ffffff;
+  border: none;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: transform .12s ease, opacity .12s ease;
+}
+.dial-btn:hover { transform: scale(1.06); }
+.dial-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ==============================
+   (Existing Bids styles retained)
+   ============================== */
+.bids-list { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
+.bid-row { display: flex; align-items: stretch; gap: 16px; }
+
+.bid-card-visual {
+  position: relative;
+  box-sizing: border-box;
+  text-align: left;                /* tile itself */
+  border: 1px solid #ccc;
+  padding: 16px;
+  border-radius: 12px;
+  background: #f9f9f9;
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: clamp(500px, 100%, 500px);
+  min-width: 500px;
+  max-width: 500px;
+  flex: 0 0 auto;
+  transition: transform .22s ease, box-shadow .22s ease, background .22s ease, color .22s ease, border-color .22s ease;
+}
+.bid-card-content { display: flex; flex-direction: column; gap: 6px; }
+.bid-top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.bid-price-strong { font-weight: 800; font-size: 1.2rem; }
+.bid-units { color: #333; font-variant-numeric: tabular-nums; }
+.bid-seller { color: #111; }
+.bid-meta { display: flex; align-items: center; gap: 18px; color: #555; font-size: 0.95rem; }
+
+.bid-card-visual.selected {
+  transform: translateX(55px);
+  background: #3da6ff;
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 8px 24px rgba(0, 110, 255, 0.25);
+}
+.bid-card-visual.selected .bid-units,
+.bid-card-visual.selected .bid-seller,
+.bid-card-visual.selected .bid-meta { color: #ffffff; }
+.bid-row.selected { gap: 26px; }
+
+.dial-assembly { display: none; margin-left: 16px; }
+.bid-card-visual.selected .dial-assembly { display: flex; }
+
+/* BIDS PANEL container */
+.bids-panel {
+  margin: 28px auto 60px auto;
+  max-width: 1200px;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid rgba(13, 42, 82, 0.06);
+  box-shadow:
+      0 20px 50px rgba(24, 119, 255, 0.10),
+      0 8px 20px rgba(0, 0, 0, 0.08),
+      0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Header row with title + actions on the same axis */
+.bids-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+/* Button group on the right side of the header */
+.bids-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Accept Selected Bids (now inline, not absolute) */
+.accept-bids-btn {
+  width: 350px;
+  height: 40px;
+  position: static;              /* override old absolute */
+  border: none;
+  border-radius: 9999px;
+  padding: 16px, 24px;
+  font-weight: 700;
+  font-size: 1.00rem;
+  cursor: pointer;
+  background: #3da6ff;
+  color: #ffffff;
+  transition: transform .15s ease, opacity .15s ease, box-shadow .15s ease;
+}
+.accept-bids-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 110, 255, 0.25);
+}
+.accept-bids-btn:disabled { background: #cbd5e1; }
+
+/* Header "Make a Bid" button (reuses .bid-btn colors) */
+.header-bid-btn {
+  display: inline-block;
+  padding: 14px 16px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 1.00rem;
+  text-decoration: none; /* keep anchor looking like button */
+}
+
+/* ==============================
+   RESPONSIVE
+   ============================== */
 @media (max-width: 960px) {
-    .bucket-card {
-        grid-template-columns: 1fr;
-    }
-
-    .bucket-page {
-        flex-direction: column;
-        align-items: center;
-        padding: 0 5%;
-    }
-
-    .bucket-main-image .large-image {
-        width: 90vw;
-        height: auto;
-    }
-
-    .bucket-controls {
-        max-width: 100%;
-        width: 100%;
-    }
-
-    .action-buttons .btn {
-        width: 100%;
-    }
-
-    .desc-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
+  .bucket-card.three-col { grid-template-columns: 1fr; }
+  .bucket-page { flex-direction: column; align-items: center; padding: 0 5%; }
+  .bucket-main-image .large-image { width: 90vw; height: auto; }
+  .bucket-controls { max-width: 100%; width: 100%; }
+  .action-buttons .btn,
+  .buy-btn, .bid-btn, .add-cart-btn { width: 100%; }
+  .spec-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .bid-row { flex-direction: column; }
+  .qty-row { flex-wrap: wrap; }
+  .qty-available { margin-left: 0; }
 }
+
+/* ==============================
+   FLASH MESSAGES
+   ============================== */
+.popup-alert {
+  position: fixed; top: 92px; right: 16px;
+  background: #0b1222; color: #fff; padding: 10px 14px; border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0,0,0,.25); z-index: 9999;
+}
+.popup-alert.success { background: #198754; }
+.popup-alert.error   { background: #dc3545; }
+.popup-alert.warning { background: #fd7e14; }
+
+/* --- Fix: force left alignment inside bid tiles regardless of global [role="button"] rules --- */
+.bids-panel .bid-card-visual,
+.bids-panel .bid-card-visual * {
+  text-align: left !important;
+}
+
+/* Make the left text block own the left side so spacing stays consistent */
+.bids-panel .bid-card-content {
+  flex: 1 1 auto;
+}
+
+/* Keep intended spacing for the header and meta rows */
+.bids-panel .bid-top-row,
+.bids-panel .bid-meta {
+  justify-content: space-between;
+}
+
+

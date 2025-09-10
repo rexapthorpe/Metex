@@ -281,8 +281,12 @@ def bid_page(bucket_id):
 
 @bid_bp.route('/accept_bid/<int:bucket_id>', methods=['POST'])
 def accept_bid(bucket_id):
-
-
+    """
+    Accept one or more bids from this bucket. Frontend submits:
+      - selected_bids: list of bid IDs
+      - accept_qty[<bid_id>]: integer accepted quantity for that bid (0..remaining_quantity)
+    Falls back to legacy quantity_<bid_id> if present.
+    """
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
 
@@ -297,30 +301,56 @@ def accept_bid(bucket_id):
     cursor = conn.cursor()
 
     total_filled = 0
+
     for bid_id in selected_bid_ids:
+        # Load bid
         bid = cursor.execute('''
-            SELECT category_id,
-                   quantity_requested,     
-                   remaining_quantity,    
-                   price_per_coin,
-                   buyer_id,
-                   delivery_address
+            SELECT id, category_id, quantity_requested, remaining_quantity,
+                   price_per_coin, buyer_id, delivery_address, status
             FROM bids
             WHERE id = ?
         ''', (bid_id,)).fetchone()
-
         if not bid:
             continue
 
-        category_id = bid['category_id']
-        quantity_needed = bid['remaining_quantity']
-        price_limit = bid['price_per_coin']
-        buyer_id = bid['buyer_id']
+        category_id      = bid['category_id']
+        buyer_id         = bid['buyer_id']
+        price_limit      = bid['price_per_coin']
         delivery_address = bid['delivery_address']
 
+        # Requested accept quantity from form (supports new and legacy names)
+        req_qty = 0
+        key_new = f'accept_qty[{bid_id}]'
+        key_legacy = f'quantity_{bid_id}'
+        if key_new in request.form:
+            try:
+                req_qty = int(request.form.get(key_new, '0'))
+            except ValueError:
+                req_qty = 0
+        elif key_legacy in request.form:
+            try:
+                req_qty = int(request.form.get(key_legacy, '0'))
+            except ValueError:
+                req_qty = 0
+
+        # Determine remaining on the bid (fallback to quantity_requested if remaining_quantity is NULL)
+        remaining_qty = bid['remaining_quantity'] if bid['remaining_quantity'] is not None else (bid['quantity_requested'] or 0)
+        if remaining_qty <= 0:
+            continue
+
+        # Clamp request; skip if user chose 0
+        quantity_needed = max(0, min(remaining_qty, req_qty))
+        if quantity_needed == 0:
+            continue
+
+        # Seller's listings that match price
         listings = cursor.execute('''
-            SELECT id, quantity, price_per_coin FROM listings
-            WHERE category_id = ? AND seller_id = ? AND price_per_coin <= ? AND active = 1
+            SELECT id, quantity, price_per_coin
+            FROM listings
+            WHERE category_id = ?
+              AND seller_id   = ?
+              AND price_per_coin <= ?
+              AND active = 1
             ORDER BY price_per_coin ASC
         ''', (category_id, seller_id, price_limit)).fetchall()
 
@@ -328,53 +358,51 @@ def accept_bid(bucket_id):
         for listing in listings:
             if filled >= quantity_needed:
                 break
+            if listing['quantity'] <= 0:
+                continue
 
             fill_qty = min(listing['quantity'], quantity_needed - filled)
 
-            # Insert listing items into buyer's cart (optional)
-            existing = cursor.execute('''
-                SELECT quantity FROM cart WHERE user_id = ? AND listing_id = ?
-            ''', (buyer_id, listing['id'])).fetchone()
+            # Upsert into buyer's cart
+            existing = cursor.execute(
+                'SELECT quantity FROM cart WHERE user_id = ? AND listing_id = ?',
+                (buyer_id, listing['id'])
+            ).fetchone()
 
             if existing:
-                new_qty = existing['quantity'] + fill_qty
-                cursor.execute('UPDATE cart SET quantity = ? WHERE user_id = ? AND listing_id = ?', (new_qty, buyer_id, listing['id']))
+                cursor.execute(
+                    'UPDATE cart SET quantity = ? WHERE user_id = ? AND listing_id = ?',
+                    (existing['quantity'] + fill_qty, buyer_id, listing['id'])
+                )
             else:
-                cursor.execute('INSERT INTO cart (user_id, listing_id, quantity) VALUES (?, ?, ?)', (buyer_id, listing['id'], fill_qty))
+                cursor.execute(
+                    'INSERT INTO cart (user_id, listing_id, quantity) VALUES (?, ?, ?)',
+                    (buyer_id, listing['id'], fill_qty)
+                )
 
             # Update listing inventory
-            if listing['quantity'] - fill_qty == 0:
+            new_list_qty = listing['quantity'] - fill_qty
+            if new_list_qty <= 0:
                 cursor.execute('UPDATE listings SET quantity = 0, active = 0 WHERE id = ?', (listing['id'],))
             else:
-                cursor.execute('UPDATE listings SET quantity = ? WHERE id = ?', (listing['quantity'] - fill_qty, listing['id']))
+                cursor.execute('UPDATE listings SET quantity = ? WHERE id = ?', (new_list_qty, listing['id']))
 
-            # ✅ Create order for each listing fill
-            print("🧾 Inserting order:", {
-                "listing_id": listing['id'],
-                "buyer_id": buyer_id,
-                "seller_id": seller_id,
-                "quantity": fill_qty,
-                "price_each": listing['price_per_coin'],
-                "delivery_address": delivery_address
-            })
-
+            # Create order line for this fill
             cursor.execute('''
                 INSERT INTO orders (listing_id, buyer_id, seller_id, quantity, price_each, status, delivery_address)
                 VALUES (?, ?, ?, ?, ?, 'Pending Shipment', ?)
-            ''', (
-                listing['id'],
-                buyer_id,
-                seller_id,
-                fill_qty,
-                listing['price_per_coin'],
-                delivery_address
-            ))
+            ''', (listing['id'], buyer_id, seller_id, fill_qty, listing['price_per_coin'], delivery_address))
 
             filled += fill_qty
 
         total_filled += filled
 
-        if filled >= quantity_needed:
+        # Update bid status / remaining
+        new_remaining = remaining_qty - filled
+        if filled == 0:
+            # no change
+            pass
+        elif new_remaining <= 0:
             cursor.execute('''
                 UPDATE bids
                    SET remaining_quantity = 0,
@@ -382,13 +410,13 @@ def accept_bid(bucket_id):
                        status = 'Filled'
                  WHERE id = ?
             ''', (bid_id,))
-        elif filled > 0:
+        else:
             cursor.execute('''
                 UPDATE bids
                    SET remaining_quantity = ?,
                        status = 'Partially Filled'
                  WHERE id = ?
-            ''', (quantity_needed - filled, bid_id)) # Else: no update to bid status
+            ''', (new_remaining, bid_id))
 
     conn.commit()
     conn.close()
