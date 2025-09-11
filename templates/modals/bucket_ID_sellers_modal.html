@@ -1,0 +1,53 @@
+<div id="sellersModal" class="sellers-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="sellersModalTitle">
+  <div class="sellers-modal__backdrop"></div>
+
+  <div class="sellers-modal__dialog">
+    <header class="sellers-modal__header">
+      <h3 id="sellersModalTitle">Available Sellers</h3>
+      <button id="closeSellersBtn" class="sellers-modal__close" aria-label="Close">×</button>
+    </header>
+
+    <div class="sellers-modal__body">
+      {% if sellers and sellers|length > 0 %}
+        <div class="sellers-grid">
+          {% for s in sellers %}
+            {# --- Safe lookups for rating fields regardless of SQL aliases --- #}
+            {% set cols = s.keys() %}
+            {% set avg = s['rating_avg'] if 'rating_avg' in cols
+                        else (s['avg_rating'] if 'avg_rating' in cols else none) %}
+            {% set count = s['rating_count'] if 'rating_count' in cols
+                          else (s['num_ratings'] if 'num_ratings' in cols else 0) %}
+
+            <article class="seller-card">
+              <div class="seller-card__top">
+                <div class="seller-card__name">{{ s['username'] }}</div>
+                <div class="seller-card__rating">
+                  {% if count and avg is not none %}
+                    <span class="rating-num">{{ '%.1f'|format(avg) }}</span>
+                    <span class="star">★</span>
+                    <span class="rating-count">({{ count }})</span>
+                  {% else %}
+                    <span class="rating-new">New seller</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="seller-card__meta">
+                <div class="price">
+                  {% if 'lowest_price' in cols and s['lowest_price'] is not none %}
+                    ${{ '%.2f'|format(s['lowest_price']) }} / unit
+                  {% else %} — {% endif %}
+                </div>
+                <div class="qty">
+                  {% if 'total_qty' in cols %}{{ s['total_qty'] or 0 }} in stock{% else %}0 in stock{% endif %}
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">No sellers are currently listing this item.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>

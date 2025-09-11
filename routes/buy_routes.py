@@ -80,6 +80,7 @@ def view_bucket(bucket_id):
 
     # Safely map fields and build specs with `--` fallbacks
     cols = set(bucket.keys()) if hasattr(bucket, 'keys') else set()
+
     def take(*names):
         for n in names:
             if n in cols:
@@ -99,8 +100,10 @@ def view_bucket(bucket_id):
         'Finish'       : take('finish'),
         'Grading'      : take('grade'),
     }
-    # Replace Nones with '--' for template simplicity
     specs = {k: (('--' if (v is None or str(v).strip() == '') else v)) for k, v in specs.items()}
+
+    # 🔧 No DB image column used—template will render grey placeholder if empty
+    images = []
 
     # Grading filter logic (GET)
     graded_only = request.args.get('graded_only') == '1'
@@ -109,9 +112,9 @@ def view_bucket(bucket_id):
     ngc         = request.args.get('ngc') == '1'
     grading_filter_applied = graded_only and (any_grader or pcgs or ngc)
 
-    # Listings query
+    # Listings query (respect filters)
     listings_query = 'SELECT * FROM listings WHERE category_id = ? AND active = 1'
-    params = [bucket_id]
+    listings_params = [bucket_id]
 
     if grading_filter_applied:
         listings_query += ' AND graded = 1'
@@ -122,32 +125,19 @@ def view_bucket(bucket_id):
             if services:
                 listings_query += f" AND grading_service IN ({', '.join(services)})"
             else:
+                # No specific grader chosen → no results
                 listings = []
-                availability = {'lowest_price': None, 'total_available': 0}
-                user_is_logged_in = 'user_id' in session
-                conn.close()
-                return render_template("view_bucket.html",
-                                       bucket=bucket,
-                                       specs=specs,
-                                       listings=listings,
-                                       availability=availability,
-                                       graded_only=graded_only,
-                                       user_bids=[],
-                                       bids=[],
-                                       user_is_logged_in=user_is_logged_in)
-
-    listings = conn.execute(listings_query, params).fetchall()
+    if 'listings' not in locals():
+        listings = conn.execute(listings_query, listings_params).fetchall()
 
     # Availability (respect filters)
     availability_query = '''
-        SELECT 
-            MIN(price_per_coin) AS lowest_price,
-            SUM(quantity) AS total_available
+        SELECT MIN(price_per_coin) AS lowest_price,
+               SUM(quantity)       AS total_available
         FROM listings
         WHERE category_id = ? AND active = 1
     '''
     availability_params = [bucket_id]
-
     if grading_filter_applied:
         availability_query += ' AND graded = 1'
         if not any_grader:
@@ -158,51 +148,75 @@ def view_bucket(bucket_id):
                 availability_query += f" AND grading_service IN ({', '.join(services)})"
             else:
                 availability = {'lowest_price': None, 'total_available': 0}
-                user_is_logged_in = 'user_id' in session
-                conn.close()
-                return render_template("view_bucket.html",
-                                       bucket=bucket,
-                                       specs=specs,
-                                       listings=[],
-                                       availability=availability,
-                                       graded_only=graded_only,
-                                       user_bids=[],
-                                       bids=[],
-                                       user_is_logged_in=user_is_logged_in)
+    if 'availability' not in locals():
+        availability = conn.execute(availability_query, availability_params).fetchone()
+        if not availability or availability['total_available'] is None:
+            availability = {'lowest_price': None, 'total_available': 0}
 
-    availability = conn.execute(availability_query, availability_params).fetchone()
-    if not availability or availability['total_available'] is None:
-        availability = {'lowest_price': None, 'total_available': 0}
-
+    # Current user
     user_id = session.get('user_id')
 
     # Current user's bids
     user_bids = []
     if user_id:
-      user_bids = conn.execute('''
-          SELECT id, quantity_requested, remaining_quantity, price_per_coin, status, created_at
-          FROM bids
-          WHERE buyer_id = ? AND category_id = ? AND active = 1
-          ORDER BY price_per_coin DESC
-      ''', (user_id, bucket_id)).fetchall()
+        user_bids = conn.execute('''
+            SELECT id, quantity_requested, remaining_quantity, price_per_coin, status, created_at, active
+            FROM bids
+            WHERE buyer_id = ? AND category_id = ? AND active = 1
+            ORDER BY price_per_coin DESC
+        ''', (user_id, bucket_id)).fetchall()
 
     # All other users' bids (or all if not logged in)
     if user_id:
-      bids = conn.execute('''
-          SELECT bids.*, users.username AS buyer_name
-          FROM bids
-          JOIN users ON bids.buyer_id = users.id
-          WHERE bids.category_id = ? AND bids.active = 1 AND bids.buyer_id != ?
-          ORDER BY bids.price_per_coin DESC
-      ''', (bucket_id, user_id)).fetchall()
+        bids = conn.execute('''
+            SELECT bids.*, users.username AS buyer_name
+            FROM bids
+            JOIN users ON bids.buyer_id = users.id
+            WHERE bids.category_id = ? AND bids.active = 1 AND bids.buyer_id != ?
+            ORDER BY bids.price_per_coin DESC
+        ''', (bucket_id, user_id)).fetchall()
     else:
-      bids = conn.execute('''
-          SELECT bids.*, users.username AS buyer_name
-          FROM bids
-          JOIN users ON bids.buyer_id = users.id
-          WHERE bids.category_id = ? AND bids.active = 1
-          ORDER BY bids.price_per_coin DESC
-      ''', (bucket_id,)).fetchall()
+        bids = conn.execute('''
+            SELECT bids.*, users.username AS buyer_name
+            FROM bids
+            JOIN users ON bids.buyer_id = users.id
+            WHERE bids.category_id = ? AND bids.active = 1
+            ORDER BY bids.price_per_coin DESC
+        ''', (bucket_id,)).fetchall()
+
+    # Best bid (cast Row -> dict so |tojson works)
+    best_bid_row = conn.execute('''
+        SELECT id, price_per_coin, quantity_requested, remaining_quantity
+        FROM bids
+        WHERE category_id = ? AND active = 1
+        ORDER BY price_per_coin DESC
+        LIMIT 1
+    ''', (bucket_id,)).fetchone()
+    best_bid = dict(best_bid_row) if best_bid_row else None
+
+    # Sellers for modal — aggregate ratings from ratings table
+    sellers = conn.execute('''
+        SELECT
+          u.id                  AS seller_id,
+          u.username            AS username,
+          rr.rating             AS rating,         -- AVG from ratings
+          rr.rating_count       AS rating_count,   -- COUNT from ratings
+          MIN(l.price_per_coin) AS lowest_price,
+          SUM(l.quantity)       AS total_qty
+        FROM listings AS l
+        JOIN users AS u ON u.id = l.seller_id
+        LEFT JOIN (
+            SELECT
+              ratee_id,
+              AVG(rating) AS rating,
+              COUNT(*)    AS rating_count
+            FROM ratings
+            GROUP BY ratee_id
+        ) AS rr ON rr.ratee_id = u.id
+        WHERE l.category_id = ? AND l.active = 1 AND l.quantity > 0
+        GROUP BY u.id, u.username, rr.rating, rr.rating_count
+        ORDER BY (rr.rating IS NULL) ASC, rr.rating DESC, lowest_price ASC
+    ''', (bucket_id,)).fetchall()
 
     user_is_logged_in = 'user_id' in session
     conn.close()
@@ -211,14 +225,16 @@ def view_bucket(bucket_id):
         'view_bucket.html',
         bucket=bucket,
         specs=specs,
+        images=images,                 # empty list → grey placeholder
         listings=listings,
         availability=availability,
         graded_only=graded_only,
         user_bids=user_bids,
         bids=bids,
+        best_bid=best_bid,             # dict or None
+        sellers=sellers,
         user_is_logged_in=user_is_logged_in
     )
-
 
 @buy_bp.route('/purchase_from_bucket/<int:bucket_id>', methods=['POST'])
 def auto_fill_bucket_purchase(bucket_id):
