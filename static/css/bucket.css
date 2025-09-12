@@ -79,14 +79,19 @@
 }
 .gal-arrow {
   position: absolute;
-  top: 50%; transform: translateY(-50%);
+  top: 45%; /*placement up the side of the image */
   width: 36px; height: 36px;
-  border-radius: 50%;
+  border-radius: 9999px;
   border: none;
-  background: rgba(0,0,0,0.5);
-  color: #fff; font-size: 20px;
+  background: none;
+  color: #949494; font-size: 50px;
   display: grid; place-items: center;
   cursor: pointer;
+}
+.gal-arrow:hover {
+  background: none;
+  color: #2c2c2c;
+  transform: scale(1.05);
 }
 .gal-arrow:disabled { opacity: 0.45; cursor: not-allowed; }
 .gal-arrow.left { left: 10px; }
@@ -113,11 +118,12 @@
 
 /* Grey square thumbs when no images */
 .thumbs .thumb.ph {
-  width: 88px;
+  width: 150px;
   aspect-ratio: 1 / 1;
   border-radius: 12px;
   background: #e5e7eb;
   border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 18px rgba(197, 197, 197, 0.32);
 }
 
 .thumbs { display: flex; gap: 10px; }
@@ -131,23 +137,49 @@
 .thumbs .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* Sell CTA under thumbs */
-.sell-cta { display: flex; align-items: center; gap: 12px; }
-.sell-text { color: #0b1222; font-weight: 600; }
+/* Row under main image: thumbnails on the left, Sell stack on the right */
+.thumbs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;   /* top-align with thumbnails */
+  gap: 12px;
+}
+
+/* Right-side vertical stack: label above the circular button */
+.sell-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;      /* hug the right edge */
+}
+.sell-kicker { margin: 0 0 4px 0; }
+
+/* Circular Sell button */
 .sell-circle-btn {
-  width: 44px; height: 44px; border-radius: 9999px;
+  width: 100px; height: 44px; border-radius: 9999px;
   display: grid; place-items: center;
   background: #1877ff; color: #fff; text-decoration: none;
   font-weight: 700;
   box-shadow: 0 6px 16px rgba(0,110,255,0.25);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+  will-change: background-color, transform, box-shadow;
+}
+.sell-circle-btn:hover {
+  background: #1560ca;
+  color: #fff;
+  text-decoration: none;
+  transform: scale(1.05);
+  box-shadow: 0 8px 18px rgba(0,110,255,0.32);
 }
 
 /* ==============================
    DESCRIPTION TILE
    ============================== */
 .section-heading { margin: 0 0 10px 0; font-size: 1.125rem; font-weight: 800; color: #0b1222; }
-.description-tile .specs-two-col {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
-}
+.description-tile .specs-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .spec-col { display: flex; flex-direction: column; }
 .spec-row {
   display: flex; justify-content: space-between; gap: 16px; padding: 8px 0;
@@ -163,77 +195,54 @@
 /* ==============================
    RIGHT COLUMN
    ============================== */
-/* Title styling (edit these to taste) */
 .right-title {
-  margin: 0;              /* no default gap */
-  font-size: 24px;        /* adjust title size here */
-  line-height: 1.15;      /* tighter line-height */
-  font-weight: 800;       /* weight */
-  color: #000000;         /* color */
-  letter-spacing: -0.01em;/* optional micro tracking */
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 800;
+  color: #000000;
+  letter-spacing: -0.01em;
 }
-
-/* Soft subtitle under the title */
 .title-soft {
-  margin: 4px 0;          /* << 4px above & below */
-  color: #6b7280;         /* soft gray */
-  font-size: 0.95rem;     /* tweakable */
+  margin: 4px 0;
+  color: #6b7280;
+  font-size: 0.95rem;
   line-height: 1.2;
   font-weight: 500;
 }
-
-/* Optional: slightly reduce the HR space right below */
 .divider {
   border: 0;
   border-top: 1px solid #e5e7eb;
-  margin: 0px 0 0px 0;   /* smaller gap above the divider */
+  margin: 0px 0 0px 0;
 }
 
-.btn { 
-  cursor: pointer; 
-  border: none; 
-}
+.btn { cursor: pointer; border: none; }
 
 .sellers-btn {
-  width: 100%; 
-  padding: 14px 18px; 
+  width: 100%;
+  padding: 14px 18px;
   border-radius: 9999px;
-
-  background: none; 
+  background: none;
   border: 2px solid #a4a5a8;
-  color: #000000; 
-  font-weight: 700;  
-  box-sizing: border-box;         /* keeps width stable with border */
-
+  color: #000000;
+  font-weight: 700;
+  box-sizing: border-box;
 }
-
-.sellers-btn:hover { 
-  background: #e5e7eb; 
+.sellers-btn:hover {
+  background: #e5e7eb;
   border: none;
 }
 
 /* Sellers CTA (above/below the button) */
-.sellers-cta {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;           /* tight vertical rhythm */
-}
-
+.sellers-cta { display: flex; flex-direction: column; gap: 6px; }
 .sellers-kicker {
-  color: #6b7280;     /* soft text */
+  color: #6b7280;
   font-size: 0.95rem;
   font-weight: 500;
-  margin: 4px 0;      /* << 4px above & below */
+  margin: 4px 0;
 }
-
-.sellers-foot-link {
-  color: #000000;     /* link to Sell page */
-  font-weight: 500;
-  text-decoration: underline;
-}
-.sellers-foot-link:hover {
-  text-decoration: none;
-}
+.sellers-foot-link { color: #000000; font-weight: 500; text-decoration: underline; }
+.sellers-foot-link:hover { text-decoration: none; }
 
 /* ==============================
    ACCEPT BEST BID (two inner columns)
@@ -241,7 +250,7 @@
 .best-bid { display: block; }
 .bb-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* Col-L (actions) | Col-R (dial/price) */
+  grid-template-columns: 1fr 1fr;
   gap: 10px 12px;
   align-items: start;
 }
@@ -249,7 +258,6 @@
 .bb-colR { position: relative; min-height: 46px; }
 .bb-row1r { position: relative; min-height: 46px; }
 
-/* Right column row 1 — holder for dial + close, aligned right */
 .bb-r1-flex {
   display: flex;
   align-items: center;
@@ -257,7 +265,6 @@
   justify-content: flex-end;
 }
 
-/* Price box: starts top-right; slides straight down in expanded state */
 .price-box {
   position: absolute;
   right: 0;
@@ -265,11 +272,8 @@
   transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease;
   will-change: transform;
 }
-.price-box.moved {
-  transform: translateY(var(--price-shift, 52px)); /* set by JS from dial height */
-}
+.price-box.moved { transform: translateY(var(--price-shift, 52px)); }
 
-/* Small circular close button */
 .bb-close {
   width: 40px; height: 40px;
   border-radius: 9999px;
@@ -281,65 +285,43 @@
   color: #a4a5a8;
   box-shadow: 0 4px 10px rgba(0,0,0,0.06);
 }
-.bb-close:hover { 
-  background: #a4a5a8; 
-  border: none;
-  color: #ffffff;
-}
+.bb-close:hover { background: #a4a5a8; border: none; color: #ffffff; }
 
-/* Button (left column) */
 .best-bid-accept-btn {
-  padding: 11px 14px; 
+  padding: 11px 14px;
   border-radius: 9999px;
-  background: #63c9f5; 
-  color: #fff; 
-  font-weight: 700; 
+  background: #63c9f5;
+  color: #fff;
+  font-weight: 700;
   font-size: 0.95rem;
 }
-.best-bid-row.disabled { opacity: 0.6; } /* used in fallback/no-bid view */
+.best-bid-row.disabled { opacity: 0.6; }
 .best-bid-price { display: flex; flex-direction: column; line-height: 1.1; }
 .best-bid-price #bestBidPrice { font-weight: 750; font-size: 22px; color: #000000; }
 
 /* SOFT TEXT — universal 4px spacing */
-.soft {
-  color: #6b7280;
-  font-size: 0.9rem;
-  margin: 4px 0;        /* << 4px above & below */
-  display: block;       /* ensures margins apply reliably */
-}
-.soft-link {
-  color: #000000;
-  font-size: 0.95rem;
-  text-decoration: underline;
-  cursor: pointer;
-  margin: 4px 0;        /* << 4px above & below */
-  display: inline-block;/* margin works even if placed inline */
-}
+.soft { color: #6b7280; font-size: 0.9rem; margin: 4px 0; display: block; }
+.soft-link { color: #000000; font-size: 0.95rem; text-decoration: underline; cursor: pointer; margin: 4px 0; display: inline-block; }
 
-/* Force hidden controls to actually hide (handles any global display rules) */
-#acceptQtyDial[hidden],
-#bbCloseBtn[hidden] {
-  display: none !important;
-}
+/* Force hidden controls to actually hide */
+#acceptQtyDial[hidden], #bbCloseBtn[hidden] { display: none !important; }
 
 /* ==============================
    BUY/ADD CTAs
    ============================== */
+.buy-block { display: flex; flex-direction: column; gap: 4px; }
+.best-ask-text { color: #6b7280; font-size: 0.9rem; margin: 0; display: block; }
+.buy-block .buy-price { margin: 0; }
+.buy-price .soft { display: inline; margin: 0 0 0 8px; }
 
-/* Current price above the buy quantity dial */
 .buy-price {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin: 4px 0;           /* matches the 4px rhythm */
+  margin: 4px 0;
   color: #6b7280;
 }
-
-.buy-price-amount {
-  font-weight: 750;
-  font-size: 34px;
-  color: #000000;
-}
+.buy-price-amount { font-weight: 750; font-size: 34px; color: #000000; }
 
 .action-buttons { display: block; width: 100%; }
 .buy-btn {
@@ -384,12 +366,34 @@
 
 .out-of-stock { color: #dc2626; }
 
-/* Shipping/Payment block lines */
-.ship-pay-block .sp-line { margin: 4px 0; color: #0b1222; }
-.ship-pay-block .sp-line strong { color: #0b1222; }
+/* ==============================
+   DETAILS GRID (two-column rows)
+   ============================== */
+.details-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 12px;
+  row-gap: 8px;
+  align-items: start;
+}
+.details-grid dt {
+  margin: 0;
+  font-weight: 700;
+  color: #000000;
+}
+.details-grid dd {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.35;
+}
+.insured-by-UPS { margin: 0; color: #6b7280; line-height: 1.35; }
+@media (max-width: 520px) {
+  .details-grid { grid-template-columns: 1fr; }
+  .details-grid dt { margin-top: 6px; }
+}
 
 /* ==============================
-   BIDS PANEL (unchanged styles retained)
+   BIDS PANEL (shared card styles)
    ============================== */
 .bids-list { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
 .bid-row { display: flex; align-items: stretch; gap: 16px; }
@@ -440,6 +444,96 @@
 .accept-bids-btn:disabled { background: #cbd5e1; }
 .header-bid-btn { display: inline-block; padding: 10px 16px; border-radius: 9999px; font-weight: 700; font-size: 1rem; text-decoration: none; }
 
+/* === MY ACTIVE BIDS (account section) ===
+   Styles for: .account-bid-tiles / .account-bid-tile / .abt-*
+   Matches the look of the bid cards above.
+*/
+.account-bid-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.account-bid-tile {
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 92px;
+  width: clamp(500px, 100%, 500px);
+  min-width: 500px;
+  max-width: 500px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.abt-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.abt-price {
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #0b1222;
+}
+.abt-price-suffix {
+  font-weight: 800;
+  color: #0b1222;
+}
+.abt-units { color: #333; font-variant-numeric: tabular-nums; }
+.abt-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: #555;
+  font-size: 0.95rem;
+}
+.abt-curr { }
+.abt-filled { }
+.abt-date { color: #555; font-size: 0.95rem; }
+
+.abt-actions {
+  display: flex;
+  justify-content: flex-end;   /* push buttons to the right */
+  align-items: center;         /* keep icons/text aligned */
+  gap: 10px;
+  margin-top: 10px;
+  width: 100%;                 /* span tile width so right edge lines up */
+}
+.abt-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 9999px;
+  border: none;
+  background: none;
+  color: #000000;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.abt-action:hover {
+  transform: scale(1.03);
+  background: #e5e7eb;
+}
+
+.abt-actions form {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+  display: inline-flex;        /* keeps each button inline */
+}
+.abt-action svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 /* Responsive */
 @media (max-width: 960px) {
   .bucket-card.two-col-6535 { grid-template-columns: 1fr; }
@@ -448,8 +542,6 @@
   .bid-row { flex-direction: column; }
   .qty-row { flex-wrap: wrap; }
   .qty-available { margin-left: 0; }
-
-  /* On small screens, let price drop more if dial is larger */
   .price-box.moved { transform: translateY(calc(var(--price-shift, 52px) + 6px)); }
 }
 

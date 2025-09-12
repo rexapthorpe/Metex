@@ -18,6 +18,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_bid_modal.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tracking_modal.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/cart_remove_item_confirmation_modal.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bucket_ID_sellers_modal.css') }}">
+
 
     <!-- programs (global) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -62,15 +64,16 @@
     <script src="{{ url_for('static', filename='js/modals/universal_outside_click_close.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modals/login.js') }}"></script>
 
-    
+        
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Force‐hide every modal container on first paint
-            document.querySelectorAll('.modal').forEach(modal => {
-              modal.style.display = 'none';
-            });
+    document.addEventListener('DOMContentLoaded', () => {
+        // Force-hide any modal containers on first paint
+        document.querySelectorAll('.modal, .sellers-modal').forEach(m => {
+        m.style.display = 'none';
         });
+    });
     </script>
+
 
 </body>
 </html>

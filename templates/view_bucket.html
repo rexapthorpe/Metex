@@ -3,7 +3,7 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}?v=bucket-v4"/>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bucket_ID_sellers_modal.css') }}?v=bucket-v2"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bucket_ID_sellers_modal.css') }}?v=bucket-v2"/>
 
 <div id="popup-message-container"></div>
 
@@ -41,25 +41,28 @@
         </div>
 
         <!-- Two square thumbnails (or grey square blocks if none) -->
-        <div class="thumbs">
-          {% if has_images %}
-            <button class="thumb" data-idx="0" aria-label="Show first image">
-              <img src="{{ images[0] }}" alt="">
-            </button>
-            <button class="thumb" data-idx="1" aria-label="Show second image">
-              <img src="{{ images[1] if images|length>1 else images[0] }}" alt="">
-            </button>
-          {% else %}
-            <div class="thumb ph" aria-hidden="true"></div>
-            <div class="thumb ph" aria-hidden="true"></div>
-          {% endif %}
+        <!-- NEW: Row under the main image — thumbs (left) + sell stack (right) -->
+        <div class="thumbs-row">
+          <div class="thumbs">
+            {% if has_images %}
+              <button class="thumb" data-idx="0" aria-label="Show first image">
+                <img src="{{ images[0] }}" alt="">
+              </button>
+              <button class="thumb" data-idx="1" aria-label="Show second image">
+                <img src="{{ images[1] if images|length>1 else images[0] }}" alt="">
+              </button>
+            {% else %}
+              <div class="thumb ph" aria-hidden="true"></div>
+              <div class="thumb ph" aria-hidden="true"></div>
+            {% endif %}
+          </div>
+
+          <div class="sell-stack">
+            <div class="sell-kicker soft">List an Item?</div>
+            <a class="sell-circle-btn" href="/sell" aria-label="Go to sell page">Sell</a>
+          </div>
         </div>
 
-        <!-- Sell CTA (left-aligned under thumbnails) -->
-        <div class="sell-cta">
-          <div class="sell-text">List an Item?</div>
-          <a class="sell-circle-btn" href="/sell" aria-label="Go to sell page">Sell</a>
-        </div>
       </div>
 
       <!-- Item Description tile: two spec columns + History + Description (single container) -->
@@ -72,6 +75,7 @@
             <div class="spec-row"><span class="spec-label">Product line</span><span class="spec-value">{{ specs['Product line'] or '--' }}</span></div>
             <div class="spec-row"><span class="spec-label">Product type</span><span class="spec-value">{{ specs['Product type'] or '--' }}</span></div>
             <div class="spec-row"><span class="spec-label">Weight</span><span class="spec-value">{{ specs['Weight'] or '--' }}</span></div>
+            <div class="spec-row"><span class="spec-label">Grade</span><span class="spec-value">{{ specs['Grading'] or '--' }}</span></div>
           </div>
           <div class="spec-col">
             <div class="spec-row"><span class="spec-label">Year</span><span class="spec-value">{{ specs['Year'] or '--' }}</span></div>
@@ -82,9 +86,8 @@
         </div>
 
         <div class="subsection">
-          <h4 class="sub-heading">History of the Item</h4>
+          <h4 class="section-heading">History of the Item</h4>
           <p class="item-history">
-            {{ specs['Grading'] if specs['Grading'] else '' }}
           </p>
           <p class="item-description">
             {{ bucket['description'] if bucket['description'] else '—' }}
@@ -108,11 +111,10 @@
       <hr class="divider">
 
 
-      <!-- View all sellers (opens modal) -->
       <!-- Sellers header/button/link -->
       <div class="sellers-cta">
         <div class="sellers-kicker">See all available sellers</div>
-        <button id="openSellersBtn" class="btn sellers-btn">View All Sellers</button>
+        <button id="openSellersBtn" class="btn sellers-btn" type="button">View All Sellers</button>
         <div class="sellers-foot">
           <a href="/sell" class="sellers-foot-link">List this item?</a>
         </div>
@@ -178,9 +180,12 @@
 
       {% if availability['total_available'] > 0 %}
         {% if availability['lowest_price'] %}
-          <div class="buy-price" aria-label="Current price">
-            <span class="buy-price-amount">${{ '%.2f'|format(availability['lowest_price']) }} USD</span>
-            <span class="soft">per item</span>
+          <div class="buy-block">
+            <div class="best-ask-text">Best Ask</div>
+            <div class="buy-price" aria-label="Current price">
+              <span class="buy-price-amount">${{ '%.2f'|format(availability['lowest_price']) }} USD</span>
+              <span class="soft">per item</span>
+            </div>
           </div>
         {% else %}
           <div class="buy-price" aria-label="Current price">
@@ -221,16 +226,21 @@
 
       <hr class="divider">
 
-      <!-- Shipping / Delivery / Payment block -->
-      <div class="ship-pay-block" id="shipPayBlock">
-        <div class="sp-line"><strong>Shipping</strong></div>
-        <div class="sp-line">Free shipping</div>
-        <div class="sp-line">Insured by UPS</div>
-        <div class="sp-line"><strong>Delivery</strong></div>
-        <div class="sp-line">Seller has 4 days to ship item at which point it can be tracked. If they fail to do so, the seller forfeits the item and you are refunded your money</div>
-        <div class="sp-line"><strong>Payment</strong></div>
-        <div class="sp-line">ACH, Bank Transfer, Credit Card, Debit Card</div>
-      </div>
+      <!-- Shipping / Delivery / Payment block (two-column) -->
+      <dl class="details-grid" id="shipPayBlock" aria-label="Shipping, delivery, payment">
+        <dt>Shipping</dt>
+        <dd>Free shipping.
+            <span class="insured-by-UPS">Insured by UPS</span>
+        </dd>
+
+
+        <dt>Delivery</dt>
+        <dd>Seller has 4 days to ship item at which point it can be tracked. If they fail to do so, the seller forfeits the item and you are refunded your money</dd>
+
+        <dt>Payment Methods</dt>
+        <dd>ACH, Bank Transfer, Credit Card, Debit Card</dd>
+      </dl>
+
 
       <hr class="divider">
     </aside>
@@ -270,21 +280,14 @@
           <div class="abt-actions">
             <form method="GET" action="{{ url_for('bid.edit_bid', bid_id=bid['id']) }}">
               <button type="submit" class="abt-action">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>
+                <i class="fas fa-pencil-alt" aria-hidden="true"></i>
                 <span>Edit</span>
-              </button>
-            </form>
-
-            <form method="GET" action="{{ url_for('bid.edit_bid', bid_id=bid['id']) }}">
-              <button type="submit" class="abt-action">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4h4l1 2h5v2H4V6h5l1-2zm1 6h2v8h-2v-8zm-4 0h2v8H7v-8zm8 0h2v8h-2v-8z"/></svg>
-                <span>View</span>
               </button>
             </form>
 
             <form method="POST" action="{{ url_for('bid.cancel_bid', bid_id=bid['id']) }}" onsubmit="return confirm('Close (cancel) this bid?');">
               <button type="submit" class="abt-action">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7zm3-4h6l1 2h4v2H4V5h4l1-2z"/></svg>
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
                 <span>Close</span>
               </button>
             </form>
@@ -384,6 +387,6 @@
   window.bestBid       = {{ (best_bid or {}) | tojson }};
   window.bucketId      = {{ bucket['id'] }};
 </script>
-<script src="{{ url_for('static', filename='js/bucket_ID_sellers_modal.js') }}?v=bucket-v2"></script>
+<script src="{{ url_for('static', filename='js/modals/bucket_ID_sellers_modal.js') }}?v=bucket-v2"></script>
 <script src="{{ url_for('static', filename='js/view_bucket.js') }}?v=bucket-v4"></script>
 {% endblock %}
