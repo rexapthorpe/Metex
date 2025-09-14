@@ -5,7 +5,7 @@ function syncQuantity(targetId) {
 }
 
 /* =========================
-   GALLERY (square, arrows, thumbs) with placeholder support
+   GALLERY
    ========================= */
 (function initGallery() {
   const arr = Array.isArray(window.bucketImages) ? window.bucketImages : [];
@@ -62,7 +62,7 @@ function syncQuantity(targetId) {
 })();
 
 /* =========================
-   ACCEPT BEST BID (button morph + dial + price slide-down)
+   ACCEPT BEST BID
    ========================= */
 (function initAcceptBestBid() {
   if (!window.bestBid || !window.bestBid.id) return;
@@ -74,8 +74,7 @@ function syncQuantity(targetId) {
   const plus       = document.getElementById("acceptQtyPlus");
   const valEl      = document.getElementById("acceptQtyValue");
   const closeBtn   = document.getElementById("bbCloseBtn");
-  const r1Flex     = document.getElementById("bbR1Flex");
-  const spacer     = document.getElementById("bbSpacer");   // <-- NEW
+  const spacer     = document.getElementById("bbSpacer");
 
   let max = parseInt(dial?.dataset.max || "0", 10);
   let val = Math.min(1, Math.max(0, max)) || 1;
@@ -90,52 +89,43 @@ function syncQuantity(targetId) {
   }
 
   function setExpanded(on) {
-  expanded = !!on;
+    expanded = !!on;
 
-  if (expanded) {
-    actionBtn.textContent = "Confirm Quantity";
-    actionBtn.setAttribute("aria-expanded", "true");
+    if (expanded) {
+      actionBtn.textContent = "Confirm Quantity";
+      actionBtn.setAttribute("aria-expanded", "true");
 
-    if (dial) dial.hidden = false;
-    if (closeBtn) closeBtn.hidden = false;
+      if (dial) dial.hidden = false;
+      if (closeBtn) closeBtn.hidden = false;
 
-    requestAnimationFrame(() => {
-      const dialHeight = dial ? dial.offsetHeight : 0;
-      const gap = 12;
-      const shift = dialHeight + gap;  // how far the price slides down
-      const priceHeight = priceBox ? priceBox.offsetHeight : 0;
+      requestAnimationFrame(() => {
+        const dialHeight = dial ? dial.offsetHeight : 0;
+        const gap = 12;
+        const shift = dialHeight + gap;
+        if (priceBox) {
+          priceBox.style.setProperty("--price-shift", `${shift}px`);
+          priceBox.classList.add("moved");
+        }
+        if (spacer) spacer.style.height = `${shift + 4}px`;
+      });
 
-      if (priceBox) {
-        priceBox.style.setProperty("--price-shift", `${shift}px`);
-        priceBox.classList.add("moved");
-      }
-      // Grow spacer to account for the dial + price block + 4px buffer
-      if (spacer) {
-        spacer.style.height = `${shift + 4}px`;
-      }
-    });
+      updateDial();
+    } else {
+      actionBtn.textContent = "Accept Bid";
+      actionBtn.setAttribute("aria-expanded", "false");
 
-    updateDial();
-  } else {
-    actionBtn.textContent = "Accept Bid";
-    actionBtn.setAttribute("aria-expanded", "false");
-
-    if (priceBox) {
-      priceBox.classList.remove("moved");
+      if (priceBox) priceBox.classList.remove("moved");
+      if (dial) dial.hidden = true;
+      if (closeBtn) closeBtn.hidden = true;
+      if (spacer) spacer.style.height = "0px";
     }
-    if (dial) dial.hidden = true;
-    if (closeBtn) closeBtn.hidden = true;
-    if (spacer) spacer.style.height = "0px";   // collapse space
   }
-}
 
   if (actionBtn) {
     actionBtn.addEventListener("click", () => {
-      // If not expanded -> expand; if expanded -> confirm
       if (!expanded) {
         setExpanded(true);
       } else {
-        // Submit accept for the best bid with selected quantity
         const form = document.createElement("form");
         form.method = "POST";
         form.action = `/bids/accept_bid/${window.bucketId}`;
@@ -157,21 +147,12 @@ function syncQuantity(targetId) {
       }
     });
   }
-
-  if (closeBtn) {
-    closeBtn.addEventListener("click", () => setExpanded(false));
-  }
-
+  if (closeBtn) closeBtn.addEventListener("click", () => setExpanded(false));
   if (minus) minus.addEventListener("click", () => { val -= 1; updateDial(); });
   if (plus)  plus.addEventListener("click", () => { val += 1; updateDial(); });
 
-  // Esc to close when expanded
-  document.addEventListener("keydown", (e) => {
-    if (!expanded) return;
-    if (e.key === "Escape") setExpanded(false);
-  });
+  document.addEventListener("keydown", (e) => { if (expanded && e.key === "Escape") setExpanded(false); });
 
-  // Init state collapsed
   setExpanded(false);
 })();
 
@@ -188,14 +169,13 @@ function syncQuantity(targetId) {
   });
 })();
 
-/* ===== Bid selection + dial logic (existing behavior preserved) ===== */
+/* ===== Bid selection + dial logic ===== */
 function setAcceptBarVisibility() {
   const button = document.getElementById('acceptBidsButton');
   if (!button) return;
   const anySelected = !!document.querySelector('.selected-checkbox:checked');
   button.disabled = !anySelected;
 }
-
 function updateDialVisual(rowEl, val, max) {
   const valueEl = rowEl.querySelector('.dial-value');
   const minusBtn = rowEl.querySelector('.dial-btn.minus');
@@ -210,7 +190,6 @@ function updateDialVisual(rowEl, val, max) {
   if (minusBtn) minusBtn.disabled = (clamped <= 0);
   if (plusBtn)  plusBtn.disabled  = (clamped >= max);
 }
-
 function toggleRowSelection(rowEl) {
   const card = rowEl.querySelector('.bid-card-visual');
   const dialGroup = rowEl.querySelector('.dial-assembly');
@@ -236,7 +215,6 @@ function toggleRowSelection(rowEl) {
   }
   setAcceptBarVisibility();
 }
-
 function handleDialAdjust(rowEl, delta) {
   const max = parseInt(rowEl.dataset.max, 10) || 0;
   const hiddenInput = rowEl.querySelector('input[type="hidden"][id^="accept_qty_"]');
@@ -273,9 +251,169 @@ function setBuyQty(val, opts = {}) {
   }
 }
 
+/* ===== Grading tile (mutually exclusive switches + slide) ===== */
+/* ===== Grading tile (mutually exclusive switches + slide) ===== */
+(function initGradingTile() {
+  const btn   = document.getElementById('gradingToggleBtn');
+  const panel = document.getElementById('gradingPanel');
+
+  const any  = document.getElementById('switchAny');
+  const pcgs = document.getElementById('switchPCGS');
+  const ngc  = document.getElementById('switchNGC');
+
+  if (!btn || !panel || !any || !pcgs || !ngc) return;
+
+  // --- read server truth from hidden inputs
+  const hidGraded = document.getElementById('gradedOnlyInput');
+  const hidAny    = document.getElementById('anyGraderInput');
+  const hidPcgs   = document.getElementById('pcgsInput');
+  const hidNgc    = document.getElementById('ngcInput');
+
+  function bool(v) { return String(v) === '1'; }
+
+  // Apply server truth to switches (overrides browser form-state restore)
+  (function applyServerTruth() {
+    const graded = bool(hidGraded?.value || '0');
+    const sAny   = graded && bool(hidAny?.value  || '0');
+    const sPcgs  = graded && bool(hidPcgs?.value || '0');
+    const sNgc   = graded && bool(hidNgc?.value  || '0');
+
+    any.checked  = sAny;
+    pcgs.checked = sPcgs;
+    ngc.checked  = sNgc;
+  })();
+
+  // Slide helpers
+  function slideOpen(el) {
+    el.hidden = false;
+    el.style.opacity = '0';
+    el.style.height = '0px';
+    const h = el.scrollHeight;
+    el.style.transition = 'none';
+    requestAnimationFrame(() => {
+      el.style.transition = 'height 260ms ease, opacity 180ms ease';
+      el.style.height = h + 'px';
+      el.style.opacity = '1';
+    });
+  }
+  function slideClose(el) {
+    const h = el.scrollHeight;
+    el.style.height = h + 'px';
+    el.style.opacity = '1';
+    requestAnimationFrame(() => {
+      el.style.transition = 'height 260ms ease, opacity 180ms ease';
+      el.style.height = '0px';
+      el.style.opacity = '0';
+    });
+    setTimeout(() => { el.hidden = true; }, 270);
+  }
+
+  btn.addEventListener('click', () => {
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    if (expanded) {
+      btn.setAttribute('aria-expanded', 'false');
+      slideClose(panel);
+    } else {
+      btn.setAttribute('aria-expanded', 'true');
+      slideOpen(panel);
+    }
+  });
+
+  // Current UI -> hidden inputs
+  function selectedState() {
+    return {
+      graded_only: (any.checked || pcgs.checked || ngc.checked) ? 1 : 0,
+      any_grader: any.checked ? 1 : 0,
+      pcgs: pcgs.checked ? 1 : 0,
+      ngc: ngc.checked ? 1 : 0
+    };
+  }
+  function setHiddenInputs(s) {
+    document.getElementById('gradedOnlyInput')?.setAttribute('value', String(s.graded_only));
+    document.getElementById('anyGraderInput') ?.setAttribute('value', String(s.any_grader));
+    document.getElementById('pcgsInput')      ?.setAttribute('value', String(s.pcgs));
+    document.getElementById('ngcInput')       ?.setAttribute('value', String(s.ngc));
+
+    // forward to the two forms
+    ['buyGradedOnly','buyAnyGrader','buyPcgs','buyNgc']
+      .forEach((id, i) => document.getElementById(id)?.setAttribute('value', String([s.graded_only, s.any_grader, s.pcgs, s.ngc][i])));
+    ['cartGradedOnly','cartAnyGrader','cartPcgs','cartNgc']
+      .forEach((id, i) => document.getElementById(id)?.setAttribute('value', String([s.graded_only, s.any_grader, s.pcgs, s.ngc][i])));
+  }
+
+  async function refreshAvailability() {
+    const s = selectedState();
+    setHiddenInputs(s);
+
+    const params = new URLSearchParams({
+      graded_only: String(s.graded_only),
+      any_grader : String(s.any_grader),
+      pcgs       : String(s.pcgs),
+      ngc        : String(s.ngc)
+    });
+
+    try {
+      const res = await fetch(`/bucket/${window.bucketId}/availability_json?` + params.toString(), { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      const buyControls = document.getElementById('buyControls');
+      const oos = document.getElementById('outOfStockMsg');
+      const oosBid = document.getElementById('outOfStockBidBtn');   
+      const priceEl = document.getElementById('buyPriceAmount');
+      const qtyAvail = document.getElementById('qtyAvailable');
+      const pill = document.getElementById('buyQtyPill');
+
+      const total = parseInt(data.total_available || 0, 10);
+      const price = (data.lowest_price != null) ? Number(data.lowest_price) : null;
+
+      if (total > 0) {
+        if (oos) oos.style.display = 'none';
+        if (oosBid) oosBid.style.display = 'none';                 
+        if (buyControls) buyControls.style.display = '';
+        if (priceEl) priceEl.textContent = (price != null ? `$${price.toFixed(2)} USD` : '—');
+        if (qtyAvail) qtyAvail.textContent = `Only ${total} left`;
+        if (pill) pill.dataset.max = String(total);
+
+        const hiddenQty = document.getElementById('quantityInput');
+        if (hiddenQty) {
+          const current = parseInt(hiddenQty.value || '1', 10) || 1;
+          if (current > total) { hiddenQty.value = String(Math.max(1, total)); setBuyQty(Math.max(1, total)); }
+        }
+      } else {
+        if (buyControls) buyControls.style.display = 'none';
+        if (oos) oos.style.display = '';
+        if (oosBid) oosBid.style.display = '';   
+
+      }
+    } catch (e) {
+      console.error('availability refresh failed', e);
+    }
+  }
+
+  // Mutually exclusive switches
+  function handleExclusiveToggle(changed) {
+    if (changed === any && any.checked) {
+      pcgs.checked = false; ngc.checked = false;
+    } else if (changed === pcgs && pcgs.checked) {
+      any.checked = false; ngc.checked = false;
+    } else if (changed === ngc && ngc.checked) {
+      any.checked = false; pcgs.checked = false;
+    }
+    refreshAvailability();
+  }
+
+  any.addEventListener('change',  () => handleExclusiveToggle(any));
+  pcgs.addEventListener('change', () => handleExclusiveToggle(pcgs));
+  ngc.addEventListener('change',  () => handleExclusiveToggle(ngc));
+
+  // After applying server truth, sync hidden inputs once
+  setHiddenInputs(selectedState());
+})();
+
+
 /* ===== DOM Ready wiring ===== */
 document.addEventListener('DOMContentLoaded', () => {
-  /* Bid cards (select + dial adjust) */
   document.querySelectorAll('.bid-row').forEach(row => {
     const card  = row.querySelector('.bid-card-visual');
     const minus = row.querySelector('.dial-btn.minus');
@@ -299,7 +437,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   setAcceptBarVisibility();
 
-  /* Buy qty dial */
   const buyMinus = document.getElementById('buyQtyMinus');
   const buyPlus  = document.getElementById('buyQtyPlus');
   const hidden   = document.getElementById('quantityInput');

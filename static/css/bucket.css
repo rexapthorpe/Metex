@@ -227,6 +227,9 @@
   color: #000000;
   font-weight: 700;
   box-sizing: border-box;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+
+
 }
 .sellers-btn:hover {
   background: #e5e7eb;
@@ -294,7 +297,20 @@
   color: #fff;
   font-weight: 700;
   font-size: 0.95rem;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
 }
+
+.best-bid-accept-btn:hover{
+  background: #1664d1;
+  color: #fff;
+  transform: scale(1.03); 
+}
+
+.buy-btn:hover { 
+  transform: scale(1.03); 
+  background-color: #1664d1;
+}
+
 .best-bid-row.disabled { opacity: 0.6; }
 .best-bid-price { display: flex; flex-direction: column; line-height: 1.1; }
 .best-bid-price #bestBidPrice { font-weight: 750; font-size: 22px; color: #000000; }
@@ -305,6 +321,7 @@
 
 /* Force hidden controls to actually hide */
 #acceptQtyDial[hidden], #bbCloseBtn[hidden] { display: none !important; }
+
 
 /* ==============================
    BUY/ADD CTAs
@@ -325,23 +342,65 @@
 
 .action-buttons { display: block; width: 100%; }
 .buy-btn {
-  display: block; width: 100%; padding: 14px 18px; text-align: center;
-  font-size: 16px; font-weight: 700; color: #ffffff; background-color: #1877ff;
-  border: none; border-radius: 9999px; transform-origin: center;
+  margin-top: 8px;
+  display: block; 
+  width: 100%; 
+  padding: 14px 18px; 
+  text-align: center;
+  font-size: 16px; 
+  font-weight: 700; 
+  color: #ffffff; 
+  background-color: #1877ff;
+  border: none; 
+  border-radius: 9999px; 
+  transform-origin: center;
+  cursor: pointer; transition: transform .12s ease, opacity .12s ease;
+
 }
-.buy-btn:hover { transform: scale(1.03); }
+.buy-btn:hover { 
+  transform: scale(1.03); 
+  background-color: #1664d1;
+}
+
 .bid-btn {
-  display: block; width: 100%; padding: 14px 18px; text-align: center;
-  font-size: 16px; font-weight: 700; color: #ffffff; background-color: #63c9f5;
-  border-radius: 9999px; text-decoration: none;
+  margin-top: 8px;
+  display: block; 
+  width: 100%; 
+  padding: 14px 18px; 
+  text-align: center;
+  font-size: 16px; 
+  font-weight: 700; 
+  color: #ffffff; 
+  background-color: #63c9f5;
+  border-radius: 9999px; 
+  text-decoration: none;
+  cursor: pointer; transition: transform .12s ease, opacity .12s ease;
 }
-.bid-btn:hover { transform: scale(1.03); }
+.bid-btn:hover { 
+  transform: scale(1.03); 
+  background-color: #1664d1;
+}
+
 .add-cart-btn {
-  display: block; width: 100%; padding: 14px 18px; text-align: center;
-  font-size: 16px; font-weight: 700; color: #63c9f5; background-color: #ffffff;
-  border: 2px solid #63c9f5; border-radius: 9999px;
+  margin-top: 8px;
+  display: block; 
+  width: 100%; 
+  padding: 14px 18px; 
+  text-align: center;
+  font-size: 16px; 
+  font-weight: 700; 
+  color: #63c9f5; 
+  background-color: #ffffff;
+  border: 2px solid #63c9f5; 
+  border-radius: 9999px;
+  cursor: pointer; transition: transform .12s ease, opacity .12s ease;
 }
-.add-cart-btn:hover { transform: scale(1.03); border-color: #63c9f5; }
+.add-cart-btn:hover { 
+  transform: scale(1.03); 
+  border: none; 
+  background-color: #1664d1;
+  color: #ffffff;
+}
 
 /* Qty row */
 .qty-row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
@@ -519,7 +578,8 @@
 }
 .abt-action:hover {
   transform: scale(1.03);
-  background: #e5e7eb;
+  background: #63c9f5;
+  color: #ffffff;
 }
 
 .abt-actions form {
@@ -560,3 +620,80 @@
 .bids-panel .bid-card-visual * { text-align: left !important; }
 .bids-panel .bid-card-content { flex: 1 1 auto; }
 .bids-panel .bid-top-row, .bids-panel .bid-meta { justify-content: space-between; }
+
+
+/* Disabled state for buy/add buttons when out of stock via dynamic filter */
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ===== Grading tile ===== */
+.grading-tile { display: block; }
+.grading-toggle-btn {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 9999px;
+  background: none;
+  border: 2px solid #a4a5a8;
+  color: #000;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+
+}
+.grading-toggle-btn:hover { 
+  background: #e5e7eb; 
+  border: none; }
+.grading-toggle-btn .chev { transition: transform .2s ease; }
+.grading-toggle-btn[aria-expanded="true"] .chev { transform: rotate(90deg); }
+
+/* sliding panel container (animated via inline height) */
+.grading-panel {
+  overflow: hidden;
+  height: 0;
+  opacity: 0;
+  transition: height 260ms ease, opacity 180ms ease;
+}
+
+/* rows */
+.grading-rows { padding: 10px 2px; }
+.grading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 2px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.grading-row:last-child { border-bottom: 0; }
+.glabel { font-weight: 600; color: #0b1222; }
+
+/* iOS-like toggle (blue when on) */
+.toggle { position: relative; width: 50px; height: 28px; display: inline-block; }
+.toggle input { position: absolute; opacity: 0; inset: 0; }
+.toggle .slider {
+  position: absolute; inset: 0;
+  background: #d1d5db;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+  transition: background-color .18s ease;
+}
+.toggle .slider::after {
+  content: "";
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  transition: transform .18s ease;
+}
+.toggle input:checked + .slider { background: #1877ff; }
+.toggle input:checked + .slider::after { transform: translateX(22px); }
+
+
+.grading-kicker { margin: 0 0 8px 2px; }
+
+#outOfStockBidBtn { 
+  margin-top: 8px;
+}
+

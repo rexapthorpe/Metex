@@ -2,7 +2,7 @@
 {% block title %}View Item{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}?v=bucket-v4"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}?v=bucket-v6"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bucket_ID_sellers_modal.css') }}?v=bucket-v2"/>
 
 <div id="popup-message-container"></div>
@@ -13,7 +13,7 @@
 
     <!-- ====================== LEFT COLUMN (65%) ====================== -->
     <section class="left-col" aria-label="Gallery and Description">
-      <!-- Gallery: square main with in-tile arrows; grey placeholder if no images -->
+      <!-- Gallery -->
       <div class="gallery">
         <div class="gallery-main" id="galleryMain" aria-live="polite">
           {% set has_images = images and images|length > 0 %}
@@ -24,7 +24,6 @@
           {% if has_images %}
             <img src="{{ images[0] }}" alt="Item image" id="mainImage">
           {% else %}
-            <!-- Grey square placeholder (keeps 1:1 via CSS) -->
             <div id="mainImagePlaceholder" class="gallery-ph" aria-label="Image placeholder"></div>
           {% endif %}
 
@@ -40,8 +39,7 @@
           </div>
         </div>
 
-        <!-- Two square thumbnails (or grey square blocks if none) -->
-        <!-- NEW: Row under the main image — thumbs (left) + sell stack (right) -->
+        <!-- Thumbs row -->
         <div class="thumbs-row">
           <div class="thumbs">
             {% if has_images %}
@@ -65,7 +63,7 @@
 
       </div>
 
-      <!-- Item Description tile: two spec columns + History + Description (single container) -->
+      <!-- Item Description tile -->
       <article class="content-tile description-tile">
         <h3 class="section-heading">Item Description</h3>
 
@@ -87,8 +85,7 @@
 
         <div class="subsection">
           <h4 class="section-heading">History of the Item</h4>
-          <p class="item-history">
-          </p>
+          <p class="item-history"></p>
           <p class="item-description">
             {{ bucket['description'] if bucket['description'] else '—' }}
           </p>
@@ -110,7 +107,6 @@
       {% endif %}
       <hr class="divider">
 
-
       <!-- Sellers header/button/link -->
       <div class="sellers-cta">
         <div class="sellers-kicker">See all available sellers</div>
@@ -121,13 +117,11 @@
       </div>
       <hr class="divider">
 
-
-      <!-- ===================== Accept Best Bid (two-column block) ===================== -->
+      <!-- ===================== Accept Best Bid ===================== -->
       <section class="best-bid" id="bestBidBlock" aria-label="Accept best bid">
         {% if best_bid %}
           {% set max_qty = best_bid['remaining_quantity'] or best_bid['quantity_requested'] or 0 %}
           <div class="bb-grid">
-            <!-- Left inner column: actions & See all bids -->
             <div class="bb-colL">
               <div class="bb-row1">
                 <button class="btn best-bid-accept-btn" id="bbActionBtn" aria-expanded="false">Accept Bid</button>
@@ -137,16 +131,13 @@
               </div>
             </div>
 
-            <!-- Right inner column: dial/close (row 1) + price (slides down into same column) -->
             <div class="bb-colR">
               <div class="bb-row1r">
-                <!-- Price box: starts top-right; slides straight down in expanded state -->
                 <div class="best-bid-price price-box" id="bestBidPriceBox">
                   <div id="bestBidPrice">${{ '%.2f'|format(best_bid['price_per_coin']) }} USD</div>
                   <div class="soft">Best bid per item</div>
                 </div>
 
-                <!-- Dial + Close; hidden initially -->
                 <div class="bb-r1-flex" id="bbR1Flex">
                   <div class="dial-pill" id="acceptQtyDial" data-max="{{ max_qty }}" hidden>
                     <button type="button" class="dial-btn minus" id="acceptQtyMinus" aria-label="Decrease quantity">−</button>
@@ -157,11 +148,8 @@
                 </div>
               </div>
 
-              <!-- NEW: layout spacer that expands only when Accept UI is open -->
               <div class="bb-spacer" id="bbSpacer" aria-hidden="true"></div>
             </div>
-
-
           </div>
         {% else %}
           <div class="best-bid-row disabled">
@@ -174,43 +162,93 @@
           <a href="#bidsSection" id="seeAllBidsLink" class="soft-link">See all bids</a>
         {% endif %}
       </section>
-      <!-- ================================================================================ -->
 
       <hr class="divider">
 
-      {% if availability['total_available'] > 0 %}
+
+
+
+
+      <!-- ===================== Grading filter tile (collapsible) ===================== -->
+      <section class="grading-tile" id="gradingTile" aria-label="Require 3rd Party Grading">
+        <div class="soft grading-kicker">Filter for professionally graded items</div>
+        <button type="button" id="gradingToggleBtn" class="btn grading-toggle-btn" aria-expanded="false" aria-controls="gradingPanel">
+          Require 3rd Party Grading?
+          <span class="chev" aria-hidden="true">▸</span>
+        </button>
+
+        <div id="gradingPanel" class="grading-panel" hidden>
+          <div class="grading-rows">
+            <div class="grading-row">
+              <div class="glabel">Any Grader</div>
+              <label class="toggle">
+                <input type="checkbox" id="switchAny" autocomplete="off" {% if graded_only and any_grader %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="grading-row">
+              <div class="glabel">PCGS</div>
+              <label class="toggle">
+                <input type="checkbox" id="switchPCGS" autocomplete="off" {% if graded_only and pcgs %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="grading-row">
+              <div class="glabel">NGC</div>
+              <label class="toggle">
+                <input type="checkbox" id="switchNGC" autocomplete="off" {% if graded_only and ngc %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <!-- ===================== Price / Buy block (now dynamically switchable) ===================== -->
+      {% set in_stock = availability['total_available'] > 0 %}
+      <div id="buyControls" {% if not in_stock %}style="display:none"{% endif %}>
         {% if availability['lowest_price'] %}
           <div class="buy-block">
             <div class="best-ask-text">Best Ask</div>
             <div class="buy-price" aria-label="Current price">
-              <span class="buy-price-amount">${{ '%.2f'|format(availability['lowest_price']) }} USD</span>
+              <span class="buy-price-amount" id="buyPriceAmount">${{ '%.2f'|format(availability['lowest_price']) }} USD</span>
               <span class="soft">per item</span>
             </div>
           </div>
         {% else %}
           <div class="buy-price" aria-label="Current price">
-            <span class="buy-price-amount">—</span>
+            <span class="buy-price-amount" id="buyPriceAmount">—</span>
             <span class="soft">No active listings</span>
           </div>
         {% endif %}
 
-        <!-- Buy quantity dial with “Only N left” on the right -->
         <div class="qty-row">
           <div class="dial-pill buy-qty-pill" id="buyQtyPill" aria-label="Quantity selector" data-max="{{ availability['total_available'] }}">
             <button type="button" class="dial-btn minus" id="buyQtyMinus" aria-label="Decrease quantity">−</button>
             <div class="dial-value" id="buyQtyValue">1</div>
             <button type="button" class="dial-btn plus" id="buyQtyPlus" aria-label="Increase quantity">+</button>
           </div>
-          <span class="qty-available">Only {{ availability['total_available'] }} left</span>
+          <span class="qty-available" id="qtyAvailable">Only {{ availability['total_available'] }} left</span>
         </div>
 
-        <!-- Hidden quantity used by actions -->
         <input type="hidden" id="quantityInput" name="quantity" value="1">
 
-        <!-- Full-width CTAs -->
+        <!-- Hidden grading inputs updated by JS -->
+        <input type="hidden" id="gradedOnlyInput" name="graded_only" value="{{ 1 if graded_only else 0 }}">
+        <input type="hidden" id="anyGraderInput" name="any_grader" value="{{ 1 if graded_only and any_grader else 0 }}">
+        <input type="hidden" id="pcgsInput" name="pcgs" value="{{ 1 if graded_only and pcgs else 0 }}">
+        <input type="hidden" id="ngcInput" name="ngc" value="{{ 1 if graded_only and ngc else 0 }}">
+
         <form method="POST" action="{{ url_for('checkout.checkout') }}" class="action-buttons">
           <input type="hidden" name="bucket_id" value="{{ bucket['id'] }}">
           <input type="hidden" name="quantity" id="buyQuantityInput">
+          <!-- forward grading too (harmless if checkout ignores) -->
+          <input type="hidden" name="graded_only" id="buyGradedOnly">
+          <input type="hidden" name="any_grader" id="buyAnyGrader">
+          <input type="hidden" name="pcgs" id="buyPcgs">
+          <input type="hidden" name="ngc" id="buyNgc">
           <button type="submit" class="btn buy-btn" onclick="syncQuantity('buyQuantityInput')">Buy Item</button>
         </form>
 
@@ -218,21 +256,36 @@
 
         <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['id']) }}" class="action-buttons">
           <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
+          <input type="hidden" name="graded_only" id="cartGradedOnly">
+          <input type="hidden" name="any_grader" id="cartAnyGrader">
+          <input type="hidden" name="pcgs" id="cartPcgs">
+          <input type="hidden" name="ngc" id="cartNgc">
           <button type="submit" class="btn add-cart-btn" onclick="syncQuantity('cartQuantityInput')">Add to Cart</button>
         </form>
-      {% else %}
-        <p class="out-of-stock">Currently out of stock. Check back later or place a bid below.</p>
-      {% endif %}
+      </div>
+
+      <p class="out-of-stock" id="outOfStockMsg" {% if in_stock %}style="display:none"{% endif %}>
+        Currently out of stock. Check back later or place a bid below.
+      </p>
+
+      <a
+        id="outOfStockBidBtn"
+        class="btn bid-btn"
+        href="{{ url_for('bid.bid_page', bucket_id=bucket['id']) }}"
+        {% if in_stock %}style="display:none"{% endif %}
+      >
+        Make a Bid
+      </a>
+
 
       <hr class="divider">
 
-      <!-- Shipping / Delivery / Payment block (two-column) -->
+      <!-- Shipping / Delivery / Payment -->
       <dl class="details-grid" id="shipPayBlock" aria-label="Shipping, delivery, payment">
         <dt>Shipping</dt>
         <dd>Free shipping.
             <span class="insured-by-UPS">Insured by UPS</span>
         </dd>
-
 
         <dt>Delivery</dt>
         <dd>Seller has 4 days to ship item at which point it can be tracked. If they fail to do so, the seller forfeits the item and you are refunded your money</dd>
@@ -241,8 +294,6 @@
         <dd>ACH, Bank Transfer, Credit Card, Debit Card</dd>
       </dl>
 
-
-      <hr class="divider">
     </aside>
   </div>
 </div>
@@ -388,5 +439,5 @@
   window.bucketId      = {{ bucket['id'] }};
 </script>
 <script src="{{ url_for('static', filename='js/modals/bucket_ID_sellers_modal.js') }}?v=bucket-v2"></script>
-<script src="{{ url_for('static', filename='js/view_bucket.js') }}?v=bucket-v4"></script>
+<script src="{{ url_for('static', filename='js/view_bucket.js') }}?v=bucket-v6"></script>
 {% endblock %}
