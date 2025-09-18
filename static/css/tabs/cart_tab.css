@@ -1,31 +1,33 @@
-/* —— NAMESPACE: everything under .cart-tab —— */
-.cart-tab .cart-page-layout { /* reserved for page-level styles if needed */ }
-
-.cart-tab .tab-heading {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-  text-align: left;
+.cart-page-content-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-.cart-tab .empty-message {
-  font-size: 1rem;
-  color: #000000;
-  text-align: left;
-  margin-top: 1rem;
-}
-
-/* === Container that lays out tiles as columns/rows (3 → 2 → 1 as space narrows) === */
-.cart-tab .cart-items-column {
+/* Cart TAB container */
+.cart-page-layout {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;                 /* spacing between tiles */
+  align-items: flex-start;
+  gap: 30px;
+  flex-wrap: nowrap;
+}
+
+/* 👉 key change: NO WRAP + horizontal scroll inside the tab */
+.cart-items-column {
+  display: flex;
+  flex-wrap: nowrap;                /* was wrap — keep tiles in one row */
+  gap: 16px;
   align-items: flex-start;
   align-content: flex-start;
+  overflow-x: auto;                 /* scroll sideways when cramped */
+  overflow-y: hidden;
+  padding-bottom: 8px;              /* room for scrollbar on some OSes */
+  scroll-behavior: smooth;
 }
 
-/* === Tile === */
-.cart-tab .cart-item-tile {
+/* Tiles keep their shape; never shrink */
+.cart-item-tile {
   display: flex;
   align-items: stretch;
   gap: 20px;
@@ -33,106 +35,126 @@
   border: 1px solid #ccc;
   border-radius: 25px;
   padding: 15px;
-  /* You can keep margin-bottom if you prefer extra vertical spacing.
-     gap on the container already handles spacing, so it's optional. */
-  /* margin-bottom: 20px; */
-  min-width: 700px;          /* your original intrinsic tile width */
+  margin-bottom: 0;
   box-sizing: border-box;
+  min-width: 700px;                 /* same fixed layout as cart page */
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  flex-shrink: 0;            
+  flex: 0 0 auto;                   /* don’t grow, don’t shrink */
 }
 
-.cart-tab .cart-item-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
 
-/* === Column wrappers inside the tile === */
-.cart-tab .tile-col {
-  box-sizing: border-box;
-}
-
-/* Fixed-size thumbnail column: stays the same at all viewport sizes */
-.cart-tab .tile-image {
-  flex: 0 0 180px;           /* fixed column width */
-  min-width: 180px;
-  aspect-ratio: 1 / 1;       /* square thumbnail area */
+.tile-image {
+  flex: 0 0 180px;
   background: #eee;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   border-radius: 25px;
-  overflow: hidden;          /* prevents image overflow */
+  aspect-ratio: 1/1;
 }
 
-/* If an <img> is present, fill the box without distortion */
-.cart-tab .tile-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;       /* contain or cover, your choice */
-  display: block;
-}
-
-.cart-tab .tile-info {
+.tile-info {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 0;              /* allows text to wrap/ellipsis rather than push layout */
 }
 
-.cart-tab .tile-controls {
-  flex: 0 0 200px;           /* fixed controls column */
+.tile-info-main {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.tile-info-left { flex: 1; }
+.tile-info-right {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: flex-end;
 }
 
-/* === Price & qty === */
-.cart-tab .price-qty {
-  text-align: right;
-  margin-bottom: 8px;
-}
-.cart-tab .avg-price {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 6px;
-  display: block;
-}
-.cart-tab .quantity-controls {
-  display: flex;
+/* Price & QTY (same as cart page) */
+.item-price { text-align: right; }
+.avg-price { font-size: 18px; font-weight: bold; display: block; margin-bottom: 0; }
+.price-subtext { display: block; font-size: 12px; color: #6b7280; margin-top: 2px; margin-bottom: 8px; }
+.quantity-controls { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+
+.cart-qty {
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  background: #fff;
+  color: #000;
+  border-radius: 9999px;
+  line-height: 1;
+  user-select: none;
+  border: 1px solid #000;
+  box-sizing: border-box;
+  gap: 16px;
 }
-.cart-tab .quantity-input {
-  width: 60px;
-  padding: 4px 8px;
-  font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+.cart-qty__btn {
+  display: flex; align-items: center; justify-content: center;
+  appearance: none; -webkit-appearance: none;
+  border: 0; background: transparent;
+  font-size: 18px; font-weight: 700; color: #000;
+  cursor: pointer; padding: 0 6px;
 }
+.cart-qty__btn:disabled { opacity: .45; cursor: not-allowed; }
+.cart-qty__value {
+  display: inline-block;
+  flex: 0 0 56px;                   /* wide enough for 2–4 digits */
+  width: 56px;
+  height: 100%; line-height: 36px;
+  text-align: center; padding: 0; margin: 0;
+  border: 0 !important; box-shadow: none !important;
+  outline: none; background: transparent !important;
+  color: #000; font-weight: 700; font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  border-radius: 0 !important; appearance: none; -webkit-appearance: none;
+}
+.cart-qty__value::-webkit-outer-spin-button,
+.cart-qty__value::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cart-qty__value[type="number"] { -moz-appearance: textfield; }
 
-/* === Actions === */
-.cart-tab .tile-actions-inline {
+/* Buttons row */
+.tile-actions-inline {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
 }
-.cart-tab .icon-button {
-  background: #fff;
+.icon-button {
+  background: white;
   border: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  border-radius: 9999px;
-  font-size: 14px;
-  cursor: pointer;
-  color: #000;
-  transition: background-color 0.2s, color 0.2s;
+  display: flex; align-items: center; gap: 4px;
+  padding: 8px 12px; border-radius: 9999px;
+  cursor: pointer; color: #000000; font-size: 14px;
 }
-.cart-tab .icon-button:hover {
-  background: #3da6ff;
-  color: #fff;
+.icon-button:hover { background: #3da6ff; color: #fff; }
+
+
+/* Stack heading above tiles only on the cart tab */
+.cart-page-layout.cart-tab {
+  flex-direction: column;   /* was row */
+  align-items: stretch;     /* let the tile row span full width */
+  gap: 12px;                /* tighter vertical spacing */
+}
+
+/* Optional: a little breathing room under the title */
+.cart-tab .tab-heading {
+  margin: 0 0 8px;
+}
+
+
+/* 🔒 No responsive mutation on small screens. Keep layout the same. */
+@media (max-width: 768px) {
+  .cart-item-tile { flex-direction: row; }
+  .tile-image { width: auto; }
+  .tile-info-main { flex-direction: row; align-items: flex-start; }
+  .tile-info-right { align-items: flex-end; }
+}
+@media (max-width: 600px) {
+  .cart-page-layout { flex-direction: row; } /* never stack columns */
+  .cart-qty { height: 36px; }
+  .cart-qty__value { line-height: 36px; flex-basis: 56px; width: 56px; }
 }

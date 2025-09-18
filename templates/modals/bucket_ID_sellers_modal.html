@@ -11,20 +11,28 @@
       {% if sellers and sellers|length > 0 %}
         <div class="sellers-grid">
           {% for s in sellers %}
-            {# --- Safe lookups for rating fields regardless of SQL aliases --- #}
-            {% set cols = s.keys() %}
-            {% set avg = s['rating_avg'] if 'rating_avg' in cols
-                        else (s['avg_rating'] if 'avg_rating' in cols else none) %}
+            {# ---- Robust lookups for rating fields (whatever aliases come back) ---- #}
+            {% set cols  = s.keys() %}
+            {% set avg   = s['rating'] if 'rating' in cols
+                           else (s['rating_avg'] if 'rating_avg' in cols
+                                 else (s['avg_rating'] if 'avg_rating' in cols else none)) %}
             {% set count = s['rating_count'] if 'rating_count' in cols
-                          else (s['num_ratings'] if 'num_ratings' in cols else 0) %}
+                           else (s['num_ratings'] if 'num_ratings' in cols else 0) %}
 
             <article class="seller-card">
               <div class="seller-card__top">
                 <div class="seller-card__name">{{ s['username'] }}</div>
-                <div class="seller-card__rating">
+
+                <div class="seller-card__rating" aria-label="Seller rating">
                   {% if count and avg is not none %}
+                    {% set filled = (avg|round(0, 'floor')|int) %}
+                    {% set filled = 5 if filled > 5 else (0 if filled < 0 else filled) %}
                     <span class="rating-num">{{ '%.1f'|format(avg) }}</span>
-                    <span class="star">★</span>
+                    <span class="stars" aria-hidden="true">
+                      {% for i in range(5) %}
+                        <span class="star {{ 'on' if i < filled else 'off' }}">★</span>
+                      {% endfor %}
+                    </span>
                     <span class="rating-count">({{ count }})</span>
                   {% else %}
                     <span class="rating-new">New seller</span>

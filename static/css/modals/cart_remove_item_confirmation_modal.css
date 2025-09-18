@@ -1,6 +1,6 @@
 /* Overlay for remove-item dialog */
 .cart-remove-overlay {
-  display: none;
+  display: none !important;          /* ensure hidden on initial render */
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
@@ -18,9 +18,7 @@
   max-width: 400px;
   text-align: center;
 }
-.cart-remove-modal-content h2 {
-  margin-top: 0;
-}
+.cart-remove-modal-content h2 { margin-top: 0; }
 
 /* Action buttons */
 .cart-remove-actions {
@@ -30,35 +28,9 @@
   gap: 12px;
 }
 .cart-remove-confirm-btn {
-  background: none;
-  color: #333;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.cart-remove-confirm-btn:hover {
-  background: none;
-  color: #333;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
+  background: none; color: #333; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;
 }
 .cart-remove-abort-btn {
-  background: #3da6ff;
-  color: #ffffff;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
+  background: #3da6ff; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;
 }
-
-.cart-remove-abort-btn:hover {
-  background: #89c8ff;
-  color: #000000;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-}
+.cart-remove-abort-btn:hover { background: #89c8ff; color: #000000; }

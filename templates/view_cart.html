@@ -2,8 +2,24 @@
 {% block title %}Your Cart{% endblock %}
 
 {% block content %}
+
+{# === Include modal HTML once (outside tiles) === #}
+{% include 'modals/cart_sellers_modal.html' %}
+{% include 'modals/cart_individual_listings_modal.html' %}
+{% include 'modals/remove_seller_confirmation_modal.html' %}
+{% include 'modals/cart_remove_item_confirmation_modal.html' %}
+
+{# Fonts (already in base; safe to keep if you prefer) #}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/cart.css') }}">
+
+{# === Page CSS === #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/view_cart.css') }}">
+
+{# === Modal CSS (load the same styles the cart tab uses) === #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cart_sellers_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cart_individual_listings_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/remove_seller_confirmation_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cart_remove_item_confirmation_modal.css') }}">
 
 <div class="cart-page-content-container">
   <h2>Your Cart</h2>
@@ -32,20 +48,31 @@
               </div>
 
               <div class="tile-info-right">
-                <!-- PRICE ABOVE THE QTY -->
-                <div class="item-price">
+                <div class="item-price avg-price">
                   ${{ '%.2f' % bucket.avg_price }}
                 </div>
+                <span class="price-subtext">price per item</span>
+
+                <!-- Pill qty dial -->
                 <div class="quantity-controls">
-                  <label for="quantity-{{ bucket_id }}">Qty:</label>
-                  <input
-                    type="number"
-                    name="quantity"
-                    id="quantity-{{ bucket_id }}"
-                    min="1"
-                    max="99"
-                    value="{{ bucket.total_qty }}"
-                    class="quantity-input">
+                  <div class="cart-qty"
+                       role="group"
+                       aria-label="Quantity"
+                       data-bucket-id="{{ bucket_id }}">
+                    <button class="cart-qty__btn cart-qty__minus" type="button" aria-label="Decrease quantity">−</button>
+                    <input
+                      class="cart-qty__value quantity-input"
+                      type="text"
+                      id="quantity-{{ bucket_id }}"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
+                      min="1"
+                      max="9999"
+                      value="{{ bucket.total_qty }}"
+                      aria-live="polite"
+                    />
+                    <button class="cart-qty__btn cart-qty__plus" type="button" aria-label="Increase quantity">+</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -61,15 +88,11 @@
                 <span class="icon-label">Items</span>
               </button>
 
-              {% for listing in bucket.listings %}
-                <button
-                  class="icon-button"
-                  title="Remove from Cart"
-                  onclick="removeCartItem({{ listing.listing_id }}, this)">
-                  <i class="fa-solid fa-trash"></i>
-                  <span class="icon-label">Remove</span>
-                </button>
-              {% endfor %}
+              <!-- Single remove button for the whole bucket -->
+              <button class="icon-button" title="Remove" onclick="removeCartBucket({{ bucket_id }})">
+                <i class="fa-solid fa-trash"></i>
+                <span class="icon-label">Remove</span>
+              </button>
             </div>
 
           </div>
@@ -85,13 +108,9 @@
       {% for bucket_id, bucket in buckets.items() %}
         <div class="summary-line" data-bucket-id="{{ bucket_id }}">
           <p><strong>{{ bucket.category.metal }} {{ bucket.category.product_type }}</strong></p>
-          <p class="summary-qty" id="summary-qty-{{ bucket_id }}">
-            Quantity: {{ bucket.total_qty }}
-          </p>
+          <p class="summary-qty" id="summary-qty-{{ bucket_id }}">Quantity: {{ bucket.total_qty }}</p>
           <p>Avg Price: ${{ '%.2f' % bucket.avg_price }}</p>
-          <p class="summary-total" id="summary-total-{{ bucket_id }}">
-            Total: ${{ '%.2f' % bucket.total_price }}
-          </p>
+          <p class="summary-total" id="summary-total-{{ bucket_id }}">Total: ${{ '%.2f' % bucket.total_price }}</p>
           <hr>
         </div>
       {% endfor %}
@@ -145,21 +164,16 @@
   }, 3500);
 </script>
 
-<!-- Modals -->
-<div id="sellerModal" class="modal">
-  <div class="modal-content">
-    <div id="sellerDetails" class="seller-scroll-container"></div>
-  </div>
-</div>
-
-<div id="priceBreakdownModal" class="modal">
-  <div class="modal-content">
-    <div id="priceBreakdownDetails" class="seller-scroll-container"></div>
-  </div>
-</div>
-
 <script>
   const sessionUserId = {{ 'null' if session.get('user_id') is none else session.get('user_id') }};
 </script>
+
+{# === Page JS === #}
 <script src="{{ url_for('static', filename='js/view_cart.js') }}"></script>
+
+{# === Modal JS (load AFTER view_cart.js so these override the generic handlers) === #}
+<script defer src="{{ url_for('static', filename='js/modals/cart_sellers_modal.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/modals/cart_individual_listings_modal.js') }}"></script>
+{# remove_seller_confirmation_modal.js and cart_remove_item_confirmation_modal.js are already included globally in base.html #}
+
 {% endblock %}

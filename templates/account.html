@@ -14,7 +14,6 @@
   {% include 'modals/ratings_modal.html' %}
   {% include 'modals/edit_bid_modal.html' %}
 
-
   <!-- Account Page Layout -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
   <!-- Tab Styles -->
@@ -38,7 +37,6 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/order_items_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/message_sellers_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/ratings_modal.css') }}">
-
 
   <div class="account-layout">
     <!-- Sidebar -->
@@ -67,10 +65,7 @@
       <div id="orders-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/orders_tab.html' %}</div></div>
       <div id="ratings-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/ratings_tab.html' %}</div></div>
       <div id="messages-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/messages_tab.html' %}</div></div>
-
-      <!-- Leave Account Details without tiles-tab (it’s form-like, not tiled) -->
       <div id="details-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/account_details_tab.html' %}</div></div>
-
     </div>
   </div>
 
@@ -83,13 +78,13 @@
   <!-- Tabs -->
   <script src="{{ url_for('static', filename='js/tabs/cart_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/bids_tab.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/tabs/listings_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/listings_tab.js') }}"></script -->
   <script src="{{ url_for('static', filename='js/tabs/sold_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/orders_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/ratings_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/messages_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/account_details_tab.js') }}"></script>
-  
+
   <!-- cart modals -->
   <script src="{{ url_for('static', filename='js/modals/cart_sellers_modal.js') }}"></script>
   <script src="{{ url_for('static', filename='js/modals/cart_individual_listings_modal.js') }}"></script>
@@ -103,7 +98,7 @@
   <script src="{{ url_for('static', filename='js/modals/order_sellers_modal.js') }}"></script>
   <script src="{{ url_for('static', filename='js/modals/order_items_modal.js') }}"></script>
 
-  <!-- orders modals -->
+  <!-- ratings modal -->
   <script src="{{ url_for('static', filename='js/modals/ratings_modal_v2.js') }}?cb=12345"></script>
 
   <!-- message modal -->
@@ -112,4 +107,16 @@
   <!-- bids modal -->
   <script src="{{ url_for('static', filename='js/modals/edit_bid_modal.js') }}"></script>
 
-  {% endblock %}
+  <!-- Safety: ensure no overlays are visible on initial load -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll(
+        '.modal, .cart-items-modal-overlay, .cart-remove-overlay, #removeSellerConfirmModal'
+      ).forEach(el => {
+        el.style.display = 'none';
+        el.classList.remove('show');
+        el.setAttribute('aria-hidden', 'true');
+      });
+    });
+  </script>
+{% endblock %}

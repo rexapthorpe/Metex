@@ -1,10 +1,7 @@
 .sellers-modal { position: fixed; inset: 0; display: none; z-index: 1000; }
 .sellers-modal.is-open { display: block; }
 
-.sellers-modal__backdrop {
-  position: absolute; inset: 0;
-  background: rgba(0,0,0,.45);
-}
+.sellers-modal__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
 
 .sellers-modal__dialog {
   position: relative;
@@ -22,14 +19,9 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
-.sellers-modal__close {
-  background: transparent; border: none; font-size: 24px; line-height: 1; cursor: pointer;
-}
+.sellers-modal__close { background: transparent; border: none; font-size: 24px; line-height: 1; cursor: pointer; }
 
-.sellers-modal__body {
-  max-height: 70vh; overflow: auto;
-  padding: 16px 20px;
-}
+.sellers-modal__body { max-height: 70vh; overflow: auto; padding: 16px 20px; }
 
 .sellers-grid {
   display: grid;
@@ -45,17 +37,19 @@
   box-shadow: 0 6px 16px rgba(0,0,0,.06);
 }
 
-.seller-card__top {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 8px;
-}
+.seller-card__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 
-.seller-card__name { font-weight: 700; color: #0b1222; }
+.seller-card__name { font-weight: 700; color: #0b1222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.seller-card__rating .star { color: #f59e0b; margin-right: 4px; }
-.rating-num { font-weight: 700; margin-right: 4px; }
+/* --- Rating presentation --- */
+.seller-card__rating { display: inline-flex; align-items: center; gap: 6px; }
+.rating-num   { font-weight: 700; color: #0b1222; }
+.stars        { display: inline-flex; gap: 2px; }
+.star         { font-size: 14px; line-height: 1; }
+.star.on      { color: #0b1222; }          /* filled: black */
+.star.off     { color: #d1d5db; }          /* empty: grey  */
 .rating-count { color: #6b7280; font-size: .9rem; }
-.rating-new { color: #6b7280; font-style: italic; }
+.rating-new   { color: #6b7280; font-style: italic; }
 
 .seller-card__meta {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -63,7 +57,7 @@
 }
 
 .price { font-weight: 700; color: #0b1222; }
-.qty { color: #374151; }
+.qty   { color: #374151; }
 
 .empty-state { color: #6b7280; padding: 16px 4px; text-align: center; }
 

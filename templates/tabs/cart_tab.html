@@ -1,49 +1,64 @@
 {# templates/tabs/cart_tab.html #}
 
 <!-- bring in the remove-item confirmation styling -->
-<link rel="stylesheet"
-      href="{{ url_for('static', filename='css/modals/cart_remove_item_confirmation_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_remove_item_confirmation_modal.css') }}">
 
 <div class="cart-page-layout cart-tab">
   <h2 class="tab-heading">My Cart</h2>
+
   <div class="cart-items-column">
     {% if buckets %}
       {% for bucket_id, bucket in buckets.items() %}
         <div class="cart-item-tile" data-bucket-id="{{ bucket_id }}">
-          <div class="tile-col tile-image">Image</div>
-          <div class="tile-col tile-info">
-            <h3>
-              {{ bucket.category.weight }}
-              {{ bucket.category.metal }}
-              {{ bucket.category.product_type }}
-            </h3>
-            <p>
-              <strong>Mint:</strong> {{ bucket.category.mint }}<br>
-              <strong>Year:</strong> {{ bucket.category.year }}<br>
-              <strong>Finish:</strong> {{ bucket.category.finish }}<br>
-              <strong>Grade:</strong> {{ bucket.category.grade }}
-            </p>
-            {% if bucket.grading_preference %}
-              <p><strong>Grading Preference:</strong> {{ bucket.grading_preference }}</p>
-            {% endif %}
-          </div>
-          <!-- Column 3: Aggregated Price/Qty & Buttons -->
-          <div class="tile-col tile-controls">
-            <div class="price-qty">
-              <span class="avg-price">
-                ${{ '%.2f'|format(bucket.avg_price) }}
-              </span>
-              <div class="quantity-controls">
-                <label for="quantity-{{ bucket_id }}">Qty:</label>
-                <input
-                  type="number"
-                  id="quantity-{{ bucket_id }}"
-                  min="1" max="99"
-                  value="{{ bucket.total_quantity }}"
-                  class="quantity-input"
-                  onchange="handleQuantityChangeBucket(event)">
+          <div class="tile-image">Image</div>
+
+          <div class="tile-info">
+            <!-- INFO + PRICE + QTY ROW (identical structure to view_cart.html) -->
+            <div class="tile-info-main">
+              <div class="tile-info-left">
+                <h3>{{ bucket.category.weight }} {{ bucket.category.metal }} {{ bucket.category.product_type }}</h3>
+                <p>
+                  <strong>Mint:</strong> {{ bucket.category.mint }}<br>
+                  <strong>Year:</strong> {{ bucket.category.year }}<br>
+                  <strong>Finish:</strong> {{ bucket.category.finish }}<br>
+                  <strong>Grade:</strong> {{ bucket.category.grade }}
+                </p>
+                {% if bucket.grading_preference %}
+                  <p><strong>Grading Preference:</strong> {{ bucket.grading_preference }}</p>
+                {% endif %}
+              </div>
+
+              <div class="tile-info-right">
+                <div class="item-price avg-price">
+                  ${{ '%.2f'|format(bucket.avg_price) }}
+                </div>
+                <span class="price-subtext">price per item</span>
+
+                <!-- Pill qty dial (class names match view_cart for shared styles/JS) -->
+                <div class="quantity-controls">
+                  <div class="cart-qty"
+                       role="group"
+                       aria-label="Quantity"
+                       data-bucket-id="{{ bucket_id }}">
+                    <button class="cart-qty__btn cart-qty__minus" type="button" aria-label="Decrease quantity">−</button>
+                    <input
+                      class="cart-qty__value quantity-input"
+                      type="text"
+                      id="quantity-{{ bucket_id }}"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
+                      min="1"
+                      max="99"
+                      value="{{ bucket.total_quantity }}"
+                      aria-live="polite"
+                    />
+                    <button class="cart-qty__btn cart-qty__plus" type="button" aria-label="Increase quantity">+</button>
+                  </div>
+                </div>
               </div>
             </div>
+
+            <!-- Buttons row (right-aligned, same as view_cart) -->
             <div class="tile-actions-inline">
               <button
                 class="icon-button"
@@ -52,6 +67,7 @@
                 <i class="fa-solid fa-user"></i>
                 <span class="icon-label">Sellers</span>
               </button>
+
               <button
                 class="icon-button"
                 title="View Items"
@@ -59,7 +75,7 @@
                 <i class="fa-solid fa-list"></i>
                 <span class="icon-label">Items</span>
               </button>
-              <!-- now opens the confirmation modal -->
+
               <button
                 class="icon-button"
                 title="Remove"
@@ -77,9 +93,7 @@
   </div>
 </div>
 
-
+{# Include the same modals the cart page uses #}
 {% include 'modals/cart_sellers_modal.html' %}
 {% include 'modals/remove_seller_confirmation_modal.html' %}
 {% include 'modals/cart_individual_listings_modal.html' %}
-
-
