@@ -16,10 +16,15 @@
 
 .listings-tab .listing-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 24px;
+  /* Each column is a fixed track; number of columns auto-fits */
+  grid-template-columns: repeat(auto-fill, 420px);
+  gap: 13px;                 /* fixed spacing */
+  justify-content: start;    /* prevent track stretch */
+  align-content: start;      /* avoid vertical stretching */
   margin-top: 16px;
 }
+
+
 
 .listings-tab .listing-tile {
   background: #fff;
@@ -31,12 +36,12 @@
   flex-direction: column;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
-  width: 420px;
+  width: 420px;      /* fixed tile width (matches grid track) */
   max-width: 420px;
-  flex: 0 0 420px;
-  flex-grow: 0;
-  flex-shrink: 0;
+  /* remove flex sizing—this is a grid item, not a flex item */
 }
+
+
 .listings-tab .listing-tile:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);

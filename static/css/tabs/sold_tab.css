@@ -3,10 +3,14 @@
 /* reuse the same grid & tile styles as listings_tab */
 .order-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, 420px);
+  gap: 13px;                 /* fixed spacing */
+  justify-content: start;    /* prevent track stretch */
+  align-content: start;
   margin-top: 16px;
 }
+
+
 .order-tile {
   background: #fff;
   border: 1px solid #e0e0e0;
@@ -20,11 +24,9 @@
 /* lock size without touching internals */
 #sold-tab .order-tile {
   box-sizing: border-box;
-  width: 420px;
+  width: 420px;     /* fixed tile width (matches grid track) */
   max-width: 420px;
-  flex: 0 0 420px;
-  flex-grow: 0;
-  flex-shrink: 0;
+  /* remove flex props; grid handles placement */
 }
 
 

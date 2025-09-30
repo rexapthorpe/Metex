@@ -13,6 +13,8 @@ from routes.messages_routes import messages_bp
 from routes.cart_routes import cart_bp
 from routes.bid_routes import bid_bp
 from routes.ratings_routes import ratings_bp
+from routes.portfolio_routes import portfolio_bp
+
 
 
 app = Flask(__name__)
@@ -32,6 +34,7 @@ app.register_blueprint(messages_bp)
 app.register_blueprint(cart_bp)
 app.register_blueprint(bid_bp)
 app.register_blueprint(ratings_bp)
+app.register_blueprint(portfolio_bp)
 
 
 @app.route('/')

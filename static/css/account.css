@@ -61,7 +61,7 @@
 
 /* (kept for compatibility with your original styles) */
 .account-sidebar li {
-  padding: 10px 20px;
+  padding: 7px 20px;
   cursor: pointer;
   border-radius: 8px;
   transition: background-color 0.3s ease;
