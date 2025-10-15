@@ -98,10 +98,14 @@
 
   function highlightStars(count) {
     document.querySelectorAll('#starContainer i').forEach(star => {
-      const val = parseInt(star.dataset.value, 10);
-      star.classList.toggle('filled', val <= count);
+      const v = parseInt(star.dataset.value, 10);
+      const filled = v <= count;
+      star.classList.toggle('filled', filled);     // keeps gold color
+      star.classList.toggle('fa-solid', filled);   // solid (filled) star
+      star.classList.toggle('fa-regular', !filled);/* outline star */
     });
   }
+
 
   /**
    * Close the modal.

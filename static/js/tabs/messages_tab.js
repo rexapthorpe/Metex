@@ -1,29 +1,50 @@
 // static/js/tabs/messages_tab.js
 
-// After sending a message elsewhere, this helper updates (or adds) a conversation tile
+const READ_KEY = (orderId, participantId) => `msg_last_read:${orderId}:${participantId}`;
+
+function parseTimestamp(tsText) {
+  // Expect "YYYY-MM-DD HH:MM:SS" or ISO; normalize to ISO-ish
+  if (!tsText) return 0;
+  const isoish = tsText.trim().replace(' ', 'T');
+  const t = Date.parse(isoish);
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function markThreadReadUI(tile) {
+  const dot = tile.querySelector('.unread-dot');
+  if (dot) dot.classList.add('hidden');
+}
+
+function markThreadReadPersist(orderId, participantId) {
+  const now = Date.now();
+  localStorage.setItem(READ_KEY(orderId, participantId), String(now));
+  // best-effort server persist (creates/updates a small state row)
+  fetch(`/orders/api/${orderId}/messages/${participantId}/read`, { method: 'POST' }).catch(() => {});
+}
+
+// After sending a message elsewhere, update (or add) a conversation tile
+// OUTGOING messages from the current user → keep dot hidden.
 window.notifyNewMessage = function(orderId, participantId, username, lastMessage, timestamp) {
   const list = document.querySelector('.messages-tab .conversation-list');
   if (!list) return;
 
   let tile = list.querySelector(`.conversation-tile[data-user-id="${participantId}"]`);
   if (tile) {
-    // update existing tile
     tile.querySelector('.last-message').textContent = lastMessage;
     tile.querySelector('.timestamp').textContent = timestamp;
-    tile.querySelector('.unread-dot').classList.remove('hidden');
+    markThreadReadUI(tile);
+    markThreadReadPersist(orderId, participantId);
   } else {
-    // create a new tile
     tile = document.createElement('div');
     tile.className = 'conversation-tile collapsed';
     tile.dataset.userId  = participantId;
     tile.dataset.orderId = orderId;
     tile.innerHTML = `
       <div class="tile-header">
-        <div class="unread-dot"></div>
+        <div class="unread-dot hidden"></div>
         <div class="username">${username}</div>
         <div class="last-message">${lastMessage}</div>
         <div class="timestamp">${timestamp}</div>
-        <i class="arrow-icon fa fa-chevron-left"></i>
       </div>
       <div class="message-body">
         <div class="message-history"></div>
@@ -34,8 +55,6 @@ window.notifyNewMessage = function(orderId, participantId, username, lastMessage
       </div>
     `;
     list.prepend(tile);
-
-    // bind click on the new header
     bindTileHeader(tile);
     bindTileForm(tile);
   }
@@ -45,10 +64,9 @@ function bindTileHeader(tile) {
   const header = tile.querySelector('.tile-header');
   header.addEventListener('click', () => {
     const orderId = tile.dataset.orderId;
-    // read the type straight from the DOM
+    const participantId = tile.dataset.userId;
     const conversationType = tile.dataset.type || 'seller';
     if (orderId) openMessageModal(orderId, conversationType);
-
 
     // collapse others
     document.querySelectorAll('.conversation-tile.expanded').forEach(other => {
@@ -61,11 +79,13 @@ function bindTileHeader(tile) {
       const history = tile.querySelector('.message-history');
       if (history) history.scrollTop = history.scrollHeight;
     }
+
+    // Persist "read" now that the user has opened it
+    markThreadReadUI(tile);
+    markThreadReadPersist(orderId, participantId);
   });
 }
 
-
-// Binds form submit for inline messaging in the messages tab
 function bindTileForm(tile) {
   const form = tile.querySelector('.message-input-row');
   form.addEventListener('submit', e => {
@@ -84,7 +104,6 @@ function bindTileForm(tile) {
     .then(r => r.json())
     .then(data => {
       if (data.status === 'sent') {
-        // append to history
         const history = tile.querySelector('.message-history');
         const msgDiv = document.createElement('div');
         msgDiv.className = 'message sent';
@@ -96,7 +115,7 @@ function bindTileForm(tile) {
         history.scrollTop = history.scrollHeight;
         input.value = '';
 
-        // notify main modal
+        // Update header preview + mark as read (it's your outgoing)
         if (typeof notifyNewMessage === 'function') {
           notifyNewMessage(orderId, userId, tile.querySelector('.username').textContent, text, new Date().toLocaleString());
         }
@@ -108,11 +127,25 @@ function bindTileForm(tile) {
   });
 }
 
-// On DOM ready, bind existing tiles
 document.addEventListener('DOMContentLoaded', () => {
+  // Bind existing tiles
   const tiles = document.querySelectorAll('.messages-tab .conversation-tile');
   tiles.forEach(tile => {
     bindTileHeader(tile);
     bindTileForm(tile);
+  });
+
+  // On load, reconcile dots with last_read timestamps
+  tiles.forEach(tile => {
+    const orderId = tile.dataset.orderId;
+    const participantId = tile.dataset.userId;
+    const lastRead = parseInt(localStorage.getItem(READ_KEY(orderId, participantId)) || '0', 10);
+    if (!lastRead) return;
+
+    const tsText = tile.querySelector('.timestamp')?.textContent || '';
+    const latestTs = parseTimestamp(tsText);
+    if (lastRead >= latestTs) {
+      markThreadReadUI(tile); // hide dot if we've read since latest message
+    }
   });
 });

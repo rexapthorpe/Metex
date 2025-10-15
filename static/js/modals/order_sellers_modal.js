@@ -8,7 +8,6 @@ function openOrderSellerPopup(orderId) {
       return res.json();
     })
     .then(data => {
-      console.log('order–sellers API returned:', data);
       if (!Array.isArray(data) || data.length === 0) {
         alert('No sellers found for this order.');
         return;
@@ -52,11 +51,18 @@ function nextOrderSeller() {
 
 function renderOrderSeller() {
   const s = orderSellerData[orderSellerIndex];
+
+  // Build rounded stars like cart modal
   const rounded = Math.round(s.rating || 0);
   let starsHtml = '';
   for (let i = 1; i <= 5; i++) {
     starsHtml += `<span class="star${i <= rounded ? ' filled' : ''}">★</span>`;
   }
+
+  // Optional unit-count line if API includes quantity
+  const unitLine = (typeof s.quantity === 'number')
+    ? `<div class="unit-count">${s.quantity} Unit${s.quantity === 1 ? '' : 's'} In This Order</div>`
+    : '';
 
   document.getElementById('orderSellersModalContent').innerHTML = `
     <div class="modal-header">
@@ -66,25 +72,29 @@ function renderOrderSeller() {
       <button class="nav-arrow" ${orderSellerIndex === orderSellerData.length - 1 ? 'disabled' : ''}
               onclick="nextOrderSeller()">→</button>
     </div>
+
     <div class="modal-body">
       <div class="seller-photo">Image</div>
+
       <div class="stats-row">
-        <div class="avg-rating">${(s.rating||0).toFixed(1)}</div>
-        <div class="stars">${starsHtml}</div>
+        <div class="rating-block">
+          <span class="avg-rating">${(s.rating || 0).toFixed(1)}</span>
+          <span class="stars">${starsHtml}</span>
+        </div>
       </div>
+
       <div class="stats-row">
         <div class="review-count">
           ${s.num_reviews} Review${s.num_reviews === 1 ? '' : 's'}
         </div>
       </div>
-    </div>
-    <div class="modal-footer">
 
+      ${unitLine}
     </div>
+
+    <div class="modal-footer"></div>
   `;
 }
-
-
 
 // expose globally
 window.openOrderSellerPopup = openOrderSellerPopup;

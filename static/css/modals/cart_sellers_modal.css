@@ -14,7 +14,7 @@
   border-radius: 12px;
   width: 90%; max-width: 350px;
   max-height: 500px;
-  position: relative;
+  position: relative;                 /* needed for absolute footer */
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   overflow: hidden;
 }
@@ -33,7 +33,7 @@
   flex: 1;
   margin: 0;
   text-align: center;
-  line-height: 1;      /* exactly matches height of button boxes below */
+  line-height: 1;
   font-size: 22px;
   font-weight: bold;
 }
@@ -66,17 +66,18 @@
   color: #ffffff;
 }
 
-/* Body: rating, username, placeholder image, reviews */
+/* Body: rating, username, placeholder image, reviews
+   Add horizontal padding so text does not touch edges.
+   Add extra bottom padding so it never collides with the fixed footer button. */
 .modal-body {
-  padding: 0px;
+  padding: 8px 50px 80px;   /* <-- key change: side margin & space for footer */
   text-align: left;
 }
-
 
 /* Ensure both items in each row stay on one line */
 .modal-body .stats-row {
   display: flex;
-  flex-wrap: nowrap;               /* never break into two lines */
+  flex-wrap: nowrap;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
@@ -85,36 +86,28 @@
 /* Prevent long text from wrapping */
 .modal-body .review-count,
 .modal-body .unit-price {
-  white-space: nowrap;             /* keep it on one line */
-  margin: 0;                       /* remove any default margins */
+  white-space: nowrap;
+  margin: 0;
 }
-
-
 
 /*  Rating Number  */
 .modal-body .avg-rating {
-  /* e.g. change font, color */
   font-size: 1.7rem;
   color: #000000;
-  /* your custom rules here */
 }
 
 /*  Star Icons  */
 .modal-body .stars .star {
-  /* size & spacing */
   font-size: 1.9rem;
   margin-right: 2px;
-  /* default star color */
   color: #ccc;
 }
 .modal-body .stars .star.filled {
-  /* filled‐in star color */
   color: #000000;
 }
 
 /* ── Review Count ── */
 .modal-body .review-count {
-  /* e.g. italics, smaller text */
   font-style: italic;
   font-size: 0.85rem;
   color: #666;
@@ -122,21 +115,19 @@
 
 /* ── Unit Count (# items) ── */
 .modal-body .unit-count {
-  /* e.g. bold, uppercase */
   font-weight: bold;
   color: #000000;
 }
 
 /* ── Unit Price ── */
 .modal-body .unit-price {
-  /* e.g. highlight price */
   font-weight: 600;
   font-size: 1rem;
   color: #000000;
 }
 
 .username-section {
-  font-size: 1.7rem;;
+  font-size: 1.7rem;
   font-weight: bold;
   margin-bottom: 16px;
 }
@@ -152,14 +143,23 @@
   border: transparent;
   color: #777;
   font-size: 0.9rem;
-  border-radius: 20px; 
+  border-radius: 20px;
 }
+
 .review-count {
   font-size: 0.9rem;
   color: #555;
   margin-bottom: 20px;
 }
 
+/* Footer: keep button pinned to bottom-right */
+.modal-footer {
+  position: absolute;      /* <-- key addition */
+  right: 16px;
+  bottom: 12px;
+}
+
+/* Remove button styling */
 .modal-footer .remove-btn {
   text-align: center !important;
   background: transparent !important;
@@ -171,7 +171,6 @@
   font-family: inherit !important;
   font-weight: 600 !important;
   transition: background-color 0.2s ease;
-
 }
 .modal-footer .remove-btn:hover {
   background: #3da6ff !important;

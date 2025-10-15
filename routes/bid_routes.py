@@ -115,37 +115,58 @@ def update_bid():
 
     errors = {}
     try:
-        bid_id           = int(request.form['bid_id'])
-        bid_price        = float(request.form['bid_price'])
-        bid_quantity     = int(request.form['bid_quantity'])
-        delivery_address = request.form['delivery_address'].strip()
-        requires_grading = request.form.get('requires_grading') == 'yes'
-        preferred_grader = request.form.get('preferred_grader') if requires_grading else None
+        bid_id = int(request.form['bid_id'])
+        bid_price = float(request.form['bid_price'])
+        bid_quantity = int(request.form['bid_quantity'])
+        # May be empty string
+        delivery_address = (request.form.get('delivery_address') or '').strip()
+
+        requires_grading = (request.form.get('requires_grading') == 'yes')
+        preferred_grader = request.form.get('preferred_grader')
+        if not requires_grading:
+            preferred_grader = None
     except (ValueError, KeyError):
         return jsonify(success=False, message="Invalid input data"), 400
+
+    # Server-side rounding to tick 0.01
+    bid_price = round(bid_price + 1e-9, 2)
 
     if bid_price <= 0:
         errors['bid_price'] = "Price must be greater than zero."
     if bid_quantity < 1:
         errors['bid_quantity'] = "Quantity must be at least 1."
-    if not delivery_address:
-        errors['delivery_address'] = "Delivery address cannot be empty."
+    if requires_grading and not delivery_address:
+        errors['delivery_address'] = "Delivery address is required when grading is selected."
     if errors:
         return jsonify(success=False, errors=errors), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # Ensure ownership & fetch existing address so we can preserve if blank
+    existing = cursor.execute(
+        'SELECT buyer_id, delivery_address FROM bids WHERE id = ?',
+        (bid_id,)
+    ).fetchone()
+    if not existing or existing['buyer_id'] != session['user_id']:
+        conn.close()
+        return jsonify(success=False, message="Unauthorized"), 403
+
+    # Preserve prior address if user left it blank and grading is off
+    new_address = delivery_address if delivery_address else (existing['delivery_address'] or '')
+
     cursor.execute(
         '''
         UPDATE bids
-        SET price_per_coin     = ?,
-            quantity_requested = ?,
-            remaining_quantity  = ?,
-            requires_grading    = ?,
-            preferred_grader    = ?,
-            delivery_address    = ?,
-            status              = 'Open'
-        WHERE id = ? AND buyer_id = ?
+           SET price_per_coin      = ?,
+               quantity_requested  = ?,
+               remaining_quantity  = ?,
+               requires_grading    = ?,
+               preferred_grader    = ?,
+               delivery_address    = ?,
+               status              = 'Open',
+               active              = 1
+         WHERE id = ? AND buyer_id = ?
         ''',
         (
             bid_price,
@@ -153,7 +174,7 @@ def update_bid():
             bid_quantity,
             1 if requires_grading else 0,
             preferred_grader,
-            delivery_address,
+            new_address,
             bid_id,
             session['user_id']
         )
@@ -172,7 +193,7 @@ def edit_bid_form(bid_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # load the bid
+    # Load bid, enforce ownership
     bid = cursor.execute(
         'SELECT * FROM bids WHERE id = ? AND buyer_id = ?',
         (bid_id, session['user_id'])
@@ -181,40 +202,41 @@ def edit_bid_form(bid_id):
         conn.close()
         return jsonify(error="Bid not found or unauthorized"), 404
 
-    # load up to 10 active listing prices for this category
-    rows = cursor.execute(
+    category_id = bid['category_id']
+
+    # Current item price = lowest ask among active listings in this bucket
+    row_lowest = cursor.execute(
         '''
-        SELECT price_per_coin
+        SELECT MIN(price_per_coin) AS min_price
         FROM listings
         WHERE category_id = ?
           AND active = 1
           AND quantity > 0
-        ORDER BY price_per_coin ASC
-        LIMIT 10
         ''',
-        (bid['category_id'],)
-    ).fetchall()
+        (category_id,)
+    ).fetchone()
+    current_item_price = float(row_lowest['min_price']) if row_lowest and row_lowest['min_price'] is not None else float(bid['price_per_coin'])
+
+    # Best Bid pill = highest active bid price for this bucket (excluding cancelled/inactive)
+    row_best_bid = cursor.execute(
+        '''
+        SELECT MAX(price_per_coin) AS max_bid
+        FROM bids
+        WHERE category_id = ?
+          AND active = 1
+        ''',
+        (category_id,)
+    ).fetchone()
+    best_bid_price = float(row_best_bid['max_bid']) if row_best_bid and row_best_bid['max_bid'] is not None else float(bid['price_per_coin'])
+
     conn.close()
 
-    # extract just the price numbers
-    prices = [r['price_per_coin'] for r in rows]
-
-    # current lowest listing price
-    current_price = round(prices[0], 2) if prices else bid['price_per_coin']
-    # highest bid (i.e. the top listing price)
-    highest_bid   = round(prices[-1], 2) if prices else bid['price_per_coin']
-
-    # your “best” and “good” suggestions
-    best_bid_price = round(sum(prices) / len(prices), 2) if prices else bid['price_per_coin']
-    good_bid_price = round(best_bid_price * 0.95, 2)
-
+    # Render the new single-screen tab (not the old wizard)
     return render_template(
         'tabs/bid_form.html',
         bid=bid,
-        highest_bid=highest_bid,
-        current_price=current_price,
-        best_bid_price=best_bid_price,
-        good_bid_price=good_bid_price,
+        current_item_price=round(current_item_price, 2),
+        best_bid_price=round(best_bid_price, 2),
         form_action_url=url_for('bid.update_bid')
     )
 

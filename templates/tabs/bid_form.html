@@ -1,127 +1,115 @@
-{# templates/partials/bid_form.html #}
-<form id="bid-form" method="POST" action="{{ form_action_url }}">
-
-  <!-- Step 1: Price & Suggestions -->
-  <!-- Step 1: Price & Suggestions -->
-<div class="step-panel" id="step-1">
-  <h3>Edit Your Bid</h3>
-
-  <!-- Metrics: two-column grid -->
-  <div class="modal-metrics">
-    <!-- left column: labels -->
-    <div class="metric-labels">
-      <div class="metric-label">🔼 Highest Bid:</div>
-      <div class="metric-label">🔽 Current Price:</div>
-    </div>
-    <!-- right column: values -->
-    <div class="metric-values">
-      <div class="metric-value">${{ '%.2f'|format(highest_bid) }}</div>
-      <div class="metric-value">${{ '%.2f'|format(current_price) }}</div>
-    </div>
-  </div>
-
-  <!-- Suggestions (unchanged) -->
-  <div class="modal-suggestions">
-    <button type="button"
-            class="suggestion-btn best"
-            onclick="setBidPrice({{ best_bid_price }})">
-      Best: ${{ '%.2f'|format(best_bid_price) }}
-    </button>
-    <button type="button"
-            class="suggestion-btn good"
-            onclick="setBidPrice({{ good_bid_price }})">
-      Good: ${{ '%.2f'|format(good_bid_price) }}
-    </button>
-  </div>
-
-  <!-- Custom Entry: now blank, with min & larger font -->
-  <div class="modal-custom">
-    <label for="bid-price-input">Enter Custom Bid ($):</label>
-    <div class="input-prefix">
-      <span>$</span>
-      <input type="number"
-             name="bid_price"
-             id="bid-price-input"
-             step="1.00"
-             min="1.00"
-             placeholder="0000.00"
-             required>
-    </div>
-  </div>
-
-  <!-- Next button (unchanged) -->
-  <div class="modal-footer">
-    <button type="button" class="next-button" onclick="goToStep(2)">
-      Next
-    </button>
-  </div>
-</div>
-
-
-  <!-- Step 2: Quantity -->
-  <div class="step-panel" id="step-2" style="display:none">
-    <div class="modal-custom">
-      <label for="qty-input">Quantity:</label>
-      <input type="number"
-             id="qty-input"
-             name="bid_quantity"
-             value="{{ bid.quantity_requested if bid else '' }}"
-             required>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="next-button" onclick="goToStep(1)">Back</button>
-      <button type="button" class="next-button" onclick="goToStep(3)">Next</button>
-    </div>
-  </div>
-
-  <!-- Step 3: Grading -->
-  <div class="step-panel" id="step-3" style="display:none">
-    <div class="modal-custom">
-      <label for="requires_grading">Require Grading?</label>
-      <select name="requires_grading"
-              id="requires_grading"
-              onchange="toggleGraderDropdown()">
-        <option value="" disabled {% if not bid %}selected{% endif %}>Select one</option>
-        <option value="no"  {% if bid and not bid.requires_grading %}selected{% endif %}>No</option>
-        <option value="yes" {% if bid and bid.requires_grading %}selected{% endif %}>Yes</option>
-      </select>
-
-      <div id="grader_dropdown_section" style="display:none; margin-top:10px">
-        <label for="preferred_grader">Preferred Grader</label>
-        <select name="preferred_grader" id="preferred_grader">
-          <option value="">Select One</option>
-          <option value="Any"  {% if bid and bid.preferred_grader=='Any' %}selected{% endif %}>Any Grader</option>
-          <option value="PCGS" {% if bid and bid.preferred_grader=='PCGS' %}selected{% endif %}>PCGS</option>
-          <option value="NGC"  {% if bid and bid.preferred_grader=='NGC' %}selected{% endif %}>NGC</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="next-button" onclick="goToStep(2)">Back</button>
-      <button type="button" class="next-button" onclick="goToStep(4)">Next</button>
-    </div>
-  </div>
-
-  <!-- Step 4: Delivery Address -->
-  <div class="step-panel" id="step-4" style="display:none">
-    <div class="modal-custom">
-      <label for="address-input">Delivery Address:</label>
-      <input type="text"
-             id="address-input"
-             name="delivery_address"
-             value="{{ bid.delivery_address if bid else '' }}"
-             placeholder="123 Main St, City, State, ZIP"
-             required>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="next-button" onclick="goToStep(3)">Back</button>
-      <button type="submit" class="next-button">
-        {{ bid and 'Save Changes' or 'Submit Bid' }}
-      </button>
-    </div>
-  </div>
+{# templates/tabs/bid_form.html — Edit Bid UI with single-box grading dropdown #}
+<form id="bid-form" class="edit-bid-form" method="POST" action="{{ form_action_url }}">
+  {% set is_grading = (bid.requires_grading == 1 or bid.requires_grading == True) %}
+  {% set grader = bid.preferred_grader or '' %}
 
   {% if bid %}
     <input type="hidden" name="bid_id" value="{{ bid.id }}">
   {% endif %}
+  <input type="hidden" name="requires_grading" id="requires_grading" value="{{ 'yes' if is_grading else 'no' }}">
+  <input type="hidden" name="preferred_grader" id="preferred_grader" value="{{ grader }}">
+
+  <div class="edit-bid-modal">
+    <h2>Edit Your Bid</h2>
+
+    <div class="eb-grid {{ 'grading-open' if is_grading else '' }}" id="eb-grid">
+      <!-- Row 1 -->
+      <div class="eb-current" aria-live="polite">
+        <div class="eb-label">Current item price</div>
+        <div class="eb-value">${{ '%.2f'|format(current_item_price) }}</div>
+      </div>
+
+      <div class="eb-qty">
+        <label for="qty-input" class="eb-label">Quantity</label>
+        <input type="number"
+               id="qty-input"
+               name="bid_quantity"
+               min="1"
+               step="1"
+               value="{{ bid.quantity_requested if bid else 1 }}"
+               required>
+        <div class="eb-hint" id="qty-hint"></div>
+      </div>
+
+      <!-- Right column: SINGLE rounded box that expands to reveal switches -->
+      <div class="eb-grading" id="eb-grading" aria-expanded="{{ 'true' if is_grading else 'false' }}">
+        <div class="eb-grading-label">Filter for professionally graded items</div>
+
+        <div class="eb-grading-box" id="eb-grading-box">
+          <button type="button" class="eb-grading-header" id="eb-grading-header" aria-expanded="{{ 'true' if is_grading else 'false' }}">
+            <span class="eb-grading-title">Require 3rd Party Grading?</span>
+            <span class="chev" id="eb-grading-chev">{{ '▴' if is_grading else '▾' }}</span>
+          </button>
+
+          <div class="eb-grading-menu" id="eb-grading-menu" aria-hidden="{{ 'false' if is_grading else 'true' }}">
+            <div class="switch-row">
+              <span>Any Grader</span>
+              <label class="switch">
+                <input type="checkbox" id="grader_any" {% if grader == 'Any' %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="divider"></div>
+            <div class="switch-row">
+              <span>PCGS</span>
+              <label class="switch">
+                <input type="checkbox" id="grader_pcgs" {% if grader == 'PCGS' %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="divider"></div>
+            <div class="switch-row">
+              <span>NGC</span>
+              <label class="switch">
+                <input type="checkbox" id="grader_ngc" {% if grader == 'NGC' %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <p class="eb-note">
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="eb-best">
+        <button type="button"
+                id="best-bid-pill"
+                class="pill pill-best"
+                data-price="{{ '%.2f'|format(best_bid_price) }}">
+          ● ${{ '%.2f'|format(best_bid_price) }}
+        </button>
+        <div class="pill-caption">Best Bid</div>
+      </div>
+
+      <div class="eb-custom">
+        <label for="bid-price-input" class="eb-label">Custom Bid (per unit)</label>
+        <div class="input-prefix">
+          <span>$</span>
+          <input type="number"
+                 name="bid_price"
+                 id="bid-price-input"
+                 step="0.01"
+                 min="0.01"
+                 value="{{ '%.2f'|format(bid.price_per_coin) }}"
+                 required>
+        </div>
+        <div class="eb-hint" id="price-hint"></div>
+      </div>
+
+      <!-- Row 3: collapsed → Confirm full width; expanded → Confirm spans L+C, Address sits R -->
+      <button type="submit" id="eb-confirm" class="eb-confirm">Confirm</button>
+
+      <div class="eb-address">
+        <label for="address-input" class="eb-label">Delivery Address</label>
+        <input type="text"
+               id="address-input"
+               name="delivery_address"
+               placeholder="Ex: 1 Main Street"
+               value="{{ bid.delivery_address or '' }}">
+        <div class="eb-hint" id="address-hint"></div>
+      </div>
+    </div>
+  </div>
 </form>

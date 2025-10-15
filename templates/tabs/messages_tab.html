@@ -4,17 +4,17 @@
   <div class="conversation-list">
     {% for convo in conversations %}
       <div class="conversation-tile collapsed"
-          data-user-id="{{ convo.other_user_id }}"
-          data-order-id="{{ convo.order_id }}"
-          data-type="{{ convo.type }}">
+           data-user-id="{{ convo.other_user_id }}"
+           data-order-id="{{ convo.order_id }}"
+           data-type="{{ convo.type }}">
         <!-- header -->
         <div class="tile-header">
           <div class="unread-dot {% if convo.unread_count == 0 %}hidden{% endif %}"></div>
           <div class="username">{{ convo.other_username }}</div>
           <div class="last-message">{{ convo.last_message_content }}</div>
           <div class="timestamp">{{ convo.last_message_time }}</div>
-          <i class="arrow-icon fa fa-chevron-left"></i>
         </div>
+
         <!-- full history already in convo.messages -->
         <div class="message-body">
           <div class="message-history">
@@ -36,7 +36,6 @@
       </div>
     {% endfor %}
   </div>
-
 </div>
 
 <script src="{{ url_for('static', filename='js/tabs/messages_tab.js') }}"></script>

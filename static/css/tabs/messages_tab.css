@@ -12,48 +12,72 @@
   gap: 1rem;
 }
 
-/* Each collapsed tile */
+/* Each tile */
 .messages-tab .conversation-tile {
+  background: #ffffff;
   border: 1px solid #ccc;
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 2px 5px rgba(0,0,0,0.05);
   transition: all 0.3s ease;
   box-sizing: border-box;
-  width: 520px;
-  max-width: 520px;
+  width: 750px;
+  max-width: 750px;
   flex: 0 0 520px;
-  flex-grow: 0;
-  flex-shrink: 0;
 
-  /* hard cap (we’ll reinforce below with !important for safety) */
-  height: 50px;
+  /* hard cap (also reinforced below) */
+  height: 45px;
   overflow: hidden;
 }
 
-/* Header */
+/* ── HEADER GRID (enforced) ─────────────────────────────────────
+   [ fixed dot gutter | WIDER username | message preview | right date ] */
 .messages-tab .conversation-tile .tile-header {
-  display: grid;
-  grid-template-columns: 20px 1fr 2fr 1fr 20px;
+  display: grid !important;
+  grid-template-columns: 28px 2.25fr 3fr max-content !important;
+  grid-template-areas: "dot user msg date" !important;
+  column-gap: 16px;
   align-items: center;
   padding: 0.75rem 1rem;
-  background-color: #f9f9f9;
+  background-color: #ffffff;
   cursor: pointer;
 }
-.messages-tab .conversation-tile .tile-header:hover {
-  background-color: #f1f1f1;
-}
+.messages-tab .conversation-tile .tile-header:hover { background-color: #ffffff; }
+
+/* Place each item explicitly into its grid area */
+.messages-tab .conversation-tile .unread-dot  { grid-area: dot;  }
+.messages-tab .conversation-tile .username    { grid-area: user; }
+.messages-tab .conversation-tile .last-message{ grid-area: msg;  }
+.messages-tab .conversation-tile .timestamp   { grid-area: date; }
+
+/* Dot gutter — column always reserved; hide via visibility so width remains */
 .messages-tab .conversation-tile .unread-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: #e74c3c;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e74c3c;
   justify-self: center;
 }
 .messages-tab .conversation-tile .unread-dot.hidden {
-  visibility: hidden;
+  visibility: hidden !important;  /* preserves the gutter; no layout shift */
 }
+
+/* Prevent text cells from intruding into neighbors in grid */
+.messages-tab .conversation-tile .username,
+.messages-tab .conversation-tile .last-message,
+.messages-tab .conversation-tile .timestamp {
+  min-width: 0;                   /* enables proper ellipsis inside grid cells */
+}
+
 .messages-tab .conversation-tile .username {
   font-weight: bold;
   font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-self: start;
 }
+
 .messages-tab .conversation-tile .last-message {
   font-size: 0.95rem;
   color: #444;
@@ -61,20 +85,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .messages-tab .conversation-tile .timestamp {
   font-size: 0.85rem;
   color: #888;
   text-align: right;
-}
-.messages-tab .conversation-tile .arrow-icon {
-  font-size: 0.9rem;
-  transition: transform 0.3s ease;
+  white-space: nowrap;
+  justify-self: end;
 }
 
 /* Expanded state */
-.messages-tab .conversation-tile.expanded .arrow-icon {
-  transform: rotate(90deg);
-}
 .messages-tab .conversation-tile .message-body {
   max-height: 0;
   overflow: hidden;
@@ -96,29 +116,17 @@
   margin-bottom: 0.5rem;
 }
 
-/* Individual message bubbles */
+/* Message bubbles */
 .messages-tab .message {
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.5rem;
   border-radius: 12px;
   max-width: 80%;
 }
-.messages-tab .message.sent {
-  align-self: flex-end;
-  background: #d1ecf1;
-}
-.messages-tab .message.received {
-  align-self: flex-start;
-  background: #e2e3e5;
-}
-.messages-tab .message-text {
-  margin-bottom: 0.25rem;
-}
-.messages-tab .message-time {
-  font-size: 0.75rem;
-  color: #666;
-  text-align: right;
-}
+.messages-tab .message.sent { align-self: flex-end; background: #d1ecf1; }
+.messages-tab .message.received { align-self: flex-start; background: #e2e3e5; }
+.messages-tab .message-text { margin-bottom: 0.25rem; }
+.messages-tab .message-time { font-size: 0.75rem; color: #666; text-align: right; }
 
 /* Input row */
 .messages-tab .message-input-row {
@@ -141,23 +149,14 @@
   border-radius: 12px;
   cursor: pointer;
 }
-.messages-tab .message-input-row .send-button:hover {
-  background: #0056b3;
-}
+.messages-tab .message-input-row .send-button:hover { background: #0056b3; }
 
-/* ===================== */
-/* Strong height overrides */
-/* ===================== */
-
-/* Ensure the grid doesn’t force equal heights */
+/* Height overrides */
 #messages-tab .conversation-list,
 .messages-tab .conversation-list,
 #messages-tab .conversation-list.tile-grid,
-.messages-tab .conversation-list.tile-grid {
-  align-items: flex-start !important;
-}
+.messages-tab .conversation-list.tile-grid { align-items: flex-start !important; }
 
-/* Hard cap the tile height */
 #messages-tab .conversation-tile,
 .messages-tab .conversation-tile {
   height: 65px !important;
@@ -167,7 +166,6 @@
   align-self: flex-start !important;
 }
 
-/* Prevent expanded body from lifting height past the cap */
 #messages-tab .conversation-tile .message-body,
 .messages-tab .conversation-tile .message-body {
   max-height: 0 !important;
@@ -175,6 +173,4 @@
   padding-bottom: 0 !important;
 }
 #messages-tab .conversation-tile.expanded .message-body,
-.messages-tab .conversation-tile.expanded .message-body {
-  max-height: 50px !important; /* still within tile cap */
-}
+.messages-tab .conversation-tile.expanded .message-body { max-height: 50px !important; }

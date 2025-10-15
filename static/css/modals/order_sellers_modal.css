@@ -9,17 +9,19 @@
   align-items: center;
 }
 
-/* White box */
+/* Modal box */
 .order-sellers-modal-content {
   background: #fff;
   border-radius: 12px;
   width: 90%;
-  max-width: 300px;
+  max-width: 350px;            /* match cart modal width */
+  max-height: 500px;           /* optional cap like cart */
+  position: relative;          /* for any positioned children */
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   overflow: hidden;
 }
 
-/* Header: nav arrows + title */
+/* Header: nav arrows + centered title (username) */
 .order-sellers-modal-content .modal-header {
   display: flex;
   align-items: center;
@@ -27,64 +29,102 @@
   padding: 12px 16px;
   background: #ffffff;
 }
+
 .order-sellers-modal-content .nav-arrow {
-  width: 32px; height: 32px;
-  border: none; background: transparent;
-  font-size: 1.2rem; cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 5px;
+  font-size: 1.4rem;
+  line-height: 1;
+  border: transparent;
+  background: transparent;
+  border-radius: 17px;
+  cursor: pointer;
+  color: #000000;
 }
 .order-sellers-modal-content .nav-arrow:disabled {
   visibility: hidden;
 }
+.order-sellers-modal-content .nav-arrow:hover:not(:disabled) {
+  background-color: #3da6ff;
+  color: #ffffff;
+}
+
+/* Title styling (same feel as cart's username-section) */
 .order-sellers-modal-content .modal-title {
   flex: 1;
   text-align: center;
+  line-height: 1;
   font-size: 1.7rem;
   font-weight: bold;
+  margin: 0;
 }
 
-/* Body */
+/* Body — key change: horizontal padding to create side margins,
+   left-aligned text, extra breathing room like cart */
 .order-sellers-modal-content .modal-body {
-  padding: 20px;
-  text-align: center;
+  padding: 8px 50px 24px;  /* side margins match cart (24px) */
+  text-align: left;
 }
+
+/* Placeholder image */
 .order-sellers-modal-content .seller-photo {
-  width: 150px; height: 150px;
+  width: 250px;
+  height: 250px;
   margin: 0 auto 16px;
   background: #eee;
-  border-radius: 12px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #777;
+  font-size: 0.9rem;
 }
+
+/* Rows under the image */
 .order-sellers-modal-content .stats-row {
   display: flex;
+  flex-wrap: nowrap;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
-  padding: 0 20px;
 }
+
+/* Rating number + stars */
 .order-sellers-modal-content .avg-rating {
   font-size: 1.7rem;
-  font-weight: bold;
+  color: #000000;
+  margin-right: 8px;
 }
+
 .order-sellers-modal-content .stars .star {
-  font-size: 1.5rem;
-  margin-right: 4px;
+  font-size: 1.9rem;
+  margin-right: 2px;
   color: #ccc;
 }
 .order-sellers-modal-content .stars .star.filled {
-  color: #000;
+  color: #000000;
 }
+
+/* Review count */
 .order-sellers-modal-content .review-count {
-  font-size: 0.9rem;
-  color: #555;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: #666;
 }
 
-/* Footer: close button */
+/* Optional unit count line (if present via JS) */
+.order-sellers-modal-content .unit-count {
+  font-weight: bold;
+  color: #000000;
+}
+
+/* Footer exists for structure but has no action button here */
 .order-sellers-modal-content .modal-footer {
-  padding: 16px;
+  padding: 12px 16px;
   background: #ffffff;
-  text-align: right;
 }
-

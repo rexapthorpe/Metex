@@ -125,3 +125,36 @@ def post_message(order_id, participant_id):
     )
     conn.commit()
     return jsonify({'status': 'sent'})
+
+
+@messages_bp.route('/orders/api/<int:order_id>/messages/<int:participant_id>/read', methods=['POST'])
+def mark_messages_read(order_id, participant_id):
+    """
+    Mark a thread as read for the current user. We store a single 'last_read_ts'
+    per (order_id, current_user_id, participant_id) so the UI can remain accurate
+    across reloads/devices. This creates the table on first use.
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+      return jsonify({'error': 'Unauthorized'}), 401
+
+    conn = get_db_connection()
+    # Create a tiny state table if it doesn't exist yet
+    conn.execute("""
+      CREATE TABLE IF NOT EXISTS message_reads (
+        user_id        INTEGER NOT NULL,
+        participant_id INTEGER NOT NULL,
+        order_id       INTEGER NOT NULL,
+        last_read_ts   DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, participant_id, order_id)
+      )
+    """)
+    # Upsert the last_read_ts
+    conn.execute("""
+      INSERT INTO message_reads (user_id, participant_id, order_id, last_read_ts)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id, participant_id, order_id)
+      DO UPDATE SET last_read_ts = CURRENT_TIMESTAMP
+    """, (user_id, participant_id, order_id))
+    conn.commit()
+    return jsonify({'status': 'ok'})
