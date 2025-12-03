@@ -12,13 +12,13 @@
 /* Modal box */
 .order-sellers-modal-content {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 20px;
   width: 90%;
   max-width: 350px;            /* match cart modal width */
   max-height: 500px;           /* optional cap like cart */
   position: relative;          /* for any positioned children */
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to allow close button to extend outside */
 }
 
 /* Header: nav arrows + centered title (username) */
@@ -28,6 +28,7 @@
   justify-content: space-between;
   padding: 12px 16px;
   background: #ffffff;
+  border-radius: 20px 20px 0 0; /* Match parent's top corners */
 }
 
 .order-sellers-modal-content .nav-arrow {
@@ -127,4 +128,5 @@
 .order-sellers-modal-content .modal-footer {
   padding: 12px 16px;
   background: #ffffff;
+  border-radius: 0 0 20px 20px; /* Match parent's bottom corners */
 }

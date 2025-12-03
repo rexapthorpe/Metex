@@ -1,4 +1,223 @@
 <div class="account-details-tab">
-  <h2 class="tab-heading">Account Details</h2>
 
+  <div class="details-content">
+      <!-- Account Overview -->
+      <div class="details-section active" id="section-overview">
+        <h3>Account Overview</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <label>Username</label>
+            <span>{{ user.username }}</span>
+          </div>
+          <div class="info-item">
+            <label>Email</label>
+            <span>{{ user.email }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Personal Info -->
+      <div class="details-section" id="section-personal">
+        <h3>Personal Information</h3>
+        <form id="personalInfoForm" class="details-form">
+
+          <!-- First Name -->
+          <div class="field-item">
+            <div class="field-label">First Name</div>
+            <div class="field-saved">Saved: <span class="saved-value">{{ user.first_name if user.first_name else 'Not set' }}</span></div>
+            <label for="first_name" class="change-label">Change First Name</label>
+            <input type="text" id="first_name" name="first_name"
+                   value="{{ user.first_name if user.first_name else '' }}"
+                   placeholder="Enter first name">
+          </div>
+
+          <!-- Last Name -->
+          <div class="field-item">
+            <div class="field-label">Last Name</div>
+            <div class="field-saved">Saved: <span class="saved-value">{{ user.last_name if user.last_name else 'Not set' }}</span></div>
+            <label for="last_name" class="change-label">Change Last Name</label>
+            <input type="text" id="last_name" name="last_name"
+                   value="{{ user.last_name if user.last_name else '' }}"
+                   placeholder="Enter last name">
+          </div>
+
+          <!-- Phone Number -->
+          <div class="field-item">
+            <div class="field-label">Phone Number</div>
+            <div class="field-saved">Saved: <span class="saved-value">{{ user.phone if user.phone else 'Not set' }}</span></div>
+            <label for="phone" class="change-label">Change Phone Number</label>
+            <input type="tel" id="phone" name="phone"
+                   value="{{ user.phone if user.phone else '' }}"
+                   placeholder="Enter phone number">
+          </div>
+
+          <!-- Email -->
+          <div class="field-item">
+            <div class="field-label">Email</div>
+            <div class="field-saved">Saved: <span class="saved-value">{{ user.email }}</span></div>
+            <label for="email" class="change-label">Change Email</label>
+            <input type="email" id="email" name="email"
+                   value="{{ user.email }}" required
+                   placeholder="Enter email address">
+          </div>
+
+          <button type="submit" class="btn-save">Save Changes</button>
+        </form>
+      </div>
+
+      <!-- Personal Info Save Confirmation Modal -->
+      <div id="personalInfoSaveModal" class="personal-info-save-modal" style="display: none;">
+        <div class="personal-info-save-dialog">
+          <div class="personal-info-save-content">
+            <p class="save-message">Information saved</p>
+            <button type="button" class="btn-close-save" onclick="closePersonalInfoSaveModal()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Methods -->
+      <div class="details-section" id="section-payment">
+        <h3>Payment Methods</h3>
+        <div class="payment-methods-list">
+          <p class="empty-state">
+            No payment methods added yet. Payment methods will be added during checkout.
+          </p>
+        </div>
+      </div>
+
+      <!-- Shipping Addresses -->
+      <div class="details-section" id="section-shipping">
+        <h3>Shipping Addresses</h3>
+        <div class="addresses-list">
+          {% if addresses %}
+            {% for address in addresses %}
+              <div class="address-card">
+                <div class="address-content">
+                  <strong>{{ address.name }}</strong>
+                  <p>{{ address.street }}</p>
+                  <p>{{ address.city }}, {{ address.state }} {{ address.zip_code }}</p>
+                  <p>{{ address.country }}</p>
+                </div>
+                <div class="address-actions">
+                  <button class="btn-small" type="button" onclick="editAddress({{ address.id }})">
+                    <i class="fas fa-pencil-alt"></i> Edit
+                  </button>
+                  <button class="btn-small btn-danger" type="button"
+                          onclick="deleteAddress({{ address.id }})">
+                    <i class="fas fa-trash"></i> Delete
+                  </button>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="empty-state">No shipping addresses added yet.</p>
+          {% endif %}
+          <button class="btn-add" type="button" onclick="openAddAddressModal()">
+            + Add New Address
+          </button>
+        </div>
+      </div>
+
+      <!-- Security & Login -->
+      <div class="details-section" id="section-security">
+        <h3>Security &amp; Login</h3>
+        <form id="securityForm" class="details-form">
+          <div class="form-group">
+            <label for="current_password">Current Password</label>
+            <input type="password" id="current_password" name="current_password">
+          </div>
+          <div class="form-group">
+            <label for="new_password">New Password</label>
+            <input type="password" id="new_password" name="new_password">
+          </div>
+          <div class="form-group">
+            <label for="confirm_password">Confirm New Password</label>
+            <input type="password" id="confirm_password" name="confirm_password">
+          </div>
+          <button type="submit" class="btn-save">Change Password</button>
+        </form>
+      </div>
+
+      <!-- Notification Settings -->
+      <div class="details-section" id="section-notifications">
+        <h3>Notification Settings</h3>
+        <p class="section-description">Choose how you would like to be notified about important events.</p>
+
+        <div class="notification-settings-container">
+          <!-- Email Notifications -->
+          <div class="notification-category">
+            <h4 class="category-heading">Email Notifications</h4>
+            <p class="category-description">Receive updates via email</p>
+
+            <div class="notification-rows">
+              <div class="notification-row">
+                <div class="notification-label">
+                  <strong>Listing Sold</strong>
+                  <span class="notification-sublabel">Get notified when someone purchases your listing</span>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="email_listing_sold"
+                         {% if not user_preferences or user_preferences.email_listing_sold %}checked{% endif %}
+                         autocomplete="off">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="notification-row">
+                <div class="notification-label">
+                  <strong>Bid Accepted</strong>
+                  <span class="notification-sublabel">Get notified when your bid is accepted by a seller</span>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="email_bid_filled"
+                         {% if not user_preferences or user_preferences.email_bid_filled %}checked{% endif %}
+                         autocomplete="off">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- In-App Notifications -->
+          <div class="notification-category">
+            <h4 class="category-heading">In-App Notifications</h4>
+            <p class="category-description">Receive updates within the application</p>
+
+            <div class="notification-rows">
+              <div class="notification-row">
+                <div class="notification-label">
+                  <strong>Listing Sold</strong>
+                  <span class="notification-sublabel">See notifications when someone purchases your listing</span>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="inapp_listing_sold"
+                         {% if not user_preferences or user_preferences.inapp_listing_sold %}checked{% endif %}
+                         autocomplete="off">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="notification-row">
+                <div class="notification-label">
+                  <strong>Bid Accepted</strong>
+                  <span class="notification-sublabel">See notifications when your bid is accepted by a seller</span>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="inapp_bid_filled"
+                         {% if not user_preferences or user_preferences.inapp_bid_filled %}checked{% endif %}
+                         autocomplete="off">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="notification-save-status" id="notificationSaveStatus" style="display: none;">
+          <span class="save-icon">✓</span>
+          <span class="save-text">Preferences saved</span>
+        </div>
+      </div>
+
+    </div>
 </div>

@@ -1,0 +1,188 @@
+<!-- ==========================================================================
+     Sell Listing Modals - Two-step confirmation flow
+     1. Confirmation modal (slides up from bottom)
+     2. Success/congratulations modal (slides up from bottom)
+     ========================================================================== -->
+
+<!-- ============ Confirmation Modal ============ -->
+<div id="sellListingConfirmModal" class="slide-up-modal-overlay" style="display: none;">
+  <div class="slide-up-modal-dialog">
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeSellConfirmModal()" aria-label="Close modal">&times;</button>
+    <div class="modal-header">
+      <h2>Confirm Listing</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="confirm-summary">
+        <p class="confirm-message">You are about to list the following item:</p>
+
+        <div class="listing-summary-grid">
+          <div class="summary-row">
+            <span class="summary-label">Metal:</span>
+            <span class="summary-value" id="confirm-metal">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Product Line:</span>
+            <span class="summary-value" id="confirm-product-line">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Product Type:</span>
+            <span class="summary-value" id="confirm-product-type">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Weight:</span>
+            <span class="summary-value" id="confirm-weight">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Year:</span>
+            <span class="summary-value" id="confirm-year">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Quantity:</span>
+            <span class="summary-value" id="confirm-quantity">—</span>
+          </div>
+
+          <!-- Pricing Mode Row (shown for all) -->
+          <div class="summary-row">
+            <span class="summary-label">Pricing Mode:</span>
+            <span class="summary-value" id="confirm-pricing-mode">—</span>
+          </div>
+
+          <!-- Static Pricing (shown only for static mode) -->
+          <div class="summary-row" id="confirm-static-price-row">
+            <span class="summary-label">Price per Coin:</span>
+            <span class="summary-value price-highlight" id="confirm-price">—</span>
+          </div>
+          <div class="summary-row" id="confirm-static-total-row">
+            <span class="summary-label">Total Value:</span>
+            <span class="summary-value total-highlight" id="confirm-total-value">—</span>
+          </div>
+
+          <!-- Premium-to-Spot Pricing (shown only for premium-to-spot mode) -->
+          <div class="summary-row" id="confirm-premium-row" style="display: none;">
+            <span class="summary-label">Premium Above Spot:</span>
+            <span class="summary-value" id="confirm-premium">—</span>
+          </div>
+          <div class="summary-row" id="confirm-floor-row" style="display: none;">
+            <span class="summary-label">No Lower Than:</span>
+            <span class="summary-value" id="confirm-floor">—</span>
+          </div>
+          <div class="summary-row" id="confirm-effective-price-row" style="display: none;">
+            <span class="summary-label">Current Effective Price:</span>
+            <span class="summary-value price-highlight" id="confirm-effective-price">—</span>
+          </div>
+          <div class="summary-row" id="confirm-effective-total-row" style="display: none;">
+            <span class="summary-label">Current Total Value:</span>
+            <span class="summary-value total-highlight" id="confirm-effective-total">—</span>
+          </div>
+
+          <div class="summary-row">
+            <span class="summary-label">Graded:</span>
+            <span class="summary-value" id="confirm-graded">—</span>
+          </div>
+        </div>
+
+        <p class="confirm-question">Do you want to create this listing?</p>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <!-- Cancel button (RED) -->
+      <button
+        type="button"
+        class="btn btn-cancel-footer"
+        onclick="closeSellConfirmModal()">
+        Cancel
+      </button>
+
+      <!-- Confirm Listing button (GREEN) -->
+      <button
+        type="button"
+        class="btn btn-confirm-footer"
+        id="confirmListingBtn">
+        Confirm Listing
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Success Modal ============ -->
+<div id="sellListingSuccessModal" class="slide-up-modal-overlay" style="display: none;">
+  <div class="slide-up-modal-dialog">
+    <div class="modal-header success-header">
+      <h2>🎉 Listing Created!</h2>
+      <button type="button" class="modal-close" onclick="closeSellSuccessModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="success-content">
+        <p class="success-message">Your item has been successfully listed on the marketplace!</p>
+
+        <div class="success-details">
+          <h3>Listing Details</h3>
+
+          <div class="detail-section">
+            <div class="detail-row">
+              <span class="detail-label">Item:</span>
+              <span class="detail-value" id="success-item-desc">—</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Quantity:</span>
+              <span class="detail-value" id="success-quantity">—</span>
+            </div>
+
+            <!-- Pricing Mode Row (shown for all) -->
+            <div class="detail-row">
+              <span class="detail-label">Pricing Mode:</span>
+              <span class="detail-value" id="success-pricing-mode">—</span>
+            </div>
+
+            <!-- Static Pricing (shown only for static mode) -->
+            <div class="detail-row" id="success-static-price-row">
+              <span class="detail-label">Price per Coin:</span>
+              <span class="detail-value price-highlight" id="success-price">—</span>
+            </div>
+            <div class="detail-row" id="success-static-total-row">
+              <span class="detail-label">Total Value:</span>
+              <span class="detail-value total-highlight" id="success-total-value">—</span>
+            </div>
+
+            <!-- Premium-to-Spot Pricing (shown only for premium-to-spot mode) -->
+            <div class="detail-row" id="success-premium-row" style="display: none;">
+              <span class="detail-label">Premium Above Spot:</span>
+              <span class="detail-value" id="success-premium">—</span>
+            </div>
+            <div class="detail-row" id="success-floor-row" style="display: none;">
+              <span class="detail-label">No Lower Than:</span>
+              <span class="detail-value" id="success-floor">—</span>
+            </div>
+            <div class="detail-row" id="success-effective-price-row" style="display: none;">
+              <span class="detail-label">Current Effective Price:</span>
+              <span class="detail-value price-highlight" id="success-effective-price">—</span>
+            </div>
+            <div class="detail-row" id="success-effective-total-row" style="display: none;">
+              <span class="detail-label">Current Total Value:</span>
+              <span class="detail-value total-highlight" id="success-effective-total">—</span>
+            </div>
+          </div>
+
+          <div class="next-steps-notice">
+            <strong>What's Next?</strong><br>
+            Your listing is now live! Buyers can find it by browsing or searching for items matching your specifications. You'll be notified when someone purchases your item or places a bid.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <!-- Close button in footer (YELLOW) -->
+      <button
+        type="button"
+        class="btn btn-close-footer"
+        onclick="closeSellSuccessModal()">
+        Close
+      </button>
+    </div>
+  </div>
+</div>

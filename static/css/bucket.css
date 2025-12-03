@@ -469,6 +469,42 @@
 .bid-units { color: #333; font-variant-numeric: tabular-nums; }
 .bid-seller { color: #111; }
 .bid-meta { display: flex; align-items: center; gap: 18px; color: #555; font-size: 0.95rem; }
+
+/* Bid actions (View Bidder button) */
+.bid-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.bid-actions .icon-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bid-actions .icon-button:hover {
+  background: #e0e0e0;
+  border-color: #ccc;
+}
+
+.bid-actions .icon-button i {
+  font-size: 0.9rem;
+}
+
+.bid-actions .icon-label {
+  font-weight: 500;
+}
+
 .bid-card-visual.selected {
   transform: translateX(55px); background: #3da6ff; color: #ffffff; border-color: transparent;
   box-shadow: 0 8px 24px rgba(0,110,255,0.25);
@@ -501,7 +537,18 @@
 }
 .accept-bids-btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 6px 16px rgba(0,110,255,0.25); }
 .accept-bids-btn:disabled { background: #cbd5e1; }
-.header-bid-btn { display: inline-block; padding: 10px 16px; border-radius: 9999px; font-weight: 700; font-size: 1rem; text-decoration: none; }
+.header-bid-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  line-height: 1;
+}
 
 /* === MY ACTIVE BIDS (account section) ===
    Styles for: .account-bid-tiles / .account-bid-tile / .abt-*
@@ -542,6 +589,27 @@
 .abt-price-suffix {
   font-weight: 800;
   color: #0b1222;
+}
+.pricing-mode-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  margin-left: 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+}
+.pricing-mode-badge.variable {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+.pricing-mode-badge.fixed {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #1976d2;
 }
 .abt-units { color: #333; font-variant-numeric: tabular-nums; }
 .abt-row {

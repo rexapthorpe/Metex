@@ -1,51 +1,194 @@
-{# templates/tabs/bid_form.html — Edit Bid UI with single-box grading dropdown #}
-<form id="bid-form" class="edit-bid-form" method="POST" action="{{ form_action_url }}">
-  {% set is_grading = (bid.requires_grading == 1 or bid.requires_grading == True) %}
-  {% set grader = bid.preferred_grader or '' %}
+{# templates/tabs/bid_form.html — injected into #editBidModalContent by JS #}
 
+<form id="bid-form" method="post" action="{{ form_action_url }}"
+      data-bucket-metal="{{ bucket.metal if bucket else '' }}"
+      data-bucket-product-line="{{ bucket.product_line if bucket else '' }}"
+      data-bucket-product-type="{{ bucket.product_type if bucket else '' }}"
+      data-bucket-weight="{{ bucket.weight if bucket else '' }}"
+      data-bucket-year="{{ bucket.year if bucket else '' }}"
+      data-bucket-mint="{{ bucket.mint if bucket else '' }}"
+      data-bucket-finish="{{ bucket.finish if bucket else '' }}"
+      data-bucket-grade="{{ bucket.grade if bucket else '' }}">
   {% if bid %}
     <input type="hidden" name="bid_id" value="{{ bid.id }}">
   {% endif %}
-  <input type="hidden" name="requires_grading" id="requires_grading" value="{{ 'yes' if is_grading else 'no' }}">
-  <input type="hidden" name="preferred_grader" id="preferred_grader" value="{{ grader }}">
+  <input type="hidden" name="requires_grading" id="requires_grading" value="no">
+  <input type="hidden" name="preferred_grader" id="preferred_grader" value="">
 
-  <div class="edit-bid-modal">
-    <h2>Edit Your Bid</h2>
+  <div class="bid-modal-form">
+    <!-- Header - Dynamic title based on mode -->
+    <h2>{{ 'Edit Your Bid' if is_edit else 'Place Your Bid' }}</h2>
+    <hr class="eb-hr" />
 
-    <div class="eb-grid {{ 'grading-open' if is_grading else '' }}" id="eb-grid">
-      <!-- Row 1 -->
-      <div class="eb-current" aria-live="polite">
-        <div class="eb-label">Current item price</div>
-        <div class="eb-value">${{ '%.2f'|format(current_item_price) }}</div>
+    <!-- Premium-to-Spot Pricing Notice (if applicable) -->
+    {% if pricing_info and pricing_info.pricing_mode == 'premium_to_spot' %}
+    <div class="pricing-notice" style="margin: 0 0 16px 0; padding: 12px; background: #fff9e6; border-radius: 8px; border-left: 4px solid #ffd700;">
+      <div style="font-weight: 600; color: #b8860b; margin-bottom: 6px; font-size: 14px;">
+        ⚠️ Dynamic Pricing - Premium to Spot
       </div>
-
-      <div class="eb-qty">
-        <label for="qty-input" class="eb-label">Quantity</label>
-        <input type="number"
-               id="qty-input"
-               name="bid_quantity"
-               min="1"
-               step="1"
-               value="{{ bid.quantity_requested if bid else 1 }}"
-               required>
-        <div class="eb-hint" id="qty-hint"></div>
+      <div style="font-size: 13px; color: #5d4e00; line-height: 1.4;">
+        This bucket contains <strong>premium-to-spot</strong> listings. Prices automatically adjust based on live {{ pricing_info.pricing_metal }} spot prices:
       </div>
+      <div style="margin-top: 8px; padding: 8px; background: rgba(255, 255, 255, 0.6); border-radius: 4px;">
+        <div style="font-size: 13px; color: #5d4e00;">
+          <strong>Current Pricing:</strong><br>
+          • Premium: <strong>+${{ '%.2f'|format(pricing_info.spot_premium) }}</strong> per unit above spot<br>
+          • Listing Floor Price: <strong>${{ '%.2f'|format(pricing_info.floor_price) }}</strong> (seller minimum)<br>
+          • Current Effective Price: <strong>${{ '%.2f'|format(current_item_price) }}</strong> per unit
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;">
+        Note: Listing prices may change as spot prices fluctuate. Your bid is a fixed price offer.
+      </div>
+    </div>
+    {% endif %}
 
-      <!-- Right column: SINGLE rounded box that expands to reveal switches -->
-      <div class="eb-grading" id="eb-grading" aria-expanded="{{ 'true' if is_grading else 'false' }}">
-        <div class="eb-grading-label">Filter for professionally graded items</div>
+    <!-- BODY: Three columns with static vertical dividers (5 grid tracks) -->
+    <div id="eb-grid" class="eb-grid" aria-live="polite">
+      <!-- Column 1: Bid Pricing -->
+      <section class="eb-col col1" style="grid-area: col1;">
+        <div class="col-title">Bid Pricing</div>
 
-        <div class="eb-grading-box" id="eb-grading-box">
-          <button type="button" class="eb-grading-header" id="eb-grading-header" aria-expanded="{{ 'true' if is_grading else 'false' }}">
-            <span class="eb-grading-title">Require 3rd Party Grading?</span>
-            <span class="chev" id="eb-grading-chev">{{ '▴' if is_grading else '▾' }}</span>
-          </button>
+        <!-- Pricing Mode Selector -->
+        <div class="feature-block" style="margin-bottom: 16px;">
+          <div class="eb-label">Pricing Mode</div>
+          <select id="bid-pricing-mode" name="bid_pricing_mode" class="eb-input" style="width: 100%;">
+            <option value="static" {% if not bid or not bid.pricing_mode or bid.pricing_mode == 'static' %}selected{% endif %}>Fixed Price</option>
+            <option value="premium_to_spot" {% if bid and bid.pricing_mode == 'premium_to_spot' %}selected{% endif %}>Variable (Premium to Spot)</option>
+          </select>
+          <div class="eb-hint" style="margin-top: 4px; font-size: 12px; color: #666;">
+            Fixed Price: set a specific dollar amount | Variable: bid tracks live spot price + your premium
+          </div>
+        </div>
 
-          <div class="eb-grading-menu" id="eb-grading-menu" aria-hidden="{{ 'false' if is_grading else 'true' }}">
+        <!-- Static Pricing Fields (shown when bid_pricing_mode = 'static') -->
+        <div id="static-pricing-fields" class="price-qty-row feature-block" data-anchor="Crow" style="{% if bid and bid.pricing_mode == 'premium_to_spot' %}display: none;{% endif %}">
+          <!-- Quantity block -->
+          <div class="qty-block">
+            <div class="eb-label">Quantity</div>
+            <div class="qty-dial" role="group" aria-label="Adjust quantity">
+              <button type="button" id="qty-dec" class="qty-btn" aria-label="Decrease">−</button>
+              <span id="qty-value" class="qty-value">{{ bid.quantity_requested or 1 }}</span>
+              <button type="button" id="qty-inc" class="qty-btn" aria-label="Increase">＋</button>
+            </div>
+            <input id="qty-input" name="bid_quantity" type="number" min="1" step="1"
+                   value="{{ bid.quantity_requested or 1 }}">
+            <div id="qty-hint" class="eb-hint" aria-live="polite"></div>
+          </div>
+
+          <!-- Price block (narrower) -->
+          <div class="price-block">
+            <div class="eb-label">Price Per Item</div>
+            <div class="input-prefix">
+              <input id="bid-price-input"
+                     name="bid_price"
+                     type="number"
+                     inputmode="decimal"
+                     step="0.01"
+                     min="0.01"
+                     pattern="^\d+(\.\d{0,2})?$"
+                     value="{{ '%.2f'|format(bid.price_per_coin) if bid and bid.price_per_coin else '' }}"
+                     placeholder="0.00"
+                     aria-describedby="price-hint" />
+            </div>
+            <div id="price-hint" class="eb-hint" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- Premium-to-Spot Pricing Fields (shown when bid_pricing_mode = 'premium_to_spot') -->
+        <div id="premium-pricing-fields" style="{% if not bid or not bid.pricing_mode or bid.pricing_mode == 'static' %}display: none;{% endif %}">
+          <!-- Quantity (same for both modes) -->
+          <div class="feature-block" style="margin-bottom: 16px;">
+            <div class="eb-label">Quantity</div>
+            <div class="qty-dial" role="group" aria-label="Adjust quantity">
+              <button type="button" id="qty-dec-premium" class="qty-btn" aria-label="Decrease">−</button>
+              <span id="qty-value-premium" class="qty-value">{{ bid.quantity_requested or 1 }}</span>
+              <button type="button" id="qty-inc-premium" class="qty-btn" aria-label="Increase">＋</button>
+            </div>
+            <input id="qty-input-premium" name="bid_quantity_premium" type="number" min="1" step="1"
+                   value="{{ bid.quantity_requested or 1 }}">
+          </div>
+
+          <!-- Pricing Metal -->
+          <div class="feature-block" style="margin-bottom: 16px;">
+            <div class="eb-label">Pricing Metal</div>
+            <select id="bid-pricing-metal" name="bid_pricing_metal" class="eb-input" style="width: 100%;">
+              <option value="{{ bucket.metal if bucket else 'Gold' }}" selected>{{ bucket.metal if bucket else 'Gold' }} (same as item)</option>
+            </select>
+            <div class="eb-hint" style="margin-top: 4px; font-size: 12px; color: #666;">
+              Metal whose spot price your bid will track
+            </div>
+          </div>
+
+          <!-- Premium Above Spot -->
+          <div class="feature-block" style="margin-bottom: 16px;">
+            <div class="eb-label">Premium Above Spot</div>
+            <div class="input-prefix">
+              <input id="bid-spot-premium"
+                     name="bid_spot_premium"
+                     type="number"
+                     inputmode="decimal"
+                     step="0.01"
+                     min="0"
+                     value="{{ '%.2f'|format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}"
+                     placeholder="0.00"
+                     class="eb-input" />
+            </div>
+            <div class="eb-hint" style="margin-top: 4px; font-size: 12px; color: #666;">
+              Amount to add above current spot price per unit
+            </div>
+          </div>
+
+          <!-- Ceiling Price (Maximum) -->
+          <div class="feature-block" style="margin-bottom: 16px;">
+            <div class="eb-label">No Higher Than (Max Price)</div>
+            <div class="input-prefix">
+              <input id="bid-ceiling-price"
+                     name="bid_ceiling_price"
+                     type="number"
+                     inputmode="decimal"
+                     step="0.01"
+                     min="0.01"
+                     value="{{ '%.2f'|format(bid.ceiling_price) if bid and bid.ceiling_price else '' }}"
+                     placeholder="0.00"
+                     class="eb-input" />
+            </div>
+            <div class="eb-hint" style="margin-top: 4px; font-size: 12px; color: #666;">
+              Maximum price ceiling - your bid won't auto-fill if spot + premium exceeds this amount
+            </div>
+          </div>
+
+          <!-- Current Spot Price Display -->
+          <div class="feature-block" style="margin-bottom: 12px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+            <div style="font-size: 13px; color: #333; margin-bottom: 4px;">
+              <strong>Current {{ bucket.metal if bucket else 'Metal' }} Spot Price:</strong>
+            </div>
+            <div id="current-spot-price" style="font-size: 20px; font-weight: 600; color: #1976d2;">
+              {% if current_spot_price %}
+                ${{ '%.2f'|format(current_spot_price) }}
+              {% else %}
+                Loading...
+              {% endif %}
+            </div>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+              Your bid: Spot + $<span id="premium-display">{{ '%.2f'|format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}</span>
+              = $<span id="effective-bid-price">{{ '%.2f'|format((current_spot_price or 0) + (bid.spot_premium or 0)) }}</span>
+            </div>
+          </div>
+
+          <div class="premium-pricing-notice" style="margin-top: 12px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
+            <strong>How Variable Pricing Works:</strong> Your bid automatically adjusts based on live spot prices. Effective price = <strong>Spot Price + Your Premium</strong>, but won't auto-fill if it exceeds your max price ceiling.
+          </div>
+        </div>
+
+        <!-- Grading options (always visible) -->
+        <div class="eb-grading-block feature-block">
+          <div class="eb-label">Require 3rd Party Grading</div>
+          <div class="eb-grading-options">
             <div class="switch-row">
               <span>Any Grader</span>
               <label class="switch">
-                <input type="checkbox" id="grader_any" {% if grader == 'Any' %}checked{% endif %}>
+                <input type="checkbox" id="grader_any" {% if bid and bid.preferred_grader == 'Any' %}checked{% endif %}>
                 <span class="slider"></span>
               </label>
             </div>
@@ -53,7 +196,7 @@
             <div class="switch-row">
               <span>PCGS</span>
               <label class="switch">
-                <input type="checkbox" id="grader_pcgs" {% if grader == 'PCGS' %}checked{% endif %}>
+                <input type="checkbox" id="grader_pcgs" {% if bid and bid.preferred_grader == 'PCGS' %}checked{% endif %}>
                 <span class="slider"></span>
               </label>
             </div>
@@ -61,55 +204,110 @@
             <div class="switch-row">
               <span>NGC</span>
               <label class="switch">
-                <input type="checkbox" id="grader_ngc" {% if grader == 'NGC' %}checked{% endif %}>
+                <input type="checkbox" id="grader_ngc" {% if bid and bid.preferred_grader == 'NGC' %}checked{% endif %}>
                 <span class="slider"></span>
               </label>
             </div>
-
-            <p class="eb-note">
-            </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Row 2 -->
-      <div class="eb-best">
-        <button type="button"
-                id="best-bid-pill"
-                class="pill pill-best"
-                data-price="{{ '%.2f'|format(best_bid_price) }}">
-          ● ${{ '%.2f'|format(best_bid_price) }}
-        </button>
-        <div class="pill-caption">Best Bid</div>
-      </div>
+      <!-- STATIC vertical divider #1 -->
+      <div class="vdiv v1" aria-hidden="true" style="grid-area: v1;"></div>
 
-      <div class="eb-custom">
-        <label for="bid-price-input" class="eb-label">Custom Bid (per unit)</label>
-        <div class="input-prefix">
-          <span>$</span>
-          <input type="number"
-                 name="bid_price"
-                 id="bid-price-input"
-                 step="0.01"
-                 min="0.01"
-                 value="{{ '%.2f'|format(bid.price_per_coin) }}"
-                 required>
+      <!-- Column 2: Address -->
+      <section class="eb-col col2" style="grid-area: col2;">
+        <div class="col-title">Address</div>
+
+        <!-- Address Selector Dropdown -->
+        <div class="addr-field" style="margin-bottom: 16px;">
+          <div class="addr-label">Delivery Address</div>
+          <select id="addr-selector" class="eb-input">
+            <option value="custom">Custom Address</option>
+            {% if addresses %}
+              {% for address in addresses %}
+                <option value="{{ address.id }}"
+                        data-first="{{ user_info.first_name if user_info and user_info.first_name else '' }}"
+                        data-last="{{ user_info.last_name if user_info and user_info.last_name else '' }}"
+                        data-line1="{{ address.street }}"
+                        data-line2="{{ address.street_line2 if address.street_line2 else '' }}"
+                        data-city="{{ address.city }}"
+                        data-state="{{ address.state }}"
+                        data-zip="{{ address.zip_code }}">
+                  {{ address.name }} - {{ address.city }}, {{ address.state }}
+                </option>
+              {% endfor %}
+            {% endif %}
+          </select>
         </div>
-        <div class="eb-hint" id="price-hint"></div>
-      </div>
 
-      <!-- Row 3: collapsed → Confirm full width; expanded → Confirm spans L+C, Address sits R -->
-      <button type="submit" id="eb-confirm" class="eb-confirm">Confirm</button>
+        <!-- Address fields (without names - moved to Billing) -->
+        <div id="custom-address-fields" class="addr-grid" role="group" aria-label="Structured address fields" data-anchor="A3">
+          <div class="addr-field">
+            <div class="addr-label">Address Line 1</div>
+            <input id="addr-line1" class="eb-input" autocomplete="address-line1" value="{{ bid.parsed_address.line1 if bid and bid.parsed_address else '' }}">
+          </div>
 
-      <div class="eb-address">
-        <label for="address-input" class="eb-label">Delivery Address</label>
-        <input type="text"
-               id="address-input"
-               name="delivery_address"
-               placeholder="Ex: 1 Main Street"
-               value="{{ bid.delivery_address or '' }}">
-        <div class="eb-hint" id="address-hint"></div>
-      </div>
+          <div class="addr-field">
+            <div class="addr-label">Address Line 2</div>
+            <input id="addr-line2" class="eb-input" autocomplete="address-line2" value="{{ bid.parsed_address.line2 if bid and bid.parsed_address else '' }}">
+          </div>
+
+          <div class="addr-row">
+            <div class="addr-subfield">
+              <div class="addr-label">City</div>
+              <input id="addr-city" class="eb-input" autocomplete="address-level2" value="{{ bid.parsed_address.city if bid and bid.parsed_address else '' }}">
+            </div>
+            <div class="addr-subfield">
+              <div class="addr-label">State</div>
+              <select id="addr-state" class="eb-input" autocomplete="address-level1">
+                <option value=""></option>
+                {% for st in [
+                  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI',
+                  'MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT',
+                  'VT','VA','WA','WV','WI','WY'
+                ] %}
+                  <option value="{{ st }}" {% if bid and bid.parsed_address and bid.parsed_address.state == st %}selected{% endif %}>{{ st }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="addr-subfield">
+              <div class="addr-label">Zip</div>
+              <input id="addr-zip" class="eb-input" inputmode="numeric" autocomplete="postal-code" value="{{ bid.parsed_address.zip if bid and bid.parsed_address else '' }}">
+            </div>
+          </div>
+        </div>
+        <div id="address-hint" class="eb-hint addr-hint" aria-live="polite"></div>
+      </section>
+
+      <!-- STATIC vertical divider #2 -->
+      <div class="vdiv v2" aria-hidden="true" style="grid-area: v2;"></div>
+
+      <!-- Column 3: Billing -->
+      <section class="eb-col col3" style="grid-area: col3;">
+        <div class="col-title">Billing</div>
+
+        <!-- Name fields -->
+        <div class="billing-fields">
+          <div class="addr-row names">
+            <div class="addr-subfield">
+              <div class="addr-label">First Name</div>
+              <input id="addr-first" class="eb-input" name="recipient_first" autocomplete="given-name" value="{{ (bid.parsed_address.first_name if bid and bid.parsed_address else (user_info.first_name if user_info else '')) }}">
+            </div>
+            <div class="addr-subfield">
+              <div class="addr-label">Last Name</div>
+              <input id="addr-last" class="eb-input" name="recipient_last" autocomplete="family-name" value="{{ (bid.parsed_address.last_name if bid and bid.parsed_address else (user_info.last_name if user_info else '')) }}">
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirm aligned with City/State/Zip row -->
+        <hr class="eb-hr eb-col-hr">
+        <div class="confirm-wrap">
+          <button id="eb-confirm" type="submit" class="eb-confirm">Confirm</button>
+        </div>
+      </section>
+
     </div>
   </div>
 </form>

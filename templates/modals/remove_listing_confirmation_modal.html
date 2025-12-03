@@ -1,0 +1,30 @@
+<div id="removeListingConfirmModal" class="confirmation-overlay" style="display: none;" aria-hidden="true">
+  <div class="confirmation-modal-content">
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeRemoveListingConfirmation()" aria-label="Close modal">&times;</button>
+    <h2>Remove Item?</h2>
+    <p>Are you sure you want to remove this item from your cart?</p>
+    <p style="font-size: 0.9rem; color: #666; margin: 8px 0;" id="refill-listing-message">We will attempt to refill with other listings from the same category at the best available price.</p>
+    <p id="refill-listing-warning"
+       class="refill-warning-msg"
+       style="display:none; font-size: 0.9rem; color: #dc3545; background-color: #fff3cd; border-left: 4px solid #dc3545; padding: 8px; margin: 8px 0; border-radius: 4px;">
+      <strong>Warning:</strong> There are no other listings available for this item. Removing this listing will remove the entire item from your cart.
+    </p>
+    <div class="confirmation-actions">
+      <button
+        id="confirmRemoveListingBtn"
+        class="confirmation-btn confirmation-btn-yes"
+        type="button"
+        onclick="confirmRemoveListing()">
+        Yes
+      </button>
+      <button
+        id="keepListingBtn"
+        class="confirmation-btn confirmation-btn-no"
+        type="button"
+        onclick="closeRemoveListingConfirmation()">
+        No
+      </button>
+    </div>
+  </div>
+</div>

@@ -20,16 +20,20 @@
     {% if buckets %}
         <div class="grid">
             {% for bucket in buckets %}
-            <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['category_id']) }}" class="product-tile">
+            <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
                 <div class="image-box">
                     <span>Item image</span>  <!-- Placeholder text; image can go here later -->
                 </div>
                 <div class="product-text">
                     <p class="product-title">
-                        {{ bucket['coin_series'] or (bucket['metal'] ~ ' ' ~ bucket['product_type']) }}
+                        {{ bucket['mint'] }} {{ bucket['product_line'] or bucket['coin_series'] or bucket['product_type'] }}
                     </p>
-                    <p class="product-subtext">{{ bucket['finish'] }} • {{ bucket['grade'] }}</p>
-                    <p class="price">${{ bucket['lowest_price'] }}</p>
+                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['grade'] }} {{ bucket['year'] }}</p>
+                    {% if bucket['lowest_price'] is not none %}
+                        <p class="price">${{ bucket['lowest_price'] }}</p>
+                    {% else %}
+                        <p class="price no-listings">No listings available</p>
+                    {% endif %}
                 </div>
             </a>
             {% endfor %}

@@ -12,11 +12,46 @@
   margin-bottom: 0.75rem;
   text-align: left;
 }
-.orders-tab .empty-message {
-  font-size: 1rem;
+.orders-tab .empty-orders-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  max-height: fit-content;
+  width: 100%;
+  gap: 20px;
+  padding: 60px 40px;
+  overflow: visible;
+}
+
+.orders-tab .empty-orders-message {
+  font-size: 1.1rem;
   color: #000;
-  text-align: left;
-  margin-top: 1rem;
+  text-align: center;
+  margin: 0;
+}
+
+.orders-tab .find-items-btn {
+  padding: 12px 32px;
+  font-size: 16px;
+  background: #1877ff;
+  color: #ffffff;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+  will-change: background-color, transform, box-shadow;
+}
+
+.orders-tab .find-items-btn:hover {
+  background-color: #0d5ed9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
 }
 
 /* Tile as grid: image | details | meta + footer */
@@ -56,11 +91,11 @@
   border-radius: 8px;
 }
 
-/* Details (left) */
+/* Details (left) - Two column grid */
 .orders-tab .order-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
   font-size: 0.95rem;
 }
 

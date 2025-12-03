@@ -11,11 +11,11 @@
 
 .message-modal {
   background: #fff;
-  border-radius: 14px;
+  border-radius: 20px;
   width: 90%;
   max-width: 500px;
   max-height: 500px;
-  min-height: 500px; 
+  min-height: 500px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -28,6 +28,7 @@
   padding: 0 15px;           /* trim vertical padding so arrows sit centered */
   height: 50px !important;              /* enforce a fixed header height */
   border-bottom: 1px solid #ddd;
+  border-radius: 20px 20px 0 0; /* Match parent's top corners */
 }
 
 .nav-arrow {
@@ -94,28 +95,31 @@
 
 .message-input {
   display: flex;
-  align-items: center;
+  align-items: center !important;   /* force exact vertical centering */
   padding: 12px;
   border-top: 1px solid #ddd;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  border-radius: 0 0 20px 20px;     /* Match parent's bottom corners */
   background: #fff;
 }
 
 .message-input input {
   flex: 1;
+  height: 44px;
+  box-sizing: border-box;
   padding: 10px 12px;
   border: transparent;
   border-radius: 9999px;
-  margin-right: 12px;
+  margin: 0 12px 0 0;              /* explicit, kill any bottom margin */
   font-size: 1rem;
   outline: none;
 }
 
-
 .message-send-btn {
-  width: 36px;
-  height: 36px;
+  box-sizing: border-box;           /* include padding in size */
+  margin: 0;                        /* override any global button margin */
+  padding: 0;                       /* remove default button padding */
+  width: 44px;
+  height: 44px;
   background-color: #007bff;
   border: none;
   border-radius: 50%;
@@ -123,12 +127,15 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  line-height: 1;                   /* prevent line-height from shifting it */
   transition: background 0.2s;
 }
+
 .message-send-btn i {
   color: #fff;
   font-size: 1rem;
 }
+
 .message-send-btn:hover {
   background-color: #0056b3;
 }

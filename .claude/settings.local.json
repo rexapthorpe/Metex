@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del:*)",
+      "Bash(sqlite3:*)",
+      "Bash(python:*)",
+      "Bash(start test_accept_bid_address_fix.html)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

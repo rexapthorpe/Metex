@@ -1,0 +1,173 @@
+/* Address Modal */
+.address-modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+
+  /* center modal and avoid outer scrolling; inner content will scroll */
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.address-modal .modal-content {
+  background-color: #fff;
+  margin: 0;
+  padding: 0;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 85vh;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  /* allow header + scrollable body + fixed footer */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden; /* Ensure border-radius clips child elements properly */
+}
+
+.address-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+  border-radius: 20px 20px 0 0; /* Match parent's top corners */
+}
+
+.address-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+/* Note: Close button styling now uses unified modal-close-button.css */
+
+/* Scrollable form area with extra bottom padding for footer height */
+.address-form {
+  padding: 24px 24px 120px 24px; /* extra bottom padding so content doesn't hide behind footer */
+  flex: 1 1 auto;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.address-form .form-group {
+  margin-bottom: 20px;
+}
+
+.address-form .form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.address-form .form-group input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.address-form .form-group input:focus {
+  outline: none;
+  border-color: #3da6ff;
+  box-shadow: 0 0 0 2px rgba(61, 166, 255, 0.2);
+}
+
+.address-form .form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.address-modal .modal-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+
+  padding: 16px 24px;
+  border-top: 1px solid #e0e0e0;
+  background: #fff;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+
+  display: flex;
+  justify-content: center;   /* center buttons horizontally */
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  border-radius: 0 0 20px 20px; /* Match parent's bottom corners */
+}
+
+/* Buttons in footer */
+.address-modal .btn-cancel,
+.address-modal .btn-submit {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    background-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+
+  flex: 1 1 0;          /* equal width buttons */
+  max-width: 220px;     /* prevents them from getting too wide on large screens */
+}
+
+/* Cancel button */
+.address-modal .btn-cancel {
+  background: #ffffff;
+  border: 1px solid #ccc;
+  color: #333;
+}
+
+.address-modal .btn-cancel:hover {
+  background: #f0f0f0;
+  transform: scale(1.03); /* slight expansion on hover */
+}
+
+/* Save button */
+.address-modal .btn-submit {
+  background: #3da6ff;
+  color: #ffffff;
+  border: none;
+}
+
+.address-modal .btn-submit:hover {
+  background: #1560ca;
+  transform: scale(1.03); /* slight expansion on hover */
+}
+
+/* Optional: small-screen tweaks */
+@media (max-width: 480px) {
+  .address-form .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .address-modal .modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .address-modal .btn-cancel,
+  .address-modal .btn-submit {
+    width: 100%;
+  }
+}

@@ -1,0 +1,142 @@
+<!-- Portfolio Tab -->
+<div class="portfolio-tab">
+  <div class="tab-header">
+    <h1>Portfolio</h1>
+    <p class="tab-subtitle">Track your investments and manage your holdings</p>
+  </div>
+
+  <!-- Portfolio Value Section -->
+  <div class="portfolio-value-section">
+    <div class="portfolio-summary-card">
+      <div class="summary-header">
+        <div class="summary-title">
+          <h2>Portfolio Value</h2>
+          <div class="value-display">
+            <span class="current-value" id="portfolio-total-value">$0.00</span>
+            <span class="value-change" id="portfolio-value-change">
+              <span class="change-amount">+$0.00</span>
+              <span class="change-percent">(+0.00%)</span>
+            </span>
+          </div>
+        </div>
+        <div class="summary-stats">
+          <div class="stat">
+            <span class="stat-label">Cost Basis</span>
+            <span class="stat-value" id="portfolio-cost-basis">$0.00</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Holdings</span>
+            <span class="stat-value" id="portfolio-holdings-count">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Time Range Selector -->
+      <div class="time-range-selector">
+        <button class="time-btn" data-range="1d">1D</button>
+        <button class="time-btn" data-range="1w">1W</button>
+        <button class="time-btn active" data-range="1m">1M</button>
+        <button class="time-btn" data-range="3m">3M</button>
+        <button class="time-btn" data-range="1y">1Y</button>
+      </div>
+
+      <!-- Portfolio Value Chart -->
+      <div class="portfolio-chart-container">
+        <canvas id="portfolio-value-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Holdings and Allocation Section -->
+  <div class="portfolio-content-grid">
+    <!-- Current Holdings Section -->
+    <div class="holdings-section">
+      <h2 class="section-title">Current Holdings</h2>
+
+      <div id="holdings-list" class="holdings-list">
+        <div class="loading-message">Loading holdings...</div>
+      </div>
+    </div>
+
+    <!-- Asset Allocation Section -->
+    <div class="allocation-section">
+      <h2 class="section-title">Asset Allocation</h2>
+
+      <div class="allocation-chart-container">
+        <canvas id="portfolio-allocation-chart"></canvas>
+      </div>
+
+      <div id="allocation-legend" class="allocation-legend">
+        <!-- Legend will be populated by JavaScript -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden template for holding tile -->
+<template id="holding-tile-template">
+  <div class="holding-tile" data-order-item-id="">
+    <div class="holding-image">
+      <img src="" alt="Product Image">
+    </div>
+
+    <div class="holding-details">
+      <div class="holding-specs">
+        <div class="spec-row">
+          <span class="spec-label">Metal:</span>
+          <span class="spec-value metal-value"></span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Product Type:</span>
+          <span class="spec-value product-type-value"></span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Weight:</span>
+          <span class="spec-value weight-value"></span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Year:</span>
+          <span class="spec-value year-value"></span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Grade:</span>
+          <span class="spec-value grade-value"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="holding-values">
+      <div class="value-row">
+        <span class="value-label">Quantity:</span>
+        <span class="value-amount quantity-value"></span>
+      </div>
+      <div class="value-row">
+        <span class="value-label">Purchase Price:</span>
+        <span class="value-amount purchase-price-value"></span>
+      </div>
+      <div class="value-row">
+        <span class="value-label">Current Price:</span>
+        <span class="value-amount current-price-value"></span>
+      </div>
+      <div class="value-row highlight">
+        <span class="value-label">Current Value:</span>
+        <span class="value-amount current-value-amount"></span>
+      </div>
+      <div class="value-row gain-loss">
+        <span class="value-label">Gain/Loss:</span>
+        <span class="value-amount gain-loss-value"></span>
+      </div>
+    </div>
+
+    <div class="holding-actions">
+      <button class="holding-btn list-btn" onclick="openListingModalFromHolding(this)">
+        <i class="fas fa-tag"></i>
+        <span>List This Item</span>
+      </button>
+      <button class="holding-btn exclude-btn" onclick="excludeHolding(this)">
+        <i class="fas fa-eye-slash"></i>
+        <span>Not in Portfolio</span>
+      </button>
+    </div>
+  </div>
+</template>

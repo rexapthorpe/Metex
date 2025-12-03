@@ -1,0 +1,112 @@
+/* Pricing Mode Badges and Indicators
+ * Used to show Fixed Price vs. Premium-to-Spot pricing modes
+ */
+
+/* Badge Base Style */
+.pricing-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* Fixed Price Badge - Blue/Gray */
+.pricing-badge.static {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border: 1px solid #90caf9;
+}
+
+/* Premium-to-Spot Badge - Orange/Amber */
+.pricing-badge.premium-to-spot,
+.pricing-badge.dynamic {
+    background-color: #fff3e0;
+    color: #f57c00;
+    border: 1px solid #ffb74d;
+}
+
+/* Info Box for Dynamic Pricing Notice */
+.dynamic-pricing-info {
+    background-color: #fff8e1;
+    border-left: 4px solid #ffa726;
+    padding: 12px 16px;
+    margin: 16px 0;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.dynamic-pricing-info-title {
+    font-weight: 600;
+    color: #e65100;
+    margin-bottom: 4px;
+}
+
+.dynamic-pricing-info-text {
+    color: #5d4037;
+}
+
+/* Price Update Warning (for cart) */
+.price-update-warning {
+    background-color: #fff3e0;
+    border: 1px solid #ffb74d;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    display: flex;
+    align-items: start;
+    gap: 12px;
+}
+
+.price-update-warning-icon {
+    color: #f57c00;
+    font-size: 20px;
+    margin-top: 2px;
+}
+
+.price-update-warning-content {
+    flex: 1;
+}
+
+.price-update-warning-title {
+    font-weight: 600;
+    color: #e65100;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.price-update-warning-text {
+    color: #5d4037;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Small inline pricing indicator (next to prices) */
+.pricing-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #666;
+    font-weight: 500;
+}
+
+.pricing-indicator-icon {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.pricing-indicator.static .pricing-indicator-icon {
+    background-color: #1976d2;
+}
+
+.pricing-indicator.dynamic .pricing-indicator-icon {
+    background-color: #f57c00;
+}

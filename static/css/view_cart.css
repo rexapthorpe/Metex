@@ -16,16 +16,14 @@
   scroll-behavior: smooth;
 }
 
-/* Tiles column: keep tiles in one line and scroll sideways if needed */
+/* Tiles column: stack tiles vertically */
 .cart-items-column {
   display: flex;
-  flex-wrap: nowrap;           /* NO WRAP — prevents stacking/mutation */
+  flex-direction: column;      /* Stack vertically */
   gap: 16px;
-  align-items: flex-start;
-  align-content: flex-start;
-  overflow-x: auto;            /* own horizontal scroll if many tiles */
-  overflow-y: hidden;
-  padding-bottom: 8px;         /* room for scrollbar */
+  align-items: stretch;
+  flex: 1;                     /* Take available space */
+  min-height: 0;               /* Prevent growing beyond content */
 }
 
 /* -------- non-condensing tile -------- */
@@ -39,9 +37,11 @@
   padding: 15px;
   margin-bottom: 0;            /* gap on column handles spacing */
   box-sizing: border-box;
-  min-width: 700px;            /* fixed layout width */
+  min-width: 700px;            /* minimum width */
+  max-width: 600px;            /* fixed maximum width */
+  width: 600px;                /* default width */
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  flex: 0 0 auto;              /* don’t grow/shrink; keep shape */
+  flex: 0 0 auto;              /* don't grow/shrink; keep shape */
 }
 
 
@@ -164,6 +164,51 @@
   background: #3da6ff; 
   color: #fff; 
   box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+
+.empty-cart-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  gap: 20px;
+  padding: 40px;
+  overflow: visible;
+}
+
+.empty-cart-message {
+  font-size: 18px;
+  color: #6b7280;
+  font-weight: 500;
+  text-align: center;
+  margin: 0 0 8px 0;
+}
+
+.add-items-to-cart-given-empty-cart-btn{
+  padding: 12px 32px; 
+  font-size: 16px; 
+  background: #1877ff; 
+  color: #ffffff; 
+  border: none; 
+  border-radius: 9999px; 
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+  will-change: background-color, transform, box-shadow;
+}
+
+.add-items-to-cart-given-empty-cart-btn:hover{
+  padding: 12px 32px; 
+  background: #1560ca;
+  color: #fff;
+  text-decoration: none;
+  transform: scale(1.05);
 }
 
 /* Summary panel — fixed width, never shrinks */

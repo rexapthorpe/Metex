@@ -123,7 +123,7 @@
       .addEventListener('click', () => changeProfile(-1));
     ratingsModal.querySelector('.nav-arrow.right')
       .addEventListener('click', () => changeProfile(1));
-    ratingsModal.querySelector('.close-btn').addEventListener('click', closeModal);
+    ratingsModal.querySelector('.modal-close').addEventListener('click', closeModal);
     ratingsModal.querySelector('.cancel-btn').addEventListener('click', closeModal);
 
     document.querySelectorAll('#starContainer i').forEach(star => {

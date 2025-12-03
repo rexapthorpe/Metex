@@ -1,0 +1,93 @@
+/*
+ * Base styles for all Yes/No confirmation modals
+ * Provides consistent styling across the application
+ */
+
+/* Overlay - hidden by default */
+.confirmation-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+/* Show overlay when explicitly set */
+.confirmation-overlay[style*="display: flex"] {
+  display: flex !important;
+}
+
+/* Modal content box */
+.confirmation-modal-content {
+  background: #fff;
+  padding: 24px;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  position: relative;
+}
+
+.confirmation-modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.3rem;
+  color: #333;
+}
+
+.confirmation-modal-content p {
+  margin: 12px 0 20px 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+/* Action buttons container */
+.confirmation-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Standardized button styles */
+.confirmation-btn {
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+/* Primary Yes button - Blue */
+.confirmation-btn-yes {
+  background: #007bff;
+  color: #ffffff;
+}
+
+.confirmation-btn-yes:hover {
+  background: #0056b3;
+}
+
+/* Secondary No button - Grey */
+.confirmation-btn-no {
+  background: #6c757d;
+  color: #ffffff;
+}
+
+.confirmation-btn-no:hover {
+  background: #5a6268;
+}
+
+/* Ensure buttons have good contrast and accessibility */
+.confirmation-btn:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.confirmation-btn:active {
+  transform: scale(0.98);
+}

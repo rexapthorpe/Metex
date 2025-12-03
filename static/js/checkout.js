@@ -1,29 +1,72 @@
-function openSellerPopup(bucketId) {
-    fetch(`/api/bucket/${bucketId}/cart_sellers`)
-        .then(response => response.json())
-        .then(data => {
-            const container = document.getElementById('sellerDetails');
-            container.innerHTML = '';
+// static/js/checkout.js
+'use strict';
 
-            data.forEach(seller => {
-                const div = document.createElement('div');
-                div.innerHTML = `
-                    <p><strong>${seller.username}</strong></p>
-                    <p>Price per coin: $${seller.price_per_coin}</p>
-                    <p>Quantity: ${seller.quantity}</p>
-                    <p>Rating: ${seller.rating.toFixed(2)} (${seller.num_reviews} reviews)</p>
-                    <form method="POST" action="/cart/remove_seller/${bucketId}/${seller.seller_id}" onsubmit="return confirm('Remove this seller?');">
-                        <button type="submit" class="btn btn-danger btn-sm">Remove Seller</button>
-                    </form>
-                    <hr>
-                `;
-                container.appendChild(div);
-            });
+/* ==========================================================================
+   CHECKOUT MODAL - Sliding Two-View System
+   ========================================================================== */
 
-            document.getElementById('sellerModal').style.display = 'block';
-        });
+/**
+ * Show the payment view (slide to payment selection)
+ */
+function showPaymentView() {
+  const sliderContainer = document.querySelector('.checkout-slider-container');
+  if (sliderContainer) {
+    sliderContainer.classList.add('show-payment');
+  }
 }
 
-function closeSellerPopup() {
-    document.getElementById('sellerModal').style.display = 'none';
+/**
+ * Show the order summary view (slide back from payment)
+ */
+function showOrderSummary() {
+  const sliderContainer = document.querySelector('.checkout-slider-container');
+  if (sliderContainer) {
+    sliderContainer.classList.remove('show-payment');
+  }
 }
+
+/**
+ * Close the checkout modal (navigate back to cart)
+ */
+function closeCheckout() {
+  if (confirm('Are you sure you want to close checkout? Your items will remain in the cart.')) {
+    window.location.href = '/cart';
+  }
+}
+
+/**
+ * Initialize checkout modal
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Start on order summary view
+  showOrderSummary();
+
+  // Close modal on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const sliderContainer = document.querySelector('.checkout-slider-container');
+      if (sliderContainer && sliderContainer.classList.contains('show-payment')) {
+        // If on payment view, go back to summary
+        showOrderSummary();
+      } else {
+        // If on summary view, close modal
+        closeCheckout();
+      }
+    }
+  });
+
+  // Close modal on overlay click
+  const modalOverlay = document.querySelector('.checkout-modal-overlay');
+  if (modalOverlay) {
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        closeCheckout();
+      }
+    });
+  }
+});
+
+// Expose functions globally
+window.showPaymentView = showPaymentView;
+window.showOrderSummary = showOrderSummary;
+window.closeCheckout = closeCheckout;

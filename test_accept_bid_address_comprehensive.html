@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accept Bid Success - Address Display Comprehensive Test</title>
+  <link rel="stylesheet" href="static/css/modals/accept_bid_modals.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 20px;
+      margin: 0;
+    }
+    .test-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .test-header {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      padding: 24px 32px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(5, 150, 105, 0.3);
+    }
+    .test-header h1 {
+      margin: 0 0 8px 0;
+      font-size: 32px;
+      color: white;
+    }
+    .test-header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .test-card {
+      background: #334155;
+      border-radius: 12px;
+      padding: 20px;
+      border: 2px solid #475569;
+      transition: all 0.2s;
+    }
+    .test-card:hover {
+      border-color: #059669;
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+    }
+    .test-card h3 {
+      margin: 0 0 12px 0;
+      color: #10b981;
+      font-size: 18px;
+    }
+    .test-card p {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+    .test-button {
+      padding: 12px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+      margin-top: 12px;
+    }
+    .test-button.primary {
+      background: #059669;
+      color: white;
+    }
+    .test-button.primary:hover {
+      background: #047857;
+    }
+    .code-display {
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: #fbbf24;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .console-output {
+      background: #0f172a;
+      border: 2px solid #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .console-output h3 {
+      margin: 0 0 16px 0;
+      color: #22d3ee;
+      font-size: 18px;
+    }
+    .log-entry {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      padding: 6px 0;
+      border-bottom: 1px solid #1e293b;
+    }
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+    .log-entry.info {
+      color: #22d3ee;
+    }
+    .log-entry.success {
+      color: #10b981;
+    }
+    .log-entry.data {
+      color: #fbbf24;
+    }
+    .instructions {
+      background: #334155;
+      border-left: 4px solid #3b82f6;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .instructions h3 {
+      margin: 0 0 12px 0;
+      color: #60a5fa;
+      font-size: 18px;
+    }
+    .instructions ol {
+      margin: 0;
+      padding-left: 24px;
+    }
+    .instructions li {
+      margin-bottom: 8px;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <div class="test-header">
+      <h1><i class="fas fa-vial"></i> Address Display - Comprehensive Test Suite</h1>
+      <p>Testing all address format variations with detailed logging</p>
+    </div>
+
+    <div class="instructions">
+      <h3><i class="fas fa-info-circle"></i> Testing Instructions</h3>
+      <ol>
+        <li>Open browser DevTools (F12) and go to the Console tab</li>
+        <li>Click any test button below to simulate bid acceptance</li>
+        <li>Watch the console for detailed parsing logs</li>
+        <li>Verify the success modal displays address fields correctly</li>
+        <li>Check console output section below for real-time logs</li>
+      </ol>
+    </div>
+
+    <div class="test-grid">
+      <!-- Test 1: Full Address with Bullet Separator -->
+      <div class="test-card">
+        <h3><i class="fas fa-check-circle"></i> Test 1: Full Address (Bullet Format)</h3>
+        <p><strong>Format:</strong> Name • Line1 • Line2 • City, State ZIP</p>
+        <div class="code-display">John Smith • 123 Main St • Apt 4B • New York, NY 10001</div>
+        <p><strong>Expected:</strong> All 5 fields displayed</p>
+        <button class="test-button primary" onclick="test1FullAddress()">Run Test 1</button>
+      </div>
+
+      <!-- Test 2: Address Without Line 2 -->
+      <div class="test-card">
+        <h3><i class="fas fa-check-circle"></i> Test 2: No Line 2 (Bullet Format)</h3>
+        <p><strong>Format:</strong> Line1 • City, State ZIP</p>
+        <div class="code-display">456 Oak Avenue • Boston, MA 02101</div>
+        <p><strong>Expected:</strong> Line 1, City, State, ZIP (no Line 2)</p>
+        <button class="test-button primary" onclick="test2NoLine2()">Run Test 2</button>
+      </div>
+
+      <!-- Test 3: Simple Text Address -->
+      <div class="test-card">
+        <h3><i class="fas fa-exclamation-circle"></i> Test 3: Simple Text</h3>
+        <p><strong>Format:</strong> Plain text (no separators)</p>
+        <div class="code-display">test5</div>
+        <p><strong>Expected:</strong> Display as Address Line 1 only</p>
+        <button class="test-button primary" onclick="test3SimpleText()">Run Test 3</button>
+      </div>
+
+      <!-- Test 4: Three-Part Address -->
+      <div class="test-card">
+        <h3><i class="fas fa-check-circle"></i> Test 4: Three-Part Address</h3>
+        <p><strong>Format:</strong> Line1 • Line2 • City, State ZIP</p>
+        <div class="code-display">789 Elm Dr • Suite 200 • Los Angeles, CA 90001</div>
+        <p><strong>Expected:</strong> Line 1, Line 2, City, State, ZIP</p>
+        <button class="test-button primary" onclick="test4ThreePart()">Run Test 4</button>
+      </div>
+
+      <!-- Test 5: Address with Name Prefix -->
+      <div class="test-card">
+        <h3><i class="fas fa-check-circle"></i> Test 5: With Name Prefix</h3>
+        <p><strong>Format:</strong> Label - Address</p>
+        <div class="code-display">Home - 555 Pine St • Chicago, IL 60601</div>
+        <p><strong>Expected:</strong> Name prefix stripped, address parsed</p>
+        <button class="test-button primary" onclick="test5WithPrefix()">Run Test 5</button>
+      </div>
+
+      <!-- Test 6: Empty/Missing Address -->
+      <div class="test-card">
+        <h3><i class="fas fa-times-circle"></i> Test 6: No Address</h3>
+        <p><strong>Format:</strong> Empty string</p>
+        <div class="code-display">""</div>
+        <p><strong>Expected:</strong> No address fields displayed</p>
+        <button class="test-button primary" onclick="test6NoAddress()">Run Test 6</button>
+      </div>
+
+      <!-- Test 7: Object Format (Future-proof) -->
+      <div class="test-card">
+        <h3><i class="fas fa-code"></i> Test 7: Object Format</h3>
+        <p><strong>Format:</strong> JavaScript object with fields</p>
+        <div class="code-display">{ line1: "...", city: "...", ... }</div>
+        <p><strong>Expected:</strong> Parse object properties</p>
+        <button class="test-button primary" onclick="test7ObjectFormat()">Run Test 7</button>
+      </div>
+
+      <!-- Test 8: Real Bid Form Format -->
+      <div class="test-card">
+        <h3><i class="fas fa-star"></i> Test 8: Bid Form Format</h3>
+        <p><strong>Format:</strong> Exactly as bid form creates it</p>
+        <div class="code-display">Jane Doe • 999 Broadway • Apt 12 • Seattle, WA 98101</div>
+        <p><strong>Expected:</strong> All fields parsed correctly</p>
+        <button class="test-button primary" onclick="test8BidFormFormat()">Run Test 8</button>
+      </div>
+    </div>
+
+    <div class="console-output">
+      <h3><i class="fas fa-terminal"></i> Console Output</h3>
+      <div id="console-log"></div>
+    </div>
+  </div>
+
+  <!-- Include modal template -->
+  <div id="acceptBidSuccessModal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog accept-bid-success-modal">
+      <div class="modal-header success-header">
+        <h2>🎉 Congratulations!</h2>
+        <button type="button" class="modal-close" onclick="closeTestModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="success-content">
+          <p class="success-message">You have successfully accepted the bid!</p>
+
+          <div class="order-details">
+            <h3>Order Details</h3>
+
+            <div class="detail-section">
+              <h4>Buyer Information</h4>
+              <div class="detail-row">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value" id="success-buyer-name">—</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4>Delivery Address</h4>
+              <div class="detail-row" id="success-address-line1-row" style="display: none;">
+                <span class="detail-label">Address Line 1:</span>
+                <span class="detail-value" id="success-address-line1">—</span>
+              </div>
+              <div class="detail-row" id="success-address-line2-row" style="display: none;">
+                <span class="detail-label">Address Line 2:</span>
+                <span class="detail-value" id="success-address-line2">—</span>
+              </div>
+              <div class="detail-row" id="success-address-city-row" style="display: none;">
+                <span class="detail-label">City:</span>
+                <span class="detail-value" id="success-address-city">—</span>
+              </div>
+              <div class="detail-row" id="success-address-state-row" style="display: none;">
+                <span class="detail-label">State:</span>
+                <span class="detail-value" id="success-address-state">—</span>
+              </div>
+              <div class="detail-row" id="success-address-zip-row" style="display: none;">
+                <span class="detail-label">ZIP Code:</span>
+                <span class="detail-value" id="success-address-zip">—</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4>Transaction Details</h4>
+              <div class="detail-row">
+                <span class="detail-label">Price per item:</span>
+                <span class="detail-value price-highlight" id="success-price">—</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Quantity:</span>
+                <span class="detail-value" id="success-quantity">—</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Total value:</span>
+                <span class="detail-value total-highlight" id="success-total">—</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4>Item Details</h4>
+              <div class="item-specs-grid">
+                <div class="spec-item" id="success-spec-metal">
+                  <span class="spec-label">Metal:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-product-line">
+                  <span class="spec-label">Product Line:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-product-type">
+                  <span class="spec-label">Product Type:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-weight">
+                  <span class="spec-label">Weight:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-grade">
+                  <span class="spec-label">Grade:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-year">
+                  <span class="spec-label">Year:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-mint">
+                  <span class="spec-label">Mint:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-purity">
+                  <span class="spec-label">Purity:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-finish">
+                  <span class="spec-label">Finish:</span>
+                  <span class="spec-value">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="shipping-notice">
+              <strong>⚠️ Important:</strong> You have <strong>4 days</strong> to input a shipping tracking link for this order.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer success-footer">
+        <hr class="footer-divider">
+        <button type="button" class="btn btn-primary" onclick="closeTestModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="static/js/modals/accept_bid_modals.js"></script>
+  <script>
+    // Intercept console.log to display in page
+    const consoleLogDiv = document.getElementById('console-log');
+    const originalLog = console.log;
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+
+      const message = args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+
+      if (message.includes('[SUCCESS MODAL]')) {
+        if (message.includes('Raw delivery_address') || message.includes('Type:')) {
+          entry.className += ' info';
+        } else if (message.includes('Parsed address') || message.includes('Displaying')) {
+          entry.className += ' success';
+        } else {
+          entry.className += ' data';
+        }
+      }
+
+      entry.textContent = message;
+      consoleLogDiv.appendChild(entry);
+      consoleLogDiv.scrollTop = consoleLogDiv.scrollHeight;
+    };
+
+    // Override close function for testing
+    function closeTestModal() {
+      const modal = document.getElementById('acceptBidSuccessModal');
+      if (!modal) return;
+      modal.classList.remove('active');
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 300);
+    }
+
+    // Set up window.bucketSpecs for item details
+    window.bucketSpecs = {
+      'Metal': 'Gold',
+      'Product line': 'American Eagle',
+      'Product type': 'Coin',
+      'Weight': '1 oz',
+      'Grading': 'MS70',
+      'Year': '2024',
+      'Mint': 'West Point',
+      'Purity': '0.9167',
+      'Finish': 'Proof'
+    };
+
+    function clearLogs() {
+      consoleLogDiv.innerHTML = '';
+    }
+
+    function test1FullAddress() {
+      clearLogs();
+      console.log('='.repeat(80));
+      console.log('[TEST 1] Full Address with Bullet Separator');
+      console.log('='.repeat(80));
+
+      openAcceptBidSuccessModal({
+        buyer_name: 'John Smith',
+        delivery_address: 'John Smith • 123 Main St • Apt 4B • New York, NY 10001',
+        price_per_coin: 2150.00,
+        quantity: 3,
+        total_price: 6450.00
+      });
+    }
+
+    function test2NoLine2() {
+      clearLogs();
+      console.log('='.repeat(80));
+      console.log('[TEST 2] Address Without Line 2');
+      console.log('='.repeat(80));
+
+      openAcceptBidSuccessModal({
+        buyer_name: 'Jane Doe',
+        delivery_address: '456 Oak Avenue • Boston, MA 02101',
+        price_per_coin: 1850.50,
+        quantity: 5,
+        total_price: 9252.50
+      });
+    }
+
+    function test3SimpleText() {
+      clearLogs();
+      console.log('='.repeat(80));
+      console.log('[TEST 3] Simple Text Address (Current Database Format)');
+      console.log('='.repeat(80));
+
+      openAcceptBidSuccessModal({
+        buyer_name: 'Test User',
+        delivery_address: 'test5',
+        price_per_coin: 95.75,
+        quantity: 10,
+        total_price: 957.50
+      });
+    }
+
+    function test4ThreePart() {
+      clearLogs();
+      console.log('='.repeat(80));
+      console.log('[TEST 4] Three-Part Address');
+      console.log('='.repeat(80));
+
+      openAcceptBidSuccessModal({
+        buyer_name: 'Robert Johnson',
+        delivery_address: '789 Elm Dr • Suite 200 • Los Angeles, CA 90001',
+        price_per_coin: 3200.00,
+        quantity: 2,
+        total_price: 6400.00
+      });
+    }
+
+    function test5WithPrefix() {
+      clearLogs();
+      console.log('='.repeat(80));
+      console.log('[TEST 5] Address with Name Prefix');
+      console.log('='.repeat(80));
+
+      openAcceptBidSuccessModal({
+        buyer_name: 'Sarah Williams',
+        delivery_address: 'Home - 555 Pine St • Chicago, IL 60601',
+        price_per_coin: 1275.00,
+        quantity: 4,
+        total_price: 5100.00
+      });
+    }
+
+    function test6NoAddress() {
+      clearLogs();
+      console.log('='.repeat(80));
+      console.log('[TEST 6] Empty/Missing Address');
+      console.log('='.repeat(80));
+
+      openAcceptBidSuccessModal({
+        buyer_name: 'Anonymous Buyer',
+        delivery_address: '',
+        price_per_coin: 850.00,
+        quantity: 1,
+        total_price: 850.00
+      });
+    }
+
+    function test7ObjectFormat() {
+      clearLogs();
+      console.log('='.repeat(80));
+      console.log('[TEST 7] Object Format (Future-proof)');
+      console.log('='.repeat(80));
+
+      openAcceptBidSuccessModal({
+        buyer_name: 'Michael Brown',
+        delivery_address: {
+          line1: '321 Market St',
+          line2: 'Unit 5A',
+          city: 'San Francisco',
+          state: 'CA',
+          zip: '94102'
+        },
+        price_per_coin: 4500.00,
+        quantity: 2,
+        total_price: 9000.00
+      });
+    }
+
+    function test8BidFormFormat() {
+      clearLogs();
+      console.log('='.repeat(80));
+      console.log('[TEST 8] Bid Form Format (Exact)');
+      console.log('='.repeat(80));
+
+      openAcceptBidSuccessModal({
+        buyer_name: 'Emily Davis',
+        delivery_address: 'Jane Doe • 999 Broadway • Apt 12 • Seattle, WA 98101',
+        price_per_coin: 2750.00,
+        quantity: 5,
+        total_price: 13750.00
+      });
+    }
+
+    // Show welcome message
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('='.repeat(80));
+      console.log('ACCEPT BID SUCCESS MODAL - COMPREHENSIVE ADDRESS TEST SUITE');
+      console.log('='.repeat(80));
+      console.log('Ready to test. Click any test button to begin.');
+      console.log('All console logs will appear both in DevTools and in the page.');
+      console.log('='.repeat(80));
+    });
+  </script>
+</body>
+</html>

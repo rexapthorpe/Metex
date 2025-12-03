@@ -2,8 +2,9 @@
 {% block title %}View Item{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}?v=bucket-v6"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}?v=bucket-v7-bidder"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bucket_ID_sellers_modal.css') }}?v=bucket-v2"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pricing_badges.css') }}?v=1"/>
 
 <div id="popup-message-container"></div>
 
@@ -112,7 +113,7 @@
         <div class="sellers-kicker">See all available sellers</div>
         <button id="openSellersBtn" class="btn sellers-btn" type="button">View All Sellers</button>
         <div class="sellers-foot">
-          <a href="/sell" class="sellers-foot-link">List this item?</a>
+          <a href="/sell?metal={{ bucket.metal or '' }}&product_line={{ bucket.product_line or '' }}&product_type={{ bucket.product_type or '' }}&weight={{ bucket.weight or '' }}&purity={{ bucket.purity or '' }}&mint={{ bucket.mint or '' }}&year={{ bucket.year or '' }}&finish={{ bucket.finish or '' }}&grade={{ bucket.grade or '' }}" class="sellers-foot-link">List this item?</a>
         </div>
       </div>
       <hr class="divider">
@@ -134,8 +135,12 @@
             <div class="bb-colR">
               <div class="bb-row1r">
                 <div class="best-bid-price price-box" id="bestBidPriceBox">
-                  <div id="bestBidPrice">${{ '%.2f'|format(best_bid['price_per_coin']) }} USD</div>
-                  <div class="soft">Best bid per item</div>
+                  <div id="bestBidPrice">${{ '%.2f'|format(best_bid.get('effective_price', best_bid['price_per_coin'])) }} USD</div>
+                  <div class="soft">Best bid per item
+                    {% if best_bid.get('pricing_mode') == 'premium_to_spot' %}
+                      <span style="font-size: 11px; color: #4caf50; font-weight: 600;"> (Variable)</span>
+                    {% endif %}
+                  </div>
                 </div>
 
                 <div class="bb-r1-flex" id="bbR1Flex">
@@ -224,6 +229,17 @@
           </div>
         {% endif %}
 
+        <!-- Dynamic Pricing Info Notice -->
+        {% set has_dynamic_pricing = listings|selectattr('pricing_mode', 'equalto', 'premium_to_spot')|list|length > 0 %}
+        {% if has_dynamic_pricing %}
+        <div class="dynamic-pricing-info">
+          <div class="dynamic-pricing-info-title">Dynamic Pricing Active</div>
+          <div class="dynamic-pricing-info-text">
+            Some listings use Premium-to-Spot pricing and may change based on live metal prices.
+          </div>
+        </div>
+        {% endif %}
+
         <div class="qty-row">
           <div class="dial-pill buy-qty-pill" id="buyQtyPill" aria-label="Quantity selector" data-max="{{ availability['total_available'] }}">
             <button type="button" class="dial-btn minus" id="buyQtyMinus" aria-label="Decrease quantity">−</button>
@@ -242,7 +258,7 @@
         <input type="hidden" id="ngcInput" name="ngc" value="{{ 1 if graded_only and ngc else 0 }}">
 
         <form method="POST" action="{{ url_for('checkout.checkout') }}" class="action-buttons">
-          <input type="hidden" name="bucket_id" value="{{ bucket['id'] }}">
+          <input type="hidden" name="bucket_id" value="{{ bucket['bucket_id'] }}">
           <input type="hidden" name="quantity" id="buyQuantityInput">
           <!-- forward grading too (harmless if checkout ignores) -->
           <input type="hidden" name="graded_only" id="buyGradedOnly">
@@ -252,9 +268,13 @@
           <button type="submit" class="btn buy-btn" onclick="syncQuantity('buyQuantityInput')">Buy Item</button>
         </form>
 
+        <!-- NEW: Opens unified bid modal for creating bid -->
+        <button type="button" class="btn bid-btn" onclick="openBidModal({{ bucket['id'] }})">Make a Bid</button>
+        <!-- OLD: Full page navigation (kept as backup)
         <a class="btn bid-btn" href="{{ url_for('bid.bid_page', bucket_id=bucket['id']) }}">Make a Bid</a>
+        -->
 
-        <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['id']) }}" class="action-buttons">
+        <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
           <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
           <input type="hidden" name="graded_only" id="cartGradedOnly">
           <input type="hidden" name="any_grader" id="cartAnyGrader">
@@ -268,14 +288,23 @@
         Currently out of stock. Check back later or place a bid below.
       </p>
 
-      <a
+      <!-- NEW: Opens unified bid modal (out of stock state) -->
+      <button
+        type="button"
         id="outOfStockBidBtn"
         class="btn bid-btn"
-        href="{{ url_for('bid.bid_page', bucket_id=bucket['id']) }}"
+        onclick="openBidModal({{ bucket['id'] }})"
         {% if in_stock %}style="display:none"{% endif %}
       >
         Make a Bid
+      </button>
+      <!-- OLD: Full page navigation (kept as backup)
+      <a id="outOfStockBidBtn-old" class="btn bid-btn"
+         href="{{ url_for('bid.bid_page', bucket_id=bucket['id']) }}"
+         {% if in_stock %}style="display:none"{% endif %} style="display:none">
+        Make a Bid
       </a>
+      -->
 
 
       <hr class="divider">
@@ -311,16 +340,33 @@
         {% set filled = requested - remaining %}
         <article class="account-bid-tile">
           <div class="abt-top">
-            <div class="abt-price">${{ '%.2f' | format(bid['price_per_coin']) }} <span class="abt-price-suffix">BID</span></div>
+            <div class="abt-price">
+              ${{ '%.2f' | format(bid.get('effective_price', bid['price_per_coin'])) }}
+              <span class="abt-price-suffix">BID</span>
+              {% if bid.get('pricing_mode') == 'premium_to_spot' %}
+                <span class="pricing-mode-badge variable">Variable</span>
+              {% endif %}
+            </div>
             <div class="abt-units">{{ requested }} units</div>
           </div>
 
+          {% if bid.get('pricing_mode') == 'premium_to_spot' %}
+          <div class="abt-row pricing-info">
+            <div class="abt-curr" style="font-size: 12px; color: #4caf50;">
+              <strong>Variable Pricing:</strong> Spot + ${{ '%.2f' | format(bid.get('spot_premium', 0)) }}
+              {% if bid.get('floor_price') %}
+                (Floor: ${{ '%.2f' | format(bid['floor_price']) }})
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
           <div class="abt-row">
             <div class="abt-curr">
-              {% if availability['lowest_price'] %}
-                Curr ${{ '%.2f' | format(availability['lowest_price']) }}
+              {% if bid['requires_grading'] %}
+                Require 3rd party Grading: Yes{% if bid['preferred_grader'] %} ({{ bid['preferred_grader'] }}){% endif %}
               {% else %}
-                Curr $0.00
+                Require 3rd party Grading: No
               {% endif %}
             </div>
             <div class="abt-filled">Filled: {{ filled }}</div>
@@ -329,14 +375,21 @@
           {% if bid['created_at'] %}<div class="abt-date">{{ bid['created_at'] }}</div>{% endif %}
 
           <div class="abt-actions">
-            <form method="GET" action="{{ url_for('bid.edit_bid', bid_id=bid['id']) }}">
+            <!-- NEW: Opens unified bid modal for editing -->
+            <button type="button" class="abt-action" onclick="openBidModal({{ bucket['id'] }}, {{ bid['id'] }})">
+              <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+              <span>Edit</span>
+            </button>
+            <!-- OLD: Full page navigation (kept as backup)
+            <form method="GET" action="{{ url_for('bid.edit_bid', bid_id=bid['id']) }}" style="display:none">
               <button type="submit" class="abt-action">
                 <i class="fas fa-pencil-alt" aria-hidden="true"></i>
-                <span>Edit</span>
+                <span>Edit (Old)</span>
               </button>
             </form>
+            -->
 
-            <form method="POST" action="{{ url_for('bid.cancel_bid', bid_id=bid['id']) }}" onsubmit="return confirm('Close (cancel) this bid?');">
+            <form method="POST" action="{{ url_for('bid.cancel_bid', bid_id=bid['id']) }}" id="closeBidForm-{{ bid['id'] }}" onsubmit="event.preventDefault(); openCloseBidBuyPageConfirmModal(this);">
               <button type="submit" class="abt-action">
                 <i class="fa-solid fa-trash" aria-hidden="true"></i>
                 <span>Close</span>
@@ -365,7 +418,11 @@
       <h3 class="bids-panel-heading">All Open Bids for This Item</h3>
 
       <div class="bids-actions">
-        <a class="btn bid-btn header-bid-btn" href="{{ url_for('bid.bid_page', bucket_id=bucket['id']) }}">+ Create a Bid</a>
+        <!-- NEW: Opens unified bid modal -->
+        <button type="button" class="btn bid-btn header-bid-btn" onclick="openBidModal({{ bucket['id'] }})">+ Create a Bid</button>
+        <!-- OLD: Full page navigation (kept as backup)
+        <a class="btn bid-btn header-bid-btn" href="{{ url_for('bid.bid_page', bucket_id=bucket['id']) }}" style="display:none">+ Create a Bid (Old)</a>
+        -->
 
         {% if ns.has_open %}
           <button type="submit" class="btn accept-bids-btn" id="acceptBidsButton" disabled>Accept Bids</button>
@@ -398,13 +455,25 @@
 
                   <div class="bid-meta">
                     <div class="bid-curr">
-                      {% if availability['lowest_price'] %}
-                        Curr ${{ '%.2f' | format(availability['lowest_price']) }}
+                      {% if bid['requires_grading'] %}
+                        Require 3rd party Grading: Yes{% if bid['preferred_grader'] %} ({{ bid['preferred_grader'] }}){% endif %}
                       {% else %}
-                        Curr N/A
+                        Require 3rd party Grading: No
                       {% endif %}
                     </div>
                     {% if bid['created_at'] %}<div class="bid-time">{{ bid['created_at'] }}</div>{% endif %}
+                  </div>
+
+                  <!-- View Bidder Button -->
+                  <div class="bid-actions">
+                    <button
+                      type="button"
+                      class="icon-button view-bidder-btn"
+                      title="View Bidder"
+                      onclick="event.stopPropagation(); openBidderModal({{ bid['id'] }})">
+                      <i class="fa-solid fa-user"></i>
+                      <span class="icon-label">View Bidder</span>
+                    </button>
                   </div>
                 </div>
 
@@ -432,12 +501,50 @@
 <!-- ============ Sellers Modal Markup ============ -->
 {% include 'modals/bucket_ID_sellers_modal.html' %}
 
+<!-- ============ Bid Bidder Modal ============ -->
+{% include 'modals/bid_bidder_modal.html' %}
+
+<!-- ============ NEW: Unified Bid Modal ============ -->
+{% include 'modals/bid_modal.html' %}
+{% include 'modals/bid_confirm_modal.html' %}
+
+<!-- ============ Accept Bid Modals ============ -->
+{% include 'modals/accept_bid_modals.html' %}
+
+<!-- ============ Buy Item Modal ============ -->
+{% include 'modals/buy_item_modal.html' %}
+
+<!-- ============ Close Bid Confirmation Modal ============ -->
+{% include 'modals/close_bid_buy_page_confirmation_modal.html' %}
+
+<!-- ============ Error Notification Modal ============ -->
+{% include 'modals/error_notification_modal.html' %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/confirmation_modal_base.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_sellers_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/order_sellers_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bid_modal.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bid_confirm_modal.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_bid_modal.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/accept_bid_modals.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/buy_item_modal.css') }}?v=1">
+
 <script>
   window.flashMessages = {{ get_flashed_messages(with_categories=true) | tojson }};
   window.bucketImages  = {{ (images or []) | tojson }};
   window.bestBid       = {{ (best_bid or {}) | tojson }};
   window.bucketId      = {{ bucket['id'] }};
+  window.bucketSpecs   = {{ specs | tojson }};
+  window.allBids       = {{ (bids or []) | tojson }};
+  window.lowestPrice   = {{ availability.lowest_price if availability and availability.lowest_price else 0 }};
 </script>
 <script src="{{ url_for('static', filename='js/modals/bucket_ID_sellers_modal.js') }}?v=bucket-v2"></script>
+<script src="{{ url_for('static', filename='js/modals/bid_bidder_modal.js') }}?v=OVERLAY_FIX"></script>
 <script src="{{ url_for('static', filename='js/view_bucket.js') }}?v=bucket-v6"></script>
+<script src="{{ url_for('static', filename='js/modals/bid_modal.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/modals/bid_confirm_modal.js') }}?v=CALC_FIX"></script>
+<script src="{{ url_for('static', filename='js/modals/accept_bid_modals.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/modals/buy_item_modal.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/modals/error_notification_modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modals/close_bid_buy_page_confirmation_modal.js') }}"></script>
 {% endblock %}

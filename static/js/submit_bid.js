@@ -1,12 +1,14 @@
 function toggleGraderDropdown() {
-    const requiresGrading = document.getElementById('requires_grading').value;
+    const requiresGrading = document.getElementById('requires_grading');
     const graderSection = document.getElementById('grader_dropdown_section');
 
-    if (requiresGrading === 'yes') {
-        graderSection.style.display = 'block';
-    } else {
-        graderSection.style.display = 'none';
-        document.getElementById('preferred_grader').value = '';
+    if (requiresGrading && graderSection) {
+        if (requiresGrading.value === 'yes') {
+            graderSection.style.display = 'block';
+        } else {
+            graderSection.style.display = 'none';
+            document.getElementById('preferred_grader').value = '';
+        }
     }
 }
 

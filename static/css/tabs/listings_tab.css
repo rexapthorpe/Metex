@@ -122,3 +122,62 @@
   background-color: #3da6ff;
   color: #fff;
 }
+
+/* Pricing mode badges */
+.listings-tab .pricing-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.listings-tab .pricing-mode-badge.static {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.listings-tab .pricing-mode-badge.variable {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
+}
+
+.listings-tab .badge-icon {
+  font-size: 1rem;
+}
+
+.listings-tab .static-price-value {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #2e7d32;
+  margin-top: 4px;
+}
+
+.listings-tab .variable-price-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.listings-tab .price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.listings-tab .price-label {
+  color: #666;
+  font-weight: normal;
+}
+
+.listings-tab .price-value {
+  color: #1565c0;
+  font-weight: 600;
+}

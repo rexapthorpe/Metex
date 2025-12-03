@@ -11,13 +11,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
-    <!--<link rel="stylesheet" href="{{ url_for('static', filename='css/view_cart.css') }}"> -->
 
-    <!-- modals (global) 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_bid_modal.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tracking_modal.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/cart_remove_item_confirmation_modal.css') }}"> -->
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bucket_ID_sellers_modal.css') }}">
+
+    <!-- ✅ Unified modal close button (must load first) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/modal-close-button.css') }}">
 
     <!-- ✅ Add cart modal CSS globally so overlays render correctly on the cart page -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_sellers_modal.css') }}">
@@ -25,8 +24,15 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/remove_seller_confirmation_modal.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_remove_item_confirmation_modal.css') }}">
 
+    <!-- ✅ Checkout modals CSS (slide-up pattern) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/sell_listing_modals.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/checkout_modals.css') }}">
+
     <!-- programs (global) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- Notification System -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}">
 </head>
 <body>
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -43,6 +49,13 @@
     <div class="header-bar">
         <a href="{{ url_for('buy.buy') }}" class="logo">MetEx</a>
         <div class="header-buttons">
+            {% if session.get('user_id') %}
+            <!-- Notification Bell Icon -->
+            <button class="btn-pill notification-bell-btn" id="notificationBellBtn" title="Notifications">
+                <i class="fa-solid fa-bell"></i>
+                <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+            </button>
+            {% endif %}
             <a href="{{ url_for('buy.view_cart') }}" class="btn-pill cart-pill" title="View Cart">🛒</a>
             <a href="{{ url_for('sell.sell') }}" class="btn-pill {% if request.endpoint == 'sell.sell' %}active{% endif %}">Sell</a>
             {% if session.get('user_id') %}
@@ -62,12 +75,47 @@
 
     {% block scripts %}{% endblock %}
 
+    <!-- Notification Sidebar -->
+    {% if session.get('user_id') %}
+    <div class="notification-sidebar" id="notificationSidebar">
+        <div class="notification-sidebar-header">
+            <h3>Notifications</h3>
+            <button class="notification-close-btn" id="notificationCloseBtn">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+        <div class="notification-list" id="notificationList">
+            <!-- Notifications will be dynamically loaded here -->
+            <div class="notification-loading">Loading notifications...</div>
+        </div>
+    </div>
+    <!-- Notification Overlay -->
+    <div class="notification-overlay" id="notificationOverlay"></div>
+    {% endif %}
+
     <!-- modal js -->
     <script src="{{ url_for('static', filename='js/modals/tracking_modal.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modals/cart_remove_item_confirmation_modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modals/remove_seller_confirmation_modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modals/remove_listing_confirmation_modal.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modals/universal_outside_click_close.js') }}"></script>
-       <!-- modal js 
+       <!-- modal js
  <script src="{{ url_for('static', filename='js/modals/login.js') }}"></script>
 -->
+
+    <!-- Checkout Modals HTML -->
+    {% if session.get('user_id') %}
+    {% include 'modals/checkout_modals.html' %}
+    {% endif %}
+
+    <!-- Checkout Modals JavaScript -->
+    {% if session.get('user_id') %}
+    <script src="{{ url_for('static', filename='js/modals/checkout_modals.js') }}"></script>
+    {% endif %}
+
+    <!-- Notification System JavaScript -->
+    {% if session.get('user_id') %}
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+    {% endif %}
 </body>
 </html>

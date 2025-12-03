@@ -13,14 +13,12 @@ from routes.messages_routes import messages_bp
 from routes.cart_routes import cart_bp
 from routes.bid_routes import bid_bp
 from routes.ratings_routes import ratings_bp
-
-
+from routes.api_routes import api_bp
+from routes.notification_routes import notification_bp
+from routes.portfolio_routes import portfolio_bp
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
-
-# Configure OAuth (Google login)
-# (Add your OAuth setup here, if needed)
 
 # Register Blueprints
 app.register_blueprint(auth_bp)
@@ -33,6 +31,9 @@ app.register_blueprint(messages_bp)
 app.register_blueprint(cart_bp)
 app.register_blueprint(bid_bp)
 app.register_blueprint(ratings_bp)
+app.register_blueprint(api_bp)
+app.register_blueprint(notification_bp)
+app.register_blueprint(portfolio_bp)
 
 
 @app.route('/')

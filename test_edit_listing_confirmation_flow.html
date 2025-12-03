@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Listing Confirmation Flow - Test Guide</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      padding: 40px 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+      background: #f5f5f5;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    .section {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .section h2 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 24px;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .section h3 {
+      color: #555;
+      margin: 20px 0 10px 0;
+      font-size: 18px;
+    }
+
+    .test-step {
+      background: #f9fafb;
+      border-left: 4px solid #667eea;
+      padding: 15px 20px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+
+    .test-step strong {
+      color: #667eea;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .expected {
+      background: #ecfdf5;
+      border-left: 4px solid #10b981;
+      padding: 15px 20px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+
+    .expected strong {
+      color: #10b981;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .warning {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 15px 20px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+
+    .warning strong {
+      color: #f59e0b;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .checklist {
+      list-style: none;
+      padding: 0;
+    }
+
+    .checklist li {
+      padding: 10px 15px;
+      margin: 8px 0;
+      background: #f9fafb;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      position: relative;
+      padding-left: 40px;
+    }
+
+    .checklist li::before {
+      content: '☐';
+      position: absolute;
+      left: 15px;
+      font-size: 18px;
+      color: #667eea;
+    }
+
+    .info-box {
+      background: #e0e7ff;
+      border: 1px solid #667eea;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .info-box strong {
+      color: #667eea;
+      display: block;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .code {
+      background: #1f2937;
+      color: #10b981;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 5px;
+    }
+
+    .badge-static {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    .badge-variable {
+      background: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #90caf9;
+    }
+
+    .status-ready {
+      color: #10b981;
+      font-weight: 600;
+    }
+
+    .status-pending {
+      color: #f59e0b;
+      font-weight: 600;
+    }
+
+    .implementation-summary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+
+    .implementation-summary h2 {
+      color: white;
+      border-bottom: 2px solid rgba(255,255,255,0.3);
+      margin-bottom: 15px;
+    }
+
+    .implementation-summary ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .implementation-summary li {
+      padding: 8px 0;
+      padding-left: 25px;
+      position: relative;
+    }
+
+    .implementation-summary li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>🎉 Edit Listing Confirmation Flow</h1>
+    <p>Comprehensive Testing Guide - Two-Step Confirmation & Success Modals</p>
+  </div>
+
+  <div class="implementation-summary">
+    <h2>✅ Implementation Complete</h2>
+    <ul>
+      <li>Edit Listing Confirmation Modal created</li>
+      <li>Edit Listing Success Modal created</li>
+      <li>CSS styling matching Buy/Bid patterns</li>
+      <li>JavaScript handlers for both modals</li>
+      <li>Integration with edit_listing_modal.js</li>
+      <li>Support for static and premium-to-spot pricing</li>
+      <li>Real-time spot price calculation</li>
+      <li>Files included in account.html template</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>📋 Quick Start Testing</h2>
+
+    <div class="info-box">
+      <strong>Testing URL:</strong>
+      <div class="code">http://127.0.0.1:5000/account</div>
+    </div>
+
+    <div class="warning">
+      <strong>⚠️ Important:</strong>
+      Make sure your Flask app is running before testing. The confirmation flow requires the backend API for spot price fetching.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🧪 Test 1: Static Pricing Listing</h2>
+
+    <div class="test-step">
+      <strong>Step 1: Navigate to Listings</strong>
+      Go to Account page → Click on "Listings" tab
+    </div>
+
+    <div class="test-step">
+      <strong>Step 2: Find Static Pricing Listing</strong>
+      Look for a listing with this badge: <span class="badge badge-static">💵 Fixed Price</span>
+    </div>
+
+    <div class="test-step">
+      <strong>Step 3: Open Edit Modal</strong>
+      Click the "Edit" button on the listing tile
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected:</strong>
+      Edit listing modal opens with all fields populated
+    </div>
+
+    <div class="test-step">
+      <strong>Step 4: Make a Change</strong>
+      Update any field (e.g., change quantity from 10 to 15, or price from $100.00 to $105.00)
+    </div>
+
+    <div class="test-step">
+      <strong>Step 5: Click "Save Changes"</strong>
+      Click the blue "Save Changes" button at the bottom
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected: Confirmation Modal Appears</strong>
+      <ul style="margin-top: 10px; padding-left: 20px;">
+        <li>Header: "Confirm Listing Changes"</li>
+        <li>Shows item description (e.g., "2024 Gold American Eagle Coin 1 oz")</li>
+        <li>Shows quantity</li>
+        <li>Shows graded status (Yes/No)</li>
+        <li>Shows "Pricing Mode: Fixed Price"</li>
+        <li>Shows "Price per Item: $XXX.XX"</li>
+        <li>Shows photo status (Included/Not included)</li>
+        <li>Two buttons: "Cancel" and "Save Changes"</li>
+      </ul>
+    </div>
+
+    <div class="test-step">
+      <strong>Step 6: Review Details</strong>
+      Verify all information is correct and matches your edits
+    </div>
+
+    <div class="test-step">
+      <strong>Step 7: Confirm Changes</strong>
+      Click "Save Changes" button in the confirmation modal
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected: Success Modal Appears</strong>
+      <ul style="margin-top: 10px; padding-left: 20px;">
+        <li>Header: "🎉 Listing Updated Successfully!" (green gradient background)</li>
+        <li>Success message in green text</li>
+        <li>Item Details section showing all fields</li>
+        <li>Pricing Details section showing "Fixed Price" and price</li>
+        <li>"Next Steps" notice box explaining what happens next</li>
+        <li>Single "Close" button</li>
+      </ul>
+    </div>
+
+    <div class="test-step">
+      <strong>Step 8: Close Success Modal</strong>
+      Click the "Close" button
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected:</strong>
+      Page reloads and you can see your updated listing with the new values
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🧪 Test 2: Premium-to-Spot (Variable) Pricing Listing</h2>
+
+    <div class="test-step">
+      <strong>Step 1: Navigate to Listings</strong>
+      Go to Account page → Click on "Listings" tab
+    </div>
+
+    <div class="test-step">
+      <strong>Step 2: Find Variable Pricing Listing</strong>
+      Look for a listing with this badge: <span class="badge badge-variable">📊 Variable (Premium to Spot)</span>
+    </div>
+
+    <div class="test-step">
+      <strong>Step 3: Open Edit Modal</strong>
+      Click the "Edit" button on the listing tile
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected:</strong>
+      Edit listing modal opens with pricing mode set to "Premium to Spot"
+    </div>
+
+    <div class="test-step">
+      <strong>Step 4: Make a Change</strong>
+      Update premium or floor price (e.g., change premium from $5.00 to $7.50)
+    </div>
+
+    <div class="test-step">
+      <strong>Step 5: Click "Save Changes"</strong>
+      Click the blue "Save Changes" button
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected: Confirmation Modal Appears</strong>
+      <ul style="margin-top: 10px; padding-left: 20px;">
+        <li>Header: "Confirm Listing Changes"</li>
+        <li>Shows item description</li>
+        <li>Shows quantity and grading status</li>
+        <li>Shows "Pricing Mode: Variable (Premium to Spot)"</li>
+        <li><strong>Shows "Premium Above Spot: $X.XX"</strong></li>
+        <li><strong>Shows "Floor Price (Minimum): $XXX.XX"</strong></li>
+        <li><strong>Shows "Current Effective Price: $XXX.XX"</strong> ← Calculated in real-time!</li>
+        <li>Shows photo status</li>
+        <li>Two buttons: "Cancel" and "Save Changes"</li>
+      </ul>
+    </div>
+
+    <div class="info-box">
+      <strong>💡 Real-Time Calculation:</strong>
+      The "Current Effective Price" is calculated live by fetching current spot prices from the API and computing: max((spotPrice × weight) + premium, floorPrice)
+    </div>
+
+    <div class="test-step">
+      <strong>Step 6: Verify Effective Price</strong>
+      Check that the effective price makes sense based on premium and floor
+    </div>
+
+    <div class="test-step">
+      <strong>Step 7: Confirm Changes</strong>
+      Click "Save Changes" in the confirmation modal
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected: Success Modal Appears</strong>
+      <ul style="margin-top: 10px; padding-left: 20px;">
+        <li>Header: "🎉 Listing Updated Successfully!"</li>
+        <li>Item Details section</li>
+        <li>Pricing Details section showing:</li>
+        <ul>
+          <li>Pricing Mode: Variable (Premium to Spot)</li>
+          <li>Premium Above Spot: $X.XX</li>
+          <li>Floor Price (Minimum): $XXX.XX</li>
+          <li>Current Effective Price: $XXX.XX</li>
+        </ul>
+        <li>"Next Steps" notice</li>
+        <li>"Close" button</li>
+      </ul>
+    </div>
+
+    <div class="test-step">
+      <strong>Step 8: Close and Verify</strong>
+      Click "Close" → Page reloads → Verify updated premium/floor on listing tile
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🎯 Test 3: Modal Interactions</h2>
+
+    <div class="test-step">
+      <strong>Test 3.1: Cancel Button</strong>
+      Edit a listing → Click "Save Changes" → In confirmation modal, click "Cancel"
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected:</strong>
+      Confirmation modal closes, changes are NOT saved, edit modal still open
+    </div>
+
+    <div class="test-step">
+      <strong>Test 3.2: Close Button (X)</strong>
+      Edit a listing → Click "Save Changes" → Click the X button in top-right corner
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected:</strong>
+      Confirmation modal closes, changes are NOT saved
+    </div>
+
+    <div class="test-step">
+      <strong>Test 3.3: Click Outside Modal</strong>
+      Edit a listing → Click "Save Changes" → Click the dark area outside the modal
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected:</strong>
+      Confirmation modal closes, changes are NOT saved
+    </div>
+
+    <div class="test-step">
+      <strong>Test 3.4: Escape Key</strong>
+      Edit a listing → Click "Save Changes" → Press the Escape key
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected:</strong>
+      Confirmation modal closes, changes are NOT saved
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🐛 Test 4: Browser Console Verification</h2>
+
+    <div class="test-step">
+      <strong>Step 1: Open DevTools</strong>
+      Press F12 (Windows/Linux) or Cmd+Option+I (Mac)
+    </div>
+
+    <div class="test-step">
+      <strong>Step 2: Go to Console Tab</strong>
+      Click on the "Console" tab in DevTools
+    </div>
+
+    <div class="test-step">
+      <strong>Step 3: Clear Console</strong>
+      Click the 🚫 (clear) icon to start fresh
+    </div>
+
+    <div class="test-step">
+      <strong>Step 4: Edit a Listing</strong>
+      Go through the full edit listing flow
+    </div>
+
+    <div class="expected">
+      <strong>✓ Expected Console Logs:</strong>
+      <div class="code">
+✓ All validation passed, preparing confirmation modal<br>
+Form data contents:<br>
+  metal: Gold<br>
+  product_line: American Eagle<br>
+  ...<br>
+✓ Opening edit listing confirmation modal<br>
+Spot price calculation for edit confirmation: {...}<br>
+Listing updated successfully!<br>
+openEditListingSuccessModal called with data: {...}
+      </div>
+    </div>
+
+    <div class="expected">
+      <strong>✓ NO Errors Expected:</strong>
+      There should be NO red error messages in the console. If you see any errors, note them down.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>✅ Complete Testing Checklist</h2>
+
+    <ul class="checklist">
+      <li>Confirmation modal opens when clicking "Save Changes"</li>
+      <li>Confirmation modal shows correct item description</li>
+      <li>Confirmation modal shows correct quantity</li>
+      <li>Confirmation modal shows correct grading status</li>
+      <li>Static pricing shows "Fixed Price" and price value</li>
+      <li>Variable pricing shows "Premium to Spot", premium, floor, effective price</li>
+      <li>Effective price is calculated correctly for variable listings</li>
+      <li>Photo status shows "Included" or "Not included"</li>
+      <li>Cancel button closes modal without saving</li>
+      <li>X button closes modal without saving</li>
+      <li>Clicking outside closes modal without saving</li>
+      <li>Escape key closes modal without saving</li>
+      <li>Confirming in modal submits the form</li>
+      <li>Success modal appears after successful save</li>
+      <li>Success modal shows all updated details</li>
+      <li>Closing success modal reloads the page</li>
+      <li>Updated values appear in listings after reload</li>
+      <li>No JavaScript errors in browser console</li>
+      <li>Modals are styled consistently with Buy/Bid modals</li>
+      <li>Animations work smoothly (fade + scale)</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>📊 Implementation Files</h2>
+
+    <h3>New Files Created</h3>
+    <div class="code">
+templates/modals/edit_listing_confirmation_modals.html<br>
+static/css/modals/edit_listing_confirmation_modals.css<br>
+static/js/modals/edit_listing_confirmation_modals.js
+    </div>
+
+    <h3>Modified Files</h3>
+    <div class="code">
+static/js/modals/edit_listing_modal.js (lines 480-553)<br>
+templates/account.html (lines 17, 58, 163)
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🎨 Visual Design Features</h2>
+
+    <h3>Confirmation Modal</h3>
+    <ul style="padding-left: 20px; margin-top: 10px;">
+      <li><strong>Width:</strong> 560px (matches bid confirmation)</li>
+      <li><strong>Style:</strong> Centered pop-up with rounded corners</li>
+      <li><strong>Summary Grid:</strong> Light gray background (#f9fafb)</li>
+      <li><strong>Price Highlight:</strong> Blue color (#0066cc)</li>
+      <li><strong>Buttons:</strong> Gray "Cancel" + Blue "Save Changes"</li>
+    </ul>
+
+    <h3>Success Modal</h3>
+    <ul style="padding-left: 20px; margin-top: 10px;">
+      <li><strong>Width:</strong> 600px</li>
+      <li><strong>Header:</strong> Green gradient (#10b981 → #059669)</li>
+      <li><strong>Emoji:</strong> 🎉 celebration</li>
+      <li><strong>Detail Sections:</strong> Rounded backgrounds with borders</li>
+      <li><strong>Next Steps Box:</strong> Light green with info</li>
+      <li><strong>Button:</strong> Blue "Close"</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>🚀 Ready to Test!</h2>
+
+    <div class="info-box">
+      <strong>Start Testing Now:</strong>
+      <ol style="margin-top: 10px; padding-left: 20px;">
+        <li>Make sure Flask app is running: <code>python app.py</code></li>
+        <li>Open browser: <code>http://127.0.0.1:5000/account</code></li>
+        <li>Follow Test 1 (Static Pricing)</li>
+        <li>Follow Test 2 (Variable Pricing)</li>
+        <li>Follow Test 3 (Modal Interactions)</li>
+        <li>Follow Test 4 (Console Verification)</li>
+        <li>Check off items in the Complete Testing Checklist</li>
+      </ol>
+    </div>
+
+    <div class="expected">
+      <strong>✅ All Tests Should Pass!</strong>
+      If any test fails, check the browser console for errors and review the implementation files.
+    </div>
+  </div>
+
+</body>
+</html>

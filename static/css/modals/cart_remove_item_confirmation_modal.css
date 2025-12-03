@@ -1,36 +1,5 @@
-/* Overlay for remove-item dialog */
-.cart-remove-overlay {
-  display: none !important;          /* ensure hidden on initial render */
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  justify-content: center;
-  align-items: center;
-  z-index: 2000;
-}
-
-/* Modal content box */
-.cart-remove-modal-content {
-  background: #fff;
-  padding: 24px;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 400px;
-  text-align: center;
-}
-.cart-remove-modal-content h2 { margin-top: 0; }
-
-/* Action buttons */
-.cart-remove-actions {
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-}
-.cart-remove-confirm-btn {
-  background: none; color: #333; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;
-}
-.cart-remove-abort-btn {
-  background: #3da6ff; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;
-}
-.cart-remove-abort-btn:hover { background: #89c8ff; color: #000000; }
+/*
+ * Cart Remove Item Confirmation Modal
+ * Now uses standardized confirmation modal styles from confirmation_modal_base.css
+ * This file is kept for any future cart-specific overrides if needed
+ */

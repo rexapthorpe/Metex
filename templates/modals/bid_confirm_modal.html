@@ -1,0 +1,199 @@
+<!-- Bid Confirmation Modal (Centered Pop-up) -->
+<div id="bidConfirmModal" class="bid-confirm-overlay" style="display: none;">
+  <div class="bid-confirm-dialog">
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeBidConfirmModal()" aria-label="Close modal">&times;</button>
+    <div class="bid-confirm-header">
+      <h2>Confirm Bid</h2>
+    </div>
+
+    <div class="bid-confirm-body">
+      <div class="bid-confirm-summary">
+        <p class="bid-confirm-message">You are about to place/update the following bid:</p>
+
+        <div class="bid-summary-grid">
+          <!-- Bucket Description -->
+          <div class="bid-summary-row">
+            <span class="bid-summary-label">Item:</span>
+            <span class="bid-summary-value" id="bid-confirm-item-desc">—</span>
+          </div>
+
+          <!-- Grading Requirement -->
+          <div class="bid-summary-row">
+            <span class="bid-summary-label">Requires Grading:</span>
+            <span class="bid-summary-value" id="bid-confirm-grading">—</span>
+          </div>
+
+          <!-- Pricing Mode -->
+          <div class="bid-summary-row" id="bid-confirm-mode-row" style="display: none;">
+            <span class="bid-summary-label">Pricing Mode:</span>
+            <span class="bid-summary-value" id="bid-confirm-mode">—</span>
+          </div>
+
+          <!-- Variable Pricing: Current Spot Price -->
+          <div class="bid-summary-row" id="bid-confirm-spot-row" style="display: none;">
+            <span class="bid-summary-label">Current Spot Price:</span>
+            <span class="bid-summary-value" id="bid-confirm-spot">—</span>
+          </div>
+
+          <!-- Variable Pricing: Spot Premium -->
+          <div class="bid-summary-row" id="bid-confirm-premium-row" style="display: none;">
+            <span class="bid-summary-label">Premium Above Spot:</span>
+            <span class="bid-summary-value" id="bid-confirm-premium">—</span>
+          </div>
+
+          <!-- Variable Pricing: Max Price (Ceiling) -->
+          <div class="bid-summary-row" id="bid-confirm-ceiling-row" style="display: none;">
+            <span class="bid-summary-label">Max Price (Ceiling):</span>
+            <span class="bid-summary-value" id="bid-confirm-ceiling">—</span>
+          </div>
+
+          <!-- Price per Item -->
+          <div class="bid-summary-row">
+            <span class="bid-summary-label" id="bid-confirm-price-label">Your bid per item:</span>
+            <span class="bid-summary-value price-highlight" id="bid-confirm-price">—</span>
+          </div>
+
+          <!-- Quantity -->
+          <div class="bid-summary-row">
+            <span class="bid-summary-label">Quantity:</span>
+            <span class="bid-summary-value" id="bid-confirm-quantity">—</span>
+          </div>
+
+          <!-- Total Bid Value -->
+          <div class="bid-summary-row">
+            <span class="bid-summary-label">Total bid value:</span>
+            <span class="bid-summary-value total-highlight" id="bid-confirm-total">—</span>
+          </div>
+        </div>
+
+        <!-- Privacy Notice -->
+        <div class="privacy-notice">
+          <i class="fas fa-lock"></i>
+          <span>Your delivery address is hidden until your bid is accepted for the purpose of protecting user privacy.</span>
+        </div>
+
+        <p class="bid-confirm-question">Do you want to confirm this bid?</p>
+        <hr class="bid-confirm-divider">
+      </div>
+    </div>
+
+    <div class="bid-confirm-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeBidConfirmModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="bidConfirmBtn">Confirm Bid</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bid Success Modal -->
+<div id="bidSuccessModal" class="bid-success-overlay" style="display: none;">
+  <div class="bid-success-dialog">
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeBidSuccessModal()" aria-label="Close">&times;</button>
+    <div class="modal-header success-header">
+      <h2>Bid Placed Successfully!</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="success-content">
+        <p class="success-message">Your bid has been placed successfully!</p>
+
+        <div class="order-details">
+          <h3>Bid Summary</h3>
+
+          <div class="detail-section">
+            <h4>Bid Details</h4>
+
+            <!-- Pricing Mode -->
+            <div class="detail-row" id="success-mode-row" style="display: none;">
+              <span class="detail-label">Pricing Mode:</span>
+              <span class="detail-value" id="success-bid-mode">—</span>
+            </div>
+
+            <!-- Variable Pricing: Current Spot Price -->
+            <div class="detail-row" id="success-spot-row" style="display: none;">
+              <span class="detail-label">Current Spot Price:</span>
+              <span class="detail-value" id="success-spot-price">—</span>
+            </div>
+
+            <!-- Variable Pricing: Premium -->
+            <div class="detail-row" id="success-premium-row" style="display: none;">
+              <span class="detail-label">Premium Above Spot:</span>
+              <span class="detail-value" id="success-bid-premium">—</span>
+            </div>
+
+            <!-- Variable Pricing: Max Price (Ceiling) -->
+            <div class="detail-row" id="success-ceiling-row" style="display: none;">
+              <span class="detail-label">Max Price (Ceiling):</span>
+              <span class="detail-value" id="success-bid-ceiling">—</span>
+            </div>
+
+            <!-- Effective Price (for variable bids) -->
+            <div class="detail-row" id="success-effective-row" style="display: none;">
+              <span class="detail-label">Current Effective Bid Price:</span>
+              <span class="detail-value price-highlight" id="success-effective-price">—</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Quantity:</span>
+              <span class="detail-value" id="success-bid-quantity">—</span>
+            </div>
+            <div class="detail-row" id="success-price-row">
+              <span class="detail-label" id="success-price-label">Price per Item:</span>
+              <span class="detail-value price-highlight" id="success-bid-price">—</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Total Bid Value:</span>
+              <span class="detail-value total-highlight" id="success-bid-total">—</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>Item Details</h4>
+            <div class="detail-row">
+              <span class="detail-label">Item:</span>
+              <span class="detail-value" id="success-bid-item-desc">—</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Grading Requirement:</span>
+              <span class="detail-value" id="success-bid-grading">—</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>Delivery Address</h4>
+            <div class="detail-row" id="success-address-line1-row" style="display: none;">
+              <span class="detail-label">Address Line 1:</span>
+              <span class="detail-value" id="success-address-line1">—</span>
+            </div>
+            <div class="detail-row" id="success-address-line2-row" style="display: none;">
+              <span class="detail-label">Address Line 2:</span>
+              <span class="detail-value" id="success-address-line2">—</span>
+            </div>
+            <div class="detail-row" id="success-address-city-row" style="display: none;">
+              <span class="detail-label">City:</span>
+              <span class="detail-value" id="success-address-city">—</span>
+            </div>
+            <div class="detail-row" id="success-address-state-row" style="display: none;">
+              <span class="detail-label">State:</span>
+              <span class="detail-value" id="success-address-state">—</span>
+            </div>
+            <div class="detail-row" id="success-address-zip-row" style="display: none;">
+              <span class="detail-label">ZIP Code:</span>
+              <span class="detail-value" id="success-address-zip">—</span>
+            </div>
+          </div>
+
+          <div class="shipping-notice">
+            <strong>Next Steps:</strong> Sellers can now see and accept your bid. You'll be notified when a seller accepts your bid, and your order will be placed automatically. You can view and manage your bids in the Bids tab of your account.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer success-footer">
+      <hr class="footer-divider">
+      <button type="button" class="btn btn-primary" onclick="closeBidSuccessModal()">Close</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Bid Modal Pricing - Complete Flow</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-container {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #666;
+      margin-top: 30px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f9f9f9;
+      border-left: 4px solid #2196F3;
+    }
+    .test-button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      margin: 10px 10px 10px 0;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .test-button:hover {
+      background: #45a049;
+    }
+    .test-button.secondary {
+      background: #2196F3;
+    }
+    .test-button.secondary:hover {
+      background: #1976D2;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    .test-data {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      margin: 10px 0;
+      white-space: pre-wrap;
+    }
+    .instructions {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 20px 0;
+    }
+    .instructions h3 {
+      margin-top: 0;
+      color: #856404;
+    }
+    /* Modal styles (simplified from actual app) */
+    .bid-confirm-overlay, .bid-success-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+    }
+    .bid-confirm-dialog, .bid-success-dialog {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #666;
+    }
+    .bid-confirm-header, .modal-header {
+      margin-bottom: 20px;
+    }
+    .bid-summary-row, .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .bid-summary-label, .detail-label {
+      font-weight: 600;
+      color: #666;
+    }
+    .bid-summary-value, .detail-value {
+      color: #333;
+    }
+    .price-highlight {
+      color: #2196F3;
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .total-highlight {
+      color: #4CAF50;
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .bid-confirm-footer, .modal-footer {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn-primary {
+      background: #4CAF50;
+      color: white;
+    }
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    .detail-section {
+      margin: 20px 0;
+    }
+    .detail-section h4 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>🧪 Bid Modal Pricing Display Test - Complete Flow</h1>
+
+    <div class="instructions">
+      <h3>📋 Test Instructions:</h3>
+      <ol>
+        <li>Click each test button below to open the respective modal</li>
+        <li><strong>Confirmation Modals:</strong> Verify pricing fields are displayed correctly</li>
+        <li><strong>Success Modals:</strong> Verify all pricing details including effective prices are shown</li>
+        <li>For Variable bids, check that premium, floor, spot, and effective prices appear</li>
+        <li>For Fixed bids, check that only the static price appears (no variable fields)</li>
+        <li>Verify no $0 or empty values appear in any modal</li>
+      </ol>
+    </div>
+
+    <!-- TEST 1: Fixed Bid Confirmation Modal -->
+    <div class="test-section">
+      <h2>Test 1: Fixed Bid - Confirmation Modal</h2>
+      <div class="status info">
+        Expected: Shows static price ($45.50), no variable pricing fields
+      </div>
+      <button class="test-button" onclick="testFixedBidConfirmation()">
+        Open Fixed Bid Confirmation Modal
+      </button>
+      <div class="test-data" id="test1-data">
+Bid Data:
+- Pricing Mode: static
+- Price: $45.50
+- Quantity: 10
+- Total: $455.00
+- Requires Grading: No
+      </div>
+    </div>
+
+    <!-- TEST 2: Variable Bid Confirmation Modal -->
+    <div class="test-section">
+      <h2>Test 2: Variable Bid - Confirmation Modal</h2>
+      <div class="status info">
+        Expected: Shows "Variable (Premium to Spot)", Premium ($200.00), Floor ($1000.00), Minimum Price
+      </div>
+      <button class="test-button secondary" onclick="testVariableBidConfirmation()">
+        Open Variable Bid Confirmation Modal
+      </button>
+      <div class="test-data" id="test2-data">
+Bid Data:
+- Pricing Mode: premium_to_spot
+- Spot Premium: $200.00
+- Floor Price: $1000.00
+- Pricing Metal: gold
+- Quantity: 5
+- Minimum Total: $5000.00 (minimum)
+- Requires Grading: Yes (PCGS)
+      </div>
+    </div>
+
+    <!-- TEST 3: Fixed Bid Success Modal -->
+    <div class="test-section">
+      <h2>Test 3: Fixed Bid - Success Modal</h2>
+      <div class="status info">
+        Expected: Shows static price ($45.50), total ($455.00), no variable pricing fields
+      </div>
+      <button class="test-button" onclick="testFixedBidSuccess()">
+        Open Fixed Bid Success Modal
+      </button>
+      <div class="test-data" id="test3-data">
+Success Data:
+- Pricing Mode: static
+- Price per Item: $45.50
+- Quantity: 10
+- Total: $455.00
+- Item: 2023 Silver American Eagle 1oz
+- Grading: No
+      </div>
+    </div>
+
+    <!-- TEST 4: Variable Bid Success Modal -->
+    <div class="test-section">
+      <h2>Test 4: Variable Bid - Success Modal</h2>
+      <div class="status info">
+        Expected: Shows mode, current spot ($2845.75), premium ($200.00), floor ($1000.00), effective price ($3045.75)
+      </div>
+      <button class="test-button secondary" onclick="testVariableBidSuccess()">
+        Open Variable Bid Success Modal
+      </button>
+      <div class="test-data" id="test4-data">
+Success Data:
+- Pricing Mode: premium_to_spot
+- Current Spot Price: $2845.75/oz
+- Premium Above Spot: $200.00
+- Floor Price: $1000.00
+- Current Effective Bid Price: $3045.75
+- Quantity: 5
+- Total: $15,228.75
+- Item: 2024 Gold American Eagle 1oz
+- Grading: Yes (PCGS)
+      </div>
+    </div>
+
+    <!-- TEST 5: Variable Bid with Floor Kicking In -->
+    <div class="test-section">
+      <h2>Test 5: Variable Bid - Floor Price Active (Spot + Premium Below Floor)</h2>
+      <div class="status info">
+        Expected: Effective price equals floor price ($2000.00) instead of spot + premium
+      </div>
+      <button class="test-button secondary" onclick="testVariableBidFloorActive()">
+        Open Variable Bid Success (Floor Active)
+      </button>
+      <div class="test-data" id="test5-data">
+Success Data:
+- Pricing Mode: premium_to_spot
+- Current Spot Price: $1500.00/oz (low spot price)
+- Premium Above Spot: $100.00
+- Floor Price: $2000.00
+- Current Effective Bid Price: $2000.00 (floor kicks in!)
+- Quantity: 3
+- Total: $6000.00
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h2>✅ Validation Checklist</h2>
+      <div class="status success">
+        <strong>For each modal, verify:</strong>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+          <li>✓ No empty values (—) where data should be displayed</li>
+          <li>✓ No $0.00 placeholders</li>
+          <li>✓ Variable pricing fields only shown for variable bids</li>
+          <li>✓ Fixed pricing fields only shown for fixed bids</li>
+          <li>✓ All prices formatted to 2 decimal places</li>
+          <li>✓ Modal layout is clean and professional</li>
+          <li>✓ Labels are clear and accurate</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Include Modal Templates -->
+  <div id="bidConfirmModal" class="bid-confirm-overlay" style="display: none;">
+    <div class="bid-confirm-dialog">
+      <button type="button" class="modal-close" onclick="closeBidConfirmModal()" aria-label="Close modal">&times;</button>
+      <div class="bid-confirm-header">
+        <h2>Confirm Bid</h2>
+      </div>
+
+      <div class="bid-confirm-body">
+        <div class="bid-confirm-summary">
+          <p class="bid-confirm-message">You are about to place/update the following bid:</p>
+
+          <div class="bid-summary-grid">
+            <!-- Bucket Description -->
+            <div class="bid-summary-row">
+              <span class="bid-summary-label">Item:</span>
+              <span class="bid-summary-value" id="bid-confirm-item-desc">—</span>
+            </div>
+
+            <!-- Grading Requirement -->
+            <div class="bid-summary-row">
+              <span class="bid-summary-label">Requires Grading:</span>
+              <span class="bid-summary-value" id="bid-confirm-grading">—</span>
+            </div>
+
+            <!-- Pricing Mode -->
+            <div class="bid-summary-row" id="bid-confirm-mode-row" style="display: none;">
+              <span class="bid-summary-label">Pricing Mode:</span>
+              <span class="bid-summary-value" id="bid-confirm-mode">—</span>
+            </div>
+
+            <!-- Variable Pricing: Spot Premium -->
+            <div class="bid-summary-row" id="bid-confirm-premium-row" style="display: none;">
+              <span class="bid-summary-label">Premium Above Spot:</span>
+              <span class="bid-summary-value" id="bid-confirm-premium">—</span>
+            </div>
+
+            <!-- Variable Pricing: Floor Price -->
+            <div class="bid-summary-row" id="bid-confirm-floor-row" style="display: none;">
+              <span class="bid-summary-label">Floor Price (Minimum):</span>
+              <span class="bid-summary-value" id="bid-confirm-floor">—</span>
+            </div>
+
+            <!-- Price per Item -->
+            <div class="bid-summary-row">
+              <span class="bid-summary-label" id="bid-confirm-price-label">Your bid per item:</span>
+              <span class="bid-summary-value price-highlight" id="bid-confirm-price">—</span>
+            </div>
+
+            <!-- Quantity -->
+            <div class="bid-summary-row">
+              <span class="bid-summary-label">Quantity:</span>
+              <span class="bid-summary-value" id="bid-confirm-quantity">—</span>
+            </div>
+
+            <!-- Total Bid Value -->
+            <div class="bid-summary-row">
+              <span class="bid-summary-label">Total bid value:</span>
+              <span class="bid-summary-value total-highlight" id="bid-confirm-total">—</span>
+            </div>
+          </div>
+
+          <p class="bid-confirm-question">Do you want to confirm this bid?</p>
+        </div>
+      </div>
+
+      <div class="bid-confirm-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeBidConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="bidConfirmBtn">Confirm Bid</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bid Success Modal -->
+  <div id="bidSuccessModal" class="bid-success-overlay" style="display: none;">
+    <div class="bid-success-dialog">
+      <button type="button" class="modal-close" onclick="closeBidSuccessModal()" aria-label="Close">&times;</button>
+      <div class="modal-header success-header">
+        <h2>Bid Placed Successfully!</h2>
+      </div>
+
+      <div class="modal-body">
+        <div class="success-content">
+          <p class="success-message">Your bid has been placed successfully!</p>
+
+          <div class="order-details">
+            <h3>Bid Summary</h3>
+
+            <div class="detail-section">
+              <h4>Bid Details</h4>
+
+              <!-- Pricing Mode -->
+              <div class="detail-row" id="success-mode-row" style="display: none;">
+                <span class="detail-label">Pricing Mode:</span>
+                <span class="detail-value" id="success-bid-mode">—</span>
+              </div>
+
+              <!-- Variable Pricing: Current Spot Price -->
+              <div class="detail-row" id="success-spot-row" style="display: none;">
+                <span class="detail-label">Current Spot Price:</span>
+                <span class="detail-value" id="success-spot-price">—</span>
+              </div>
+
+              <!-- Variable Pricing: Premium -->
+              <div class="detail-row" id="success-premium-row" style="display: none;">
+                <span class="detail-label">Premium Above Spot:</span>
+                <span class="detail-value" id="success-bid-premium">—</span>
+              </div>
+
+              <!-- Variable Pricing: Floor Price -->
+              <div class="detail-row" id="success-floor-row" style="display: none;">
+                <span class="detail-label">Floor Price (Minimum):</span>
+                <span class="detail-value" id="success-bid-floor">—</span>
+              </div>
+
+              <!-- Effective Price (for variable bids) -->
+              <div class="detail-row" id="success-effective-row" style="display: none;">
+                <span class="detail-label">Current Effective Bid Price:</span>
+                <span class="detail-value price-highlight" id="success-effective-price">—</span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">Quantity:</span>
+                <span class="detail-value" id="success-bid-quantity">—</span>
+              </div>
+              <div class="detail-row" id="success-price-row">
+                <span class="detail-label" id="success-price-label">Price per Item:</span>
+                <span class="detail-value price-highlight" id="success-bid-price">—</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Total Bid Value:</span>
+                <span class="detail-value total-highlight" id="success-bid-total">—</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4>Item Details</h4>
+              <div class="detail-row">
+                <span class="detail-label">Item:</span>
+                <span class="detail-value" id="success-bid-item-desc">—</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Grading Requirement:</span>
+                <span class="detail-value" id="success-bid-grading">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer success-footer">
+        <button type="button" class="btn btn-primary" onclick="closeBidSuccessModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load the modal JavaScript -->
+  <script src="static/js/modals/bid_confirm_modal.js"></script>
+
+  <!-- Test Functions -->
+  <script>
+    // Simplified getBucketDescription for testing
+    function getBucketDescription() {
+      return 'Test Item from Category';
+    }
+
+    function testFixedBidConfirmation() {
+      openBidConfirmModal({
+        itemDesc: '2023 Silver American Eagle 1oz',
+        requiresGrading: false,
+        preferredGrader: '',
+        price: 45.50,
+        quantity: 10,
+        isEdit: false,
+        pricingMode: 'static'
+      });
+    }
+
+    function testVariableBidConfirmation() {
+      openBidConfirmModal({
+        itemDesc: '2024 Gold American Eagle 1oz',
+        requiresGrading: true,
+        preferredGrader: 'PCGS',
+        price: 1000.00,  // This is the floor price passed to confirmation modal
+        quantity: 5,
+        isEdit: false,
+        pricingMode: 'premium_to_spot',
+        spotPremium: 200.00,
+        floorPrice: 1000.00,
+        pricingMetal: 'gold'
+      });
+    }
+
+    function testFixedBidSuccess() {
+      openBidSuccessModal({
+        quantity: 10,
+        price: 45.50,
+        itemDesc: '2023 Silver American Eagle 1oz',
+        requiresGrading: false,
+        preferredGrader: '',
+        pricingMode: 'static'
+      });
+    }
+
+    function testVariableBidSuccess() {
+      openBidSuccessModal({
+        quantity: 5,
+        itemDesc: '2024 Gold American Eagle 1oz',
+        requiresGrading: true,
+        preferredGrader: 'PCGS',
+        pricingMode: 'premium_to_spot',
+        spotPremium: 200.00,
+        floorPrice: 1000.00,
+        pricingMetal: 'gold',
+        currentSpotPrice: 2845.75,
+        effectivePrice: 3045.75
+      });
+    }
+
+    function testVariableBidFloorActive() {
+      openBidSuccessModal({
+        quantity: 3,
+        itemDesc: '2024 Gold American Eagle 1oz',
+        requiresGrading: true,
+        preferredGrader: 'NGC',
+        pricingMode: 'premium_to_spot',
+        spotPremium: 100.00,
+        floorPrice: 2000.00,
+        pricingMetal: 'gold',
+        currentSpotPrice: 1500.00,
+        effectivePrice: 2000.00  // Floor kicks in: max(1500 + 100, 2000) = 2000
+      });
+    }
+
+    console.log('✅ Test page loaded successfully');
+    console.log('📋 Run tests by clicking the buttons above');
+  </script>
+</body>
+</html>

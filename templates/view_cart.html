@@ -7,6 +7,7 @@
 {% include 'modals/cart_sellers_modal.html' %}
 {% include 'modals/cart_individual_listings_modal.html' %}
 {% include 'modals/remove_seller_confirmation_modal.html' %}
+{% include 'modals/remove_listing_confirmation_modal.html' %}
 {% include 'modals/cart_remove_item_confirmation_modal.html' %}
 
 {# Fonts (already in base; safe to keep if you prefer) #}
@@ -14,15 +15,29 @@
 
 {# === Page CSS === #}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/view_cart.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pricing_badges.css') }}?v=1">
 
 {# === Modal CSS (load the same styles the cart tab uses) === #}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/cart_sellers_modal.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/cart_individual_listings_modal.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/remove_seller_confirmation_modal.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/cart_remove_item_confirmation_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/confirmation_modal_base.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_sellers_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_individual_listings_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/remove_seller_confirmation_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/remove_listing_confirmation_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_remove_item_confirmation_modal.css') }}">
 
 <div class="cart-page-content-container">
   <h2>Your Cart</h2>
+
+  <!-- Price Update Warning for Dynamic Pricing -->
+  <div class="price-update-warning">
+    <div class="price-update-warning-icon">ⓘ</div>
+    <div class="price-update-warning-content">
+      <div class="price-update-warning-title">Live Pricing Active</div>
+      <div class="price-update-warning-text">
+        Cart prices are recalculated on every page load. Items with Premium-to-Spot pricing may have changed since you last viewed your cart.
+      </div>
+    </div>
+  </div>
 
   <div class="cart-page-layout">
     <div class="cart-items-column">
@@ -67,7 +82,7 @@
                       inputmode="numeric"
                       pattern="[0-9]*"
                       min="1"
-                      max="9999"
+                      max="{{ bucket.total_available }}"
                       value="{{ bucket.total_qty }}"
                       aria-live="polite"
                     />
@@ -99,10 +114,18 @@
         </div>
         {% endfor %}
       {% else %}
-        <p>Your cart is empty.</p>
+        <div class="empty-cart-container">
+          <p class="empty-cart-message">Your cart is empty. Let's find some items!</p>
+          <a href="{{ url_for('buy.buy') }}" style="text-decoration: none;">
+            <button class="add-items-to-cart-given-empty-cart-btn">
+              Add Items to Cart
+            </button>
+          </a>
+        </div>
       {% endif %}
     </div>
 
+    {% if buckets %}
     <div class="cart-summary-fixed">
       <h3>Order Summary</h3>
       {% for bucket_id, bucket in buckets.items() %}
@@ -116,15 +139,14 @@
       {% endfor %}
       <p><strong>Total for All Items:</strong> ${{ '%.2f' % cart_total }}</p>
       {% if session.get('user_id') %}
-        <a href="{{ url_for('checkout.checkout') }}">
-          <button class="btn proceed-btn">Proceed to Checkout</button>
-        </a>
+        <button class="btn proceed-btn" onclick="openCheckoutModal()">Proceed to Checkout</button>
       {% else %}
         <a href="{{ url_for('auth.login') }}">
           <button class="btn login-btn">Login to Checkout</button>
         </a>
       {% endif %}
     </div>
+    {% endif %}
   </div>
 </div>
 

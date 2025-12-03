@@ -1,0 +1,63 @@
+<!-- Address Modal (Add/Edit) -->
+<div id="addressModal" class="address-modal">
+  <div class="modal-content">
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeAddressModal()" aria-label="Close modal">&times;</button>
+    <div class="modal-header">
+      <h2 id="addressModalTitle">Add Shipping Address</h2>
+    </div>
+
+    <!-- Scrollable form body -->
+    <form id="addressForm" class="address-form">
+      <input type="hidden" id="addressId" name="address_id">
+
+      <div class="form-group">
+        <label for="addressName">Name / Label</label>
+        <input type="text" id="addressName" name="name" required
+               placeholder="e.g., Home, Office, etc.">
+      </div>
+
+      <div class="form-group">
+        <label for="addressStreet">Street Address Line 1</label>
+        <input type="text" id="addressStreet" name="street" required
+               placeholder="123 Main St">
+      </div>
+
+      <div class="form-group">
+        <label for="addressStreet2">Street Address Line 2 (Optional)</label>
+        <input type="text" id="addressStreet2" name="street_line2"
+               placeholder="Apt, Suite, Unit, etc.">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="addressCity">City</label>
+          <input type="text" id="addressCity" name="city" required>
+        </div>
+
+        <div class="form-group">
+          <label for="addressState">State</label>
+          <input type="text" id="addressState" name="state" required
+                 placeholder="NY">
+        </div>
+
+        <div class="form-group">
+          <label for="addressZip">ZIP Code</label>
+          <input type="text" id="addressZip" name="zip_code" required
+                 pattern="\d{5}" placeholder="12345">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="addressCountry">Country</label>
+        <input type="text" id="addressCountry" name="country" value="USA">
+      </div>
+    </form>
+
+    <!-- Fixed footer pinned at bottom of modal -->
+    <div class="modal-footer">
+      <button type="button" class="btn-cancel" onclick="closeAddressModal()">Cancel</button>
+      <button type="submit" form="addressForm" class="btn-submit">Save Address</button>
+    </div>
+  </div>
+</div>

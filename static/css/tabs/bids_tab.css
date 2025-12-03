@@ -59,22 +59,38 @@
 }
 
 .bids-tab .bid-card-header,
-.bids-tab .bid-card-subheader {
+.bids-tab .bid-card-subheader,
+.bids-tab .bid-card-price-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.5rem;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+
+.bids-tab .bid-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #111;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bids-tab .bid-price {
-  font-size: 1.25rem;
-  font-weight: bold;
+  font-size: 1.1rem;
+  font-weight: 600;
   color: #111;
 }
 
 .bids-tab .bid-quantity {
   font-size: 1rem;
   color: #555;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .bids-tab .bid-current,

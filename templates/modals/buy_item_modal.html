@@ -1,0 +1,278 @@
+<!-- Buy Item Confirmation Modal -->
+<div id="buyItemConfirmModal" class="buy-modal-overlay" style="display: none;">
+  <div class="buy-modal-dialog buy-item-modal">
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeBuyItemConfirmModal()" aria-label="Close modal">&times;</button>
+    <div class="modal-header">
+      <h2>Confirm Purchase</h2>
+    </div>
+
+    <!-- Price Lock Timer (for premium-to-spot listings only) - MOVED TO TOP -->
+    <div id="priceLockSection" style="display: none; margin: 0 20px 16px 20px; padding: 12px; background: #fff9e6; border-radius: 8px; border: 2px solid #ffd700;">
+      <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; color: #b8860b; font-size: 15px;">
+        <span style="font-size: 20px;">⏱</span>
+        <span>Price locked for:</span>
+        <span id="priceLockTimer" style="font-size: 18px; font-weight: bold; color: #d4af37;">30s</span>
+      </div>
+      <div id="priceUpdateNotice" style="display: none; margin-top: 8px; text-align: center; font-size: 14px; font-weight: 500; color: #1976d2;">
+        <span style="font-size: 18px;">🔄</span>
+        <span>Price refreshed - please review and confirm</span>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <div class="confirm-summary">
+        <p class="confirm-message">You are about to purchase the following item:</p>
+
+        <!-- Item Specifications Grid -->
+        <div class="item-specs-section">
+          <h3 class="specs-heading">Item Specifications</h3>
+          <div class="item-specs-grid">
+            <div class="spec-row">
+              <span class="spec-label">Metal:</span>
+              <span class="spec-value" id="buy-spec-metal">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Product Type:</span>
+              <span class="spec-value" id="buy-spec-product-type">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Weight:</span>
+              <span class="spec-value" id="buy-spec-weight">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Purity:</span>
+              <span class="spec-value" id="buy-spec-purity">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Mint:</span>
+              <span class="spec-value" id="buy-spec-mint">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Year:</span>
+              <span class="spec-value" id="buy-spec-year">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Finish:</span>
+              <span class="spec-value" id="buy-spec-finish">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Grade:</span>
+              <span class="spec-value" id="buy-spec-grade">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Product Line:</span>
+              <span class="spec-value" id="buy-spec-product-line">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Requires 3rd Party Grading:</span>
+              <span class="spec-value" id="buy-spec-requires-grading">—</span>
+            </div>
+            <div class="spec-row" id="buy-spec-grading-service-row" style="display: none;">
+              <span class="spec-label">Grading Service:</span>
+              <span class="spec-value" id="buy-spec-grading-service">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Select Payment Method Button (in main content above total) -->
+        <button
+          type="button"
+          class="btn btn-select-payment"
+          onclick="showBuyPaymentSelection()">
+          Select Payment Method
+        </button>
+
+        <!-- Purchase Summary -->
+        <div class="purchase-summary-grid">
+          <div class="summary-row">
+            <span class="summary-label">Price per item:</span>
+            <span class="summary-value price-highlight" id="buy-confirm-price">—</span>
+          </div>
+
+          <div class="summary-row">
+            <span class="summary-label">Quantity:</span>
+            <span class="summary-value" id="buy-confirm-quantity">—</span>
+          </div>
+
+          <div class="summary-row">
+            <span class="summary-label">Total value:</span>
+            <span class="summary-value total-highlight" id="buy-confirm-total">—</span>
+          </div>
+
+          <div class="summary-row">
+            <span class="summary-label">Grading Preference:</span>
+            <span class="summary-value" id="buy-confirm-grading">—</span>
+          </div>
+        </div>
+
+        <p class="confirm-question">Do you want to complete this purchase?</p>
+        <hr class="confirm-divider">
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeBuyItemConfirmModal()">No, Cancel</button>
+      <button type="button" class="btn btn-primary" id="confirmBuyBtn">Yes, Complete Purchase</button>
+    </div>
+  </div>
+</div>
+
+<!-- Buy Item Success Modal -->
+<div id="buyItemSuccessModal" class="buy-modal-overlay" style="display: none;">
+  <div class="buy-modal-dialog buy-item-success-modal">
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeBuyItemSuccessModal()" aria-label="Close">&times;</button>
+    <div class="modal-header success-header">
+      <h2>Order Confirmed!</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="success-content">
+        <p class="success-message">Your order has been placed successfully!</p>
+
+        <div class="order-details">
+          <h3>Order Summary</h3>
+
+          <div class="detail-section">
+            <h4>Purchase Details</h4>
+            <div class="detail-row">
+              <span class="detail-label">Total Quantity:</span>
+              <span class="detail-value" id="success-total-quantity">—</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Average Price per Item:</span>
+              <span class="detail-value price-highlight" id="success-avg-price">—</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Total Amount:</span>
+              <span class="detail-value total-highlight" id="success-total-amount">—</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>Shipping Information</h4>
+            <div class="detail-row">
+              <span class="detail-label">Delivery Address:</span>
+              <span class="detail-value delivery-address" id="success-shipping-address">—</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>Item Details</h4>
+            <div class="item-specs-grid">
+              <div class="spec-item" id="success-buy-spec-metal">
+                <span class="spec-label">Metal:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-buy-spec-product-line">
+                <span class="spec-label">Product Line:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-buy-spec-product-type">
+                <span class="spec-label">Product Type:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-buy-spec-weight">
+                <span class="spec-label">Weight:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-buy-spec-grade">
+                <span class="spec-label">Grade:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-buy-spec-year">
+                <span class="spec-label">Year:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-buy-spec-mint">
+                <span class="spec-label">Mint:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-buy-spec-purity">
+                <span class="spec-label">Purity:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-buy-spec-finish">
+                <span class="spec-label">Finish:</span>
+                <span class="spec-value">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="shipping-notice">
+            <strong>Next Steps:</strong> Your order will be shipped by the seller within 4 days. You can track your order status in the Orders tab of your account.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer success-footer">
+      <hr class="footer-divider">
+      <button type="button" class="btn btn-primary" onclick="closeBuyItemSuccessModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Buy Item Payment Selection Modal ============ -->
+<div id="buyItemPaymentModal" class="buy-modal-overlay" style="display: none;">
+  <div class="buy-modal-dialog buy-item-modal">
+    <!-- Unified close button -->
+    <button type="button" class="modal-close" onclick="closeBuyPaymentModal()" aria-label="Close modal">&times;</button>
+
+    <div class="modal-header payment-header">
+      <h2>Select Payment Option</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="payment-content">
+        <div class="payment-placeholder">
+          <p class="placeholder-message">Payment options will be added here.</p>
+          <p class="placeholder-note">This is a placeholder for future payment integration.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <!-- Confirm Payment Method button -->
+      <button
+        type="button"
+        class="btn btn-primary"
+        onclick="confirmBuyPaymentMethod()">
+        Confirm Payment Method
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Missing Address Error Modal ============ -->
+<div id="buyItemAddressErrorModal" class="buy-modal-overlay" style="display: none;">
+  <div class="buy-modal-dialog buy-item-modal">
+    <!-- Unified close button -->
+    <button type="button" class="modal-close" onclick="closeBuyAddressErrorModal()" aria-label="Close modal">&times;</button>
+
+    <div class="modal-header error-header">
+      <h2>Shipping Address Required</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="error-content">
+        <p class="error-message" id="buyAddressErrorMessage">Please add a shipping address to your account before purchasing items.</p>
+
+        <div class="error-notice">
+          <strong>To complete your purchase:</strong>
+          <ol>
+            <li>Click "Add Shipping Address" below</li>
+            <li>Fill out your shipping information</li>
+            <li>Return to complete your purchase</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeBuyAddressErrorModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="openAddAddressFromBuyError()">Add Shipping Address</button>
+    </div>
+  </div>
+</div>

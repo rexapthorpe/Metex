@@ -1,17 +1,26 @@
-// Only target inputs inside the .cart-tab namespace
-document.addEventListener('DOMContentLoaded', () => {
-  // Legacy: listen for manual edits on the value (kept for compatibility)
-  document.querySelectorAll('.cart-tab .quantity-input')
-    .forEach(input => input.addEventListener('change', handleQuantityChangeBucket));
+// static/js/tabs/cart_tab.js
+// Cart behavior for the Account → Cart Items tab.
+// This file ONLY handles quantity controls and talking to /cart/update_bucket_quantity.
+// It does NOT define or call openSellerPopup / openPriceBreakdown – those come from the modal JS files.
 
-  // New: attach +/- behavior for the pill dial
-  document.querySelectorAll('.cart-tab .cart-qty').forEach(attachQtyDial);
+document.addEventListener('DOMContentLoaded', () => {
+  // Attach qty dials for all cart tiles in the account cart tab
+  document.querySelectorAll('#cart-tab .cart-qty').forEach(attachQtyDial);
+
+  // For safety, also listen to changes on the raw inputs
+  document.querySelectorAll('#cart-tab .quantity-input').forEach(input => {
+    input.addEventListener('change', handleQuantityChange);
+  });
 });
 
+/**
+ * Attach +/- behavior to a quantity dial group.
+ * This is copied from view_cart.js, but scoped to the account cart tab.
+ */
 function attachQtyDial(group) {
   const minus = group.querySelector('.cart-qty__minus');
   const plus  = group.querySelector('.cart-qty__plus');
-  const input = group.querySelector('.cart-qty__value'); // also has class quantity-input
+  const input = group.querySelector('.cart-qty__value');
 
   const clamp = (v) => {
     const min = parseInt(input.getAttribute('min') || '1', 10);
@@ -29,7 +38,7 @@ function attachQtyDial(group) {
     plus.disabled  = q >= max;
   };
 
-  // Initialize
+  // initialize
   input.value = clamp(input.value);
   updateDisabled();
 
@@ -38,8 +47,7 @@ function attachQtyDial(group) {
     if (q === parseInt(input.value, 10)) return;
     input.value = q;
     updateDisabled();
-    // Reuse existing handler (expects an event with target)
-    handleQuantityChangeBucket({ target: input });
+    handleQuantityChange({ target: input });
   });
 
   plus.addEventListener('click', () => {
@@ -47,10 +55,10 @@ function attachQtyDial(group) {
     if (q === parseInt(input.value, 10)) return;
     input.value = q;
     updateDisabled();
-    handleQuantityChangeBucket({ target: input });
+    handleQuantityChange({ target: input });
   });
 
-  // Allow typing; commit on blur/Enter
+  // typing support: commit on blur/Enter
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') input.blur();
   });
@@ -58,48 +66,38 @@ function attachQtyDial(group) {
     const q = clamp(input.value);
     if (q !== parseInt(input.value, 10)) input.value = q;
     updateDisabled();
-    handleQuantityChangeBucket({ target: input });
+    handleQuantityChange({ target: input });
   });
 }
 
-// Called when the quantity input for a bucket changes
-function handleQuantityChangeBucket(e) {
-  const bucketId = e.target.id.split('-')[1];
-  let q = parseInt(e.target.value, 10);
-  if (isNaN(q) || q < 1) q = 1;
-  e.target.value = q;
+/**
+ * Update quantity for a bucket by calling /cart/update_bucket_quantity/<bucket_id>
+ * and then reloading the page so both the tile and summary reflect the new data.
+ */
+function handleQuantityChange(e) {
+  const input = e.target;
+  const [, bucketId] = input.id.split('-'); // id is "quantity-<bucket_id>"
+  let qty = parseInt(input.value, 10);
+  if (isNaN(qty) || qty < 1) qty = 1;
+  input.value = qty;
 
   fetch(`/cart/update_bucket_quantity/${bucketId}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ quantity: q })
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({ quantity: qty })
   })
-  .then(res => {
-    if (!res.ok) throw new Error('Failed to update quantity');
-    location.reload();
-  })
-  .catch(err => alert(err.message));
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to update quantity');
+      return res.json();
+    })
+    .then(() => {
+      // Reload to show updated totals and sellers/items
+      location.reload();
+    })
+    .catch(err => {
+      alert(`Error updating quantity: ${err.message}`);
+    });
 }
-
-// removeCartBucket is now internal—confirmation happens in the modal
-function removeCartBucket(bucketId) {
-  fetch(`/cart/remove_bucket/${bucketId}`, {
-    method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-  .then(res => {
-    if (!res.ok) throw new Error('Remove failed');
-    const tile = document.querySelector(
-      `.cart-tab .cart-item-tile[data-bucket-id="${bucketId}"]`
-    );
-    if (tile) tile.remove();
-  })
-  .catch(() => alert('Failed to remove item.'));
-}
-
-// expose for inline onclicks
-window.handleQuantityChangeBucket = handleQuantityChangeBucket;
-window.openSellerPopup       = openSellerPopup;
-window.openPriceBreakdown    = openPriceBreakdown;
-window.openRemoveItemModal   = openRemoveItemModal;
-window.removeCartBucket      = removeCartBucket;

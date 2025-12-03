@@ -1,165 +1,346 @@
 <div class="edit-listing-modal" id="editListingModalWrapper-{{ listing.listing_id }}">
   <div class="modal-content">
-    <button class="close-button"
-            onclick="closeEditListingModal({{ listing.listing_id }})">
-      &times;
-    </button>
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeEditListingModal({{ listing.listing_id }})" aria-label="Close modal">&times;</button>
     <h2>Edit Listing</h2>
 
-    <form id="editListingForm-{{ listing.listing_id }}">
+    <form id="editListingForm-{{ listing.listing_id }}" enctype="multipart/form-data">
       <div class="details-grid">
 
-        <!-- Metal -->
+        <!-- Metal (searchable, validated) -->
         <div class="field-group">
           <label>Metal</label>
-          <select name="metal">
+          <input
+            type="text"
+            name="metal"
+            value="{{ listing.metal }}"
+            class="validated-datalist custom-dropdown-input"
+            data-list-id="metal_options_{{ listing.listing_id }}"
+            autocomplete="off"
+            required
+          >
+          <datalist id="metal_options_{{ listing.listing_id }}">
             {% for m in metals %}
-              <option value="{{ m }}" {% if m == listing.metal %}selected{% endif %}>{{ m }}</option>
+            <option value="{{ m }}"></option>
             {% endfor %}
-          </select>
-          <p class="description">Example: Gold</p>
+          </datalist>
+          <small class="example-text">Example: Gold</small>
         </div>
 
-        <!-- Coin Series -->
+        <!-- Product Line (searchable, validated) -->
         <div class="field-group">
-          <label>Coin Series</label>
-          <select name="coin_series">
-            {% for series in coin_series %}
-              <option value="{{ series }}" {% if series == listing.coin_series %}selected{% endif %}>
-                {{ series }}
-              </option>
+          <label>Product Line</label>
+          <input
+            type="text"
+            name="product_line"
+            value="{{ listing.product_line }}"
+            class="validated-datalist custom-dropdown-input"
+            data-list-id="product_line_options_{{ listing.listing_id }}"
+            autocomplete="off"
+            required
+          >
+          <datalist id="product_line_options_{{ listing.listing_id }}">
+            {% for pl in product_lines %}
+            <option value="{{ pl }}"></option>
             {% endfor %}
-          </select>
-          <p class="description">Example: American Eagle</p>
+          </datalist>
+          <small class="example-text">Example: American Eagle</small>
         </div>
+      </div>
 
-        <!-- Product Type -->
+      <!-- Divider and Subheader -->
+      <div class="modal-divider"></div>
+      <h3 class="modal-subheader">Product Specifications</h3>
+
+      <div class="details-grid">
+        <!-- Product Type (searchable, validated) -->
         <div class="field-group">
           <label>Product Type</label>
-          <select name="product_type">
+          <input
+            type="text"
+            name="product_type"
+            value="{{ listing.product_type }}"
+            class="validated-datalist custom-dropdown-input"
+            data-list-id="product_type_options_{{ listing.listing_id }}"
+            autocomplete="off"
+            required
+          >
+          <datalist id="product_type_options_{{ listing.listing_id }}">
             {% for pt in product_types %}
-              <option value="{{ pt }}" {% if pt == listing.product_type %}selected{% endif %}>{{ pt }}</option>
+            <option value="{{ pt }}"></option>
             {% endfor %}
-          </select>
-          <p class="description">Example: Coin</p>
+          </datalist>
+          <small class="example-text">Example: Coin</small>
         </div>
 
-        <!-- Special Designation -->
-        <div class="field-group">
-          <label>Special Designation</label>
-          <select name="special_designation">
-            {% for sd in special_designations %}
-              <option value="{{ sd }}" {% if sd == listing.special_designation %}selected{% endif %}>{{ sd }}</option>
-            {% endfor %}
-          </select>
-          <p class="description">Example: First Strike</p>
-        </div>
-
-        <!-- Purity -->
-        <div class="field-group">
-          <label>Purity</label>
-          <select name="purity">
-            {% for p in purities %}
-              <option value="{{ p }}" {% if p == listing.purity %}selected{% endif %}>{{ p }}</option>
-            {% endfor %}
-          </select>
-          <p class="description">Example: .9999</p>
-        </div>
-
-        <!-- Weight -->
+        <!-- Weight (searchable, validated) -->
         <div class="field-group">
           <label>Weight</label>
-          <select name="weight">
+          <input
+            type="text"
+            name="weight"
+            value="{{ listing.weight }}"
+            class="validated-datalist custom-dropdown-input"
+            data-list-id="weight_options_{{ listing.listing_id }}"
+            autocomplete="off"
+            required
+          >
+          <datalist id="weight_options_{{ listing.listing_id }}">
             {% for w in weights %}
-              <option value="{{ w }}" {% if w == listing.weight %}selected{% endif %}>{{ w }}</option>
+            <option value="{{ w }}"></option>
             {% endfor %}
-          </select>
-          <p class="description">Example: 1 oz</p>
+          </datalist>
+          <small class="example-text">Example: 1 oz</small>
         </div>
 
-        <!-- Mint -->
+        <!-- Purity (searchable, validated) -->
+        <div class="field-group">
+          <label>Purity</label>
+          <input
+            type="text"
+            name="purity"
+            value="{{ listing.purity }}"
+            class="validated-datalist custom-dropdown-input"
+            data-list-id="purity_options_{{ listing.listing_id }}"
+            autocomplete="off"
+            required
+          >
+          <datalist id="purity_options_{{ listing.listing_id }}">
+            {% for p in purities %}
+            <option value="{{ p }}"></option>
+            {% endfor %}
+          </datalist>
+          <small class="example-text">Example: .9999</small>
+        </div>
+
+        <!-- Mint (searchable, validated) -->
         <div class="field-group">
           <label>Mint</label>
-          <select name="mint">
+          <input
+            type="text"
+            name="mint"
+            value="{{ listing.mint }}"
+            class="validated-datalist custom-dropdown-input"
+            data-list-id="mint_options_{{ listing.listing_id }}"
+            autocomplete="off"
+            required
+          >
+          <datalist id="mint_options_{{ listing.listing_id }}">
             {% for mn in mints %}
-              <option value="{{ mn }}" {% if mn == listing.mint %}selected{% endif %}>{{ mn }}</option>
+            <option value="{{ mn }}"></option>
             {% endfor %}
-          </select>
-          <p class="description">Example: US Mint</p>
+          </datalist>
+          <small class="example-text">Example: US Mint</small>
         </div>
 
-        <!-- Year -->
+        <!-- Year (searchable, validated) -->
         <div class="field-group">
           <label>Year</label>
-          <select name="year">
+          <input
+            type="text"
+            name="year"
+            value="{{ listing.year }}"
+            class="validated-datalist custom-dropdown-input"
+            data-list-id="year_options_{{ listing.listing_id }}"
+            autocomplete="off"
+            required
+          >
+          <datalist id="year_options_{{ listing.listing_id }}">
             {% for y in years %}
-              <option value="{{ y }}" {% if y == listing.year %}selected{% endif %}>{{ y }}</option>
+            <option value="{{ y }}"></option>
             {% endfor %}
-          </select>
-          <p class="description">Example: 2025</p>
+          </datalist>
+          <small class="example-text">Example: 2025</small>
         </div>
 
-        <!-- Finish -->
+        <!-- Finish (searchable, validated) -->
         <div class="field-group">
           <label>Finish</label>
-          <select name="finish">
+          <input
+            type="text"
+            name="finish"
+            value="{{ listing.finish }}"
+            class="validated-datalist custom-dropdown-input"
+            data-list-id="finish_options_{{ listing.listing_id }}"
+            autocomplete="off"
+            required
+          >
+          <datalist id="finish_options_{{ listing.listing_id }}">
             {% for f in finishes %}
-              <option value="{{ f }}" {% if f == listing.finish %}selected{% endif %}>{{ f }}</option>
+            <option value="{{ f }}"></option>
             {% endfor %}
-          </select>
-          <p class="description">Example: Proof</p>
+          </datalist>
+          <small class="example-text">Example: Proof</small>
         </div>
 
-        <!-- Grade -->
+        <!-- Grade (searchable, validated) -->
         <div class="field-group">
           <label>Grade</label>
-          <select name="grade">
+          <input
+            type="text"
+            name="grade"
+            value="{{ listing.grade }}"
+            class="validated-datalist custom-dropdown-input"
+            data-list-id="grade_options_{{ listing.listing_id }}"
+            autocomplete="off"
+            required
+          >
+          <datalist id="grade_options_{{ listing.listing_id }}">
             {% for g in grades %}
-              <option value="{{ g }}" {% if g == listing.grade %}selected{% endif %}>{{ g }}</option>
+            <option value="{{ g }}"></option>
             {% endfor %}
-          </select>
-          <p class="description">Example: MS-70</p>
+          </datalist>
+          <small class="example-text">Example: MS-70</small>
         </div>
       </div>
 
-      <!-- Grading Section -->
-      <div class="grading-section">
-        <div class="field-group">
-          <label>Item Has Been Graded</label>
-          <select name="graded" id="gradedSelect-{{ listing.listing_id }}">
-            <option value="no"  {% if not listing.graded %}selected{% endif %}>No</option>
-            <option value="yes" {% if listing.graded     %}selected{% endif %}>Yes</option>
-          </select>
-          <p class="description">Example: Yes</p>
-        </div>
+      <!-- Divider and Subheader -->
+      <div class="modal-divider"></div>
+      <h3 class="modal-subheader">Listing Specifications</h3>
 
-        <div class="field-group grading-service"
-             id="gradingServiceContainer-{{ listing.listing_id }}">
-          <label>Grading Service</label>
-          <select name="grading_service">
-            {% for s in grading_services %}
-              <option value="{{ s }}" {% if s == listing.grading_service %}selected{% endif %}>{{ s }}</option>
-            {% endfor %}
-          </select>
-          <p class="description">Example: PCGS</p>
-        </div>
-      </div>
-
-      <!-- Quantity & Price -->
+      <!-- Photo Upload Section (Left Column) and Grading/Quantity/Price (Right Column) -->
       <div class="list-specs-grid">
-        <div class="field-group">
-          <label>Quantity</label>
-          <input type="number" name="quantity" min="1"
-                 value="{{ listing.quantity }}" placeholder="Quantity">
-          <p class="description">Example: 5 Items</p>
+        <!-- Photo Upload - Left Column -->
+        <div class="photo-upload-section">
+          <label for="photoUpload-{{ listing.listing_id }}">Item Photo</label>
+          <div class="photo-upload-box" id="photoUploadBox-{{ listing.listing_id }}">
+            <span class="photo-upload-plus">+</span>
+            {% if listing.photo_path %}
+            <img id="photoPreview-{{ listing.listing_id }}"
+                 class="photo-preview"
+                 src="{{ url_for('static', filename=listing.photo_path) }}"
+                 alt="Listing photo"
+                 style="display: block;">
+            {% else %}
+            <img id="photoPreview-{{ listing.listing_id }}"
+                 class="photo-preview"
+                 style="display: none;"
+                 alt="Preview">
+            {% endif %}
+            <button type="button"
+                    class="photo-clear-btn"
+                    id="photoClearBtn-{{ listing.listing_id }}"
+                    {% if listing.photo_path %}style="display: flex;"{% else %}style="display: none;"{% endif %}
+                    aria-label="Clear photo">&times;</button>
+          </div>
+          <input type="file"
+                 id="photoUpload-{{ listing.listing_id }}"
+                 name="item_photo"
+                 accept="image/*"
+                 style="display: none;">
+          <small class="example-text">Upload a clear photo of the item (JPG, PNG, etc.)</small>
         </div>
-        <div class="field-group">
-          <label>Price Per Coin ($)</label>
-          <input type="number" name="price_per_coin" step="0.01"
-                 value="{{ listing.price_per_coin }}" placeholder="Price per Item">
-          <p class="description">Enter your listing price</p>
+
+        <!-- Grading, Quantity & Price - Right Column -->
+        <div class="list-specs-right">
+          <!-- Item Has Been Graded -->
+          <div class="field-group">
+            <label>Item Has Been Graded</label>
+            <select name="graded" id="gradedSelect-{{ listing.listing_id }}" required>
+              <option value="no"  {% if not listing.graded %}selected{% endif %}>No</option>
+              <option value="yes" {% if listing.graded     %}selected{% endif %}>Yes</option>
+            </select>
+            <p class="description">Example: Yes</p>
+          </div>
+
+          <!-- Grading Service (conditional) -->
+          <div class="field-group grading-service"
+               id="gradingServiceContainer-{{ listing.listing_id }}"
+               style="{% if not listing.graded %}display: none;{% endif %}">
+            <label>Grading Service</label>
+            <select name="grading_service" id="gradingServiceSelect-{{ listing.listing_id }}">
+              {% for s in grading_services %}
+                <option value="{{ s }}" {% if s == listing.grading_service %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+            <p class="description">Example: PCGS</p>
+          </div>
+
+          <!-- Quantity -->
+          <div class="field-group">
+            <label>Quantity</label>
+            <input type="number" name="quantity" min="1"
+                   value="{{ listing.quantity }}" placeholder="Quantity" required>
+            <p class="description">Example: 5 Items</p>
+          </div>
+
+          <!-- Pricing Mode Selector -->
+          <div class="field-group">
+            <label>Pricing Mode</label>
+            <select name="pricing_mode" id="pricingMode-{{ listing.listing_id }}" required>
+              <option value="static" {% if not listing.pricing_mode or listing.pricing_mode == 'static' %}selected{% endif %}>Fixed Price</option>
+              <option value="premium_to_spot" {% if listing.pricing_mode == 'premium_to_spot' %}selected{% endif %}>Premium to Spot</option>
+            </select>
+            <p class="description">Choose how to price your listing</p>
+          </div>
+
+          <!-- Static Pricing Fields (shown when pricing_mode = 'static') -->
+          <div class="field-group static-pricing-fields"
+               id="staticPricingFields-{{ listing.listing_id }}"
+               style="{% if listing.pricing_mode == 'premium_to_spot' %}display: none;{% endif %}">
+            <label>Price Per Coin</label>
+            <div class="price-input-wrapper">
+              <span class="price-currency">$</span>
+              <input type="text"
+                     name="price_per_coin"
+                     id="pricePerCoin-{{ listing.listing_id }}"
+                     value="{{ '%.2f' | format(listing.price_per_coin) if listing.price_per_coin else '0.00' }}"
+                     inputmode="decimal"
+                     placeholder="0.00">
+            </div>
+            <p class="description">Enter your fixed listing price</p>
+          </div>
+
+          <!-- Premium-to-Spot Pricing Fields (shown when pricing_mode = 'premium_to_spot') -->
+          <div class="premium-pricing-container"
+               id="premiumPricingFields-{{ listing.listing_id }}"
+               style="{% if not listing.pricing_mode or listing.pricing_mode == 'static' %}display: none;{% endif %}">
+
+            <div class="field-group">
+              <label>Pricing Metal</label>
+              <select name="pricing_metal" id="pricingMetal-{{ listing.listing_id }}">
+                <option value="{{ listing.metal }}" selected>{{ listing.metal }} (same as item)</option>
+              </select>
+              <p class="description">Metal whose spot price determines your listing price</p>
+            </div>
+
+            <div class="field-group">
+              <label>Premium Above Spot</label>
+              <div class="price-input-wrapper">
+                <span class="price-currency">$</span>
+                <input type="text"
+                       name="spot_premium"
+                       id="spotPremium-{{ listing.listing_id }}"
+                       value="{{ '%.2f' | format(listing.spot_premium) if listing.spot_premium else '0.00' }}"
+                       inputmode="decimal"
+                       placeholder="0.00">
+              </div>
+              <p class="description">Amount to add above current spot price per unit</p>
+            </div>
+
+            <div class="field-group">
+              <label>No Lower Than (Floor Price)</label>
+              <div class="price-input-wrapper">
+                <span class="price-currency">$</span>
+                <input type="text"
+                       name="floor_price"
+                       id="floorPrice-{{ listing.listing_id }}"
+                       value="{{ '%.2f' | format(listing.floor_price) if listing.floor_price else '0.00' }}"
+                       inputmode="decimal"
+                       placeholder="0.00">
+              </div>
+              <p class="description">Minimum price per coin (safety floor)</p>
+            </div>
+
+            <div class="premium-pricing-notice" style="margin-top: 12px; padding: 12px; background: #e3f2fd; border-radius: 4px; border-left: 4px solid #1976d2;">
+              <strong>Note:</strong> Your listing price will automatically update based on current spot prices. The effective price will be <strong>Spot Price + Premium</strong>, but never below your floor price.
+            </div>
+          </div>
         </div>
       </div>
+
+      <!-- Divider before Actions -->
+      <div class="modal-divider"></div>
 
       <!-- Actions -->
       <div class="modal-actions">

@@ -13,22 +13,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Close a bid via AJAX and remove its card from the DOM
 function closeBid(bidId) {
-  if (!confirm('Are you sure you want to close this bid?')) return;
-  fetch(`/bids/cancel/${bidId}`, {
-    method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-    .then(res => {
-      if (res.ok) {
-        const btn = document.querySelector(`button[onclick="closeBid(${bidId})"]`);
-        if (btn) {
-          const card = btn.closest('.bid-card');
-          if (card) card.remove();
-        }
-      } else {
-        alert('Failed to close bid.');
-      }
-    })
-    .catch(() => alert('Something went wrong.'));
+  // Open the confirmation modal instead of using browser confirm()
+  openCloseBidConfirmModal(bidId);
 }
 window.closeBid = closeBid;

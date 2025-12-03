@@ -20,12 +20,14 @@
           <!-- Details -->
           <div class="details-grid">
             <div>Metal: {{ listing.metal }}</div>
-            <div>Shape: {{ listing.product_type }}</div>
+            <div>Product type: {{ listing.product_type }}</div>
             <div>Weight: {{ listing.weight }}</div>
+            <div>Purity: {{ listing.purity or 'N/A' }}</div>
             <div>Mint: {{ listing.mint }}</div>
-            <div>Year Minted: {{ listing.year }}</div>
+            <div>Year: {{ listing.year }}</div>
             <div>Finish: {{ listing.finish }}</div>
             <div>Grade: {{ listing.grade }}</div>
+            <div>Product Line: {{ listing.product_line or 'N/A' }}</div>
             <div>3rd-Party Grading:
               {% if listing.graded %}
                 {{ listing.grading_service or 'Unknown' }}
@@ -33,13 +35,43 @@
                 Not graded
               {% endif %}
             </div>
-            <div></div>
           </div>
           <hr>
 
           <!-- Price & Quantity -->
           <div class="price-quantity-grid">
-            <div>Price: ${{ listing.price_per_coin }}</div>
+            {% if listing.pricing_mode == 'premium_to_spot' %}
+              <div>
+                <div class="pricing-mode-badge variable">
+                  <span class="badge-icon">📊</span>
+                  <span class="badge-text">Variable (Premium to Spot)</span>
+                </div>
+                <div class="variable-price-details">
+                  <div class="price-row">
+                    <span class="price-label">Current Price:</span>
+                    <span class="price-value">${{ '%.2f' | format(listing.effective_price) if listing.effective_price else '0.00' }}</span>
+                  </div>
+                  <div class="price-row">
+                    <span class="price-label">Premium:</span>
+                    <span class="price-value">+${{ '%.2f' | format(listing.spot_premium) if listing.spot_premium else '0.00' }}</span>
+                  </div>
+                  <div class="price-row">
+                    <span class="price-label">Floor:</span>
+                    <span class="price-value">${{ '%.2f' | format(listing.floor_price) if listing.floor_price else '0.00' }}</span>
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              <div>
+                <div class="pricing-mode-badge static">
+                  <span class="badge-icon">💵</span>
+                  <span class="badge-text">Fixed Price</span>
+                </div>
+                <div class="static-price-value">
+                  ${{ '%.2f' | format(listing.price_per_coin) if listing.price_per_coin else '0.00' }}
+                </div>
+              </div>
+            {% endif %}
             <div id="listing-qty-{{ listing.listing_id }}">Quantity: {{ listing.quantity }}</div>
           </div>
 
@@ -52,12 +84,14 @@
             >
               <i class="fas fa-pencil-alt"></i> Edit
             </button>
+
             <a
               href="{{ url_for('buy.view_bucket', bucket_id=listing.bucket_id) }}"
               class="listing-action listing-action--view"
             >
               <i class="fas fa-binoculars"></i> View
             </a>
+
             <!-- now opens our custom confirmation -->
             <button
               type="button"
@@ -67,6 +101,7 @@
               <i class="fas fa-trash"></i> Cancel
             </button>
           </div>
+
         </div>
       {% endfor %}
     </div>

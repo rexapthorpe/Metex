@@ -12,7 +12,26 @@
   {% include 'modals/order_sellers_modal.html' %}
   {% include 'modals/order_items_modal.html' %}
   {% include 'modals/ratings_modal.html' %}
-  {% include 'modals/edit_bid_modal.html' %}
+  {% include 'modals/bid_modal.html' %}
+  {% include 'modals/bid_confirm_modal.html' %}
+  {% include 'modals/edit_listing_confirmation_modals.html' %}
+  {% include 'modals/address_modal.html' %}
+
+  {# Cart modals - needed for Cart tab #}
+  {% include 'modals/cart_sellers_modal.html' %}
+  {% include 'modals/cart_individual_listings_modal.html' %}
+  {% include 'modals/remove_seller_confirmation_modal.html' %}
+  {% include 'modals/remove_listing_confirmation_modal.html' %}
+  {% include 'modals/cart_remove_item_confirmation_modal.html' %}
+
+  {# Confirmation modals #}
+  {% include 'modals/close_bid_confirmation_modal.html' %}
+  {% include 'modals/save_address_confirmation_modal.html' %}
+  {% include 'modals/delete_address_confirmation_modal.html' %}
+  {% include 'modals/change_password_confirmation_modal.html' %}
+  {% include 'modals/logout_confirmation_modal.html' %}
+  {% include 'modals/error_notification_modal.html' %}
+  {% include 'modals/field_validation_modal.html' %}
 
   <!-- Account Page Layout -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
@@ -22,24 +41,31 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/listings_tab.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/sold_tab.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/orders_tab.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/portfolio_tab.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/ratings_tab.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/messages_tab.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/account_details_tab.css') }}">
 
   <!-- Modals CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/confirmation_modal_base.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_sellers_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_individual_listings_modal.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/remove_seller_confirmation_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/remove_seller_confirmation_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bid_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bid_confirm_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_bid_modal.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_listing_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_listing_modal.css') }}?v=7">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_listing_confirmation_modals.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cancel_listing_confirmation_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/field_validation_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/order_sellers_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/order_items_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/message_sellers_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/ratings_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/address_modal.css') }}">
 
   <div class="account-layout">
-    <!-- Sidebar -->
+    <!-- Main Sidebar -->
     <div class="account-sidebar">
       <ul>
         <h2>My Account</h2>
@@ -49,10 +75,25 @@
         <li onclick="showTab('listings')">Listings</li>
         <li onclick="showTab('sold')">Sold Items</li>
         <li onclick="showTab('orders')">Orders</li>
+        <li onclick="showTab('portfolio')">Portfolio</li>
         <li onclick="showTab('ratings')">Ratings</li>
         <li onclick="showTab('messages')">Messages</li>
         <li onclick="showTab('details')">Account Details</li>
-        <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+        <li onclick="openLogoutConfirmModal()">Logout</li>
+      </ul>
+    </div>
+
+    <!-- Secondary Sidebar for Account Details -->
+    <div class="account-secondary-sidebar">
+      <ul>
+        <h2>Account Details</h2>
+        <div class="sidebar-divider"></div>
+        <li class="active" onclick="showDetailsSection('overview')">Account Overview</li>
+        <li onclick="showDetailsSection('personal')">Personal Info</li>
+        <li onclick="showDetailsSection('payment')">Payment Methods</li>
+        <li onclick="showDetailsSection('shipping')">Shipping Addresses</li>
+        <li onclick="showDetailsSection('security')">Security & Login</li>
+        <li onclick="showDetailsSection('notifications')">Notification Settings</li>
       </ul>
     </div>
 
@@ -63,6 +104,7 @@
       <div id="listings-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/listings_tab.html' %}</div></div>
       <div id="sold-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/sold_tab.html' %}</div></div>
       <div id="orders-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/orders_tab.html' %}</div></div>
+      <div id="portfolio-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/portfolio_tab.html' %}</div></div>
       <div id="ratings-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/ratings_tab.html' %}</div></div>
       <div id="messages-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/messages_tab.html' %}</div></div>
       <div id="details-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/account_details_tab.html' %}</div></div>
@@ -72,8 +114,18 @@
 {% endblock %}
 
 {% block scripts %}
+  <!-- Chart.js for portfolio charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
   <script src="{{ url_for('static', filename='js/account.js') }}"></script>
   <script src="{{ url_for('static', filename='js/submit_bid.js') }}"></script>
+
+  {# --- Cart modals JS (functions shared by cart page & cart tab) --- #}
+  <script src="{{ url_for('static', filename='js/modals/cart_sellers_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/cart_individual_listings_modal.js') }}"></script>
+  {# DO NOT include remove_seller_confirmation_modal.js or cart_remove_item_confirmation_modal.js here;
+     they are already included globally in base.html and double-loading causes
+     "Identifier 'pendingRemoval' has already been declared". #}
 
   <!-- Tabs -->
   <script src="{{ url_for('static', filename='js/tabs/cart_tab.js') }}"></script>
@@ -81,19 +133,15 @@
   <script src="{{ url_for('static', filename='js/tabs/listings_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/sold_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/orders_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/portfolio_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/ratings_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/messages_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/account_details_tab.js') }}"></script>
 
-
-  <!-- cart modals -->
-  <script src="{{ url_for('static', filename='js/modals/cart_sellers_modal.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/modals/cart_individual_listings_modal.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/modals/remove_seller_confirmation_modal.js') }}"></script>
-
   <!-- listings modals -->
-  <script src="{{ url_for('static', filename='js/modals/edit_listing_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/edit_listing_modal.js') }}?v=10"></script>
   <script src="{{ url_for('static', filename='js/modals/cancel_listing_confirmation_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/field_validation_modal.js') }}"></script>
 
   <!-- orders modals -->
   <script src="{{ url_for('static', filename='js/modals/order_sellers_modal.js') }}"></script>
@@ -105,14 +153,31 @@
   <!-- message modal -->
   <script src="{{ url_for('static', filename='js/modals/message_sellers_modal.js') }}?v={{ config.VERSION }}"></script>
 
-  <!-- bids modal -->
-  <script src="{{ url_for('static', filename='js/modals/edit_bid_modal.js') }}"></script>
+  <!-- bids modal (unified) -->
+  <script src="{{ url_for('static', filename='js/modals/bid_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/bid_confirm_modal.js') }}?v=CALC_FIX"></script>
+  {# OLD: Keep for backward compatibility during transition #}
+  {# <script src="{{ url_for('static', filename='js/modals/edit_bid_modal.js') }}"></script> #}
+
+  <!-- edit listing confirmation modals -->
+  <script src="{{ url_for('static', filename='js/modals/edit_listing_confirmation_modals.js') }}?v=UNIQUE_IDS_FIX"></script>
+
+  <!-- address modal -->
+  <script src="{{ url_for('static', filename='js/modals/address_modal.js') }}"></script>
+
+  <!-- Confirmation modals JS -->
+  <script src="{{ url_for('static', filename='js/modals/close_bid_confirmation_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/save_address_confirmation_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/delete_address_confirmation_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/change_password_confirmation_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/logout_confirmation_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/error_notification_modal.js') }}"></script>
 
   <!-- Safety: ensure no overlays are visible on initial load -->
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       document.querySelectorAll(
-        '.modal, .cart-items-modal-overlay, .cart-remove-overlay, #removeSellerConfirmModal'
+        '.modal, .cart-items-modal-overlay, .confirmation-overlay, #removeSellerConfirmModal'
       ).forEach(el => {
         el.style.display = 'none';
         el.classList.remove('show');

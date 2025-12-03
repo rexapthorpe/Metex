@@ -1,0 +1,32 @@
+<!-- Field Validation Error Modal -->
+<div class="field-validation-modal" id="fieldValidationModal">
+  <div class="modal-content">
+    <!-- Close button -->
+    <button type="button" class="modal-close" onclick="closeFieldValidationModal()" aria-label="Close modal">&times;</button>
+
+    <!-- Error Icon -->
+    <div class="validation-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+    </div>
+
+    <!-- Title -->
+    <h2>Validation Error</h2>
+
+    <!-- Dynamic error message -->
+    <p class="validation-message" id="validationMessage"></p>
+
+    <!-- Validation errors list -->
+    <ul class="missing-fields-list" id="missingFieldsList"></ul>
+
+    <!-- Action button -->
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" onclick="closeFieldValidationModal()">
+        OK, Got It
+      </button>
+    </div>
+  </div>
+</div>

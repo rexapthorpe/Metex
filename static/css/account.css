@@ -4,9 +4,10 @@
 .account-layout {
   display: flex;
   font-family: Arial, sans-serif;
+  transition: all 0.3s ease;
 }
 
-/* ===== Sidebar ===== */
+/* ===== Main Sidebar ===== */
 .account-sidebar {
   width: 250px;
   background-color: #f7f7f7;
@@ -16,61 +17,91 @@
   bottom: 0;
   left: 0;
   overflow-y: auto;
+  z-index: 100;
 }
 
-.account-sidebar h2 {
+/* ===== Secondary Sidebar (Account Details) ===== */
+.account-secondary-sidebar {
+  width: 250px;
+  background-color: #f7f7f7;
+  padding-top: 20px;
+  position: fixed;
+  top: 60px;
+  bottom: 0;
+  left: 250px; /* Start right after main sidebar */
+  overflow-y: auto;
+  z-index: 99;
+  transform: translateX(-100%); /* Hidden by default */
+  transition: transform 0.3s ease;
+}
+
+/* Show secondary sidebar when details nav is open */
+.account-layout.details-nav-open .account-secondary-sidebar {
+  transform: translateX(0);
+}
+
+/* Vertical divider between sidebars - only show when secondary nav is open */
+.account-layout.details-nav-open .account-secondary-sidebar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 35px;    /* 7px from top of nav column */
+  bottom: 80px; /* 7px from bottom of nav column */
+  width: 1px;
+  background-color: #c0c0c0;
+}
+
+/* Shared styles for both sidebars */
+.account-sidebar h2,
+.account-secondary-sidebar h2 {
   font-size: 20px;
   font-weight: bold;
   margin: 20px 0 10px 0;
   padding-left: 20px;
 }
 
-.account-sidebar .sidebar-divider {
+.account-sidebar .sidebar-divider,
+.account-secondary-sidebar .sidebar-divider {
   height: 1px;
   background-color: #c0c0c0;
   margin: 10px 20px 15px 20px;
   border-radius: 1px;
 }
 
-.account-sidebar ul {
+.account-sidebar ul,
+.account-secondary-sidebar ul {
   list-style-type: none;
   padding: 0;
   margin: 0;
 }
 
-.account-sidebar li {
+.account-sidebar li,
+.account-secondary-sidebar li {
   padding: 10px 20px;
   cursor: pointer;
   transition: background 0.2s ease, border-radius 0.2s ease;
   border-bottom: none;
-  border-radius: 0;
+  border-radius: 8px;
   margin: 0 10px;
 }
 
 .account-sidebar li:hover,
-.account-sidebar li.active {
+.account-secondary-sidebar li:hover {
   background-color: #e0e0e0;
   border-radius: 15px;
+}
+
+.account-sidebar li.active,
+.account-secondary-sidebar li.active {
+  background-color: #3da6ff;
+  color: white;
+  font-weight: bold;
 }
 
 .account-sidebar a {
   text-decoration: none;
   color: inherit;
   display: block;
-}
-
-/* (kept for compatibility with your original styles) */
-.account-sidebar li {
-  padding: 7px 20px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: background-color 0.3s ease;
-}
-
-.account-sidebar li.active {
-  background-color: #3da6ff;
-  color: white;
-  font-weight: bold;
 }
 
 /* ===== Content Panel ===== */
@@ -81,6 +112,13 @@
   box-sizing: border-box;
   overflow-y: auto;
   min-height: 100vh;
+  transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+/* Shift content when secondary nav is open */
+.account-layout.details-nav-open .account-content {
+  margin-left: 500px; /* Main (250px) + Secondary (250px) */
+  width: calc(100% - 500px);
 }
 
 .tab-content { display: none; }

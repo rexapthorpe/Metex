@@ -1,19 +1,21 @@
-<div id="cartRemoveItemModal-{{ bucket_id }}" class="cart-remove-overlay" style="display: none;">
-  <div class="cart-remove-modal-content">
-    <h2>Are You Sure?</h2>
+<div id="cartRemoveItemModal-{{ bucket_id }}" class="confirmation-overlay" style="display: none;">
+  <div class="confirmation-modal-content">
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeRemoveItemModal({{ bucket_id }})" aria-label="Close modal">&times;</button>
+    <h2>Remove Item?</h2>
     <p>Are you sure you want to remove all units of this item from your cart?</p>
-    <div class="cart-remove-actions">
+    <div class="confirmation-actions">
       <button
-        class="cart-remove-confirm-btn"
+        class="confirmation-btn confirmation-btn-yes"
         onclick="confirmRemoveCartBucket({{ bucket_id }})"
       >
-        <i class="fas fa-trash"></i> Yes, remove
+        Yes
       </button>
       <button
-        class="cart-remove-abort-btn"
+        class="confirmation-btn confirmation-btn-no"
         onclick="closeRemoveItemModal({{ bucket_id }})"
       >
-        No, keep
+        No
       </button>
     </div>
   </div>

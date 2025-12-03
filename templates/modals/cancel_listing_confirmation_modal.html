@@ -1,10 +1,12 @@
-<div class="cancel-overlay" id="cancelModalWrapper-{{ listing_id }}">
-  <div class="cancel-modal-content">
-    <h2>Are you sure?</h2>
+<div class="confirmation-overlay" id="cancelModalWrapper-{{ listing_id }}">
+  <div class="confirmation-modal-content">
+    <!-- Unified close button - positioned relative to modal card -->
+    <button type="button" class="modal-close" onclick="closeCancelModal({{ listing_id }})" aria-label="Close modal">&times;</button>
+    <h2>Cancel Listing?</h2>
     <p>This will permanently remove your listing.</p>
-    <div class="cancel-actions">
-      <button onclick="confirmCancel({{ listing_id }})" class="btn btn-confirm">Yes, cancel</button>
-      <button onclick="closeCancelModal({{ listing_id }})" class="btn btn-abort">No</button>
+    <div class="confirmation-actions">
+      <button onclick="confirmCancel({{ listing_id }})" class="confirmation-btn confirmation-btn-yes">Yes</button>
+      <button onclick="closeCancelModal({{ listing_id }})" class="confirmation-btn confirmation-btn-no">No</button>
     </div>
   </div>
 </div>

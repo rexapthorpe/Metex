@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/checkout.css') }}">
+
+<!-- Checkout Modal Overlay -->
+<div id="checkoutModal" class="checkout-modal-overlay active">
+  <!-- Modal Dialog -->
+  <div class="checkout-modal-dialog">
+
+    <!-- Sliding Container -->
+    <div class="checkout-slider-container">
+
+      <!-- VIEW 1: Order Summary -->
+      <div class="checkout-view" id="orderSummaryView">
+        <div class="checkout-header">
+          <h2>Order Summary</h2>
+          <button type="button" class="modal-close" onclick="closeCheckout()" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="checkout-body">
+          {% if buckets %}
+            <!-- Items List -->
+            <div class="order-items">
+              {% for bucket_id, bucket in buckets.items() %}
+                <div class="order-item-card">
+                  <!-- Item Header -->
+                  <div class="item-header">
+                    <h3 class="item-title">
+                      {{ bucket.category.metal }} {{ bucket.category.product_type }}
+                    </h3>
+                  </div>
+
+                  <!-- Item Details -->
+                  <div class="item-details">
+                    <div class="detail-row">
+                      <span class="detail-label">Weight:</span>
+                      <span class="detail-value">{{ bucket.category.weight }}</span>
+                    </div>
+                    <div class="detail-row">
+                      <span class="detail-label">Mint:</span>
+                      <span class="detail-value">{{ bucket.category.mint }}</span>
+                    </div>
+                    <div class="detail-row">
+                      <span class="detail-label">Year:</span>
+                      <span class="detail-value">{{ bucket.category.year }}</span>
+                    </div>
+                    <div class="detail-row">
+                      <span class="detail-label">Finish:</span>
+                      <span class="detail-value">{{ bucket.category.finish }}</span>
+                    </div>
+                    <div class="detail-row">
+                      <span class="detail-label">Grade:</span>
+                      <span class="detail-value">{{ bucket.category.grade }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Pricing Summary -->
+                  <div class="item-pricing">
+                    <div class="pricing-row">
+                      <span class="pricing-label">Quantity:</span>
+                      <span class="pricing-value">{{ bucket.total_qty }}</span>
+                    </div>
+                    <div class="pricing-row">
+                      <span class="pricing-label">Average Price:</span>
+                      <span class="pricing-value">${{ '%.2f' | format(bucket.avg_price) }}</span>
+                    </div>
+                    <div class="pricing-row pricing-total">
+                      <span class="pricing-label">Item Total:</span>
+                      <span class="pricing-value">${{ '%.2f' | format(bucket.total_price) }}</span>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <!-- Order Total -->
+            <div class="order-total-section">
+              <div class="total-row">
+                <span class="total-label">Total</span>
+                <span class="total-value">${{ '%.2f' | format(cart_total) }}</span>
+              </div>
+            </div>
+          {% else %}
+            <p class="empty-message">Your checkout cart is empty.</p>
+          {% endif %}
+        </div>
+
+        <!-- Footer with Action Button -->
+        {% if buckets %}
+          <div class="checkout-footer">
+            <button type="button" class="btn btn-primary btn-lg" onclick="showPaymentView()">
+              Select Payment Method
+            </button>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- VIEW 2: Payment Selection -->
+      <div class="checkout-view" id="paymentView">
+        <div class="checkout-header">
+          <button type="button" class="btn-back" onclick="showOrderSummary()">
+            <i class="fas fa-arrow-left"></i> Back
+          </button>
+          <h2>Select Payment Option</h2>
+        </div>
+
+        <div class="checkout-body">
+          <div class="payment-placeholder">
+            <p class="placeholder-message">Payment options will be added here.</p>
+            <p class="placeholder-note">This is a placeholder for future payment integration.</p>
+          </div>
+
+          <!-- Temporary Place Order Button -->
+          <form method="POST" action="{{ url_for('checkout.checkout') }}">
+            <button type="submit" class="btn btn-success btn-lg">Place Order (Test)</button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Flash Messages -->
+{% if get_flashed_messages() %}
+  <div class="checkout-flash">
+    {% for msg in get_flashed_messages(with_categories=true) %}
+      <p class="alert alert-{{ msg[0] }}">{{ msg[1] }}</p>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
+{% endblock %}

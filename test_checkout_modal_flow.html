@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout Modal Flow Test</title>
+
+    <!-- Load checkout CSS -->
+    <link rel="stylesheet" href="static/css/modals/sell_listing_modals.css">
+    <link rel="stylesheet" href="static/css/modals/checkout_modals.css">
+    <link rel="stylesheet" href="static/css/modals/modal-close-button.css">
+    <!-- Load Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+        .test-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-btn {
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 6px;
+            background: #1877ff;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .test-btn:hover {
+            background: #0056d1;
+        }
+        .test-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .test-step {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-controls">
+        <h1>Checkout Modal Flow Test</h1>
+        <div class="test-info">
+            <strong>Test Scenario:</strong>
+            <ul>
+                <li>Slide-up modal from bottom (like Sell confirmation)</li>
+                <li>Order summary with item cards showing full specs</li>
+                <li>"Select Payment Method" button above Total</li>
+                <li>Payment selection modal with centered header</li>
+                <li>"Confirm Payment Method" button returns to summary</li>
+                <li>Success modal slides up on order confirmation</li>
+                <li>Cancel/Close buttons just close modal (no redirects)</li>
+            </ul>
+        </div>
+
+        <div class="test-step">
+            <strong>Step 1:</strong> Click "Open Checkout Modal" → Should slide up from bottom with order summary
+        </div>
+        <button class="test-btn" onclick="testOpenCheckout()">Open Checkout Modal</button>
+
+        <div class="test-step">
+            <strong>Step 2:</strong> In modal, click "Select Payment Method" → Should show payment selection
+        </div>
+
+        <div class="test-step">
+            <strong>Step 3:</strong> Click "Confirm Payment Method" → Should return to order summary
+        </div>
+
+        <div class="test-step">
+            <strong>Step 4:</strong> Click "Confirm" → Should process order and show success modal
+        </div>
+
+        <div class="test-step">
+            <strong>Step 5:</strong> Click "Close" or "Cancel" or × → Should just close modal
+        </div>
+    </div>
+
+    <!-- Include checkout modals -->
+    <!-- ==========================================================================
+     Checkout Modals - Three-step flow with slide-up pattern
+     1. Order Summary modal (slides up from bottom)
+     2. Payment Selection modal (slides up from bottom)
+     3. Order Confirmation/Success modal (slides up from bottom)
+     ========================================================================== -->
+
+<!-- ============ Order Summary Modal ============ -->
+<div id="checkoutOrderSummaryModal" class="slide-up-modal-overlay" style="display: none;">
+  <div class="slide-up-modal-dialog">
+    <!-- Unified close button -->
+    <button type="button" class="modal-close" onclick="closeCheckoutModal()" aria-label="Close modal">&times;</button>
+
+    <div class="modal-header">
+      <h2>Order Summary</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="checkout-summary">
+        <p class="summary-message">Review your order details:</p>
+
+        <!-- Order Items Container -->
+        <div id="checkoutOrderItems" class="order-items-container">
+          <!-- Items will be inserted here dynamically -->
+        </div>
+
+        <!-- Select Payment Method Button (in main content above total) -->
+        <button
+          type="button"
+          class="btn btn-select-payment"
+          onclick="showPaymentSelection()">
+          Select Payment Method
+        </button>
+
+        <!-- Order Total Section -->
+        <div class="order-total-container">
+          <div class="total-row">
+            <span class="total-label">Total</span>
+            <span class="total-value" id="checkoutTotalValue">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <!-- Cancel button -->
+      <button
+        type="button"
+        class="btn btn-cancel-footer"
+        onclick="closeCheckoutModal()">
+        Cancel
+      </button>
+
+      <!-- Confirm button -->
+      <button
+        type="button"
+        class="btn btn-confirm-footer"
+        id="confirmCheckoutBtn">
+        Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Payment Selection Modal ============ -->
+<div id="checkoutPaymentModal" class="slide-up-modal-overlay" style="display: none;">
+  <div class="slide-up-modal-dialog">
+    <!-- Close button -->
+    <button type="button" class="modal-close" onclick="closePaymentModal()" aria-label="Close modal">&times;</button>
+
+    <div class="modal-header payment-header">
+      <h2>Select Payment Option</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="payment-content">
+        <div class="payment-placeholder">
+          <p class="placeholder-message">Payment options will be added here.</p>
+          <p class="placeholder-note">This is a placeholder for future payment integration.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <!-- Confirm Payment Method button -->
+      <button
+        type="button"
+        class="btn btn-confirm-footer"
+        onclick="confirmPaymentMethod()">
+        Confirm Payment Method
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Order Confirmation Modal ============ -->
+<div id="checkoutSuccessModal" class="slide-up-modal-overlay" style="display: none;">
+  <div class="slide-up-modal-dialog">
+    <div class="modal-header success-header">
+      <h2>🎉 Order Confirmed!</h2>
+      <button type="button" class="modal-close" onclick="closeSuccessModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="success-content">
+        <p class="success-message">Your order has been successfully placed!</p>
+
+        <div class="success-details">
+          <h3>Order Details</h3>
+
+          <div class="detail-section">
+            <div class="detail-row">
+              <span class="detail-label">Order ID:</span>
+              <span class="detail-value" id="success-order-id">—</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Total Items:</span>
+              <span class="detail-value" id="success-total-items">—</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Order Total:</span>
+              <span class="detail-value total-highlight" id="success-order-total">—</span>
+            </div>
+          </div>
+
+          <div class="next-steps-notice">
+            <strong>What's Next?</strong><br>
+            Your order is being processed! You'll receive notifications about your order status. Sellers will be notified to prepare your items for shipment.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <!-- Close button -->
+      <button
+        type="button"
+        class="btn btn-close-footer"
+        onclick="closeSuccessModal()">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+
+    <script>
+        // Mock cart data for testing
+        const mockCartData = {
+            success: true,
+            buckets: {
+                'bucket1': {
+                    category: {
+                        metal: 'Gold',
+                        product_type: 'Coin',
+                        weight: '1 oz',
+                        purity: '.9999',
+                        mint: 'US Mint',
+                        year: '2024',
+                        finish: 'Proof',
+                        grade: 'MS-70',
+                        product_line: 'American Eagle',
+                        graded: 1,
+                        grading_service: 'NGC'
+                    },
+                    total_qty: 5,
+                    avg_price: 2150.00,
+                    total_price: 10750.00
+                },
+                'bucket2': {
+                    category: {
+                        metal: 'Silver',
+                        product_type: 'Coin',
+                        weight: '1 oz',
+                        purity: '.999',
+                        mint: 'Royal Canadian Mint',
+                        year: '2025',
+                        finish: 'Brilliant Uncirculated',
+                        grade: 'MS-69',
+                        product_line: 'Maple Leaf',
+                        graded: 0,
+                        grading_service: ''
+                    },
+                    total_qty: 10,
+                    avg_price: 35.50,
+                    total_price: 355.00
+                }
+            },
+            cart_total: 11105.00
+        };
+
+        // Test function to open checkout modal with mock data
+        function testOpenCheckout() {
+            // Populate order summary with mock data
+            populateOrderSummary(mockCartData.buckets, mockCartData.cart_total);
+
+            // Show modal with animation
+            const modal = document.getElementById('checkoutOrderSummaryModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                requestAnimationFrame(() => {
+                    modal.classList.add('active');
+                });
+            }
+        }
+
+        // Populate order summary (same as checkout_modals.js)
+        function populateOrderSummary(buckets, cartTotal) {
+            const container = document.getElementById('checkoutOrderItems');
+            const totalElement = document.getElementById('checkoutTotalValue');
+
+            if (!container || !totalElement) return;
+
+            // Clear existing items
+            container.innerHTML = '';
+
+            // Create item cards for each bucket
+            Object.entries(buckets).forEach(([bucketId, bucket]) => {
+                const itemCard = document.createElement('div');
+                itemCard.className = 'order-item-card';
+
+                const category = bucket.category;
+
+                // Build grading service row conditionally
+                const gradingServiceRow = (category.graded === 1 || category.graded === '1') && category.grading_service
+                  ? `<div class="spec-row">
+                      <span class="spec-label">Grading Service:</span>
+                      <span class="spec-value">${category.grading_service}</span>
+                    </div>`
+                  : '';
+
+                itemCard.innerHTML = `
+                    <div class="item-card-header">
+                        <h3 class="item-card-title">${category.metal} ${category.product_type}</h3>
+                    </div>
+
+                    <div class="item-specs-grid">
+                        <div class="spec-row">
+                            <span class="spec-label">Weight:</span>
+                            <span class="spec-value">${category.weight}</span>
+                        </div>
+                        <div class="spec-row">
+                            <span class="spec-label">Purity:</span>
+                            <span class="spec-value">${category.purity || '—'}</span>
+                        </div>
+                        <div class="spec-row">
+                            <span class="spec-label">Mint:</span>
+                            <span class="spec-value">${category.mint}</span>
+                        </div>
+                        <div class="spec-row">
+                            <span class="spec-label">Year:</span>
+                            <span class="spec-value">${category.year}</span>
+                        </div>
+                        <div class="spec-row">
+                            <span class="spec-label">Finish:</span>
+                            <span class="spec-value">${category.finish}</span>
+                        </div>
+                        <div class="spec-row">
+                            <span class="spec-label">Grade:</span>
+                            <span class="spec-value">${category.grade}</span>
+                        </div>
+                        <div class="spec-row">
+                            <span class="spec-label">Product Line:</span>
+                            <span class="spec-value">${category.product_line || '—'}</span>
+                        </div>
+                        <div class="spec-row">
+                            <span class="spec-label">Requires 3rd Party Grading:</span>
+                            <span class="spec-value">${(category.graded === 1 || category.graded === '1') ? 'Yes' : 'No'}</span>
+                        </div>
+                        ${gradingServiceRow}
+                    </div>
+
+                    <div class="item-pricing-section">
+                        <div class="pricing-row">
+                            <span class="pricing-label">Quantity:</span>
+                            <span class="pricing-value">${bucket.total_qty}</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="pricing-label">Average Price:</span>
+                            <span class="pricing-value">$${bucket.avg_price.toFixed(2)}</span>
+                        </div>
+                        <div class="pricing-row item-total-row">
+                            <span class="pricing-label">Item Total:</span>
+                            <span class="pricing-value">$${bucket.total_price.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(itemCard);
+            });
+
+            // Update total
+            totalElement.textContent = `$${cartTotal.toFixed(2)}`;
+        }
+
+        // Close checkout modal
+        function closeCheckoutModal() {
+            const modal = document.getElementById('checkoutOrderSummaryModal');
+            if (!modal) return;
+
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                console.log('[TEST] Checkout modal closed - no redirect!');
+            }, 300);
+        }
+
+        // Show payment selection
+        function showPaymentSelection() {
+            const summaryModal = document.getElementById('checkoutOrderSummaryModal');
+            if (summaryModal) {
+                summaryModal.classList.remove('active');
+                setTimeout(() => {
+                    summaryModal.style.display = 'none';
+                }, 300);
+            }
+
+            setTimeout(() => {
+                const paymentModal = document.getElementById('checkoutPaymentModal');
+                if (paymentModal) {
+                    paymentModal.style.display = 'flex';
+                    requestAnimationFrame(() => {
+                        paymentModal.classList.add('active');
+                    });
+                }
+            }, 350);
+        }
+
+        // Close payment modal
+        function closePaymentModal() {
+            const modal = document.getElementById('checkoutPaymentModal');
+            if (!modal) return;
+
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                console.log('[TEST] Payment modal closed - no redirect!');
+            }, 300);
+        }
+
+        // Confirm payment method - returns to summary
+        function confirmPaymentMethod() {
+            const paymentModal = document.getElementById('checkoutPaymentModal');
+            if (paymentModal) {
+                paymentModal.classList.remove('active');
+                setTimeout(() => {
+                    paymentModal.style.display = 'none';
+                }, 300);
+            }
+
+            setTimeout(() => {
+                const summaryModal = document.getElementById('checkoutOrderSummaryModal');
+                if (summaryModal) {
+                    summaryModal.style.display = 'flex';
+                    requestAnimationFrame(() => {
+                        summaryModal.classList.add('active');
+                    });
+                }
+            }, 350);
+        }
+
+        // Handle confirm checkout - simulate success
+        function handleConfirmCheckout() {
+            console.log('[TEST] Confirming checkout...');
+
+            // Close summary modal
+            const summaryModal = document.getElementById('checkoutOrderSummaryModal');
+            if (summaryModal) {
+                summaryModal.classList.remove('active');
+                setTimeout(() => {
+                    summaryModal.style.display = 'none';
+                }, 300);
+            }
+
+            // Show success modal
+            setTimeout(() => {
+                // Populate success modal
+                document.getElementById('success-order-id').textContent = '12345';
+                document.getElementById('success-total-items').textContent = '15';
+                document.getElementById('success-order-total').textContent = '$11,105.00';
+
+                const successModal = document.getElementById('checkoutSuccessModal');
+                if (successModal) {
+                    successModal.style.display = 'flex';
+                    requestAnimationFrame(() => {
+                        successModal.classList.add('active');
+                    });
+                }
+            }, 350);
+        }
+
+        // Close success modal
+        function closeSuccessModal() {
+            const modal = document.getElementById('checkoutSuccessModal');
+            if (!modal) return;
+
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                console.log('[TEST] Success modal closed - page would reload in production');
+            }, 300);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wire up confirm button
+            const confirmBtn = document.getElementById('confirmCheckoutBtn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', handleConfirmCheckout);
+            }
+
+            // Close modals on overlay click
+            document.getElementById('checkoutOrderSummaryModal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'checkoutOrderSummaryModal') {
+                    closeCheckoutModal();
+                }
+            });
+
+            document.getElementById('checkoutPaymentModal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'checkoutPaymentModal') {
+                    closePaymentModal();
+                }
+            });
+
+            document.getElementById('checkoutSuccessModal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'checkoutSuccessModal') {
+                    closeSuccessModal();
+                }
+            });
+
+            // Close on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeCheckoutModal();
+                    closePaymentModal();
+                    closeSuccessModal();
+                }
+            });
+
+            console.log('[TEST] Checkout modal test initialized');
+        });
+
+        // Expose functions globally
+        window.closeCheckoutModal = closeCheckoutModal;
+        window.showPaymentSelection = showPaymentSelection;
+        window.closePaymentModal = closePaymentModal;
+        window.confirmPaymentMethod = confirmPaymentMethod;
+        window.closeSuccessModal = closeSuccessModal;
+    </script>
+</body>
+</html>

@@ -1,8 +1,9 @@
-# routes/auto_fill_bid.py 
+# routes/auto_fill_bid.py
 from database import get_db_connection
 from datetime import datetime
 import os
 import sqlite3
+from services.notification_service import notify_bid_filled, notify_listing_sold
 
 # Correct database path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -73,6 +74,54 @@ def auto_fill_bid(bid_id):
                 listing['price_per_coin'],
                 delivery_address
             ))
+
+            # Get the order_id that was just created
+            order_id = cursor.lastrowid
+
+            # Get category details for notification
+            cursor.execute('''
+                SELECT metal, product_type
+                FROM categories
+                WHERE id = ?
+            ''', (category_id,))
+            category_info = cursor.fetchone()
+
+            if category_info:
+                try:
+                    item_description = f"{category_info['metal']} {category_info['product_type']}"
+
+                    # Calculate remaining quantities for partial fill detection
+                    bid_remaining = quantity_requested - (quantity_requested - quantity_needed + fill_quantity)
+                    listing_remaining = available_quantity - fill_quantity
+
+                    # Notify buyer (bid filled)
+                    notify_bid_filled(
+                        buyer_id=buyer_id,
+                        order_id=order_id,
+                        bid_id=bid_id,
+                        item_description=item_description,
+                        quantity_filled=fill_quantity,
+                        price_per_unit=listing['price_per_coin'],
+                        total_amount=fill_quantity * listing['price_per_coin'],
+                        is_partial=(quantity_needed > 0),  # Bid still has remaining quantity
+                        remaining_quantity=quantity_needed
+                    )
+
+                    # Notify seller (listing sold)
+                    notify_listing_sold(
+                        seller_id=listing['seller_id'],
+                        order_id=order_id,
+                        listing_id=listing['id'],
+                        item_description=item_description,
+                        quantity_sold=fill_quantity,
+                        price_per_unit=listing['price_per_coin'],
+                        total_amount=fill_quantity * listing['price_per_coin'],
+                        shipping_address=delivery_address,
+                        is_partial=(listing_remaining > 0),  # Listing still has remaining quantity
+                        remaining_quantity=listing_remaining
+                    )
+                except Exception as e:
+                    print(f"[AUTO_FILL_BID] Failed to send notification: {e}")
 
             quantity_needed -= fill_quantity
 

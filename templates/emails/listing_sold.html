@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Listing Has Been Sold!</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <!-- Main Container -->
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden;">
+
+                    <!-- Header with gradient -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 40px 30px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700;">
+                                💰 You Made a Sale!
+                            </h1>
+                            <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 18px; opacity: 0.95;">
+                                Your listing has been sold!
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Content Section -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="margin: 0 0 20px 0; color: #333333; font-size: 24px; font-weight: 600;">
+                                Congratulations, {{ username }}!
+                            </h2>
+
+                            <p style="margin: 0 0 20px 0; color: #555555; font-size: 16px; line-height: 1.6;">
+                                Great news! Your listing has been {{ 'partially' if partial else 'completely' }} sold.
+                                {% if partial %}
+                                {{ remaining_quantity }} units remain available for other buyers.
+                                {% endif %}
+                            </p>
+
+                            <!-- Sale Details Card -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; margin: 25px 0; border: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 25px;">
+                                        <h3 style="margin: 0 0 15px 0; color: #f5576c; font-size: 18px; font-weight: 600;">
+                                            Sale Details
+                                        </h3>
+
+                                        <table width="100%" cellpadding="8" cellspacing="0">
+                                            <tr>
+                                                <td style="color: #777777; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <strong>Item:</strong>
+                                                </td>
+                                                <td align="right" style="color: #333333; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    {{ item_description }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #777777; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <strong>Quantity Sold:</strong>
+                                                </td>
+                                                <td align="right" style="color: #333333; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    {{ quantity }} units
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #777777; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <strong>Price Per Unit:</strong>
+                                                </td>
+                                                <td align="right" style="color: #333333; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    ${{ "%.2f"|format(price_per_unit) }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #777777; font-size: 16px; font-weight: 600; padding: 12px 0 8px 0;">
+                                                    <strong>Total Earnings:</strong>
+                                                </td>
+                                                <td align="right" style="color: #f5576c; font-size: 20px; font-weight: 700; padding: 12px 0 8px 0;">
+                                                    ${{ "%.2f"|format(total_amount) }}
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {% if partial %}
+                            <div style="background-color: #d1ecf1; border-left: 4px solid #17a2b8; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                                <p style="margin: 0; color: #0c5460; font-size: 14px;">
+                                    <strong>Partial Sale:</strong> You still have {{ remaining_quantity }} units available in your listing.
+                                </p>
+                            </div>
+                            {% endif %}
+
+                            <!-- Next Steps -->
+                            <div style="margin: 30px 0 20px 0;">
+                                <h3 style="margin: 0 0 15px 0; color: #333333; font-size: 18px; font-weight: 600;">
+                                    What You Need To Do:
+                                </h3>
+                                <ol style="margin: 0; padding-left: 20px; color: #555555; font-size: 15px; line-height: 1.8;">
+                                    <li><strong>Prepare the items for shipment</strong> - Package securely</li>
+                                    <li><strong>Ship to the buyer</strong> - Use a trackable shipping method</li>
+                                    <li><strong>Upload tracking information</strong> - Keep the buyer informed</li>
+                                    <li><strong>Receive payment</strong> - Payment will be processed once delivered</li>
+                                </ol>
+                            </div>
+
+                            <!-- Shipping Info -->
+                            <div style="background-color: #fff8e1; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                                <h4 style="margin: 0 0 10px 0; color: #f57c00; font-size: 16px; font-weight: 600;">
+                                    📦 Shipping Address
+                                </h4>
+                                <p style="margin: 0; color: #333333; font-size: 14px; line-height: 1.6; white-space: pre-line;">{{ shipping_address }}</p>
+                            </div>
+
+                            <!-- CTA Buttons -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0 10px 0;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="{{ sold_tab_url }}" style="display: inline-block; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(245, 87, 108, 0.3); margin: 5px;">
+                                            View Sold Items
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                            <p style="margin: 0 0 10px 0; color: #777777; font-size: 14px;">
+                                Thank you for selling on MetEx!
+                            </p>
+                            <p style="margin: 0; color: #999999; font-size: 12px;">
+                                This is an automated notification. Please do not reply to this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

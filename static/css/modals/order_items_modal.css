@@ -16,8 +16,9 @@
   width: 92%;
   max-width: 620px;
   max-height: 80vh;
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to allow close button to extend outside */
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  position: relative; /* Positioning context for close button */
 }
 
 /* HEADER: arrows + centered title */

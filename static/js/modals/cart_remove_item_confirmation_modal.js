@@ -35,24 +35,10 @@ function confirmRemoveCartBucket(bucketId) {
   })
     .then(res => {
       if (!res.ok) throw new Error('Could not remove item');
-      // Remove tile
-      const tile = document.querySelector(
-        `.cart-tab .cart-item-tile[data-bucket-id="${bucketId}"]`
-      );
-      if (tile) tile.remove();
       // Close modal
       closeRemoveItemModal(bucketId);
-      // If no items left, show empty message
-      const remaining = document.querySelectorAll(
-        '.cart-tab .cart-item-tile'
-      ).length;
-      if (remaining === 0) {
-        const col = document.querySelector('.cart-tab .cart-items-column');
-        const p = document.createElement('p');
-        p.className = 'empty-message';
-        p.textContent = 'You have no items in your cart yet!';
-        col.appendChild(p);
-      }
+      // Reload page to refresh cart state (including order summary)
+      location.reload();
     })
     .catch(err => {
       console.error(err);
@@ -60,7 +46,10 @@ function confirmRemoveCartBucket(bucketId) {
     });
 }
 
+// Note: openRemoveListingConfirmation is defined in remove_listing_confirmation_modal.js
+// and exposed globally. No need to redefine here.
+
 // Expose for inline onclicks
-window.openRemoveItemModal      = openRemoveItemModal;
-window.closeRemoveItemModal     = closeRemoveItemModal;
-window.confirmRemoveCartBucket  = confirmRemoveCartBucket;
+window.openRemoveItemModal               = openRemoveItemModal;
+window.closeRemoveItemModal              = closeRemoveItemModal;
+window.confirmRemoveCartBucket           = confirmRemoveCartBucket;

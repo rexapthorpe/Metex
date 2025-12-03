@@ -51,6 +51,12 @@
     color: #222;
 }
 
+.price.no-listings {
+    color: #999;
+    font-style: italic;
+    font-weight: normal;
+}
+
 .flash-message {
     background-color: #fff8d1;
     padding: 12px;

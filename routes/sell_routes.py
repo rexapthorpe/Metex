@@ -1,7 +1,13 @@
 # routes/sell_routes.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from database import get_db_connection
+from .category_options import get_dropdown_options
+from utils.category_manager import get_or_create_category, validate_category_specification
+from services.notification_service import notify_bid_filled
+from services.spot_price_service import get_current_spot_prices
+from werkzeug.utils import secure_filename
+import os
 import sqlite3
 
 
@@ -9,68 +15,16 @@ import sqlite3
 
 sell_bp = Blueprint('sell', __name__)
 
-# --- Global Cache for Dropdowns ---
-dropdown_options = {
-    'metals': [],
-    'product_lines': [],  # ✅ MUST exist here
-    'product_types': [],
-    'weights': [],
-    'mints': [],
-    'years': [],
-    'finishes': [],
-    'grades': []
-}
 
 
-def load_dropdown_options():
-    conn = get_db_connection()
+# Folder where listing photos will be stored (relative to project root)
+UPLOAD_FOLDER = os.path.join("static", "uploads", "listings")
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
-    dropdown_options['product_lines'] = [
-    row['product_line'] for row in conn.execute(
-        'SELECT DISTINCT product_line FROM categories WHERE product_line IS NOT NULL ORDER BY product_line'
-    ).fetchall()
-]
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-    # Fetch real values
-    dropdown_options['metals'] = [row['metal'] for row in conn.execute('SELECT DISTINCT metal FROM categories WHERE metal IS NOT NULL ORDER BY metal').fetchall()]
-    dropdown_options['product_types'] = [row['product_type'] for row in conn.execute('SELECT DISTINCT product_type FROM categories WHERE product_type IS NOT NULL ORDER BY product_type').fetchall()]
-    dropdown_options['weights'] = [row['weight'] for row in conn.execute('SELECT DISTINCT weight FROM categories WHERE weight IS NOT NULL ORDER BY weight').fetchall()]
-    dropdown_options['mints'] = [row['mint'] for row in conn.execute('SELECT DISTINCT mint FROM categories WHERE mint IS NOT NULL ORDER BY mint').fetchall()]
-    dropdown_options['years'] = [row['year'] for row in conn.execute('SELECT DISTINCT year FROM categories WHERE year IS NOT NULL ORDER BY year').fetchall()]
-    dropdown_options['finishes'] = [row['finish'] for row in conn.execute('SELECT DISTINCT finish FROM categories WHERE finish IS NOT NULL ORDER BY finish').fetchall()]
-    dropdown_options['grades'] = [row['grade'] for row in conn.execute('SELECT DISTINCT grade FROM categories WHERE grade IS NOT NULL ORDER BY grade').fetchall()]
-
-    conn.close()
-
-    # --- FORCE INSERT standard values if missing ---
-    if 'Gold' not in dropdown_options['metals']:
-        dropdown_options['metals'].append('Gold')
-    if 'Silver' not in dropdown_options['metals']:
-        dropdown_options['metals'].append('Silver')
-    if 'Platinum' not in dropdown_options['metals']:
-        dropdown_options['metals'].append('Platinum')
-    if 'Palladium' not in dropdown_options['metals']:
-        dropdown_options['metals'].append('Palladium')
-
-    if 'Coin' not in dropdown_options['product_types']:
-        dropdown_options['product_types'].append('Coin')
-    if 'Bar' not in dropdown_options['product_types']:
-        dropdown_options['product_types'].append('Bar')
-    if 'Round' not in dropdown_options['product_types']:
-        dropdown_options['product_types'].append('Round')
-
-    # Sort to keep dropdowns clean
-    dropdown_options['metals'].sort()
-    dropdown_options['product_types'].sort()
-    dropdown_options['weights'].sort()
-    dropdown_options['mints'].sort()
-    dropdown_options['years'].sort()
-    dropdown_options['finishes'].sort()
-    dropdown_options['grades'].sort()
-
-# --- Load Dropdowns at App Startup ---
-load_dropdown_options()
 
 # --- Sell Route ---
 @sell_bp.route('/sell', methods=['GET', 'POST'])
@@ -79,71 +33,266 @@ def sell():
         return redirect(url_for('auth.login'))
 
     if request.method == 'POST':
-        metal = request.form['metal']
-        product_line = request.form['product_line']
-        product_type = request.form['product_type']
-        weight = request.form['weight']
-        mint = request.form['mint']
-        year = request.form['year']
-        finish = request.form['finish']
-        grade = request.form['grade']
-        quantity = int(request.form['quantity'])
-        price_per_coin = float(request.form['price_per_coin'])
+        # Extract form data
+        metal = request.form.get('metal', '').strip()
+        product_line = request.form.get('product_line', '').strip()
+        product_type = request.form.get('product_type', '').strip()
+        weight = request.form.get('weight', '').strip()
+        purity = request.form.get('purity', '').strip()
+        mint = request.form.get('mint', '').strip()
+        year = request.form.get('year', '').strip()
+        finish = request.form.get('finish', '').strip()
+        grade = request.form.get('grade', '').strip()
+
+        # Extract pricing mode
+        pricing_mode = request.form.get('pricing_mode', 'static').strip()
+
+        # Validate and extract pricing parameters based on mode
+        try:
+            quantity = int(request.form['quantity'])
+
+            if pricing_mode == 'static':
+                # Static mode: require price_per_coin
+                price_per_coin = float(request.form['price_per_coin'])
+                spot_premium = None
+                floor_price = None
+                pricing_metal = None
+            elif pricing_mode == 'premium_to_spot':
+                # Premium-to-spot mode: require premium and floor
+                spot_premium = float(request.form.get('spot_premium', 0))
+                floor_price = float(request.form.get('floor_price', 0))
+                pricing_metal = request.form.get('pricing_metal', metal).strip()
+
+                # For premium-to-spot, price_per_coin is not set by user
+                # We'll set it to floor_price as a fallback
+                price_per_coin = floor_price
+
+                # Validation for premium-to-spot
+                if floor_price <= 0:
+                    flash("Floor price must be greater than zero.", "error")
+                    options = get_dropdown_options()
+                    return render_template('sell.html', **options)
+            else:
+                flash("Invalid pricing mode.", "error")
+                options = get_dropdown_options()
+                return render_template('sell.html', **options)
+
+        except (ValueError, KeyError) as e:
+            flash("Invalid quantity or price. Please enter valid numbers.", "error")
+            options = get_dropdown_options()
+            return render_template('sell.html', **options)
+
         graded = int(request.form.get('graded', 0))
         grading_service = request.form.get('grading_service') if graded else None
 
+        # Build category specification
+        category_spec = {
+            'metal': metal,
+            'product_line': product_line,
+            'product_type': product_type,
+            'weight': weight,
+            'purity': purity,
+            'mint': mint,
+            'year': year,
+            'finish': finish,
+            'grade': grade
+        }
+
+        # Backend validation - ensure all values are from allowed dropdown options
+        options = get_dropdown_options()
+        is_valid, error_msg = validate_category_specification(category_spec, options)
+        if not is_valid:
+            flash(error_msg, "error")
+            return render_template('sell.html', **options, prefill=category_spec)
 
         conn = get_db_connection()
 
-        # Look for existing category with all fields
-        category = conn.execute('''
-            SELECT id FROM categories
-            WHERE 
-                metal = ? AND
-                product_line = ? AND
-                product_type = ? AND
-                weight = ? AND
-                mint = ? AND
-                year = ? AND
-                finish = ? AND
-                grade = ?
-        ''', (metal, product_line, product_type, weight, mint, year, finish, grade)).fetchone()
 
-        if category:
-            category_id = category['id']
-        else:
-            # Create new category if not found
-            conn.execute('''
-                INSERT INTO categories (
-                    metal, product_line, product_type, weight, mint, year, finish, grade
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (metal, product_line, product_type, weight, mint, year, finish, grade))
-            conn.commit()
+        # --- Handle required item photo upload ---
+        photo_file = request.files.get('item_photo')
+        if not photo_file or photo_file.filename == "":
+            flash("Please upload a photo of your item.", "error")
+            options = get_dropdown_options()
+            return render_template(
+                'sell.html',
+                metals=options['metals'],
+                product_lines=options['product_lines'],
+                product_types=options['product_types'],
+                weights=options['weights'],
+                purities=options['purities'],
+                mints=options['mints'],
+                years=options['years'],
+                finishes=options['finishes'],
+                grades=options['grades']
+            )
 
-            category_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        if not allowed_file(photo_file.filename):
+            flash("Invalid file type. Please upload a JPG, PNG, or GIF image.", "error")
+            options = get_dropdown_options()
+            return render_template(
+                'sell.html',
+                metals=options['metals'],
+                product_lines=options['product_lines'],
+                product_types=options['product_types'],
+                weights=options['weights'],
+                purities=options['purities'],
+                mints=options['mints'],
+                years=options['years'],
+                finishes=options['finishes'],
+                grades=options['grades']
+            )
 
-        # Insert listing
-        conn.execute('''
-            INSERT INTO listings (category_id, seller_id, quantity, price_per_coin, graded, grading_service, active)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
-        ''', (category_id, session['user_id'], quantity, price_per_coin, graded, grading_service))
+        # Save the file
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        safe_name = secure_filename(photo_file.filename)
+
+        # Make filename unique by adding numeric suffix if needed
+        base, ext = os.path.splitext(safe_name)
+        candidate = safe_name
+        i = 1
+        while os.path.exists(os.path.join(UPLOAD_FOLDER, candidate)):
+            candidate = f"{base}_{i}{ext}"
+            i += 1
+
+        photo_filename = candidate
+        photo_path = os.path.join(UPLOAD_FOLDER, photo_filename)
+        photo_file.save(photo_path)
+
+        # Use unified category management - handles bucket_id automatically
+        category_id = get_or_create_category(conn, category_spec)
+
+        # Insert listing with pricing mode fields
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO listings (
+                category_id,
+                seller_id,
+                quantity,
+                price_per_coin,
+                graded,
+                grading_service,
+                pricing_mode,
+                spot_premium,
+                floor_price,
+                pricing_metal,
+                active
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ''', (
+            category_id,
+            session['user_id'],
+            quantity,
+            price_per_coin,
+            graded,
+            grading_service,
+            pricing_mode,
+            spot_premium,
+            floor_price,
+            pricing_metal
+        ))
+
+        # Get the newly created listing ID
+        listing_id = cursor.lastrowid
+
+        # Insert photo into listing_photos table
+        # Store path relative to static folder: uploads/listings/filename.jpg
+        file_path = f"uploads/listings/{photo_filename}"
+        cursor.execute('''
+            INSERT INTO listing_photos (listing_id, uploader_id, file_path)
+            VALUES (?, ?, ?)
+        ''', (listing_id, session['user_id'], file_path))
 
         conn.commit()
+
+        # Get category data and listing data for response
+        category_row = conn.execute('''
+            SELECT * FROM categories WHERE id = ?
+        ''', (category_id,)).fetchone()
+
+        # Convert Row to dict BEFORE closing connection
+        category_dict = dict(category_row) if category_row else {}
+
+        # Calculate effective price for premium-to-spot listings
+        effective_price = None
+        if pricing_mode == 'premium_to_spot':
+            from services.pricing_service import get_effective_price
+            # Build a listing dict for pricing calculation
+            temp_listing = {
+                'pricing_mode': pricing_mode,
+                'price_per_coin': price_per_coin,
+                'spot_premium': spot_premium,
+                'floor_price': floor_price,
+                'pricing_metal': pricing_metal or metal,
+                'metal': metal,
+                'weight': weight
+            }
+            effective_price = get_effective_price(temp_listing)
+
+        # Build listing data for response
+        listing_data = {
+            'id': listing_id,
+            'quantity': quantity,
+            'price_per_coin': price_per_coin,
+            'graded': graded,
+            'grading_service': grading_service,
+            'pricing_mode': pricing_mode,
+            'spot_premium': spot_premium,
+            'floor_price': floor_price,
+            'pricing_metal': pricing_metal,
+            'effective_price': effective_price,
+            'metal': metal,
+            'product_line': product_line,
+            'product_type': product_type,
+            'weight': weight,
+            'year': year,
+            'purity': purity,
+            'mint': mint,
+            'finish': finish,
+            'grade': grade
+        }
+
         conn.close()
+
+        # Check if AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(
+                success=True,
+                message='Your item was successfully listed!',
+                listing=listing_data,
+                category=category_dict
+            )
 
         return "✅ Your item was successfully listed!"
 
+    # GET request - extract URL parameters for pre-population
+    prefill = {
+        'metal': request.args.get('metal', ''),
+        'product_line': request.args.get('product_line', ''),
+        'product_type': request.args.get('product_type', ''),
+        'weight': request.args.get('weight', ''),
+        'purity': request.args.get('purity', ''),
+        'mint': request.args.get('mint', ''),
+        'year': request.args.get('year', ''),
+        'finish': request.args.get('finish', ''),
+        'grade': request.args.get('grade', '')
+    }
+
+    options = get_dropdown_options()
+
     return render_template(
         'sell.html',
-        metals=dropdown_options['metals'],
-        product_lines=dropdown_options['product_lines'],
-        product_types=dropdown_options['product_types'],
-        weights=dropdown_options['weights'],
-        mints=dropdown_options['mints'],
-        years=dropdown_options['years'],
-        finishes=dropdown_options['finishes'],
-        grades=dropdown_options['grades']
+        metals=options['metals'],
+        product_lines=options['product_lines'],
+        product_types=options['product_types'],
+        weights=options['weights'],
+        purities=options['purities'],
+        mints=options['mints'],
+        years=options['years'],
+        finishes=options['finishes'],
+        grades=options['grades'],
+        prefill=prefill
     )
+
 
 
 
@@ -238,6 +387,9 @@ def accept_bid(bucket_id):
 
     total_accepted = 0
 
+    # Collect notification data (will send after commit to avoid database locking)
+    notifications_to_send = []
+
     for bid_id in selected_bid_ids:
         accepted_qty = request.form.get(f'quantity_{bid_id}')
         if not accepted_qty or int(accepted_qty) <= 0:
@@ -253,6 +405,10 @@ def accept_bid(bucket_id):
         if not bid or bid['status'].lower() not in ['open', 'pending', 'partially filled']:
             continue
 
+        # PREVENT SELF-ACCEPTING: Skip bids from the current user
+        if bid['buyer_id'] == seller_id:
+            continue
+
         buyer_id = bid['buyer_id']
         category_id = bid['category_id']
         max_qty = bid['quantity_requested']
@@ -266,17 +422,54 @@ def accept_bid(bucket_id):
             VALUES (?, ?, ?, ?, ?, 'pending_shipment')
         ''', (buyer_id, seller_id, category_id, qty_to_fulfill, price))
 
+        order_id = c.lastrowid
+
         # Update the bid
         remaining = max_qty - qty_to_fulfill
+        is_partial = remaining > 0
         if remaining == 0:
             c.execute('UPDATE bids SET quantity_requested = 0, active = 0, status = "filled" WHERE id = ?', (bid_id,))
         else:
             c.execute('UPDATE bids SET quantity_requested = ?, status = "partially filled" WHERE id = ?', (remaining, bid_id))
 
+        # Build item description from category
+        category = c.execute('SELECT * FROM categories WHERE id = ?', (category_id,)).fetchone()
+        item_desc_parts = []
+        if category:
+            if category['metal']:
+                item_desc_parts.append(category['metal'])
+            if category['product_line']:
+                item_desc_parts.append(category['product_line'])
+            if category['weight']:
+                item_desc_parts.append(category['weight'])
+            if category['year']:
+                item_desc_parts.append(category['year'])
+        item_description = ' '.join(item_desc_parts) if item_desc_parts else 'Item'
+
+        # Collect notification data (will send after commit)
+        notifications_to_send.append({
+            'buyer_id': buyer_id,
+            'order_id': order_id,
+            'bid_id': bid_id,
+            'item_description': item_description,
+            'quantity_filled': qty_to_fulfill,
+            'price_per_unit': price,
+            'total_amount': qty_to_fulfill * price,
+            'is_partial': is_partial,
+            'remaining_quantity': remaining
+        })
+
         total_accepted += qty_to_fulfill
 
     conn.commit()
     conn.close()
+
+    # Send notifications AFTER commit (avoids database locking)
+    for notif_data in notifications_to_send:
+        try:
+            notify_bid_filled(**notif_data)
+        except Exception as notify_error:
+            print(f"[ERROR] Failed to notify buyer {notif_data['buyer_id']}: {notify_error}")
 
     if total_accepted > 0:
         flash(f"✅ You accepted bids totaling {total_accepted} coin(s).", "success")

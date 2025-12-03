@@ -1,0 +1,16 @@
+<div id="logoutConfirmModal" class="confirmation-overlay" style="display: none;">
+  <div class="confirmation-modal-content">
+    <!-- Unified close button -->
+    <button type="button" class="modal-close" onclick="closeLogoutConfirmModal()" aria-label="Close modal">&times;</button>
+    <h2>Logout?</h2>
+    <p>Are you sure you want to logout?</p>
+    <div class="confirmation-actions">
+      <button class="confirmation-btn confirmation-btn-yes" onclick="confirmLogout()">
+        Yes
+      </button>
+      <button class="confirmation-btn confirmation-btn-no" onclick="closeLogoutConfirmModal()">
+        No
+      </button>
+    </div>
+  </div>
+</div>

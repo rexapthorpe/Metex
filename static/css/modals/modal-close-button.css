@@ -1,0 +1,58 @@
+/* ============================================================================
+   UNIFIED MODAL CLOSE BUTTON
+   Shared style for all modals and photo upload boxes
+   ============================================================================ */
+
+/* Ensure modal container is positioned for absolute positioning */
+.modal-content,
+.modal .modal-dialog,
+.modal-wrapper {
+  position: relative;
+}
+
+/* Unified close button style */
+.modal-close,
+.close-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 50%;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.modal-close:hover,
+.close-button:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
+  transform: scale(1.1);
+}
+
+.modal-close:active,
+.close-button:active {
+  transform: scale(0.95);
+}
+
+/* Mobile responsive sizing */
+@media (max-width: 768px) {
+  .modal-close,
+  .close-button {
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    font-size: 20px;
+  }
+}

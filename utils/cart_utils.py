@@ -8,21 +8,27 @@ def get_cart_items(conn):
 
     if user_id:
         rows = conn.execute('''
-            SELECT 
+            SELECT
                 listings.id AS listing_id,
                 cart.quantity,
                 cart.grading_preference,
                 listings.price_per_coin,
                 listings.seller_id,
+                listings.photo_filename,
+                lp.file_path,
+                listings.graded,
+                listings.grading_service,
                 users.username AS seller_username,
                 categories.id AS category_id,
                 categories.metal,
+                categories.product_line,
                 categories.product_type,
                 categories.weight,
                 categories.mint,
                 categories.year,
                 categories.finish,
                 categories.grade,
+                categories.purity,
                 (
                     SELECT ROUND(AVG(rating), 2)
                     FROM ratings
@@ -33,9 +39,10 @@ def get_cart_items(conn):
                     WHERE ratee_id = users.id
                 ) AS seller_rating_count
             FROM cart
-            JOIN listings ON cart.listing_id = listings.id
+            JOIN listings   ON cart.listing_id = listings.id
             JOIN categories ON listings.category_id = categories.id
-            JOIN users ON listings.seller_id = users.id
+            JOIN users      ON listings.seller_id = users.id
+            LEFT JOIN listing_photos AS lp ON lp.listing_id = listings.id
             WHERE cart.user_id = ?
               AND listings.active = 1
               AND listings.quantity > 0
@@ -43,6 +50,7 @@ def get_cart_items(conn):
         ''', (user_id,)).fetchall()
 
         return [dict(row) for row in rows]
+
 
     else:
         guest_cart = session.get('guest_cart', [])
@@ -55,19 +63,25 @@ def get_cart_items(conn):
         grading_map = {item['listing_id']: item.get('grading_preference') for item in guest_cart}
 
         rows = conn.execute(f'''
-            SELECT 
+            SELECT
                 listings.id AS listing_id,
                 listings.price_per_coin,
                 listings.seller_id,
+                listings.photo_filename,
+                lp.file_path,
+                listings.graded,
+                listings.grading_service,
                 users.username AS seller_username,
                 categories.id AS category_id,
                 categories.metal,
+                categories.product_line,
                 categories.product_type,
                 categories.weight,
                 categories.mint,
                 categories.year,
                 categories.finish,
                 categories.grade,
+                categories.purity,
                 (
                     SELECT ROUND(AVG(rating), 2)
                     FROM ratings
@@ -79,11 +93,13 @@ def get_cart_items(conn):
                 ) AS seller_rating_count
             FROM listings
             JOIN categories ON listings.category_id = categories.id
-            JOIN users ON listings.seller_id = users.id
+            JOIN users      ON listings.seller_id = users.id
+            LEFT JOIN listing_photos AS lp ON lp.listing_id = listings.id
             WHERE listings.id IN ({placeholders})
               AND listings.active = 1
               AND listings.quantity > 0
         ''', listing_ids).fetchall()
+
 
         unified_items = []
         for row in rows:
@@ -217,8 +233,17 @@ def get_cart_data(conn):
 
         cart_total += line_total
 
-    for bucket in buckets.values():
+    # Add total available quantity for each bucket
+    for cat_id, bucket in buckets.items():
         if bucket['total_qty'] > 0:
             bucket['avg_price'] = bucket['total_price'] / bucket['total_qty']
+
+        # Get total available quantity for this category
+        result = conn.execute('''
+            SELECT SUM(quantity) as total_available
+            FROM listings
+            WHERE category_id = ? AND active = 1
+        ''', (cat_id,)).fetchone()
+        bucket['total_available'] = result['total_available'] if result and result['total_available'] else 0
 
     return dict(buckets), cart_total

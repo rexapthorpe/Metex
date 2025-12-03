@@ -126,24 +126,40 @@ function syncQuantity(targetId) {
       if (!expanded) {
         setExpanded(true);
       } else {
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = `/bids/accept_bid/${window.bucketId}`;
+        // Check if modal system is available
+        if (window.openAcceptBidConfirmModal) {
+          // Use modal flow
+          const formData = new FormData();
+          formData.append('selected_bids', String(window.bestBid.id));
+          formData.append(`accept_qty[${window.bestBid.id}]`, String(val));
 
-        const sel = document.createElement("input");
-        sel.type = "hidden";
-        sel.name = "selected_bids";
-        sel.value = String(window.bestBid.id);
-        form.appendChild(sel);
+          const bidData = {
+            ...window.bestBid,
+            quantity: val
+          };
 
-        const qty = document.createElement("input");
-        qty.type = "hidden";
-        qty.name = `accept_qty[${window.bestBid.id}]`;
-        qty.value = String(val);
-        form.appendChild(qty);
+          window.openAcceptBidConfirmModal(bidData, formData);
+        } else {
+          // Fallback to direct submission
+          const form = document.createElement("form");
+          form.method = "POST";
+          form.action = `/bids/accept_bid/${window.bucketId}`;
 
-        document.body.appendChild(form);
-        form.submit();
+          const sel = document.createElement("input");
+          sel.type = "hidden";
+          sel.name = "selected_bids";
+          sel.value = String(window.bestBid.id);
+          form.appendChild(sel);
+
+          const qty = document.createElement("input");
+          qty.type = "hidden";
+          qty.name = `accept_qty[${window.bestBid.id}]`;
+          qty.value = String(val);
+          form.appendChild(qty);
+
+          document.body.appendChild(form);
+          form.submit();
+        }
       }
     });
   }

@@ -4,45 +4,181 @@
   {% if sales %}
     <div class="order-grid">
       {% for sale in sales %}
-        <div class="order-tile" id="order-{{ sale.order_id }}">
-          <!-- Header -->
-          <div class="tile-header">
-            <h3>Order #{{ sale.order_id }}</h3>
-            <span class="status-dot {% if sale.status == 'Delivered' %}active{% else %}pending{% endif %}"></span>
-            <span class="status-text">{{ sale.status }}</span>
+        <div class="order-tile sold-tile-compact" id="order-{{ sale.order_id }}">
+          <!-- Header with Item Title and Status -->
+          <div class="sold-tile-header">
+            <div class="item-title-section">
+              <h3 class="item-title">
+                {% if sale.weight %}{{ sale.weight }}{% endif %}
+                {% if sale.year %}{{ sale.year }}{% endif %}
+                {% if sale.metal %}{{ sale.metal }}{% endif %}
+                {% if sale.product_line %}{{ sale.product_line }}{% endif %}
+                {% if sale.product_type %}{{ sale.product_type }}{% endif %}
+              </h3>
+              <div class="status-badge status-{{ sale.status|lower|replace(' ', '-') }}">
+                <span class="status-dot"></span>
+                <span class="status-text">{{ sale.status }}</span>
+              </div>
+            </div>
           </div>
-          <hr>
 
-          <!-- Item Details -->
-          <div class="details-grid">
-            <div>Metal: {{ sale.metal }}</div>
-            <div>Shape: {{ sale.product_type }}</div>
-            <div>Weight: {{ sale.weight }}</div>
-            <div>Mint: {{ sale.mint }}</div>
-            <div>Year Minted: {{ sale.year }}</div>
-            <div>Finish: {{ sale.finish }}</div>
-            <div>Grade: {{ sale.grade }}</div>
+          <div class="sold-tile-content">
+            <!-- Left Column: Price Details -->
+            <div class="sold-section price-details-section">
+              <h4 class="section-title">Price Details</h4>
+              <div class="price-details-box">
+                <div class="price-line">
+                  <span class="price-label">Quantity:</span>
+                  <span class="price-value">{{ sale.quantity }}</span>
+                </div>
+                <div class="price-line">
+                  <span class="price-label">Price/Item:</span>
+                  <span class="price-value">${{ '%.2f'|format(sale.price_each) }}</span>
+                </div>
+                <div class="price-line total-line">
+                  <span class="price-label">Total:</span>
+                  <span class="price-value">${{ '%.2f'|format(sale.quantity * sale.price_each) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Left Column: Item Details (Product Description) -->
+            <div class="sold-section item-description-section">
+              <h4 class="section-title">Item Details</h4>
+              <div class="item-details-box">
+                {% if sale.metal %}<div class="detail-line"><strong>Metal:</strong> <span>{{ sale.metal }}</span></div>{% endif %}
+                {% if sale.product_type %}<div class="detail-line"><strong>Type:</strong> <span>{{ sale.product_type }}</span></div>{% endif %}
+                {% if sale.weight %}<div class="detail-line"><strong>Weight:</strong> <span>{{ sale.weight }}</span></div>{% endif %}
+                {% if sale.mint %}<div class="detail-line"><strong>Mint:</strong> <span>{{ sale.mint }}</span></div>{% endif %}
+                {% if sale.year %}<div class="detail-line"><strong>Year:</strong> <span>{{ sale.year }}</span></div>{% endif %}
+                {% if sale.purity %}<div class="detail-line"><strong>Purity:</strong> <span>{{ sale.purity }}</span></div>{% endif %}
+                {% if sale.finish %}<div class="detail-line"><strong>Finish:</strong> <span>{{ sale.finish }}</span></div>{% endif %}
+                {% if sale.grade %}<div class="detail-line"><strong>Grade:</strong> <span>{{ sale.grade }}</span></div>{% endif %}
+                {% if sale.product_line %}<div class="detail-line"><strong>Product Line:</strong> <span>{{ sale.product_line }}</span></div>{% endif %}
+                {% if sale.coin_series %}<div class="detail-line"><strong>Series:</strong> <span>{{ sale.coin_series }}</span></div>{% endif %}
+                {% if sale.special_designation %}<div class="detail-line"><strong>Designation:</strong> <span>{{ sale.special_designation }}</span></div>{% endif %}
+
+                <!-- Grading Info -->
+                {% if sale.graded %}
+                  <div class="detail-line"><strong>Graded:</strong> <span>Yes{% if sale.grading_service %} ({{ sale.grading_service }}){% endif %}</span></div>
+                {% else %}
+                  <div class="detail-line"><strong>Graded:</strong> <span>No</span></div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Right Column: Buyer Information -->
+            <div class="sold-section buyer-info-section">
+              <h4 class="section-title">Buyer Information</h4>
+              <div class="buyer-details-box">
+                {% if sale.buyer_first_name or sale.buyer_last_name %}
+                  <div class="buyer-line">
+                    <i class="fas fa-id-card"></i>
+                    <span><strong>Name:</strong> {{ sale.buyer_first_name }} {{ sale.buyer_last_name }}</span>
+                  </div>
+                {% endif %}
+                <div class="buyer-line">
+                  <i class="fas fa-user"></i>
+                  <span><strong>Username:</strong> {{ sale.buyer_username }}</span>
+                </div>
+                <div class="buyer-line">
+                  <i class="fas fa-calendar"></i>
+                  <span><strong>Order Date:</strong> {{ sale.order_date }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: Shipping Address (directly under Buyer Info) -->
+            <div class="sold-section shipping-address-section">
+              <h4 class="section-title">Shipping Address</h4>
+              <div class="address-details-box">
+                {% if sale.delivery_address %}
+                  {# Parse address - New simplified format: "Street • [Street2 •] City, State ZIP" #}
+                  {% set parts = sale.delivery_address.split('•') %}
+                  {% set parsed = namespace(street='', street2='', city='', state='', zip='') %}
+
+                  {# Extract street and optional street2 #}
+                  {% if parts|length >= 1 %}
+                    {% set parsed.street = parts[0].strip() %}
+                  {% endif %}
+
+                  {# Check if we have 3 parts (street • street2 • city,state zip) or 2 parts (street • city,state zip) #}
+                  {% if parts|length == 3 %}
+                    {# Middle part is Address Line 2 #}
+                    {% set parsed.street2 = parts[1].strip() %}
+                    {% set city_state_zip = parts[2].strip() %}
+                  {% elif parts|length == 2 %}
+                    {# No Address Line 2 #}
+                    {% set city_state_zip = parts[1].strip() %}
+                  {% else %}
+                    {# Fallback for old format or unexpected format #}
+                    {% set city_state_zip = sale.delivery_address %}
+                  {% endif %}
+
+                  {# Parse "City, State ZIP" from the last part #}
+                  {% if ',' in city_state_zip %}
+                    {% set city_parts = city_state_zip.split(',') %}
+                    {% set parsed.city = city_parts[0].strip() %}
+                    {% if city_parts|length > 1 %}
+                      {% set state_zip = city_parts[1].strip().split() %}
+                      {% if state_zip|length >= 1 %}
+                        {% set parsed.state = state_zip[0].strip() %}
+                      {% endif %}
+                      {% if state_zip|length >= 2 %}
+                        {% set parsed.zip = state_zip[1].strip() %}
+                      {% endif %}
+                    {% endif %}
+                  {% endif %}
+
+                  {# Display address components as labeled line items #}
+                  {% if parsed.street %}
+                    <div class="address-line">
+                      <strong>Address Line 1:</strong>
+                      <span>{{ parsed.street }}</span>
+                    </div>
+                  {% endif %}
+                  {% if parsed.street2 %}
+                    <div class="address-line">
+                      <strong>Address Line 2:</strong>
+                      <span>{{ parsed.street2 }}</span>
+                    </div>
+                  {% endif %}
+                  {% if parsed.city %}
+                    <div class="address-line">
+                      <strong>City:</strong>
+                      <span>{{ parsed.city }}</span>
+                    </div>
+                  {% endif %}
+                  {% if parsed.state %}
+                    <div class="address-line">
+                      <strong>State:</strong>
+                      <span>{{ parsed.state }}</span>
+                    </div>
+                  {% endif %}
+                  {% if parsed.zip %}
+                    <div class="address-line">
+                      <strong>ZIP Code:</strong>
+                      <span>{{ parsed.zip }}</span>
+                    </div>
+                  {% endif %}
+
+                  {# Fallback: if parsing failed, show raw address #}
+                  {% if not parsed.street %}
+                    <div class="address-line">
+                      <span>{{ sale.delivery_address }}</span>
+                    </div>
+                  {% endif %}
+                {% else %}
+                  <div class="address-line address-not-collected">— Address not collected —</div>
+                {% endif %}
+              </div>
+            </div>
           </div>
-          <hr>
 
-          <!-- Quantity & Price -->
-          <div class="price-quantity-grid">
-            <div>Quantity Sold: {{ sale.quantity }}</div>
-            <div>Price / Item: ${{ sale.price_each }}</div>
-          </div>
-          <hr>
-
-          <!-- Buyer & Address -->
-          <div class="buyer-address-grid">
-            <div>Buyer: {{ sale.buyer_username }}</div>
-            <div>Address: {{ sale.delivery_address or '— (not collected)' }}</div>
-          </div>
-          <hr>
-
-          <!-- Actions -->
-          <div class="sold-actions">
+          <!-- Actions Row -->
+          <div class="sold-actions-row">
             <button
-              class="sold-btn sold-btn--message"
+              class="sold-action-btn sold-action-btn--message"
               onclick="openMessageModal({{ sale.order_id }}, 'buyer')"
             >
               <i class="fas fa-envelope"></i>
@@ -50,20 +186,20 @@
             </button>
 
             <button
-              class="sold-btn sold-btn--rate"
+              class="sold-action-btn sold-action-btn--rate"
               onclick="openRateModal({{ sale.order_id }}, 'buyer')"
             >
               <i class="fas fa-star"></i>
-              <span>Rate</span>
+              <span>Rate Buyer</span>
             </button>
 
             <button
               type="button"
-              class="sold-btn sold-btn--tracking"
+              class="sold-action-btn sold-action-btn--tracking"
               onclick="addTrackingNumber({{ sale.order_id }})"
             >
               <i class="fas fa-box"></i>
-              <span>Tracking</span>
+              <span>Add Tracking</span>
             </button>
           </div>
         </div>

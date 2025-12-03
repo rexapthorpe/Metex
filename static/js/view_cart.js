@@ -1,6 +1,15 @@
 // static/js/view_cart.js
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize bucket totals from current summary
+  document.querySelectorAll('.summary-total').forEach(el => {
+    const bucketId = el.id.replace('summary-total-', '');
+    const match = el.textContent.match(/\$([0-9.]+)/);
+    if (match) {
+      bucketTotals[bucketId] = parseFloat(match[1]);
+    }
+  });
+
   // manual edits on the qty value (kept for compatibility)
   document.querySelectorAll('.quantity-input').forEach(input => {
     input.addEventListener('change', handleQuantityChange);
@@ -103,7 +112,10 @@ function attachQtyDial(group) {
   });
 }
 
-// Client-side summary update
+// Store bucket totals for grand total calculation
+const bucketTotals = {};
+
+// Update quantity both client-side and backend
 function handleQuantityChange(e) {
   const input = e.target;
   const [, bucketId] = input.id.split('-');
@@ -111,13 +123,42 @@ function handleQuantityChange(e) {
   if (isNaN(qty) || qty < 1) qty = 1;
   input.value = qty;
 
-  const prices = (cartData[bucketId] || []).slice().sort((a, b) => a - b);
-  const total = prices.slice(0, qty).reduce((sum, p) => sum + p, 0);
+  // Persist to backend and reload page
+  fetch(`/cart/update_bucket_quantity/${bucketId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({ quantity: qty })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('Failed to update quantity');
+    return res.json();
+  })
+  .then(() => {
+    // Reload page to show updated totals
+    location.reload();
+  })
+  .catch(err => {
+    alert(`Error updating quantity: ${err.message}`);
+  });
+}
 
-  const qtyEl = document.getElementById(`summary-qty-${bucketId}`);
-  const totEl = document.getElementById(`summary-total-${bucketId}`);
-  if (qtyEl) qtyEl.textContent = `Quantity: ${qty}`;
-  if (totEl) totEl.textContent = `Total: $${total.toFixed(2)}`;
+// Calculate and update the grand total across all buckets
+function updateGrandTotal() {
+  let grandTotal = 0;
+
+  // Sum all bucket totals
+  for (const bucketId in bucketTotals) {
+    grandTotal += bucketTotals[bucketId];
+  }
+
+  // Update the "Total for All Items" line
+  const allItemsTotalEl = document.querySelector('.cart-summary-fixed > p:last-of-type');
+  if (allItemsTotalEl) {
+    allItemsTotalEl.innerHTML = `<strong>Total for All Items:</strong> $${grandTotal.toFixed(2)}`;
+  }
 }
 
 /* ---------------------- Helpers for modal content ---------------------- */
@@ -127,74 +168,6 @@ function firstExisting(root, selectors) {
     if (el) return el;
   }
   return null;
-}
-
-/* --------- Sellers modal (works with partial ids or legacy ids) --------- */
-function openSellerPopup(bucketId) {
-  // try partial id first, fall back to legacy
-  const modal =
-    document.getElementById('cartSellersModal') ||
-    document.getElementById('sellerModal');
-
-  if (!modal) return;
-
-  // common content containers in the shared partials / legacy:
-  // - [data-role="sellers-list"]
-  // - .seller-scroll-container
-  // - #sellerDetails (legacy)
-  // - .modal-scroll
-  const container = firstExisting(modal, [
-    '[data-role="sellers-list"]',
-    '.seller-scroll-container',
-    '#sellerDetails',
-    '.modal-scroll'
-  ]) || modal;
-
-  container.innerHTML = '<p>Loading sellers…</p>';
-  showModal(modal);
-
-  fetch(`/cart/api/bucket/${bucketId}/cart_sellers`)
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to load sellers');
-      return res.json();
-    })
-    .then(data => {
-      container.innerHTML = '';
-      if (!data || data.length === 0) {
-        container.innerHTML = '<p>No sellers found for this item.</p>';
-        return;
-      }
-      data.forEach(seller => {
-        const div = document.createElement('div');
-        div.className = 'seller-card';
-        div.innerHTML = `
-          <p><strong>${seller.username}</strong></p>
-          <p>Quantity: ${seller.quantity}</p>
-          <p>Price: $${seller.price_per_coin}</p>
-          <p>Rating: ${seller.rating ? Number(seller.rating).toFixed(2) : 'N/A'} (${seller.num_reviews} reviews)</p>
-          <form method="POST" action="/cart/remove_seller/${bucketId}/${seller.seller_id}" onsubmit="return confirm('Remove this seller?');">
-            <button type="submit" class="btn btn-danger btn-sm">Remove Seller</button>
-          </form>
-          <hr>
-        `;
-        container.appendChild(div);
-      });
-
-      // wire any close button in the partial (e.g., .modal-close)
-      const closeBtn = firstExisting(modal, ['.modal-close', '[data-close]']);
-      if (closeBtn) {
-        closeBtn.onclick = () => hideModal(modal);
-      }
-    })
-    .catch(err => {
-      container.innerHTML = `<p style="color:#b91c1c;">${err.message}</p>`;
-    });
-}
-function closeSellerPopup() {
-  const modal =
-    document.getElementById('cartSellersModal') ||
-    document.getElementById('sellerModal');
-  if (modal) hideModal(modal);
 }
 
 /* --------- Items modal (works with partial ids or legacy ids) ---------- */
@@ -207,11 +180,6 @@ function openPriceBreakdown(bucketId) {
 
   if (!modal) return;
 
-  // common content containers:
-  // - [data-role="items-list"]
-  // - .seller-scroll-container
-  // - #priceBreakdownDetails (legacy)
-  // - .modal-scroll
   const container = firstExisting(modal, [
     '[data-role="items-list"]',
     '.seller-scroll-container',
@@ -234,15 +202,17 @@ function openPriceBreakdown(bucketId) {
         return;
       }
       data.forEach(entry => {
+        const sellerName = entry.seller_username || entry.username || 'Unknown seller';
+
         const div = document.createElement('div');
         div.className = 'seller-card';
         div.innerHTML = `
-          <p><strong>${entry.username}</strong></p>
+          <p><strong>${sellerName}</strong></p>
           <p>Quantity: ${entry.quantity}</p>
           <p>Price: $${entry.price_per_coin}</p>
-          <form method="POST" action="/cart/remove_item/${entry.listing_id}" onsubmit="return confirm('Remove this item?');">
-            <button type="submit" class="btn btn-danger btn-sm">Remove Item</button>
-          </form>
+          <button type="button" class="btn btn-danger btn-sm" onclick="openRemoveListingConfirmation(${entry.listing_id})">
+            Remove Item
+          </button>
           <hr>
         `;
         container.appendChild(div);
@@ -257,6 +227,7 @@ function openPriceBreakdown(bucketId) {
       container.innerHTML = `<p style="color:#b91c1c;">${err.message}</p>`;
     });
 }
+
 function closePriceBreakdown() {
   const modal =
     document.getElementById('cartIndividualListingsModal') ||
@@ -267,22 +238,11 @@ function closePriceBreakdown() {
 
 /* ------------------------- Remove bucket ------------------------- */
 function removeCartBucket(bucketId) {
-  if (!confirm('Remove all items in this group from cart?')) return;
-  fetch(`/cart/remove_bucket/${bucketId}`, {
-    method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Remove failed');
-      const tile = document.querySelector(`.cart-item-tile[data-bucket-id="${bucketId}"]`);
-      if (tile) tile.remove();
-    })
-    .catch(() => alert('Failed to remove.'));
+  // This just opens the bucket-level "are you sure?" modal
+  openRemoveItemModal(bucketId);
 }
 
 // expose for inline onclick
-window.removeCartBucket = removeCartBucket;
-window.openSellerPopup = openSellerPopup;
-window.closeSellerPopup = closeSellerPopup;
+window.removeCartBucket   = removeCartBucket;
 window.openPriceBreakdown = openPriceBreakdown;
 window.closePriceBreakdown = closePriceBreakdown;

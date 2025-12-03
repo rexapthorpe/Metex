@@ -4,6 +4,9 @@
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 
+<!-- Error Notification Modal -->
+{% include 'modals/error_notification_modal.html' %}
+
 <div class="login-page">
   <!-- Background -->
   <div id="bg-animated" class="bg-animated" aria-hidden="true">
@@ -94,5 +97,7 @@
   </main>
 </div>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/confirmation_modal_base.css') }}">
+<script src="{{ url_for('static', filename='js/modals/error_notification_modal.js') }}"></script>
 <script src="{{ url_for('static', filename='js/login.js') }}"></script>
 {% endblock %}

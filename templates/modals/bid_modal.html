@@ -1,0 +1,13 @@
+<!-- templates/modals/bid_modal.html -->
+<!-- Unified Bid Modal - Handles both CREATE and EDIT operations -->
+
+<div id="bidModal" class="modal" style="display:none">
+  <div class="modal-content bid-modal-content">
+    <!-- Content injected here via AJAX -->
+    <div id="bidModalContent">
+      <!-- Close button - positioned relative to modal card -->
+      <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
+      <div class="modal-loading">Loading bid form...</div>
+    </div>
+  </div>
+</div>

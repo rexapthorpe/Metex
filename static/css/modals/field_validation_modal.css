@@ -1,0 +1,176 @@
+/* Field Validation Modal Styles */
+
+.field-validation-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.field-validation-modal.active {
+  opacity: 1;
+}
+
+.field-validation-modal .modal-content {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 480px;
+  width: 90%;
+  padding: 32px;
+  position: relative;
+  text-align: center;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.field-validation-modal.active .modal-content {
+  transform: scale(1);
+}
+
+/* Close button */
+.field-validation-modal .modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: #999;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.field-validation-modal .modal-close:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+/* Error icon */
+.field-validation-modal .validation-icon {
+  margin: 0 auto 20px;
+  width: 64px;
+  height: 64px;
+  background: #fff3cd;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.field-validation-modal .validation-icon svg {
+  color: #856404;
+  width: 40px;
+  height: 40px;
+}
+
+/* Title */
+.field-validation-modal h2 {
+  margin: 0 0 16px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Message */
+.field-validation-modal .validation-message {
+  margin: 0 0 20px;
+  font-size: 16px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* Missing fields list */
+.field-validation-modal .missing-fields-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  text-align: left;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.field-validation-modal .missing-fields-list li {
+  padding: 8px 0;
+  font-size: 15px;
+  color: #495057;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+}
+
+.field-validation-modal .missing-fields-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.field-validation-modal .missing-fields-list li::before {
+  content: "•";
+  color: #dc3545;
+  font-weight: bold;
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+/* Actions */
+.field-validation-modal .modal-actions {
+  margin-top: 24px;
+}
+
+.field-validation-modal .btn {
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.field-validation-modal .btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.field-validation-modal .btn-primary:hover {
+  background: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+  .field-validation-modal .modal-content {
+    padding: 24px;
+    max-width: 95%;
+  }
+
+  .field-validation-modal h2 {
+    font-size: 20px;
+  }
+
+  .field-validation-modal .validation-message {
+    font-size: 14px;
+  }
+
+  .field-validation-modal .missing-fields-list li {
+    font-size: 14px;
+  }
+}

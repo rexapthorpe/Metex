@@ -1,0 +1,394 @@
+/* ==========================================================================
+   Sell Listing Modals - Slide-up style from bottom
+   ========================================================================== */
+
+/* Modal overlay - darkens background */
+.slide-up-modal-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.slide-up-modal-overlay.active {
+  opacity: 1;
+}
+
+/* Modal dialog - slides up from bottom */
+.slide-up-modal-dialog {
+  position: relative;
+  background: #fff;
+  width: 100%;
+  max-width: 700px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.3);
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  overflow: visible; /* Changed from hidden to allow close button to extend outside */
+}
+
+.slide-up-modal-overlay.active .slide-up-modal-dialog {
+  transform: translateY(0);
+}
+
+/* Header */
+.slide-up-modal-dialog .modal-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 20px 20px 0 0;
+}
+
+.slide-up-modal-dialog .modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Note: Close button styling now uses unified modal-close-button.css */
+
+/* Body - scrollable, with extra bottom padding so content clears the footer */
+.slide-up-modal-dialog .modal-body {
+  padding: 32px 32px 120px 32px; /* extra bottom padding for footer height */
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0; /* critical for flexbox scrolling */
+  box-sizing: border-box;
+}
+
+/* Confirmation modal specific */
+.confirm-summary {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.confirm-message {
+  font-size: 16px;
+  color: #374151;
+  margin: 0 0 24px 0;
+  text-align: center;
+}
+
+.listing-summary-grid {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.summary-row:first-child {
+  padding-top: 0;
+}
+
+.summary-label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.summary-value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 15px;
+  text-align: right;
+  max-width: 60%;
+}
+
+.summary-value.price-highlight {
+  color: #0066cc;
+  font-size: 18px;
+}
+
+.summary-value.total-highlight {
+  color: #059669;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.confirm-question {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 24px 0 0 0;
+  text-align: center;
+}
+
+/* Success Modal Header */
+.slide-up-modal-dialog .modal-header.success-header {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+}
+
+.slide-up-modal-dialog .modal-header.success-header h2 {
+  color: white;
+}
+
+/* Note: Close button now uses unified modal-close-button.css styling for consistency */
+
+/* Success Content */
+.success-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.success-message {
+  font-size: 18px;
+  color: #059669;
+  font-weight: 600;
+  margin: 0 0 32px 0;
+  text-align: center;
+}
+
+.success-details h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 24px 0;
+  border-bottom: 2px solid #10b981;
+  padding-bottom: 8px;
+}
+
+.detail-section {
+  margin-bottom: 28px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.detail-value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 15px;
+  text-align: right;
+}
+
+.detail-value.price-highlight {
+  color: #0066cc;
+  font-size: 17px;
+}
+
+.detail-value.total-highlight {
+  color: #059669;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+/* Next steps notice */
+.next-steps-notice {
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 24px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1e40af;
+}
+
+.next-steps-notice strong {
+  color: #1e3a8a;
+}
+
+/* Footer - fixed at bottom of modal, full width, buttons centered side-by-side */
+.slide-up-modal-dialog .modal-footer {
+  position: absolute;        /* pin footer to bottom of modal */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px 32px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;   /* center button row */
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 0;          /* avoid inner rounded gaps */
+}
+
+/* ============================================================
+   FOOTER BUTTONS (Cancel, Confirm Listing, Close)
+   ============================================================ */
+
+/* Shared base styles for ALL footer buttons */
+.slide-up-modal-dialog .modal-footer .btn {
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+
+  flex: 1 1 0;        /* equal width buttons */
+  max-width: 260px;
+
+  /* smooth hover animation for size + color + shadow */
+  transition:
+    transform 0.15s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* ------------------------------------------------------------
+   CANCEL BUTTON (Red)
+   Use on: <button class="btn btn-cancel-footer">Cancel</button>
+   ------------------------------------------------------------ */
+.slide-up-modal-dialog .modal-footer .btn-cancel-footer {
+  background-color: none;   /* red-600 */
+  border: 2px solid #dc2626 ;
+  color: #dc2626;
+  background-color: #ffffff;
+}
+
+.slide-up-modal-dialog .modal-footer .btn-cancel-footer:hover {
+  background-color: #b91c1c;   /* red-700 */
+  border: 2px solid #b91c1c ;
+  color: #ffffff;
+  transform: scale(1.05);      /* slight expansion on hover */
+}
+
+.slide-up-modal-dialog .modal-footer .btn-cancel-footer:active {
+  background-color: #991b1b;   /* red-800 */
+  border: 2px solid #991b1b ;
+  color: #ffffff;  
+  transform: scale(1.02);
+}
+
+/* ------------------------------------------------------------
+   CONFIRM LISTING BUTTON (Green)
+   Use on: <button class="btn btn-confirm-footer">Confirm Listing</button>
+   ------------------------------------------------------------ */
+.slide-up-modal-dialog .modal-footer .btn-confirm-footer {
+  background-color: #059669;   /* green-600 */
+  border: 2px solid #059669 ;
+  color: #ffffff;
+}
+
+.slide-up-modal-dialog .modal-footer .btn-confirm-footer:hover {
+  background-color: #047857;   /* green-700 */
+  border: 2px solid #047857 ;
+  transform: scale(1.05);      /* slight expansion on hover */
+}
+
+.slide-up-modal-dialog .modal-footer .btn-confirm-footer:active {
+  background-color: #065f46;   /* green-800 */
+  border: 2px solid #065f46 ;
+  transform: scale(1.02);
+
+}
+/* Optional disabled state */
+.slide-up-modal-dialog .modal-footer .btn-confirm-footer:disabled,
+.slide-up-modal-dialog .modal-footer .btn-cancel-footer:disabled,
+.slide-up-modal-dialog .modal-footer .btn-close-footer:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------
+   CLOSE BUTTON IN FOOTER (Yellow)
+   Use on: <button class="btn btn-close-footer">Close</button>
+   ------------------------------------------------------------ */
+.slide-up-modal-dialog .modal-footer .btn-close-footer {
+  background-color: #ffffff;   
+  border: 2px solid #3b82f6 ;
+  color: #3b82f6;
+}
+
+.slide-up-modal-dialog .modal-footer .btn-close-footer:hover {
+  background-color: #1e40af;   /* yellow-500 */
+  border: 2px solid #1e40af ;
+  color: #ffffff;
+  transform: scale(1.05);      /* slight expansion on hover */
+}
+
+.slide-up-modal-dialog .modal-footer .btn-close-footer:active {
+  background-color: #1e3a8a;   /* yellow-600 */
+  border: 2px solid #1e3a8a ;
+  color: #ffffff;
+  transform: scale(1.02);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .slide-up-modal-dialog {
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .slide-up-modal-dialog .modal-header {
+    padding: 20px 24px;
+  }
+
+  .slide-up-modal-dialog .modal-body {
+    padding: 24px 24px 120px 24px; /* keep extra bottom padding for footer */
+    min-height: 0;
+  }
+
+  .slide-up-modal-dialog .modal-footer {
+    padding: 16px 24px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .slide-up-modal-dialog .modal-footer .btn {
+    width: 100%;
+    max-width: none;
+    flex: none;
+  }
+
+  .summary-value {
+    max-width: 100%;
+  }
+}

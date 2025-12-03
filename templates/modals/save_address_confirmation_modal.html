@@ -1,0 +1,16 @@
+<div id="saveAddressConfirmModal" class="confirmation-overlay" style="display: none;">
+  <div class="confirmation-modal-content">
+    <!-- Unified close button -->
+    <button type="button" class="modal-close" onclick="closeSaveAddressConfirmModal()" aria-label="Close modal">&times;</button>
+    <h2>Save Address?</h2>
+    <p>Would you like to save this address?</p>
+    <div class="confirmation-actions">
+      <button class="confirmation-btn confirmation-btn-yes" onclick="confirmSaveAddress()">
+        Yes
+      </button>
+      <button class="confirmation-btn confirmation-btn-no" onclick="closeSaveAddressConfirmModal()">
+        No
+      </button>
+    </div>
+  </div>
+</div>

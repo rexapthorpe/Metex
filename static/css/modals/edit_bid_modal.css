@@ -1,9 +1,14 @@
 /* ==========================================================================
-   Edit Bid Modal — FULL FILE (scoped + priority overrides)
+   Edit Bid Modal — FULL FILE
+   3-column static layout with fixed 333px columns, responsive collapse to
+   2+1 (bottom left-aligned) then 1 column, centered custom input, non-expanding
+   dropdown, static vertical & horizontal dividers, fixed-height card with
+   conditional internal scrolling, and a side-by-side Quantity + Price row.
+   Also enforces a constant 22px viewport margin on left/right.
    ========================================================================== */
 
-/* Overlay */
-#editBidModal {
+/* ============================== Overlay ================================== */
+#editBidModal, #bidModal {
   position: fixed !important;
   inset: 0 !important;
   z-index: 1000 !important;
@@ -12,10 +17,13 @@
   align-items: center !important;
   justify-content: center !important;
 }
-#editBidModal.active { display: flex !important; }
+#editBidModal, #bidModal.active { display: flex !important; }
 
-/* Viewport wrapper */
-#editBidModal .modal-content {
+/* =========================== Viewport wrapper ============================ */
+
+
+/* Enforce 22px margin between viewport edge and modal card */
+#editBidModal, #bidModal .modal-content {
   width: 100vw !important;
   height: 100vh !important;
   max-width: 100vw !important;
@@ -23,203 +31,370 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 16px !important;
+  padding: 50px 50px !important;      /* ← 22px left/right margin */
   background: transparent !important;
   box-sizing: border-box !important;
-  overflow: visible !important;
+  overflow: hidden !important;         /* page itself should not scroll */
 }
-#editBidModal #editBidModalContent { max-width: none !important; width: auto !important; }
+#editBidModal, #bidModal #editBidModalContent {
+  max-width: none !important;
+  width: auto !important;
+  position: relative !important; /* Positioning context for close button */
+}
 
-/* Card */
-#editBidModal .edit-bid-modal {
+/* ================================ Card =================================== */
+#editBidModal, #bidModal .edit-bid-modal {
   display: flex;
   flex-direction: column;
-  width: 560px !important;
-  max-width: calc(100vw - 32px) !important;
-  max-height: calc(100vh - 32px) !important;
-  overflow: auto !important;
+
+  /* Width large enough for 3×333px + 2×1px vdiv + gaps; but never overflow viewport */
+  width: 1160px !important;
+  max-width: calc(100vw - 100px) !important; /* ← honors the 22px side margins */
+
+  /* Fixed vertical size */
+  min-height: 500px !important;
+  max-height: 500px !important;
+
+  /* Default (wide/3-col): no internal vertical scroll since there is no second row */
+  overflow-y: hidden !important;
+  overflow-x: hidden !important;
+
   padding: 24px;
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 8px 24px rgba(0,0,0,.12);
   box-sizing: border-box;
 }
-#editBidModal .edit-bid-modal h2 {
-  text-align: center;
+#editBidModal, #bidModal .edit-bid-modal h2 {
+  text-align: left;
   margin: 0 0 12px 0;
-  font-size: 1.25rem;
+  font-size: 20px;
   font-weight: 700;
 }
 
-/* Grid (same 'grading' area collapsed or expanded) */
-#editBidModal .eb-grid {
+/* =============================== Dividers ================================ */
+#editBidModal, #bidModal .eb-hr {
+  height: 1px;
+  background: #eef1f4;
+  margin: 12px 0;
+  width: 100%;
+  border: 0;
+}
+/* footer hr selector may be unused now but is harmless */
+#editBidModal, #bidModal .eb-footer-hr {}
+
+/* ================================ Grid =================================== */
+/* Default: 3 fixed columns + 2 fixed vertical divider tracks (1px each). */
+#editBidModal, #bidModal .eb-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 333px 1px 333px 1px 333px;   /* fixed 333px cols */
   grid-template-areas:
-    "current qty grading"
-    "best    custom address"
-    "confirm confirm confirm";
-  gap: 12px;
-  align-items: start;
-  transition: grid-template-areas .22s ease-in-out;
-}
-#editBidModal .eb-grid.grading-open {
-  grid-template-areas:
-    "current qty grading"
-    "best    custom grading"
-    "confirm confirm address";
+    "col1 v1 col2 v2 col3";
+  column-gap: 24px;
+  row-gap: 14px;
+  align-items: start;     /* keeps sections aligned to top */
+  justify-content: start; /* keep grid left-aligned within the card */
 }
 
-/* Areas */
-#editBidModal .eb-current { grid-area: current; }
-#editBidModal .eb-qty     { grid-area: qty; }
-#editBidModal .eb-grading { grid-area: grading; }
-#editBidModal .eb-best    { grid-area: best; }
-#editBidModal .eb-custom  { grid-area: custom; }
-#editBidModal .eb-confirm { grid-area: confirm; }
-#editBidModal .eb-address { grid-area: address; }
+/* column content wrappers */
+#editBidModal, #bidModal .eb-col { padding: 2px 12px 8px; }
 
-/* Labels / values */
-#editBidModal .eb-label { font-size: .92rem; color: #555; margin-bottom: 6px; }
-#editBidModal .eb-value { font-size: 1.05rem; font-weight: 700; color: #222; }
-#editBidModal .eb-hint  { margin-top: 4px; font-size: .82rem; color: #a00; min-height: .9em; }
+/* static vertical divider tracks */
+#editBidModal, #bidModal .vdiv {
+  background: #eef1f4;
+  width: 100%;
+  min-height: 100%;
+}
 
-/* Inputs */
-#editBidModal #qty-input,
-#editBidModal #bid-price-input,
-#editBidModal #address-input {
+/* ============================ Column titles ============================== */
+#editBidModal, #bidModal .col-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #3c3c3c;
+  margin: 2px 0 10px;
+}
+
+/* ========================= Labels & messages ============================= */
+#editBidModal, #bidModal .eb-label {
+  font-size: 15px;
+  color: #555;
+  margin: 0 0 5px;
+}
+#editBidModal, #bidModal .addr-label {
+  font-size: 14px;
+  color: #555;
+  margin: 0 0 5px;
+  line-height: 16px;
+  height: 16px;
+}
+#editBidModal, #bidModal .eb-hint {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #a00;
+  min-height: 14px;
+}
+
+/* ========================== Generic inputs =============================== */
+#editBidModal, #bidModal .eb-input,
+#editBidModal, #bidModal #address-input {
   width: 100%;
   box-sizing: border-box;
   padding: 10px 12px;
   border: 1px solid #ccc;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 16px;
+  height: 44px;
   outline: none;
   background: #fafafa;
 }
-#editBidModal #qty-input:focus,
-#editBidModal #bid-price-input:focus,
-#editBidModal #address-input:focus {
+#editBidModal, #bidModal .eb-input:focus,
+#editBidModal, #bidModal #address-input:focus {
   border-color: #3da6ff;
   box-shadow: 0 0 0 3px rgba(61,166,255,.15);
 }
 
-/* $ prefix input */
-#editBidModal .input-prefix {
+/* ===================== Custom-bid (price) input box ====================== */
+#editBidModal, #bidModal .input-prefix input {
+  border: 1px solid #000000 !important;  /* black border */
+  background: none !important;
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 23px;
+  font-weight: 700;
+  color: #000000;
+  background: transparent !important;
+  outline: none;
+  text-align: center;
+  line-height: 44px;
+  box-shadow: none !important;
+  border-radius: 100px;
+}
+#editBidModal, #bidModal .input-prefix input:hover {
+  background: none !important;
+}
+
+/* Hide number spinners on WebKit/Firefox to preserve visual style */
+#editBidModal, #bidModal input[type="number"]::-webkit-outer-spin-button,
+#editBidModal, #bidModal input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#editBidModal, #bidModal input[type="number"] { -moz-appearance: textfield; }
+
+/* ============================ Quantity dial ============================== */
+#editBidModal, #bidModal .qty-dial {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #0a6cff;
+  color: #fff;
+  user-select: none;
+}
+#editBidModal, #bidModal .qty-btn {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
-  background: #fafafa;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  overflow: hidden;
-}
-#editBidModal .input-prefix > span { padding: 0 10px; font-weight: 600; color: #666; }
-#editBidModal .input-prefix input {
+  justify-content: center;
+  border-radius: 999px;
   border: 0;
-  flex: 1;
-  padding: 10px 12px 10px 2px;
-  font-size: 1.05rem;
   background: transparent;
-  outline: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .9;
+}
+#editBidModal, #bidModal .qty-btn:hover { opacity: 1; }
+#editBidModal, #bidModal .qty-value { min-width: 22px; text-align: center; font-weight: 700; }
+#editBidModal, #bidModal #qty-input {
+  position: absolute !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
-/* Suggested pill */
-#editBidModal .pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 12px; border-radius: 999px; border: none;
-  cursor: pointer; background: #e6f3ff; color: #0a6adf;
-  font-weight: 700; font-size: .98rem;
+/* ====================== Quantity + Price same-line row =================== */
+#editBidModal, #bidModal .price-qty-row {
+  display: flex;
+  gap: 10px;                 /* small intrarow gap between controls */
+  align-items: flex-start;   /* align the two blocks by their tops */
 }
-#editBidModal .pill:hover { filter: brightness(.98); }
-#editBidModal .pill-caption { margin-top: 6px; font-size: .85rem; color: #666; }
-
-/* ===================== Single-box grading dropdown ===================== */
-#editBidModal .eb-grading { display: block; }
-#editBidModal .eb-grading-label {
-  font-size: .9rem; color: #7a7a7a; margin: 0 0 6px 6px;
+#editBidModal, #bidModal .price-qty-row .qty-block {
+  margin: 0;
+  line-height: 1;
+  flex: 1 1 160px;
+  min-width: 160px;
+  max-width: 160px;
+}
+/* Quantity label: fixed 16px line + 5px gap to the dial */
+#editBidModal, #bidModal .price-qty-row .qty-block .eb-label {
+  display: block;
+  height: 16px;
+  line-height: 16px;
+  margin: 0 0 5px 0;
+}
+#editBidModal, #bidModal .price-qty-row .price-block {
+  flex: 0 0 140px;
+  max-width: 140px;
+}
+/* NEW: Price label to match quantity label spacing */
+#editBidModal, #bidModal .price-qty-row .price-block .eb-label {
+  display: block;
+  height: 16px;
+  line-height: 16px;
+  margin: 0 0 5px 0;
+}
+/* Remove the old alignment shim now that the price has a label */
+#editBidModal, #bidModal .price-qty-row .price-block .input-prefix {
+  margin-top: 0;
 }
 
-/* Outer rounded box that EXPANDS */
-#editBidModal .eb-grading-box {
-  border: 2px solid #cfd4d9;
+/* =============================== Grading ================================= */
+#editBidModal .eb-grading-block,
+#bidModal .eb-grading-block { margin-top: 0; }  /* spacing governed by 5px feature-block below */
+
+/* Always visible grading options */
+#editBidModal .eb-grading-options,
+#bidModal .eb-grading-options {
   background: #fff;
-  border-radius: 24px;
-  overflow: hidden; /* keep body inside same rounded box */
+  border: 1px solid #171717;
+  border-radius: 16px;
+  padding: 8px 0;
+  margin-top: 5px;
 }
 
-/* Header inside the same box */
-#editBidModal .eb-grading-header {
-  width: 100%;
+#editBidModal, #bidModal .switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 14px;
-  background: transparent;
-  border: 0;
-  display: flex; align-items: center; justify-content: space-between;
-  font-weight: 700; cursor: pointer;
-  color: #111; /* ensure text is visible */
+  font-weight: 600;
+  color: #222;
+  font-size: 15px;
 }
-#editBidModal .eb-grading-header .chev { margin-left: 12px; }
-
-/* Body that reveals INSIDE the same box */
-#editBidModal .eb-grading-menu {
-  border-top: 1px solid #eef1f4;
-  padding-top: 8px;
-  max-height: 0;           /* collapsed */
-  opacity: 0;
-  transition: max-height .22s ease, opacity .22s ease;
-}
-#editBidModal .eb-grid.grading-open #eb-grading .eb-grading-menu {
-  max-height: 420px;       /* expanded */
-  opacity: 1;
-}
-
-/* Rows inside the body */
-#editBidModal .switch-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 14px;
-  font-weight: 600; color: #222;
-}
-#editBidModal .divider { height: 1px; background: #eef1f4; }
+#editBidModal, #bidModal .divider { height: 1px; background: #eef1f4; }
 
 /* Toggle switch */
-#editBidModal .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
-#editBidModal .switch input { opacity: 0; width: 0; height: 0; }
-#editBidModal .slider {
+#editBidModal, #bidModal .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+#editBidModal, #bidModal .switch input { opacity: 0; width: 0; height: 0; }
+#editBidModal, #bidModal .slider {
   position: absolute; cursor: pointer; inset: 0;
   background: #d1d5db; border-radius: 999px; transition: background .2s;
 }
-#editBidModal .slider:before {
+#editBidModal, #bidModal .slider:before {
   content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px;
   background: #fff; border-radius: 50%; transition: transform .2s;
   box-shadow: 0 1px 2px rgba(0,0,0,.2);
 }
-#editBidModal .switch input:checked + .slider { background: #3da6ff; }
-#editBidModal .switch input:checked + .slider:before { transform: translateX(20px); }
+#editBidModal, #bidModal .switch input:checked + .slider { background: #3da6ff; }
+#editBidModal, #bidModal .switch input:checked + .slider:before { transform: translateX(20px); }
 
-/* Confirm */
-#editBidModal .eb-confirm {
-  padding: 12px 16px; border: none; border-radius: 12px;
-  background: #007bff; color: #fff; font-size: 1rem; font-weight: 700;
-  cursor: pointer; transition: background .15s, opacity .15s;
+/* =============================== Address ================================= */
+#editBidModal, #bidModal .addr-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 0;
 }
-#editBidModal .eb-confirm:hover { background: #0056b3; }
-#editBidModal .eb-confirm:disabled { opacity: .5; cursor: not-allowed; }
+#editBidModal, #bidModal .addr-field { grid-column: 1 / -1; margin-bottom: 5px; }
+#editBidModal, #bidModal .addr-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 6fr 3fr 3fr; /* City | State | Zip */
+  gap: 12px;
+  margin-bottom: 5px;
+}
+#editBidModal, #bidModal .addr-subfield { display: flex; flex-direction: column; }
 
-/* Responsive */
-@media (max-width: 480px) {
-  #editBidModal .edit-bid-modal {
-    width: 100% !important; max-width: calc(100vw - 24px) !important;
-    max-height: calc(100vh - 24px) !important; padding: 18px;
-  }
-  #editBidModal .eb-grid,
-  #editBidModal .eb-grid.grading-open {
-    grid-template-columns: 1fr;
+/* Two-column name row: First + Last equal width and flush */
+#editBidModal, #bidModal .addr-grid .addr-row.names,
+#editBidModal, #bidModal .billing-fields .addr-row.names {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+#editBidModal, #bidModal .addr-grid .addr-row.names .addr-subfield,
+#editBidModal, #bidModal .billing-fields .addr-row.names .addr-subfield {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================== Spacing ================================== */
+/* 5px between “features” within a column (qty+price row, grading block, etc.) */
+#editBidModal, #bidModal .feature-block { margin-bottom: 5px; }
+
+/* ========================= Column 3: Confirm align ======================= */
+/* Billing fields at top of column 3 */
+#editBidModal, #bidModal .col3 .billing-fields {
+  margin-bottom: 10px;
+}
+
+/* HR positioned to align Confirm with City/State/Zip row in col2 */
+#editBidModal, #bidModal .col3 .eb-col-hr {
+  margin-top: 200px;   /* Adjusted for name fields now in billing column */
+  margin-bottom: 20px;
+}
+#editBidModal, #bidModal .col3 .confirm-wrap { margin-top: 0; }
+
+/* =============================== Confirm ================================= */
+#editBidModal, #bidModal .eb-confirm {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 12px;
+  background: #007bff;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+  width: 100%;
+}
+#editBidModal, #bidModal .eb-confirm:hover { background: #0056b3; }
+#editBidModal, #bidModal .eb-confirm:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ============================== Responsive =============================== */
+/* Collapse to 2+1 (bottom left-aligned). Enable internal scroll so the
+   second row is reachable inside the card. */
+@media (max-width: 1200px) {
+  #editBidModal, #bidModal .eb-grid {
+    grid-template-columns: 333px 1px 333px;               /* two fixed cols + one vdiv */
     grid-template-areas:
-      "current"
-      "qty"
-      "grading"
-      "best"
-      "custom"
-      "confirm"
-      "address";
+      "col1 v1 col2"
+      "col3 . .";                                         /* bottom col left-aligned */
   }
+  #editBidModal, #bidModal .v2 { display: none; }
+  #editBidModal, #bidModal .col3 {
+    border-top: 1px solid #eef1f4;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+  /* Now allow internal vertical scrolling to access the lower row */
+  #editBidModal, #bidModal .edit-bid-modal { overflow-y: auto !important; }
+}
+
+/* Collapse to single-column stack (each still 333px wide, centered).
+   Keep internal scroll enabled. */
+@media (max-width: 760px) {
+  #editBidModal, #bidModal .eb-grid {
+    grid-template-columns: 333px;                          /* one fixed col */
+    grid-template-areas:
+      "col1"
+      "col2"
+      "col3";                                              /* stack order: pricing → address → billing → confirm */
+    justify-content: center;                                /* center the 333px block in the card */
+  }
+  #editBidModal, #bidModal .v1, #editBidModal, #bidModal .v2 { display: none; }
+  #editBidModal, #bidModal .col3,
+  #editBidModal, #bidModal .col2 {
+    border-top: 1px solid #eef1f4;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+  /* Adjust billing column spacing for single-column layout */
+  #editBidModal, #bidModal .col3 .eb-col-hr {
+    margin-top: 10px;
+    margin-bottom: 15px;
+  }
+  #editBidModal, #bidModal .edit-bid-modal { overflow-y: auto !important; }
 }

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buy Item Payment Flow Test</title>
+
+    <!-- Load CSS -->
+    <link rel="stylesheet" href="static/css/modals/buy_item_modal.css">
+    <link rel="stylesheet" href="static/css/modals/modal-close-button.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+        .test-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-btn {
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 6px;
+            background: #1877ff;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .test-btn:hover {
+            background: #0056d1;
+        }
+        .test-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .test-step {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-controls">
+        <h1>Buy Item Payment Flow Test</h1>
+        <div class="test-info">
+            <strong>Test Scenario:</strong>
+            <ul>
+                <li>Click "Buy Item" - confirmation modal appears with full specs</li>
+                <li>Modal shows "Select Payment Method" button above purchase summary</li>
+                <li>Click "Select Payment Method" - payment modal appears with centered header</li>
+                <li>Click "Confirm Payment Method" - returns to confirmation modal</li>
+                <li>Click "Yes, Complete Purchase" - success modal appears</li>
+                <li>Cancel/Close buttons work without redirects</li>
+            </ul>
+        </div>
+
+        <div class="test-step">
+            <strong>Step 1:</strong> Click "Open Buy Confirmation Modal" → Should show item specs and payment button
+        </div>
+        <button class="test-btn" onclick="testBuyFlow()">Open Buy Confirmation Modal</button>
+
+        <div class="test-step">
+            <strong>Step 2:</strong> In modal, click "Select Payment Method" → Should show payment selection
+        </div>
+
+        <div class="test-step">
+            <strong>Step 3:</strong> Click "Confirm Payment Method" → Should return to confirmation modal
+        </div>
+
+        <div class="test-step">
+            <strong>Step 4:</strong> Click "Yes, Complete Purchase" → Should show success modal
+        </div>
+
+        <div class="test-step">
+            <strong>Step 5:</strong> Click "Close" or "Cancel" or × → Should just close modal
+        </div>
+    </div>
+
+    <!-- Include buy item modals HTML -->
+    <!-- Copy from templates/modals/buy_item_modal.html -->
+
+    <!-- Buy Item Confirmation Modal -->
+<div id="buyItemConfirmModal" class="buy-modal-overlay" style="display: none;">
+  <div class="buy-modal-dialog buy-item-modal">
+    <button type="button" class="modal-close" onclick="closeBuyItemConfirmModal()" aria-label="Close modal">&times;</button>
+    <div class="modal-header">
+      <h2>Confirm Purchase</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="confirm-summary">
+        <p class="confirm-message">You are about to purchase the following item:</p>
+
+        <!-- Item Specifications Grid -->
+        <div class="item-specs-section">
+          <h3 class="specs-heading">Item Specifications</h3>
+          <div class="item-specs-grid">
+            <div class="spec-row">
+              <span class="spec-label">Metal:</span>
+              <span class="spec-value" id="buy-spec-metal">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Product Type:</span>
+              <span class="spec-value" id="buy-spec-product-type">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Weight:</span>
+              <span class="spec-value" id="buy-spec-weight">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Purity:</span>
+              <span class="spec-value" id="buy-spec-purity">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Mint:</span>
+              <span class="spec-value" id="buy-spec-mint">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Year:</span>
+              <span class="spec-value" id="buy-spec-year">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Finish:</span>
+              <span class="spec-value" id="buy-spec-finish">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Grade:</span>
+              <span class="spec-value" id="buy-spec-grade">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Product Line:</span>
+              <span class="spec-value" id="buy-spec-product-line">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Requires 3rd Party Grading:</span>
+              <span class="spec-value" id="buy-spec-requires-grading">—</span>
+            </div>
+            <div class="spec-row" id="buy-spec-grading-service-row" style="display: none;">
+              <span class="spec-label">Grading Service:</span>
+              <span class="spec-value" id="buy-spec-grading-service">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Select Payment Method Button -->
+        <button
+          type="button"
+          class="btn btn-select-payment"
+          onclick="showBuyPaymentSelection()">
+          Select Payment Method
+        </button>
+
+        <!-- Purchase Summary -->
+        <div class="purchase-summary-grid">
+          <div class="summary-row">
+            <span class="summary-label">Price per item:</span>
+            <span class="summary-value price-highlight" id="buy-confirm-price">—</span>
+          </div>
+
+          <div class="summary-row">
+            <span class="summary-label">Quantity:</span>
+            <span class="summary-value" id="buy-confirm-quantity">—</span>
+          </div>
+
+          <div class="summary-row">
+            <span class="summary-label">Total value:</span>
+            <span class="summary-value total-highlight" id="buy-confirm-total">—</span>
+          </div>
+
+          <div class="summary-row">
+            <span class="summary-label">Grading Preference:</span>
+            <span class="summary-value" id="buy-confirm-grading">—</span>
+          </div>
+        </div>
+
+        <p class="confirm-question">Do you want to complete this purchase?</p>
+        <hr class="confirm-divider">
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeBuyItemConfirmModal()">No, Cancel</button>
+      <button type="button" class="btn btn-primary" id="confirmBuyBtn">Yes, Complete Purchase</button>
+    </div>
+  </div>
+</div>
+
+<!-- Buy Item Payment Selection Modal -->
+<div id="buyItemPaymentModal" class="buy-modal-overlay" style="display: none;">
+  <div class="buy-modal-dialog buy-item-modal">
+    <button type="button" class="modal-close" onclick="closeBuyPaymentModal()" aria-label="Close modal">&times;</button>
+
+    <div class="modal-header payment-header">
+      <h2>Select Payment Option</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="payment-content">
+        <div class="payment-placeholder">
+          <p class="placeholder-message">Payment options will be added here.</p>
+          <p class="placeholder-note">This is a placeholder for future payment integration.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button
+        type="button"
+        class="btn btn-primary"
+        onclick="confirmBuyPaymentMethod()">
+        Confirm Payment Method
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Buy Item Success Modal -->
+<div id="buyItemSuccessModal" class="buy-modal-overlay" style="display: none;">
+  <div class="buy-modal-dialog buy-item-success-modal">
+    <button type="button" class="modal-close" onclick="closeBuyItemSuccessModal()" aria-label="Close">&times;</button>
+    <div class="modal-header success-header">
+      <h2>Order Confirmed!</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="success-content">
+        <p class="success-message">Your order has been placed successfully!</p>
+
+        <div class="order-details">
+          <h3>Order Summary</h3>
+
+          <div class="detail-section">
+            <h4>Purchase Details</h4>
+            <div class="detail-row">
+              <span class="detail-label">Total Quantity:</span>
+              <span class="detail-value" id="success-total-quantity">5</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Total Amount:</span>
+              <span class="detail-value total-highlight" id="success-total-amount">$10,750.00</span>
+            </div>
+          </div>
+
+          <div class="shipping-notice">
+            <strong>Next Steps:</strong> Your order will be shipped by the seller within 4 days.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer success-footer">
+      <hr class="footer-divider">
+      <button type="button" class="btn btn-primary" onclick="closeBuyItemSuccessModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+    <script>
+        // Mock bucket specs
+        window.bucketSpecs = {
+            'Metal': 'Gold',
+            'Product type': 'Coin',
+            'Weight': '1 oz',
+            'Purity': '.9999',
+            'Mint': 'US Mint',
+            'Year': '2024',
+            'Finish': 'Proof',
+            'Grading': 'MS-70',
+            'Product line': 'American Eagle',
+            'graded': 1,
+            'grading_service': 'NGC'
+        };
+
+        // Mock item data
+        const mockItemData = {
+            bucket_id: 1,
+            quantity: 5,
+            price: 2150.00,
+            graded_only: 1,
+            any_grader: 0,
+            pcgs: 0,
+            ngc: 1
+        };
+
+        // Test function
+        function testBuyFlow() {
+            openBuyItemConfirmModal(mockItemData);
+        }
+
+        // Function to populate specs (same as buy_item_modal.js)
+        function openBuyItemConfirmModal(itemData) {
+            const modal = document.getElementById('buyItemConfirmModal');
+            if (!modal) return;
+
+            const specs = window.bucketSpecs || {};
+
+            // Populate item specifications
+            document.getElementById('buy-spec-metal').textContent = specs['Metal'] || '—';
+            document.getElementById('buy-spec-product-type').textContent = specs['Product type'] || '—';
+            document.getElementById('buy-spec-weight').textContent = specs['Weight'] || '—';
+            document.getElementById('buy-spec-purity').textContent = specs['Purity'] || '—';
+            document.getElementById('buy-spec-mint').textContent = specs['Mint'] || '—';
+            document.getElementById('buy-spec-year').textContent = specs['Year'] || '—';
+            document.getElementById('buy-spec-finish').textContent = specs['Finish'] || '—';
+            document.getElementById('buy-spec-grade').textContent = specs['Grading'] || '—';
+            document.getElementById('buy-spec-product-line').textContent = specs['Product line'] || '—';
+
+            // Populate "Requires 3rd Party Grading" field
+            const requiresGrading = (specs.graded === 1 || specs.graded === '1') ? 'Yes' : 'No';
+            document.getElementById('buy-spec-requires-grading').textContent = requiresGrading;
+
+            // Conditionally show/hide grading service field
+            const gradingServiceRow = document.getElementById('buy-spec-grading-service-row');
+            if ((specs.graded === 1 || specs.graded === '1') && specs.grading_service) {
+                document.getElementById('buy-spec-grading-service').textContent = specs.grading_service;
+                gradingServiceRow.style.display = '';
+            } else {
+                gradingServiceRow.style.display = 'none';
+            }
+
+            // Determine grading preference text
+            let gradingText = 'Any (Graded or Ungraded)';
+            if (itemData.graded_only === '1' || itemData.graded_only === 1) {
+                if (itemData.pcgs === '1' || itemData.pcgs === 1) {
+                    gradingText = 'PCGS Graded Only';
+                } else if (itemData.ngc === '1' || itemData.ngc === 1) {
+                    gradingText = 'NGC Graded Only';
+                } else if (itemData.any_grader === '1' || itemData.any_grader === 1) {
+                    gradingText = 'Any Professional Grading';
+                } else {
+                    gradingText = 'Graded Only';
+                }
+            }
+
+            // Set purchase summary
+            const totalPrice = (itemData.price * itemData.quantity).toFixed(2);
+            document.getElementById('buy-confirm-price').textContent = `$${itemData.price.toFixed(2)} USD`;
+            document.getElementById('buy-confirm-quantity').textContent = itemData.quantity;
+            document.getElementById('buy-confirm-total').textContent = `$${totalPrice} USD`;
+            document.getElementById('buy-confirm-grading').textContent = gradingText;
+
+            // Show modal with animation
+            modal.style.display = 'flex';
+            requestAnimationFrame(() => {
+                modal.classList.add('active');
+            });
+        }
+
+        function closeBuyItemConfirmModal() {
+            const modal = document.getElementById('buyItemConfirmModal');
+            if (!modal) return;
+
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                console.log('[TEST] Confirmation modal closed');
+            }, 300);
+        }
+
+        function showBuyPaymentSelection() {
+            const confirmModal = document.getElementById('buyItemConfirmModal');
+            if (confirmModal) {
+                confirmModal.classList.remove('active');
+                setTimeout(() => {
+                    confirmModal.style.display = 'none';
+                }, 300);
+            }
+
+            setTimeout(() => {
+                const paymentModal = document.getElementById('buyItemPaymentModal');
+                if (paymentModal) {
+                    paymentModal.style.display = 'flex';
+                    requestAnimationFrame(() => {
+                        paymentModal.classList.add('active');
+                    });
+                }
+            }, 350);
+        }
+
+        function closeBuyPaymentModal() {
+            const modal = document.getElementById('buyItemPaymentModal');
+            if (!modal) return;
+
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                console.log('[TEST] Payment modal closed');
+            }, 300);
+        }
+
+        function confirmBuyPaymentMethod() {
+            const paymentModal = document.getElementById('buyItemPaymentModal');
+            if (paymentModal) {
+                paymentModal.classList.remove('active');
+                setTimeout(() => {
+                    paymentModal.style.display = 'none';
+                }, 300);
+            }
+
+            setTimeout(() => {
+                const confirmModal = document.getElementById('buyItemConfirmModal');
+                if (confirmModal) {
+                    confirmModal.style.display = 'flex';
+                    requestAnimationFrame(() => {
+                        confirmModal.classList.add('active');
+                    });
+                }
+            }, 350);
+        }
+
+        function closeBuyItemSuccessModal() {
+            const modal = document.getElementById('buyItemSuccessModal');
+            if (!modal) return;
+
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                console.log('[TEST] Success modal closed');
+            }, 300);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wire up confirm button
+            const confirmBtn = document.getElementById('confirmBuyBtn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', () => {
+                    console.log('[TEST] Order confirmed');
+                    closeBuyItemConfirmModal();
+
+                    setTimeout(() => {
+                        const successModal = document.getElementById('buyItemSuccessModal');
+                        if (successModal) {
+                            successModal.style.display = 'flex';
+                            requestAnimationFrame(() => {
+                                successModal.classList.add('active');
+                            });
+                        }
+                    }, 350);
+                });
+            }
+
+            // Close modals on overlay click
+            document.getElementById('buyItemConfirmModal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'buyItemConfirmModal') {
+                    closeBuyItemConfirmModal();
+                }
+            });
+
+            document.getElementById('buyItemPaymentModal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'buyItemPaymentModal') {
+                    closeBuyPaymentModal();
+                }
+            });
+
+            document.getElementById('buyItemSuccessModal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'buyItemSuccessModal') {
+                    closeBuyItemSuccessModal();
+                }
+            });
+
+            // Close on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeBuyItemConfirmModal();
+                    closeBuyPaymentModal();
+                    closeBuyItemSuccessModal();
+                }
+            });
+
+            console.log('[TEST] Buy payment flow test initialized');
+        });
+
+        // Expose functions globally
+        window.openBuyItemConfirmModal = openBuyItemConfirmModal;
+        window.closeBuyItemConfirmModal = closeBuyItemConfirmModal;
+        window.showBuyPaymentSelection = showBuyPaymentSelection;
+        window.closeBuyPaymentModal = closeBuyPaymentModal;
+        window.confirmBuyPaymentMethod = confirmBuyPaymentMethod;
+        window.closeBuyItemSuccessModal = closeBuyItemSuccessModal;
+    </script>
+</body>
+</html>

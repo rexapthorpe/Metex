@@ -11,7 +11,7 @@
 
 .edit-listing-modal .modal-content {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 20px;
   padding: 24px;
   width: 90%;
   max-width: 600px;
@@ -20,38 +20,27 @@
 
     /* center and pad */
   margin: 20px auto;                /* 20px from top & bottom, auto left/right */
-  
+
   /* limit height */
-  max-height: calc(100vh - 40px);   /* viewport height minus top+bottom margins */
-  
-  /* allow internal scrolling if content overflows */
+  max-height: 85vh;  /* Increased from 550px to 85% of viewport height */
+
+  /* Enable scrolling for overflow content */
   overflow-y: auto;
+  overflow-x: hidden;
+
+  /* Ensure all corners maintain border-radius with scrolling */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
 }
 
 .edit-listing-modal h2 {
   margin-top: 0;
 }
 
-/* Close “×” */
-.edit-listing-modal .close-button {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-}
-
-/* Change color when hovering */
-.edit-listing-modal .close-button:hover {
-    background: #3da6ff;
-    color: #ffffff; /* ← your desired hover color */
-}
+/* Note: Close button styling now uses unified modal-close-button.css */
 
 /* Shared two-column grids */
 .details-grid,
-.grading-section,
 .list-specs-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -60,10 +49,27 @@
   margin: 16px 0;
 }
 
+/* Modal dividers */
+.modal-divider {
+  width: 100%;
+  border-bottom: 1px solid #ccc;
+  margin: 1.5rem 0 0.75rem 0;
+}
+
+/* Modal subheaders */
+.modal-subheader {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0.75rem 0 1rem 0;
+  text-align: left;
+}
+
 /* Field-group wrapper */
 .field-group {
   display: flex;
   flex-direction: column;
+  position: relative; /* anchor for custom dropdowns */
 }
 
 /* Individual headers TEXT */
@@ -81,7 +87,7 @@
   padding: 8px;
   font-size: 1rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 11px;
 }
 
 /* Descriptions TEXT */
@@ -91,28 +97,265 @@
   margin-top: 2px;
 }
 
+/* Example text (matching sell page) */
+.example-text {
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 0.25rem;
+}
+
 /* Buttons */
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 12px;
   margin-top: 24px;
+}
+
+.modal-actions .btn-save,
+.modal-actions .btn-cancel {
+  flex: 0 0 150px; /* Fixed width of 150px for equal sizing */
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
 }
 
 .modal-actions .btn-save {
   background: #3da6ff;
   color: #fff;
   border: none;
-  padding: 10px 16px;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
 .modal-actions .btn-cancel {
   background: #fff;
   color: #333;
   border: 1px solid #ccc;
-  padding: 10px 16px;
-  border-radius: 4px;
+}
+
+/* ---------- Custom dropdown (matching sell.css) ---------- */
+
+.custom-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;               /* same width as the input */
+  box-sizing: border-box;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 11px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  display: none;             /* hidden by default */
+}
+
+.custom-dropdown-item {
+  padding: 0.5rem 0.75rem;
   cursor: pointer;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.custom-dropdown-item:hover {
+  background-color: #f0f4ff;
+}
+
+/* ---------- Photo Upload Section ---------- */
+
+.photo-upload-section {
+  grid-column: 1 / 2; /* Left column only */
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 16px 0;
+}
+
+.photo-upload-section label {
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-size: 1.0rem;
+  color: rgb(0, 0, 0);
+}
+
+.photo-upload-box {
+  width: 100%;
+  aspect-ratio: 1 / 1; /* Keep it square: height = width */
+  border: 2px dashed #ccc;
+  border-radius: 20px;
+  background-color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: visible; /* Allow close button to extend outside */
+  transition: all 0.2s ease;
+}
+
+.photo-upload-box:hover {
+  border-color: #007bff;
+  background-color: #f0f4ff;
+}
+
+.photo-upload-plus {
+  font-size: 4rem;
+  color: #999;
+  user-select: none;
+  pointer-events: none;
+}
+
+.photo-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 20px;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.photo-upload-box.has-image {
+  border: none;
+  background-color: transparent;
+  cursor: default;
+}
+
+.photo-upload-box.has-image:hover {
+  border: none;
+  background-color: transparent;
+}
+
+.photo-upload-box.has-image .photo-upload-plus {
+  display: none;
+}
+
+/* Close button for photo - matches standardized close button style */
+.photo-clear-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.photo-clear-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
+  transform: scale(1.1);
+}
+
+.photo-clear-btn:active {
+  transform: scale(0.95);
+}
+
+.photo-upload-box.has-image .photo-clear-btn {
+  display: flex;
+}
+
+/* Hide the existing preview div */
+.listing-photo-preview {
+  display: none;
+}
+
+/* Right column for quantity and price */
+.list-specs-right {
+  grid-column: 2 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: start; /* Align to top of grid cell */
+}
+
+/* Price Input with $ prefix */
+.price-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.price-currency {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-95%);
+  font-size: 1rem;
+  color: #333;
+  font-weight: bold;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.price-input-wrapper input {
+  padding-left: 28px !important;
+  font-weight: bold;
+}
+
+/* ---------- Premium Pricing Container ---------- */
+
+.premium-pricing-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.premium-pricing-notice {
+  margin-top: 12px;
+  padding: 12px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  border-left: 4px solid #1976d2;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.premium-pricing-notice strong {
+  color: #1565c0;
+  font-weight: 600;
+}
+
+/* Static pricing fields container */
+.static-pricing-fields {
+  margin-top: 0;
+}
+
+/* Ensure field groups within pricing containers have consistent spacing */
+.premium-pricing-container .field-group,
+.static-pricing-fields .field-group {
+  margin-bottom: 0;
+}
+
+/* Pricing mode select styling */
+.field-group select[name="pricing_mode"] {
+  font-weight: 600;
+  color: #1976d2;
+  border: 2px solid #90caf9;
+  background-color: #e3f2fd;
+}
+
+.field-group select[name="pricing_mode"]:focus {
+  outline: none;
+  border-color: #1565c0;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
 }

@@ -1,5 +1,5 @@
-/* Modal overlay */
-.modal {
+/* Sellers Modal Overlay - Specific to #sellerModal */
+#sellerModal {
   display: none;
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -7,21 +7,21 @@
   z-index: 1000;
 }
 
-/* Modal box */
-.modal-content {
+/* Modal box - Specific to #sellerModal */
+#sellerModal .modal-content {
   background: #fff;
   margin: 60px auto;
-  border-radius: 12px;
+  border-radius: 20px;
   width: 90%; max-width: 350px;
   max-height: 500px;
   position: relative;                 /* needed for absolute footer */
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  overflow: hidden;
+  overflow: hidden; /* Ensure border-radius clips child elements properly */
 }
 
 /* Header: back/forward arrows + close */
 /* ===== align all header items perfectly ===== */
-.modal-header {
+#sellerModal .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -29,7 +29,7 @@
 }
 
 /* title sits dead-center with no extra vertical offset */
-.modal-header .modal-title {
+#sellerModal .modal-header .modal-title {
   flex: 1;
   margin: 0;
   text-align: center;
@@ -39,7 +39,7 @@
 }
 
 /* arrows and close live in identical 32×32px flex boxes */
-.modal-header .nav-arrow {
+#sellerModal .modal-header .nav-arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -57,11 +57,11 @@
 }
 
 /* hide disabled arrow but keep its box so spacing stays consistent */
-.modal-header .nav-arrow:disabled {
+#sellerModal .modal-header .nav-arrow:disabled {
   visibility: hidden;
 }
 
-.modal-header .nav-arrow:hover:not(:disabled) {
+#sellerModal .modal-header .nav-arrow:hover:not(:disabled) {
   background-color: #3da6ff;
   color: #ffffff;
 }
@@ -69,13 +69,13 @@
 /* Body: rating, username, placeholder image, reviews
    Add horizontal padding so text does not touch edges.
    Add extra bottom padding so it never collides with the fixed footer button. */
-.modal-body {
+#sellerModal .modal-body {
   padding: 8px 50px 80px;   /* <-- key change: side margin & space for footer */
   text-align: left;
 }
 
 /* Ensure both items in each row stay on one line */
-.modal-body .stats-row {
+#sellerModal .modal-body .stats-row {
   display: flex;
   flex-wrap: nowrap;
   justify-content: space-between;
@@ -84,55 +84,55 @@
 }
 
 /* Prevent long text from wrapping */
-.modal-body .review-count,
-.modal-body .unit-price {
+#sellerModal .modal-body .review-count,
+#sellerModal .modal-body .unit-price {
   white-space: nowrap;
   margin: 0;
 }
 
 /*  Rating Number  */
-.modal-body .avg-rating {
+#sellerModal .modal-body .avg-rating {
   font-size: 1.7rem;
   color: #000000;
 }
 
 /*  Star Icons  */
-.modal-body .stars .star {
+#sellerModal .modal-body .stars .star {
   font-size: 1.9rem;
   margin-right: 2px;
   color: #ccc;
 }
-.modal-body .stars .star.filled {
+#sellerModal .modal-body .stars .star.filled {
   color: #000000;
 }
 
 /* ── Review Count ── */
-.modal-body .review-count {
+#sellerModal .modal-body .review-count {
   font-style: italic;
   font-size: 0.85rem;
   color: #666;
 }
 
 /* ── Unit Count (# items) ── */
-.modal-body .unit-count {
+#sellerModal .modal-body .unit-count {
   font-weight: bold;
   color: #000000;
 }
 
 /* ── Unit Price ── */
-.modal-body .unit-price {
+#sellerModal .modal-body .unit-price {
   font-weight: 600;
   font-size: 1rem;
   color: #000000;
 }
 
-.username-section {
+#sellerModal .username-section {
   font-size: 1.7rem;
   font-weight: bold;
   margin-bottom: 16px;
 }
 
-.seller-photo {
+#sellerModal .seller-photo {
   width: 250px;
   height: 250px;
   background: #eee;
@@ -146,21 +146,21 @@
   border-radius: 20px;
 }
 
-.review-count {
+#sellerModal .review-count {
   font-size: 0.9rem;
   color: #555;
   margin-bottom: 20px;
 }
 
 /* Footer: keep button pinned to bottom-right */
-.modal-footer {
+#sellerModal .modal-footer {
   position: absolute;      /* <-- key addition */
   right: 16px;
   bottom: 12px;
 }
 
 /* Remove button styling */
-.modal-footer .remove-btn {
+#sellerModal .modal-footer .remove-btn {
   text-align: center !important;
   background: transparent !important;
   color: #000000 !important;
@@ -171,8 +171,9 @@
   font-family: inherit !important;
   font-weight: 600 !important;
   transition: background-color 0.2s ease;
+  border: 1px solid #ccc !important;
 }
-.modal-footer .remove-btn:hover {
+#sellerModal .modal-footer .remove-btn:hover {
   background: #3da6ff !important;
   color: #ffffff !important;
 }

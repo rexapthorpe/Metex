@@ -1,6 +1,6 @@
 # routes/auth_routes.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, session
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection
 import sqlite3
@@ -21,6 +21,23 @@ def register():
 
         password_hash = generate_password_hash(password)
         conn = get_db_connection()
+
+        # Check if username already exists
+        existing_username = conn.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
+        if existing_username:
+            conn.close()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': 'This username is already taken. Please choose a different username.', 'field': 'username'})
+            return "Username already exists."
+
+        # Check if email already exists
+        existing_email = conn.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone()
+        if existing_email:
+            conn.close()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': 'This email is already associated with an account. Please sign in or use a different email.', 'field': 'email'})
+            return "Email already exists."
+
         try:
             conn.execute(
                 'INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)',
@@ -51,13 +68,17 @@ def register():
                     )
 
             conn.commit()
-        except sqlite3.IntegrityError:
-            conn.close()
-            return "Username or email already exists."
-        finally:
             conn.close()
 
-        return redirect(url_for('buy.buy'))
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'redirect': url_for('buy.buy')})
+            return redirect(url_for('buy.buy'))
+
+        except sqlite3.IntegrityError:
+            conn.close()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': 'Username or email already exists.'})
+            return "Username or email already exists."
 
     return render_template('register.html')
 
@@ -95,9 +116,16 @@ def login():
 
             conn.commit()
             conn.close()
+
+            # Check if request is AJAX
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                return jsonify({'success': True, 'redirect': url_for('buy.buy')})
             return redirect(url_for('buy.buy'))
         else:
             conn.close()
+            # Check if request is AJAX
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                return jsonify({'success': False, 'message': 'Invalid username or password'})
             return "Invalid username or password."
 
     return render_template('login.html')

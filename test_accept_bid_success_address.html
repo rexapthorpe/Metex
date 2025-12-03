@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accept Bid Success Modal - Address Display Test</title>
+  <link rel="stylesheet" href="static/css/modals/accept_bid_modals.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f3f4f6;
+      padding: 20px;
+      margin: 0;
+    }
+    .test-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .test-header {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      color: white;
+      padding: 24px 32px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    }
+    .test-header h1 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+    }
+    .test-header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 16px;
+    }
+    .test-controls {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .test-button {
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-right: 12px;
+      margin-bottom: 12px;
+    }
+    .test-button.primary {
+      background: #059669;
+      color: white;
+    }
+    .test-button.primary:hover {
+      background: #047857;
+    }
+    .test-button.secondary {
+      background: #0066cc;
+      color: white;
+    }
+    .test-button.secondary:hover {
+      background: #0052a3;
+    }
+    .test-button.tertiary {
+      background: #7c3aed;
+      color: white;
+    }
+    .test-button.tertiary:hover {
+      background: #6d28d9;
+    }
+    .test-info {
+      background: #fff9e6;
+      border: 2px solid #ffd700;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .test-info h3 {
+      margin: 0 0 12px 0;
+      color: #b8860b;
+      font-size: 18px;
+    }
+    .test-info ul {
+      margin: 0;
+      padding-left: 24px;
+    }
+    .test-info li {
+      margin-bottom: 8px;
+      color: #5d4e00;
+      line-height: 1.6;
+    }
+    .code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    .status-badge.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status-badge.info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <div class="test-header">
+      <h1>Accept Bid Success Modal - Address Display Test</h1>
+      <p>Verifying delivery address appears in structured format</p>
+    </div>
+
+    <div class="test-controls">
+      <h2 style="margin: 0 0 16px 0; font-size: 20px; color: #111827;">Test Scenarios</h2>
+
+      <button class="test-button primary" onclick="testCompleteAddress()">
+        <i class="fas fa-home"></i> Test Complete Address
+      </button>
+
+      <button class="test-button secondary" onclick="testAddressNoLine2()">
+        <i class="fas fa-map-marker-alt"></i> Test Address (No Line 2)
+      </button>
+
+      <button class="test-button tertiary" onclick="testParsedAddress()">
+        <i class="fas fa-cog"></i> Test Parsed Address Format
+      </button>
+    </div>
+
+    <div class="test-info">
+      <h3><i class="fas fa-info-circle"></i> Expected Behavior</h3>
+      <ul>
+        <li><strong>Buyer Information:</strong> Shows buyer's name only <span class="status-badge info">Separate Section</span></li>
+        <li><strong>Delivery Address:</strong> Shows in its own section with header <span class="status-badge success">New Section</span></li>
+        <li><strong>Address Components:</strong> Each part on separate line:
+          <ul>
+            <li>Address Line 1</li>
+            <li>Address Line 2 (if provided)</li>
+            <li>City</li>
+            <li>State</li>
+            <li>ZIP Code</li>
+          </ul>
+        </li>
+        <li><strong>Dynamic Display:</strong> Only populated fields are shown</li>
+      </ul>
+    </div>
+
+    <div class="test-info" style="background: #f0f9ff; border-color: #0066cc;">
+      <h3 style="color: #0066cc;"><i class="fas fa-code"></i> Current Address Parsing Logic</h3>
+      <p style="margin: 0 0 12px 0; color: #1e40af;">The JavaScript expects address in this format:</p>
+      <div class="code-block">
+// Parsed format: "Street • [Street2 •] City, State ZIP"
+// Example: "123 Main St • Apt 4B • New York, NY 10001"
+// Example: "456 Oak Ave • Boston, MA 02101"
+
+// The openAcceptBidSuccessModal() function will parse this
+// and display each component on a separate line
+      </div>
+    </div>
+  </div>
+
+  <!-- Include modal template -->
+  <div id="acceptBidSuccessModal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog accept-bid-success-modal">
+      <div class="modal-header success-header">
+        <h2>🎉 Congratulations!</h2>
+        <button type="button" class="modal-close" onclick="closeTestModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="success-content">
+          <p class="success-message">You have successfully accepted the bid!</p>
+
+          <div class="order-details">
+            <h3>Order Details</h3>
+
+            <div class="detail-section">
+              <h4>Buyer Information</h4>
+              <div class="detail-row">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value" id="success-buyer-name">—</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4>Delivery Address</h4>
+              <div class="detail-row" id="success-address-line1-row" style="display: none;">
+                <span class="detail-label">Address Line 1:</span>
+                <span class="detail-value" id="success-address-line1">—</span>
+              </div>
+              <div class="detail-row" id="success-address-line2-row" style="display: none;">
+                <span class="detail-label">Address Line 2:</span>
+                <span class="detail-value" id="success-address-line2">—</span>
+              </div>
+              <div class="detail-row" id="success-address-city-row" style="display: none;">
+                <span class="detail-label">City:</span>
+                <span class="detail-value" id="success-address-city">—</span>
+              </div>
+              <div class="detail-row" id="success-address-state-row" style="display: none;">
+                <span class="detail-label">State:</span>
+                <span class="detail-value" id="success-address-state">—</span>
+              </div>
+              <div class="detail-row" id="success-address-zip-row" style="display: none;">
+                <span class="detail-label">ZIP Code:</span>
+                <span class="detail-value" id="success-address-zip">—</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4>Transaction Details</h4>
+              <div class="detail-row">
+                <span class="detail-label">Price per item:</span>
+                <span class="detail-value price-highlight" id="success-price">—</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Quantity:</span>
+                <span class="detail-value" id="success-quantity">—</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Total value:</span>
+                <span class="detail-value total-highlight" id="success-total">—</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4>Item Details</h4>
+              <div class="item-specs-grid">
+                <div class="spec-item" id="success-spec-metal">
+                  <span class="spec-label">Metal:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-product-line">
+                  <span class="spec-label">Product Line:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-product-type">
+                  <span class="spec-label">Product Type:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-weight">
+                  <span class="spec-label">Weight:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-grade">
+                  <span class="spec-label">Grade:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-year">
+                  <span class="spec-label">Year:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-mint">
+                  <span class="spec-label">Mint:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-purity">
+                  <span class="spec-label">Purity:</span>
+                  <span class="spec-value">—</span>
+                </div>
+                <div class="spec-item" id="success-spec-finish">
+                  <span class="spec-label">Finish:</span>
+                  <span class="spec-value">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="shipping-notice">
+              <strong>⚠️ Important:</strong> You have <strong>4 days</strong> to input a shipping tracking link for this order.
+              Failure to do so will result in forfeiting the contract, and you will be flagged in our system going forward.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer success-footer">
+        <hr class="footer-divider">
+        <button type="button" class="btn btn-primary" onclick="closeTestModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="static/js/modals/accept_bid_modals.js"></script>
+  <script>
+    // Override close function for testing
+    function closeTestModal() {
+      const modal = document.getElementById('acceptBidSuccessModal');
+      if (!modal) return;
+      modal.classList.remove('active');
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 300);
+    }
+
+    // Set up window.bucketSpecs for item details
+    window.bucketSpecs = {
+      'Metal': 'Gold',
+      'Product line': 'American Eagle',
+      'Product type': 'Coin',
+      'Weight': '1 oz',
+      'Grading': 'MS70',
+      'Year': '2024',
+      'Mint': 'West Point',
+      'Purity': '0.9167',
+      'Finish': 'Proof'
+    };
+
+    // Test 1: Complete address with Line 2
+    function testCompleteAddress() {
+      const orderData = {
+        buyer_name: 'John Smith',
+        delivery_address: 'Home - 123 Main Street • Apt 4B • New York, NY 10001',
+        price_per_coin: 2150.00,
+        quantity: 3,
+        total_price: 6450.00
+      };
+
+      console.log('[TEST] Complete Address:', orderData.delivery_address);
+      openAcceptBidSuccessModal(orderData);
+    }
+
+    // Test 2: Address without Line 2
+    function testAddressNoLine2() {
+      const orderData = {
+        buyer_name: 'Jane Doe',
+        delivery_address: 'Work - 456 Oak Avenue • Boston, MA 02101',
+        price_per_coin: 1850.50,
+        quantity: 5,
+        total_price: 9252.50
+      };
+
+      console.log('[TEST] Address (No Line 2):', orderData.delivery_address);
+      openAcceptBidSuccessModal(orderData);
+    }
+
+    // Test 3: Pre-parsed address components
+    function testParsedAddress() {
+      const orderData = {
+        buyer_name: 'Robert Johnson',
+        delivery_address: '789 Elm Drive • Suite 200 • Los Angeles, CA 90001',
+        price_per_coin: 95.75,
+        quantity: 10,
+        total_price: 957.50
+      };
+
+      console.log('[TEST] Parsed Address Format:', orderData.delivery_address);
+      openAcceptBidSuccessModal(orderData);
+    }
+
+    // Show instructions on load
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('='.repeat(80));
+      console.log('ACCEPT BID SUCCESS MODAL - ADDRESS DISPLAY TEST');
+      console.log('='.repeat(80));
+      console.log('');
+      console.log('Available Tests:');
+      console.log('1. Complete Address - Includes Line 2 (Apt/Suite)');
+      console.log('2. Address (No Line 2) - Street, City, State, ZIP only');
+      console.log('3. Parsed Address Format - Tests address parsing logic');
+      console.log('');
+      console.log('Click any test button to open the modal');
+      console.log('Open browser DevTools to see address parsing logs');
+      console.log('='.repeat(80));
+    });
+  </script>
+</body>
+</html>

@@ -52,15 +52,7 @@
 #ratingsModal .nav-arrow:hover,
 #ratingsModal .nav-arrow:focus { color: #000; }
 
-#ratingsModal .close-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-}
+/* Note: Close button styling now uses unified modal-close-button.css */
 
 /* ── Body content (scoped) ───────────────────────────────── */
 #ratingsModal .rating-card { text-align: center; }

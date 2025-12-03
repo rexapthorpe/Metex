@@ -12,14 +12,15 @@
 /* white box */
 #priceBreakdownModal .cart-items-modal-content {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 20px;
   width: 92%;
   max-width: 620px;
   max-height: 80vh;
-  overflow: hidden;                  /* header stays fixed; body is visible */
+  overflow: hidden;                  /* Ensure border-radius clips child elements properly */
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   display: flex;                     /* make header fixed + body flexible */
   flex-direction: column;
+  position: relative;                /* Positioning context for close button */
 }
 
 /* HEADER: arrows + centered title */
@@ -31,6 +32,7 @@
   border-bottom: 1px solid #eee;
   background: #fff;
   flex-shrink: 0;
+  border-radius: 20px 20px 0 0; /* Match parent's top corners */
 }
 
 #priceBreakdownModal .cart-items-nav-arrow {
@@ -71,6 +73,7 @@
   flex: 1;                           /* take remaining height */
   overflow: visible;                  /* no internal scroll */
   background: #fff;
+  border-radius: 0 0 20px 20px;      /* Match parent's bottom corners */
 }
 
 #priceBreakdownModal .cart-items-two-col {

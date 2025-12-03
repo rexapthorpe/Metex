@@ -1,0 +1,254 @@
+/* ==========================================================================
+   Checkout Modals - Slide-up style from bottom
+   - Inherits base styles from sell_listing_modals.css (slide-up-modal patterns)
+   - Adds checkout-specific styles for order items, payment, confirmation
+   ========================================================================== */
+
+/* Note: Base .slide-up-modal-overlay and .slide-up-modal-dialog styles
+   are already defined in sell_listing_modals.css */
+
+/* ============================================================
+   ORDER SUMMARY MODAL - Specific Styles
+   ============================================================ */
+
+.checkout-summary {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.summary-message {
+  font-size: 16px;
+  color: #374151;
+  margin: 0 0 24px 0;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Order Items Container */
+.order-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* Individual Order Item Card */
+.order-item-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s ease;
+}
+
+.order-item-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Item Title */
+.item-card-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.item-card-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Item Specifications Grid */
+.item-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.spec-label {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.spec-value {
+  font-size: 14px;
+  color: #111827;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Item Pricing Section */
+.item-pricing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pricing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.pricing-label {
+  font-size: 15px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.pricing-value {
+  font-size: 15px;
+  color: #111827;
+  font-weight: 600;
+}
+
+.pricing-row.item-total-row {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 2px solid #e5e7eb;
+}
+
+.pricing-row.item-total-row .pricing-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.pricing-row.item-total-row .pricing-value {
+  font-size: 18px;
+  color: #0066cc;
+  font-weight: 700;
+}
+
+/* Select Payment Method Button (in main content) */
+.btn-select-payment {
+  width: 100%;
+  padding: 16px 32px;
+  margin-bottom: 20px;
+  font-size: 18px;
+  font-weight: 700;
+  background: #1877ff;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-select-payment:hover {
+  background: #0056d1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
+}
+
+.btn-select-payment:active {
+  transform: translateY(0);
+}
+
+/* Order Total Container */
+.order-total-container {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  border: 2px solid #1877ff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.total-label {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.total-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1877ff;
+}
+
+/* ============================================================
+   PAYMENT SELECTION MODAL - Specific Styles
+   ============================================================ */
+
+/* Center the header text */
+.payment-header {
+  justify-content: center !important;
+}
+
+.payment-header h2 {
+  text-align: center;
+  width: 100%;
+}
+
+.payment-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.payment-placeholder {
+  text-align: center;
+  padding: 60px 40px;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 2px dashed #d1d5db;
+  margin-bottom: 24px;
+}
+
+.placeholder-message {
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px 0;
+}
+
+.placeholder-note {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ============================================================
+   SUCCESS MODAL - Inherits from sell_listing_modals.css
+   No additional styles needed for now
+   ============================================================ */
+
+/* ============================================================
+   RESPONSIVE DESIGN
+   ============================================================ */
+
+@media (max-width: 768px) {
+  .item-specs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .total-value {
+    font-size: 24px;
+  }
+
+  .item-card-title {
+    font-size: 16px;
+  }
+
+  .btn-select-payment {
+    font-size: 16px;
+    padding: 14px 24px;
+  }
+}

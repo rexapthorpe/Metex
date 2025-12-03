@@ -13,10 +13,15 @@
         </div>
 
         <div class="order-details">
-          <div><strong>Mint:</strong> {{ order.mint }}</div>
           <div><strong>Metal:</strong> {{ order.metal }}</div>
+          <div><strong>Product Type:</strong> {{ order.product_type }}</div>
           <div><strong>Weight:</strong> {{ order.weight }}</div>
+          <div><strong>Purity:</strong> {{ order.purity or 'N/A' }}</div>
+          <div><strong>Mint:</strong> {{ order.mint }}</div>
           <div><strong>Year:</strong> {{ order.year }}</div>
+          <div><strong>Finish:</strong> {{ order.finish }}</div>
+          <div><strong>Grade:</strong> {{ order.grade }}</div>
+          <div><strong>Product Line:</strong> {{ order.product_line or 'N/A' }}</div>
           <div><strong>Ordered:</strong> {{ order.order_date }}</div>
         </div>
 
@@ -63,7 +68,14 @@
       </div>
     {% endfor %}
   {% else %}
-    <p class="empty-message">You have no pending orders yet!</p>
+    <div class="empty-orders-container">
+      <p class="empty-orders-message">You have no pending orders yet!</p>
+      <a href="{{ url_for('buy.buy') }}">
+        <button class="find-items-btn">
+          Find Items
+        </button>
+      </a>
+    </div>
   {% endif %}
 
   {% if completed_orders %}
@@ -77,10 +89,15 @@
           >
         </div>
         <div class="order-details">
-          <div><strong>Mint:</strong> {{ order.mint }}</div>
           <div><strong>Metal:</strong> {{ order.metal }}</div>
+          <div><strong>Product Type:</strong> {{ order.product_type }}</div>
           <div><strong>Weight:</strong> {{ order.weight }}</div>
+          <div><strong>Purity:</strong> {{ order.purity or 'N/A' }}</div>
+          <div><strong>Mint:</strong> {{ order.mint }}</div>
           <div><strong>Year:</strong> {{ order.year }}</div>
+          <div><strong>Finish:</strong> {{ order.finish }}</div>
+          <div><strong>Grade:</strong> {{ order.grade }}</div>
+          <div><strong>Product Line:</strong> {{ order.product_line or 'N/A' }}</div>
           <div><strong>Ordered:</strong> {{ order.order_date }}</div>
         </div>
         <div class="order-meta">
@@ -125,7 +142,14 @@
       </div>
     {% endfor %}
   {% else %}
-    <p class="empty-message">You have no completed purchases yet!</p>
+    <div class="empty-orders-container">
+      <p class="empty-orders-message">You have no completed purchases yet!</p>
+      <a href="{{ url_for('buy.buy') }}">
+        <button class="find-items-btn">
+          Find Items
+        </button>
+      </a>
+    </div>
   {% endif %}
 </div>
 

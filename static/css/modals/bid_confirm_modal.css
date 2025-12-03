@@ -1,0 +1,455 @@
+/* ==========================================================================
+   Bid Confirmation Modal
+   Centered pop-up with same styling as Buy Item modal
+   ========================================================================== */
+
+/* Modal overlay - darkens background */
+.bid-confirm-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+
+.bid-confirm-overlay.hiding {
+  opacity: 0;
+}
+
+/* Modal dialog - centered pop-up */
+.bid-confirm-dialog {
+  background: #fff;
+  width: 560px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  overflow: hidden; /* Ensure border-radius clips child elements properly */
+  transform: scale(1);
+  transition: transform 0.3s ease;
+  position: relative; /* Positioning context for close button */
+}
+
+.bid-confirm-overlay:not(.active) .bid-confirm-dialog {
+  transform: scale(0.9);
+  opacity: 0;
+}
+
+.bid-confirm-overlay.active .bid-confirm-dialog {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Header */
+.bid-confirm-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 20px 20px 0 0; /* Match parent's top corners */
+}
+
+.bid-confirm-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Note: Close button styling now uses unified modal-close-button.css */
+
+/* Body */
+.bid-confirm-body {
+  padding: 32px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Confirmation summary */
+.bid-confirm-summary {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.bid-confirm-message {
+  font-size: 16px;
+  color: #374151;
+  margin: 0 0 24px 0;
+}
+
+.bid-summary-grid {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.bid-summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.bid-summary-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.bid-summary-row:first-child {
+  padding-top: 0;
+}
+
+.bid-summary-label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.bid-summary-value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 15px;
+  text-align: right;
+  max-width: 60%;
+}
+
+.bid-summary-value.price-highlight {
+  color: #0066cc;
+  font-size: 18px;
+}
+
+.bid-summary-value.total-highlight {
+  color: #059669;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.bid-confirm-question {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 24px 0 16px 0;
+  text-align: left;
+}
+
+.bid-confirm-divider {
+  border: none;
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0 6px;
+}
+
+/* Footer */
+.bid-confirm-footer {
+  padding: 20px 32px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+  border-radius: 0 0 20px 20px; /* Match parent's bottom corners */
+}
+
+.bid-confirm-footer .btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-primary {
+  background: #0066cc;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #0052a3;
+}
+
+/* ==========================================================================
+   Bid Success Modal (similar to Buy Item Success)
+   ========================================================================== */
+
+/* Base modal overlay - centered, fullscreen */
+.bid-success-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+
+.bid-success-overlay.hiding {
+  opacity: 0;
+}
+
+/* Base modal dialog - centered pop-up with scale animation */
+.bid-success-dialog {
+  background: #fff;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  overflow: hidden; /* Ensure border-radius clips child elements properly */
+  transform: scale(1);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  position: relative; /* Positioning context for close button */
+}
+
+.bid-success-overlay:not(.active) .bid-success-dialog {
+  transform: scale(0.9);
+  opacity: 0;
+}
+
+.bid-success-overlay.active .bid-success-dialog {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Modal header */
+.bid-success-dialog .modal-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 20px 20px 0 0; /* Match parent's top corners */
+}
+
+.bid-success-dialog .modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Note: Close button styling now uses unified modal-close-button.css */
+
+/* Modal body */
+.bid-success-dialog .modal-body {
+  padding: 32px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Modal footer */
+.bid-success-dialog .modal-footer {
+  padding: 20px 32px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+  border-radius: 0 0 20px 20px; /* Match parent's bottom corners */
+}
+
+.bid-success-dialog .modal-footer .btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* Success Modal Header */
+.bid-success-dialog .modal-header.success-header {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-bottom: none;
+}
+
+.bid-success-dialog .modal-header.success-header h2 {
+  color: white;
+}
+
+/* Note: Close button now uses unified modal-close-button.css styling for consistency */
+
+/* Success Content */
+.bid-success-dialog .success-content {
+  max-width: 600px;
+}
+
+.bid-success-dialog .success-message {
+  font-size: 18px;
+  color: #059669;
+  font-weight: 600;
+  margin: 0 0 32px 0;
+  text-align: center;
+}
+
+.bid-success-dialog .order-details h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 24px 0;
+  border-bottom: 2px solid #10b981;
+  padding-bottom: 8px;
+}
+
+.bid-success-dialog .detail-section {
+  margin-bottom: 28px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.bid-success-dialog .detail-section h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bid-success-dialog .detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.bid-success-dialog .detail-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.bid-success-dialog .detail-row:first-child {
+  padding-top: 0;
+}
+
+.bid-success-dialog .detail-label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.bid-success-dialog .detail-value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 15px;
+  text-align: right;
+  max-width: 60%;
+}
+
+.bid-success-dialog .detail-value.price-highlight {
+  color: #0066cc;
+  font-size: 17px;
+}
+
+.bid-success-dialog .detail-value.total-highlight {
+  color: #059669;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.bid-success-dialog .shipping-notice {
+  background: #ecfdf5;
+  border: 1px solid #10b981;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 24px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #065f46;
+}
+
+.bid-success-dialog .shipping-notice strong {
+  color: #047857;
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* Success Footer */
+.bid-success-dialog .modal-footer.success-footer {
+  background: #f9fafb;
+  padding-top: 0;
+}
+
+.bid-success-dialog .footer-divider {
+  border: none;
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0 0 20px 0;
+}
+
+/* Privacy Notice */
+.privacy-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f0f9ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  color: #1e40af;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.privacy-notice i {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.privacy-notice span {
+  flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bid-confirm-dialog,
+  .bid-success-dialog {
+    width: 95vw;
+    max-height: 95vh;
+  }
+
+  .bid-summary-value {
+    max-width: 100%;
+  }
+
+  .bid-success-dialog .detail-value {
+    max-width: 55%;
+    font-size: 14px;
+  }
+}

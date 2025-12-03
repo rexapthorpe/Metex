@@ -89,7 +89,7 @@ function nextPriceListing() {
   }
 }
 
-// ===== UI sync helpers for the cart tab =====
+// ===== UI sync helpers =====
 function updateCartBucketUIFromModalState() {
   if (priceBucketId == null) return;
 
@@ -104,12 +104,18 @@ function updateCartBucketUIFromModalState() {
   }
   const newAvg = totalQty > 0 ? (weightedSum / totalQty) : null;
 
-  // Patch the cart tab tile
+  // Try to find tile on cart tab first, then main cart page
   const tile = document.querySelector(
     `.cart-tab .cart-item-tile[data-bucket-id="${priceBucketId}"]`
+  ) || document.querySelector(
+    `.cart-item-tile[data-bucket-id="${priceBucketId}"]`
   );
 
-  if (!tile) return;
+  if (!tile) {
+    // Tile not found in DOM, reload page to sync
+    setTimeout(() => location.reload(), 300);
+    return;
+  }
 
   // Update Qty input (#quantity-<bucketId>)
   const qtyInput = document.getElementById(`quantity-${priceBucketId}`) ||
@@ -126,21 +132,10 @@ function updateCartBucketUIFromModalState() {
       : '--';
   }
 
-  // If bucket became empty, remove the tile and show empty message if nothing remains
+  // If bucket became empty, reload page to show updated state
   if (totalQty <= 0) {
-    tile.remove();
-
-    // If no more tiles remain in the cart tab, show an empty message
-    const stillHasTiles = document.querySelector('.cart-tab .cart-item-tile');
-    if (!stillHasTiles) {
-      const col = document.querySelector('.cart-tab .cart-items-column');
-      if (col && !col.querySelector('.empty-message')) {
-        const p = document.createElement('p');
-        p.className = 'empty-message';
-        p.textContent = 'You have no items in your cart yet!';
-        col.appendChild(p);
-      }
-    }
+    closePriceBreakdown();
+    setTimeout(() => location.reload(), 300);
   }
 }
 
@@ -149,32 +144,51 @@ function removePriceListing() {
   const entry = priceData[priceIndex];
   if (!entry || !entry.listing_id) return;
 
-  if (!confirm('Remove this item from cart?')) return;
+  // Fetch the actual refill status from backend
+  fetch(`/cart/api/bucket/${priceBucketId}/can_refill_listing/${entry.listing_id}`)
+    .then(res => res.json())
+    .then(data => {
+      const canRefill = data.canRefill;
+      console.log('[Individual Listings] canRefill:', canRefill, 'availableCount:', data.availableCount);
 
-  fetch(`/cart/remove_item/${entry.listing_id}`, {
-    method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to remove item.');
+      // Open custom confirmation modal with callback to handle UI updates
+      openRemoveListingConfirmation(entry.listing_id, () => {
+        // Remove locally from priceData
+        priceData.splice(priceIndex, 1);
 
-      // Remove locally and re-render modal view
-      priceData.splice(priceIndex, 1);
+        // If nothing left in this bucket, close modal and reload
+        if (priceData.length === 0) {
+          closePriceBreakdown();
+          setTimeout(() => location.reload(), 300);
+          return;
+        }
 
-      // Sync the cart tab quantities/avg price
-      updateCartBucketUIFromModalState();
+        // Adjust index if needed and re-render
+        if (priceIndex > priceData.length - 1) {
+          priceIndex = priceData.length - 1;
+        }
+        renderPriceEntry();
 
-      // If nothing left in this bucket, close the modal; otherwise, move index if needed
-      if (priceData.length === 0) {
-        closePriceBreakdown();
-        return;
-      }
-      if (priceIndex > priceData.length - 1) priceIndex = priceData.length - 1;
-      renderPriceEntry();
+        // Update cart quantities and prices in the background
+        updateCartBucketUIFromModalState();
+      }, canRefill);
     })
     .catch(err => {
-      showCartItemsError(err?.message || 'Remove failed. Please try again.');
-      console.error('removePriceListing error:', err);
+      console.error('[Individual Listings] Error checking refill:', err);
+      // Default to safe behavior - assume no refill possible
+      openRemoveListingConfirmation(entry.listing_id, () => {
+        priceData.splice(priceIndex, 1);
+        if (priceData.length === 0) {
+          closePriceBreakdown();
+          setTimeout(() => location.reload(), 300);
+          return;
+        }
+        if (priceIndex > priceData.length - 1) {
+          priceIndex = priceData.length - 1;
+        }
+        renderPriceEntry();
+        updateCartBucketUIFromModalState();
+      }, false);
     });
 }
 
@@ -223,15 +237,23 @@ function renderPriceEntry() {
   const mint         = entry.mint ?? entry.mint_name ?? null;
   const purityRaw    = entry.purity ?? entry.fineness ?? entry.purity_pct ?? null;
   const finish       = entry.finish ?? entry.condition ?? null;
-  const grading      = entry.grading ?? entry.grade ?? null;
-  const gradingSvc   = entry.grading_service ?? entry.grader ?? null;
+  const grading = entry.grading ?? entry.grade ?? null;
+
+  let gradingSvc;
+  const gradedFlag = entry.graded;
+  if (gradedFlag === 1 || gradedFlag === "1" || gradedFlag === true) {
+    gradingSvc = entry.grading_service ?? entry.grader ?? null;
+  } else {
+    gradingSvc = "No 3rd Party Grading Verification";
+  }
+
   const seller       = entry.seller_username ?? entry.seller_name ?? entry.seller ?? entry.username ?? null;
 
   const purity = (() => {
     if (purityRaw == null || purityRaw === '') return null;
     const n = Number(purityRaw);
     if (Number.isNaN(n)) return purityRaw;
-    return n.toFixed(3);
+    return n.toFixed(4);
   })();
 
   const qtyRaw   = (entry.quantity ?? entry.total_quantity ?? null);
@@ -254,18 +276,29 @@ function renderPriceEntry() {
   const titleEl = document.getElementById('pb-username');
   if (titleEl) titleEl.textContent = title || 'Item';
 
-  // Image source or placeholder
+  // Image source or placeholder (prioritize image_url from listing_photos table)
   const imgSrc = (() => {
+    // 1) New system: image_url from listing_photos (normalized by backend)
     const candidates = [
-      entry.image_url, entry.listing_image_url, entry.photo_url,
-      entry.photo, entry.image, entry.image_src, entry.img_src
+      entry.image_url, entry.photo_url, entry.photo, entry.image,
+      entry.listing_image_url, entry.image_src, entry.img_src
     ];
     for (const c of candidates) {
       if (typeof c === 'string' && c.trim() !== '') return c;
     }
+
+    // 2) Legacy fallback: old photo_filename field (for backward compatibility)
+    if (entry.photo_filename) {
+      return `/static/uploads/listings/${encodeURIComponent(entry.photo_filename)}`;
+    }
+
+    // 3) Fallback placeholder
     const svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f3f4f6'/><text x='200' y='205' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-size='28' fill='%239ca3af'>No Image</text></svg>";
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
   })();
+
+
+
 
   // Left column (11 rows, always shown)
   const leftHTML = `

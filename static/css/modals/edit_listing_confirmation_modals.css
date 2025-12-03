@@ -1,0 +1,427 @@
+/* ==========================================================================
+   Edit Listing Confirmation Modal
+   Centered pop-up matching Bid Confirmation style
+   ========================================================================== */
+
+/* Modal overlay - darkens background */
+.edit-confirm-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+
+.edit-confirm-overlay.hiding {
+  opacity: 0;
+}
+
+/* Modal dialog - centered pop-up */
+.edit-confirm-dialog {
+  background: #fff;
+  width: 560px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  overflow: hidden;
+  transform: scale(1);
+  transition: transform 0.3s ease;
+  position: relative;
+}
+
+.edit-confirm-overlay:not(.active) .edit-confirm-dialog {
+  transform: scale(0.9);
+  opacity: 0;
+}
+
+.edit-confirm-overlay.active .edit-confirm-dialog {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Header */
+.edit-confirm-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 20px 20px 0 0;
+}
+
+.edit-confirm-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Body */
+.edit-confirm-body {
+  padding: 32px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Confirmation summary */
+.edit-confirm-summary {
+  max-width: 550px;
+  margin: 0 auto;
+}
+
+.edit-confirm-message {
+  font-size: 16px;
+  color: #374151;
+  margin: 0 0 24px 0;
+}
+
+.edit-summary-section {
+  margin-bottom: 20px;
+}
+
+.edit-summary-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.edit-summary-grid {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.edit-summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.edit-summary-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.edit-summary-row:first-child {
+  padding-top: 0;
+}
+
+.edit-summary-label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.edit-summary-value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 15px;
+  text-align: right;
+  max-width: 60%;
+  word-wrap: break-word;
+}
+
+.edit-summary-value.price-highlight {
+  color: #0066cc;
+  font-size: 18px;
+}
+
+.edit-confirm-question {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 24px 0 16px 0;
+  text-align: left;
+}
+
+.edit-confirm-divider {
+  border: none;
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0 6px;
+}
+
+/* Footer */
+.edit-confirm-footer {
+  padding: 20px 32px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+  border-radius: 0 0 20px 20px;
+}
+
+.edit-confirm-footer .btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-primary {
+  background: #0066cc;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #0052a3;
+}
+
+/* ==========================================================================
+   Edit Listing Success Modal
+   ========================================================================== */
+
+/* Base modal overlay - centered, fullscreen */
+.edit-success-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+
+.edit-success-overlay.hiding {
+  opacity: 0;
+}
+
+/* Base modal dialog - centered pop-up with scale animation */
+.edit-success-dialog {
+  background: #fff;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  overflow: hidden;
+  transform: scale(1);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  position: relative;
+}
+
+.edit-success-overlay:not(.active) .edit-success-dialog {
+  transform: scale(0.9);
+  opacity: 0;
+}
+
+.edit-success-overlay.active .edit-success-dialog {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Modal header */
+.edit-success-dialog .modal-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 20px 20px 0 0;
+}
+
+.edit-success-dialog .modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Modal body */
+.edit-success-dialog .modal-body {
+  padding: 32px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Modal footer */
+.edit-success-dialog .modal-footer {
+  padding: 20px 32px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+  border-radius: 0 0 20px 20px;
+}
+
+.edit-success-dialog .modal-footer .btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* Success Modal Header */
+.edit-success-dialog .modal-header.success-header {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-bottom: none;
+}
+
+.edit-success-dialog .modal-header.success-header h2 {
+  color: white;
+}
+
+/* Success Content */
+.edit-success-dialog .success-content {
+  max-width: 600px;
+}
+
+.edit-success-dialog .success-message {
+  font-size: 18px;
+  color: #059669;
+  font-weight: 600;
+  margin: 0 0 32px 0;
+  text-align: center;
+}
+
+.edit-success-dialog .order-details h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 24px 0;
+  border-bottom: 2px solid #10b981;
+  padding-bottom: 8px;
+}
+
+.edit-success-dialog .detail-section {
+  margin-bottom: 28px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.edit-success-dialog .detail-section h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.edit-success-dialog .detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.edit-success-dialog .detail-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.edit-success-dialog .detail-row:first-child {
+  padding-top: 0;
+}
+
+.edit-success-dialog .detail-label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.edit-success-dialog .detail-value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 15px;
+  text-align: right;
+  max-width: 60%;
+  word-wrap: break-word;
+}
+
+.edit-success-dialog .detail-value.price-highlight {
+  color: #0066cc;
+  font-size: 17px;
+}
+
+.edit-success-dialog .shipping-notice {
+  background: #ecfdf5;
+  border: 1px solid #10b981;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 24px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #065f46;
+}
+
+.edit-success-dialog .shipping-notice strong {
+  color: #047857;
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* Success Footer */
+.edit-success-dialog .modal-footer.success-footer {
+  background: #f9fafb;
+  padding-top: 0;
+}
+
+.edit-success-dialog .footer-divider {
+  border: none;
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0 0 20px 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .edit-confirm-dialog,
+  .edit-success-dialog {
+    width: 95vw;
+    max-height: 95vh;
+  }
+
+  .edit-summary-value {
+    max-width: 100%;
+  }
+
+  .edit-success-dialog .detail-value {
+    max-width: 55%;
+    font-size: 14px;
+  }
+}

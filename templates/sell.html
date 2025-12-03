@@ -6,135 +6,321 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sell.css') }}">
 
 <div class="sell-container">
-  <form method="POST" class="sell-form">
+    <form id="sellForm" method="POST" class="sell-form" enctype="multipart/form-data">
     <div class="input-grid">
 
       <h2 class="sell-header">List an Item</h2>
 
+      <!-- Metal (searchable, validated) -->
+      <div class="input-group">
+        <label for="metal">Metal</label>
+        <input
+          type="text"
+          name="metal"
+          id="metal"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="metal_options"
+          autocomplete="off"
+          required
+        >
+        <datalist id="metal_options">
+          {% for metal in metals %}
+          <option value="{{ metal }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: Gold</small>
+      </div>
 
-        <div class="input-group">
-            <label for="metal">Metal</label>
-            <select name="metal" autocomplete="off" required>
-                {% for metal in metals %}
-                <option value="{{ metal }}">{{ metal }}</option>
-                {% endfor %}
-            </select>
-            <small class="example-text">Example: Gold</small>
-        </div>
-          
-
-        <div class="input-group">
-            <label for="product_line">Product Line</label>
-            <select name="product_line" required>
-                {% for line in product_lines %}
-                <option value="{{ line }}">{{ line }}</option>
-                {% endfor %}
-            </select>
-            <small class="example-text">Example: American Eagle</small>
-        </div>
-
-      <!-- Divider between rows -->
-        <div class="row-divider"></div>
-        <h3 class="section-header">Product Specifications</h3>
-
-        <div class="input-group">
-            <label for="product_type">Product Type</label>
-            <select name="product_type" required>
-                {% for type in product_types %}
-                <option value="{{ type }}">{{ type }}</option>
-                {% endfor %}
-            </select>
-            <small class="example-text">Example: Coin</small>
-        </div>
-
-        <div class="input-group">
-            <label for="weight">Weight</label>
-            <select name="weight" required>
-                {% for weight in weights %}
-                <option value="{{ weight }}">{{ weight }}</option>
-                {% endfor %}
-            </select>
-            <small class="example-text">Example: 1 oz</small>
-        </div>
-
-        <div class="input-group">
-            <label for="mint">Mint</label>
-            <select name="mint" required>
-                {% for mint in mints %}
-                <option value="{{ mint }}">{{ mint }}</option>
-                {% endfor %}
-            </select>
-            <small class="example-text">Example: US Mint</small>
-        </div>
-
-        <div class="input-group">
-            <label for="year">Year</label>
-            <select name="year" required>
-                {% for year in years %}
-                <option value="{{ year }}">{{ year }}</option>
-                {% endfor %}
-            </select>
-            <small class="example-text">Example: 2025</small>
-        </div>
-
-        <div class="input-group">
-            <label for="finish">Finish</label>
-            <select name="finish" required>
-                {% for finish in finishes %}
-                <option value="{{ finish }}">{{ finish }}</option>
-                {% endfor %}
-            </select>
-            <small class="example-text">Example: Proof</small>
-        </div>
-
-        <div class="input-group">
-            <label for="grade">Grade</label>
-            <select name="grade" required>
-                {% for grade in grades %}
-                <option value="{{ grade }}">{{ grade }}</option>
-                {% endfor %}
-            </select>
-            <small class="example-text">Example: MS-70</small>
-
-        </div>
+      <!-- Product Line (searchable, validated) -->
+      <div class="input-group">
+        <label for="product_line">Product Line</label>
+        <input
+          type="text"
+          name="product_line"
+          id="product_line"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="product_line_options"
+          autocomplete="off"
+          required
+        >
+        <datalist id="product_line_options">
+          {% for line in product_lines %}
+          <option value="{{ line }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: American Eagle</small>
+      </div>
 
       <!-- Divider between rows -->
-        <div class="row-divider"></div>
-        <h3 class="section-header">Listing Specifications</h3>
+      <div class="row-divider"></div>
+      <h3 class="section-header">Product Specifications</h3>
 
-        <div class="input-group">
-            <label for="quantity">Quantity</label>
-            <input type="number" name="quantity" min="1" required>
-            <small class="example-text">Example: 5 Items</small>
+      <!-- Product Type (searchable, validated) -->
+      <div class="input-group">
+        <label for="product_type">Product Type</label>
+        <input
+          type="text"
+          name="product_type"
+          id="product_type"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="product_type_options"
+          autocomplete="off"
+          required
+        >
+        <datalist id="product_type_options">
+          {% for type in product_types %}
+          <option value="{{ type }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: Coin</small>
+      </div>
 
+      <!-- Weight (searchable, validated) -->
+      <div class="input-group">
+        <label for="weight">Weight</label>
+        <input
+          type="text"
+          name="weight"
+          id="weight"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="weight_options"
+          autocomplete="off"
+          required
+        >
+        <datalist id="weight_options">
+          {% for weight in weights %}
+          <option value="{{ weight }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: 1 oz</small>
+      </div>
+
+
+            <!-- Purity (searchable, validated) -->
+      <div class="input-group">
+        <label for="purity">Purity</label>
+        <input
+          type="text"
+          name="purity"
+          id="purity"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="purity_options"
+          autocomplete="off"
+          required
+        >
+        <datalist id="purity_options">
+          {% for purity in purities %}
+          <option value="{{ purity }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: .9999</small>
+      </div>
+
+      <!-- Mint (searchable, validated) -->
+      <div class="input-group">
+        <label for="mint">Mint</label>
+        <input
+          type="text"
+          name="mint"
+          id="mint"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="mint_options"
+          autocomplete="off"
+          required
+        >
+        <datalist id="mint_options">
+          {% for mint in mints %}
+          <option value="{{ mint }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: Mexican Mint</small>
+      </div>
+
+      <!-- Year (searchable, validated) -->
+      <div class="input-group">
+        <label for="year">Year</label>
+        <input
+          type="text"
+          name="year"
+          id="year"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="year_options"
+          autocomplete="off"
+          required
+        >
+        <datalist id="year_options">
+          {% for year in years %}
+          <option value="{{ year }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: 2025</small>
+      </div>
+
+      <!-- Finish (searchable, validated) -->
+      <div class="input-group">
+        <label for="finish">Finish</label>
+        <input
+          type="text"
+          name="finish"
+          id="finish"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="finish_options"
+          autocomplete="off"
+          required
+        >
+        <datalist id="finish_options">
+          {% for finish in finishes %}
+          <option value="{{ finish }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: Reverse Proof</small>
+      </div>
+
+      <!-- Grade (searchable, validated) -->
+      <div class="input-group">
+        <label for="grade">Grade</label>
+        <input
+          type="text"
+          name="grade"
+          id="grade"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="grade_options"
+          autocomplete="off"
+          required
+        >
+        <datalist id="grade_options">
+          {% for grade in grades %}
+          <option value="{{ grade }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: PF-70</small>
+      </div>
+
+      <!-- Divider between rows -->
+      <div class="row-divider"></div>
+      <h3 class="section-header">Listing Specifications</h3>
+
+      <!-- Listing Specifications: Two-column layout -->
+      <div class="listing-specs-container">
+        <!-- Left Column: Photo Only -->
+        <div class="listing-specs-left">
+          <!-- Photo Upload Box -->
+          <div class="photo-upload-group">
+            <label for="item_photo">Item Photo (required)</label>
+            <div class="photo-upload-box" id="photoUploadBox">
+              <span class="photo-upload-plus">+</span>
+              <img id="photoPreview" class="photo-preview" style="display: none;" alt="Preview">
+              <!-- Unified close button - positioned relative to photo box -->
+              <button type="button" class="close-button" id="photoClearBtn" style="display: none;" aria-label="Clear photo">&times;</button>
+            </div>
+            <input
+              type="file"
+              name="item_photo"
+              id="item_photo"
+              accept="image/*"
+              style="display: none;"
+            >
+            <small class="example-text">
+              Upload a clear photo of the item (JPG, PNG, etc.)
+            </small>
+          </div>
         </div>
 
-        <div class="input-group">
-            <label for="price_per_coin">Price Per Coin ($)</label>
-            <input type="number" name="price_per_coin" step="0.01" required>
-            <small class="example-text">Input Listing Price </small>
-
-        </div>
-
-        <div class="input-group">
-            <label for="graded">Item has been graded</label>
+        <!-- Right Column: Graded + Grading Service + Quantity + Price -->
+        <div class="listing-specs-right">
+          <!-- Item has been graded? -->
+          <div class="input-group">
+            <label for="graded">Item has been graded?</label>
             <select name="graded" id="graded" onchange="toggleGradingService()" required>
-                <option value="0" selected>No</option>
-                <option value="1">Yes</option>
+              <option value="0" selected>No</option>
+              <option value="1">Yes</option>
             </select>
-            <small class="example-text">Example: Yes</small>
+            <small class="example-text">Select if item is graded</small>
+          </div>
 
-        </div>
-
-        <div class="input-group" id="grading-service-section">
+          <!-- Grading Service (conditionally shown) -->
+          <div class="input-group" id="grading-service-section">
             <label for="grading_service">Grading Service</label>
             <select name="grading_service" id="grading_service">
-                <option value="PCGS">PCGS</option>
-                <option value="NBS">NBS</option>
+              <option value="PCGS">PCGS</option>
+              <option value="NBS">NBS</option>
             </select>
-            <small class="example-text">Example: PCGS</small>
+            <small class="example-text">Select grading service</small>
+          </div>
 
+          <!-- Quantity Input -->
+          <div class="input-group">
+            <label for="quantity">Quantity</label>
+            <input type="text" name="quantity" id="quantity" inputmode="numeric" pattern="[0-9]*" required>
+            <small class="example-text">Number of items (whole numbers only)</small>
+          </div>
+
+          <!-- Pricing Mode Selection -->
+          <div class="input-group">
+            <label>Pricing Mode</label>
+            <div class="pricing-mode-options">
+              <label class="radio-option">
+                <input type="radio" name="pricing_mode" value="static" id="pricing_mode_static" checked>
+                <span>Fixed Price</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="pricing_mode" value="premium_to_spot" id="pricing_mode_premium">
+                <span>Premium to Spot</span>
+              </label>
+            </div>
+            <small class="example-text">Choose pricing method</small>
+          </div>
+
+          <!-- Static Price Input (shown by default) -->
+          <div class="input-group" id="static_price_group">
+            <label for="price_per_coin">Price Per Coin</label>
+            <div class="price-input-wrapper">
+              <span class="price-currency">$</span>
+              <input type="text" name="price_per_coin" id="price_per_coin" inputmode="decimal">
+            </div>
+            <small class="example-text">Fixed USD price per coin</small>
+          </div>
+
+          <!-- Premium-to-Spot Fields (hidden by default) -->
+          <div id="premium_to_spot_fields" style="display: none;">
+            <div class="input-group">
+              <label for="spot_premium">Premium Above Spot ($)</label>
+              <div class="price-input-wrapper">
+                <span class="price-currency">$</span>
+                <input type="text" name="spot_premium" id="spot_premium" inputmode="decimal" placeholder="e.g., 100.00">
+              </div>
+              <small class="example-text">Amount above spot price</small>
+            </div>
+
+            <div class="input-group">
+              <label for="floor_price">Floor Price ($)</label>
+              <div class="price-input-wrapper">
+                <span class="price-currency">$</span>
+                <input type="text" name="floor_price" id="floor_price" inputmode="decimal" placeholder="e.g., 2000.00">
+              </div>
+              <small class="example-text">Minimum price protection</small>
+            </div>
+
+            <div class="input-group">
+              <label for="pricing_metal">Pricing Metal</label>
+              <select name="pricing_metal" id="pricing_metal">
+                <option value="">Use category metal</option>
+                <option value="gold">Gold</option>
+                <option value="silver">Silver</option>
+                <option value="platinum">Platinum</option>
+                <option value="palladium">Palladium</option>
+              </select>
+              <small class="example-text">Which spot price to use</small>
+            </div>
+
+            <div class="price-preview" id="price_preview" style="display: none;">
+              <strong>Current Preview Price:</strong>
+              <span class="preview-amount">$0.00</span>
+              <small>Based on spot: <span class="spot-price">$0.00</span>/oz</small>
+            </div>
+          </div>
         </div>
+      </div>
 
       <!-- Final divider -->
       <div class="row-divider"></div>
@@ -143,9 +329,24 @@
       <button type="submit" class="btn submit-btn full-width-button">List Item</button>
 
     </div>
-
   </form>
 </div>
 
+<!-- ============ Sell Listing Modals ============ -->
+{% include 'modals/sell_listing_modals.html' %}
+
+<!-- ============ Field Validation Modal ============ -->
+{% include 'modals/field_validation_modal.html' %}
+
+<!-- Sell page scripts -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/sell_listing_modals.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/field_validation_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/modal-close-button.css') }}">
+<script>
+  // Make prefill data available to sell.js
+  window.sellPrefillData = {{ prefill | tojson }};
+</script>
 <script src="{{ url_for('static', filename='js/sell.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modals/sell_listing_modals.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/modals/field_validation_modal.js') }}"></script>
 {% endblock %}

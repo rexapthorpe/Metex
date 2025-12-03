@@ -2,10 +2,11 @@
 
 <!-- bring in the remove-item confirmation styling -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_remove_item_confirmation_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/remove_listing_confirmation_modal.css') }}">
+
+<h2 class="tab-heading">My Cart</h2>
 
 <div class="cart-page-layout cart-tab">
-  <h2 class="tab-heading">My Cart</h2>
-
   <div class="cart-items-column">
     {% if buckets %}
       {% for bucket_id, bucket in buckets.items() %}
@@ -48,8 +49,8 @@
                       inputmode="numeric"
                       pattern="[0-9]*"
                       min="1"
-                      max="99"
-                      value="{{ bucket.total_quantity }}"
+                      max="{{ bucket.total_available }}"
+                      value="{{ bucket.total_qty }}"
                       aria-live="polite"
                     />
                     <button class="cart-qty__btn cart-qty__plus" type="button" aria-label="Increase quantity">+</button>
@@ -88,12 +89,57 @@
         </div>
       {% endfor %}
     {% else %}
-      <p class="empty-message">You have no items in your cart yet!</p>
+      <div class="empty-cart-container-car-tab">
+        <p class="empty-cart-message">Your cart is empty. Let's find some items!</p>
+        <a href="{{ url_for('buy.buy') }}">
+          <button class="add-items-to-cart-given-empty-cart-btn-cart-tab">
+            Add Items to Cart
+          </button>
+        </a>
+      </div>
     {% endif %}
   </div>
+
+  {# Order Summary - same as cart page #}
+  {% if buckets %}
+  <div class="cart-summary-fixed">
+    <h3>Order Summary</h3>
+    {% for bucket_id, bucket in buckets.items() %}
+      <div class="summary-line" data-bucket-id="{{ bucket_id }}">
+        <p><strong>{{ bucket.category.metal }} {{ bucket.category.product_type }}</strong></p>
+        <p class="summary-qty" id="summary-qty-{{ bucket_id }}">Quantity: {{ bucket.total_qty }}</p>
+        <p>Avg Price: ${{ '%.2f' % bucket.avg_price }}</p>
+        <p class="summary-total" id="summary-total-{{ bucket_id }}">Total: ${{ '%.2f' % bucket.total_price }}</p>
+        <hr>
+      </div>
+    {% endfor %}
+    <p><strong>Total for All Items:</strong> ${{ '%.2f' % cart_total }}</p>
+    {% if session.get('user_id') %}
+      <a href="{{ url_for('checkout.checkout') }}">
+        <button class="btn proceed-btn">Proceed to Checkout</button>
+      </a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}">
+        <button class="btn login-btn">Login to Checkout</button>
+      </a>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 
-{# Include the same modals the cart page uses #}
-{% include 'modals/cart_sellers_modal.html' %}
-{% include 'modals/remove_seller_confirmation_modal.html' %}
-{% include 'modals/cart_individual_listings_modal.html' %}
+<!-- Pass per-unit price arrays to JS for quantity calculations -->
+<script>
+  const cartData = {
+  {% for bucket_id, bucket in buckets.items() %}
+    "{{ bucket_id }}": [
+      {% for listing in bucket.listings %}
+        {% for _ in range(listing.quantity) %}
+          {{ listing.price_per_coin }},
+        {% endfor %}
+      {% endfor %}
+    ],
+  {% endfor %}
+  };
+</script>
+
+{# Modals are included at the account.html page level, not here #}

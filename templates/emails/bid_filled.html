@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Bid Has Been Filled!</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <!-- Main Container -->
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden;">
+
+                    <!-- Header with gradient -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700;">
+                                🎉 Congratulations!
+                            </h1>
+                            <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 18px; opacity: 0.95;">
+                                Your bid has been filled!
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Content Section -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="margin: 0 0 20px 0; color: #333333; font-size: 24px; font-weight: 600;">
+                                Great news, {{ username }}!
+                            </h2>
+
+                            <p style="margin: 0 0 20px 0; color: #555555; font-size: 16px; line-height: 1.6;">
+                                We're excited to let you know that your bid has been {{ 'partially' if partial else 'fully' }} filled.
+                                A seller has accepted your offer!
+                            </p>
+
+                            <!-- Order Details Card -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; margin: 25px 0; border: 1px solid #e9ecef;">
+                                <tr>
+                                    <td style="padding: 25px;">
+                                        <h3 style="margin: 0 0 15px 0; color: #667eea; font-size: 18px; font-weight: 600;">
+                                            Order Details
+                                        </h3>
+
+                                        <table width="100%" cellpadding="8" cellspacing="0">
+                                            <tr>
+                                                <td style="color: #777777; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <strong>Item:</strong>
+                                                </td>
+                                                <td align="right" style="color: #333333; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    {{ item_description }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #777777; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <strong>Quantity Filled:</strong>
+                                                </td>
+                                                <td align="right" style="color: #333333; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    {{ quantity }} units
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #777777; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <strong>Price Per Unit:</strong>
+                                                </td>
+                                                <td align="right" style="color: #333333; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    ${{ "%.2f"|format(price_per_unit) }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color: #777777; font-size: 16px; font-weight: 600; padding: 12px 0 8px 0;">
+                                                    <strong>Total Amount:</strong>
+                                                </td>
+                                                <td align="right" style="color: #667eea; font-size: 20px; font-weight: 700; padding: 12px 0 8px 0;">
+                                                    ${{ "%.2f"|format(total_amount) }}
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {% if partial %}
+                            <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                                <p style="margin: 0; color: #856404; font-size: 14px;">
+                                    <strong>Note:</strong> This is a partial fill. Your bid for the remaining {{ remaining_quantity }} units is still active.
+                                </p>
+                            </div>
+                            {% endif %}
+
+                            <!-- Next Steps -->
+                            <div style="margin: 30px 0 20px 0;">
+                                <h3 style="margin: 0 0 15px 0; color: #333333; font-size: 18px; font-weight: 600;">
+                                    What's Next?
+                                </h3>
+                                <ul style="margin: 0; padding-left: 20px; color: #555555; font-size: 15px; line-height: 1.8;">
+                                    <li>Your order has been created and is pending shipment</li>
+                                    <li>The seller will ship your items soon</li>
+                                    <li>You'll receive tracking information once shipped</li>
+                                    <li>Check your Orders tab for updates</li>
+                                </ul>
+                            </div>
+
+                            <!-- CTA Button -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0 10px 0;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="{{ orders_url }}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);">
+                                            View Your Orders
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                            <p style="margin: 0 0 10px 0; color: #777777; font-size: 14px;">
+                                Thank you for using MetEx!
+                            </p>
+                            <p style="margin: 0; color: #999999; font-size: 12px;">
+                                This is an automated notification. Please do not reply to this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
