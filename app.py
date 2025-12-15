@@ -175,4 +175,4 @@ def index():
     return redirect(url_for('buy.buy'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5001)
