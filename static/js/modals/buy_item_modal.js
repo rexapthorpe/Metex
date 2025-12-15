@@ -34,11 +34,14 @@ function openBuyItemConfirmModal(itemData) {
   document.getElementById('buy-spec-grade').textContent = specs['Grading'] || '—';
   document.getElementById('buy-spec-product-line').textContent = specs['Product line'] || '—';
 
-  // Populate "Requires 3rd Party Grading" field (graded uses lowercase key)
-  const requiresGrading = (specs.graded === 1 || specs.graded === '1') ? 'Yes' : 'No';
+  // Populate "Requires 3rd Party Grading" field based on buyer's toggle choice
+  // Check the TPG toggle state from the page
+  const tpgToggle = document.getElementById('tpgToggle');
+  const thirdPartyGradingRequested = tpgToggle && tpgToggle.checked;
+  const requiresGrading = thirdPartyGradingRequested ? 'Yes' : 'No';
   document.getElementById('buy-spec-requires-grading').textContent = requiresGrading;
 
-  // Conditionally show/hide grading service field (grading_service uses lowercase key)
+  // Conditionally show/hide grading service field (only show if listing is already graded)
   const gradingServiceRow = document.getElementById('buy-spec-grading-service-row');
   if ((specs.graded === 1 || specs.graded === '1') && specs.grading_service) {
     document.getElementById('buy-spec-grading-service').textContent = specs.grading_service;
@@ -47,25 +50,10 @@ function openBuyItemConfirmModal(itemData) {
     gradingServiceRow.style.display = 'none';
   }
 
-  // Determine grading preference text
-  let gradingText = 'Any (Graded or Ungraded)';
-  if (itemData.graded_only === '1' || itemData.graded_only === 1) {
-    if (itemData.pcgs === '1' || itemData.pcgs === 1) {
-      gradingText = 'PCGS Graded Only';
-    } else if (itemData.ngc === '1' || itemData.ngc === 1) {
-      gradingText = 'NGC Graded Only';
-    } else if (itemData.any_grader === '1' || itemData.any_grader === 1) {
-      gradingText = 'Any Professional Grading';
-    } else {
-      gradingText = 'Graded Only';
-    }
-  }
-
   // Set loading state for purchase summary
   document.getElementById('buy-confirm-price').textContent = 'Calculating...';
   document.getElementById('buy-confirm-quantity').textContent = itemData.quantity;
   document.getElementById('buy-confirm-total').textContent = 'Calculating...';
-  document.getElementById('buy-confirm-grading').textContent = gradingText;
 
   // Show modal with animation
   modal.style.display = 'flex';
@@ -73,13 +61,31 @@ function openBuyItemConfirmModal(itemData) {
     modal.classList.add('active');
   });
 
+  // Fetch and populate delivery addresses
+  fetchAndPopulateAddresses();
+
   // Fetch actual price breakdown from backend
   const formData = new FormData();
   formData.append('quantity', itemData.quantity);
-  formData.append('graded_only', itemData.graded_only || '0');
-  formData.append('any_grader', itemData.any_grader || '0');
-  formData.append('pcgs', itemData.pcgs || '0');
-  formData.append('ngc', itemData.ngc || '0');
+
+  // Include Random Year mode if enabled
+  const randomYearToggle = document.getElementById('randomYearToggle');
+  if (randomYearToggle && randomYearToggle.checked) {
+    formData.append('random_year', '1');
+  }
+
+  // Include Third-Party Grading toggle if enabled (tpgToggle already declared above)
+  if (tpgToggle && tpgToggle.checked) {
+    formData.append('third_party_grading', '1');
+  } else {
+    formData.append('third_party_grading', '0');
+  }
+
+  // Include packaging filters (multi-select)
+  const packagingTypeCheckboxes = document.querySelectorAll('.packaging-type-checkbox:checked');
+  packagingTypeCheckboxes.forEach(checkbox => {
+    formData.append('packaging_styles', checkbox.value);
+  });
 
   fetch(`/preview_buy/${itemData.bucket_id}`, {
     method: 'POST',
@@ -95,10 +101,45 @@ function openBuyItemConfirmModal(itemData) {
         const avgPrice = data.average_price || 0;
         const totalCost = data.total_cost || 0;
         const totalQty = data.total_quantity || 0;
+        const thirdPartyGrading = data.third_party_grading || false;
+        const gradingFeePerUnit = data.grading_fee_per_unit || 0;
+        const gradingFeeTotal = data.grading_fee_total || 0;
+        const grandTotal = data.grand_total || totalCost;
 
         document.getElementById('buy-confirm-price').textContent = `$${avgPrice.toFixed(2)} USD (avg)`;
         document.getElementById('buy-confirm-quantity').textContent = totalQty;
         document.getElementById('buy-confirm-total').textContent = `$${totalCost.toFixed(2)} USD`;
+
+        // Update grading fee display
+        const gradingFeeRow = document.getElementById('buy-confirm-grading-fee-row');
+        const gradingFeeEl = document.getElementById('buy-confirm-grading-fee');
+        const grandTotalRow = document.getElementById('buy-confirm-grand-total-row');
+        const grandTotalEl = document.getElementById('buy-confirm-grand-total');
+
+        if (thirdPartyGrading && gradingFeeTotal > 0) {
+          // Show grading fee row
+          if (gradingFeeEl) {
+            gradingFeeEl.textContent = `$${gradingFeeTotal.toFixed(2)} USD`;
+          }
+          if (gradingFeeRow) {
+            gradingFeeRow.style.display = '';
+          }
+          // Show grand total row
+          if (grandTotalEl) {
+            grandTotalEl.textContent = `$${grandTotal.toFixed(2)} USD`;
+          }
+          if (grandTotalRow) {
+            grandTotalRow.style.display = '';
+          }
+        } else {
+          // Hide grading fee and grand total rows
+          if (gradingFeeRow) {
+            gradingFeeRow.style.display = 'none';
+          }
+          if (grandTotalRow) {
+            grandTotalRow.style.display = 'none';
+          }
+        }
 
         // Store preview data for later use
         pendingBuyData.previewData = data;
@@ -164,11 +205,75 @@ function openBuyItemSuccessModal(orderData) {
   const totalAmount = orders.reduce((sum, order) => sum + order.total_price, 0);
   const avgPrice = totalQuantity > 0 ? totalAmount / totalQuantity : 0;
 
-  // Populate summary
-  document.getElementById('success-total-quantity').textContent = totalQuantity;
-  document.getElementById('success-avg-price').textContent = `$${avgPrice.toFixed(2)} USD`;
-  document.getElementById('success-total-amount').textContent = `$${totalAmount.toFixed(2)} USD`;
-  document.getElementById('success-shipping-address').textContent = orderData.shipping_address || '—';
+  // Get grading info
+  const thirdPartyGrading = orderData.third_party_grading || false;
+  const gradingFeeTotal = orderData.grading_fee_total || 0;
+  const itemsTotal = totalAmount - gradingFeeTotal;
+
+  // Populate summary (with comma formatting)
+  modal.querySelector('#success-total-quantity').textContent = typeof formatQuantity === 'function' ? formatQuantity(totalQuantity) : totalQuantity;
+  modal.querySelector('#success-avg-price').textContent = typeof formatPrice === 'function' ? `$${formatPrice(avgPrice, false)} USD` : `$${avgPrice.toFixed(2)} USD`;
+  modal.querySelector('#success-total-amount').textContent = typeof formatPrice === 'function' ? `$${formatPrice(totalAmount, false)} USD` : `$${totalAmount.toFixed(2)} USD`;
+
+  // Show/hide grading fee breakdown
+  const successGradingFeeRow = modal.querySelector('#success-grading-fee-row');
+  const successItemsTotalRow = modal.querySelector('#success-items-total-row');
+  const successGradingCallout = modal.querySelector('#success-grading-callout');
+
+  if (thirdPartyGrading && gradingFeeTotal > 0) {
+    // Show items total row
+    if (successItemsTotalRow) {
+      const itemsTotalEl = successItemsTotalRow.querySelector('#success-items-total');
+      if (itemsTotalEl) {
+        itemsTotalEl.textContent = typeof formatPrice === 'function' ? `$${formatPrice(itemsTotal, false)} USD` : `$${itemsTotal.toFixed(2)} USD`;
+      }
+      successItemsTotalRow.style.display = '';
+    }
+    // Show grading fee row
+    if (successGradingFeeRow) {
+      const gradingFeeEl = successGradingFeeRow.querySelector('#success-grading-fee');
+      if (gradingFeeEl) {
+        gradingFeeEl.textContent = typeof formatPrice === 'function' ? `$${formatPrice(gradingFeeTotal, false)} USD` : `$${gradingFeeTotal.toFixed(2)} USD`;
+      }
+      successGradingFeeRow.style.display = '';
+    }
+    // Show grading callout
+    if (successGradingCallout) {
+      successGradingCallout.style.display = '';
+    }
+  } else {
+    // Hide grading-related rows and callout
+    if (successItemsTotalRow) successItemsTotalRow.style.display = 'none';
+    if (successGradingFeeRow) successGradingFeeRow.style.display = 'none';
+    if (successGradingCallout) successGradingCallout.style.display = 'none';
+  }
+
+  // Populate delivery address fields from structured data
+  const deliveryAddress = orderData.delivery_address;
+  if (deliveryAddress) {
+    // Use modal.querySelector to ensure we target the correct modal's elements
+    const line1El = modal.querySelector('#success-address-line1');
+    const line2El = modal.querySelector('#success-address-line2');
+    const cityEl = modal.querySelector('#success-address-city');
+    const stateEl = modal.querySelector('#success-address-state');
+    const zipEl = modal.querySelector('#success-address-zip');
+
+    if (line1El) line1El.textContent = deliveryAddress.line1 || '—';
+    if (line2El) {
+      const line2 = deliveryAddress.line2 || '';
+      line2El.textContent = line2.trim() ? line2 : '—';
+    }
+    if (cityEl) cityEl.textContent = deliveryAddress.city || '—';
+    if (stateEl) stateEl.textContent = deliveryAddress.state || '—';
+    if (zipEl) zipEl.textContent = deliveryAddress.zip || '—';
+  } else {
+    // No address provided - show all as dashes
+    modal.querySelector('#success-address-line1').textContent = '—';
+    modal.querySelector('#success-address-line2').textContent = '—';
+    modal.querySelector('#success-address-city').textContent = '—';
+    modal.querySelector('#success-address-state').textContent = '—';
+    modal.querySelector('#success-address-zip').textContent = '—';
+  }
 
   // Populate item specs (from bucket)
   const bucket = orderData.bucket || {};
@@ -193,6 +298,24 @@ function openBuyItemSuccessModal(orderData) {
       if (valueEl) valueEl.textContent = value;
     }
   });
+
+  // Populate "3rd party graded" status based on buyer's TPG choice
+  // This reflects whether the buyer requested third-party grading service for this order
+  const gradingEl = document.getElementById('success-buy-spec-grading');
+  if (gradingEl) {
+    const gradingValueEl = gradingEl.querySelector('.spec-value');
+    if (gradingValueEl) {
+      // Use orderData.third_party_grading to determine if TPG service was requested
+      const thirdPartyGradingRequested = orderData.third_party_grading || false;
+      if (thirdPartyGradingRequested) {
+        // Buyer requested TPG service
+        gradingValueEl.textContent = 'Yes';
+      } else {
+        // Buyer did not request TPG service
+        gradingValueEl.textContent = 'No';
+      }
+    }
+  }
 
   // Show modal with animation
   modal.style.display = 'flex';
@@ -232,13 +355,52 @@ function handleConfirmBuy() {
   confirmBtn.disabled = true;
   confirmBtn.textContent = 'Processing...';
 
+  // Get selected delivery address
+  const deliveryAddressSelect = document.getElementById('deliveryAddressSelect');
+  const selectedAddressId = deliveryAddressSelect ? deliveryAddressSelect.value : '';
+
+  // Validate address selection
+  if (!selectedAddressId || selectedAddressId === 'add-new') {
+    alert('Please select a delivery address before completing your purchase.');
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Yes, Complete Purchase';
+    return;
+  }
+
   // Prepare form data
   const formData = new FormData();
   formData.append('quantity', pendingBuyData.quantity);
-  formData.append('graded_only', pendingBuyData.graded_only || '0');
-  formData.append('any_grader', pendingBuyData.any_grader || '0');
-  formData.append('pcgs', pendingBuyData.pcgs || '0');
-  formData.append('ngc', pendingBuyData.ngc || '0');
+  formData.append('address_id', selectedAddressId);
+
+  // Include Random Year mode if enabled
+  const randomYearToggle = document.getElementById('randomYearToggle');
+  if (randomYearToggle && randomYearToggle.checked) {
+    formData.append('random_year', '1');
+  }
+
+  // Include Third-Party Grading toggle if enabled
+  const tpgToggle = document.getElementById('tpgToggle');
+  if (tpgToggle && tpgToggle.checked) {
+    formData.append('third_party_grading', '1');
+  } else {
+    formData.append('third_party_grading', '0');
+  }
+
+  // Include packaging filters (multi-select)
+  const packagingTypeCheckboxes = document.querySelectorAll('.packaging-type-checkbox:checked');
+  packagingTypeCheckboxes.forEach(checkbox => {
+    formData.append('packaging_styles', checkbox.value);
+  });
+
+  // ✅ Include recipient name (source of truth for Buyer Name on Sold tiles)
+  const recipientFirstInput = document.getElementById('buy-recipient-first');
+  const recipientLastInput = document.getElementById('buy-recipient-last');
+  if (recipientFirstInput) {
+    formData.append('recipient_first', recipientFirstInput.value.trim());
+  }
+  if (recipientLastInput) {
+    formData.append('recipient_last', recipientLastInput.value.trim());
+  }
 
   // Include price lock IDs if we have them
   if (priceLockData && priceLockData.price_locks) {
@@ -264,7 +426,61 @@ function handleConfirmBuy() {
     })
     .then(data => {
       if (data.success) {
-        // Close confirmation modal
+        // Check if user listings were skipped
+        if (data.user_listings_skipped === true) {
+          console.log('[BuyItemModal] User listings were skipped - showing notification modal');
+
+          // Show notification modal (it will overlay the confirmation modal)
+          if (typeof window.showOwnListingsSkippedModalFunc === 'function') {
+            window.showOwnListingsSkippedModalFunc();
+
+            // Set up one-time listener to proceed after notification modal closes
+            const notificationModal = document.getElementById('ownListingsSkippedModal');
+            const okBtn = document.getElementById('ownListingsSkippedOkBtn');
+
+            const proceedAfterNotification = function() {
+              console.log('[BuyItemModal] Notification acknowledged - proceeding with success modal');
+
+              // Remove this listener
+              if (okBtn) {
+                okBtn.removeEventListener('click', proceedAfterNotification);
+              }
+
+              // Hide notification modal
+              if (typeof window.hideOwnListingsSkippedModalFunc === 'function') {
+                window.hideOwnListingsSkippedModalFunc();
+              }
+
+              // Now proceed with normal flow: close confirmation, show success
+              setTimeout(() => {
+                closeBuyItemConfirmModal();
+                setTimeout(() => {
+                  openBuyItemSuccessModal(data);
+                }, 350);
+              }, 300);
+            };
+
+            // Attach listener to OK button
+            if (okBtn) {
+              okBtn.addEventListener('click', proceedAfterNotification);
+            }
+
+            // Also handle background click to close notification
+            if (notificationModal) {
+              const handleBgClick = function(e) {
+                if (e.target === notificationModal) {
+                  notificationModal.removeEventListener('click', handleBgClick);
+                  proceedAfterNotification();
+                }
+              };
+              notificationModal.addEventListener('click', handleBgClick);
+            }
+
+            return; // Don't proceed with normal flow yet
+          }
+        }
+
+        // Normal flow (no skipped listings): close confirmation modal, show success
         closeBuyItemConfirmModal();
 
         // Show success modal with order details
@@ -329,10 +545,6 @@ function interceptBuyForm() {
       // Get form data
       const bucketId = form.querySelector('input[name="bucket_id"]')?.value;
       const quantity = form.querySelector('input[name="quantity"]')?.value || '1';
-      const gradedOnly = form.querySelector('input[name="graded_only"]')?.value;
-      const anyGrader = form.querySelector('input[name="any_grader"]')?.value;
-      const pcgs = form.querySelector('input[name="pcgs"]')?.value;
-      const ngc = form.querySelector('input[name="ngc"]')?.value;
 
       // Get price from page (from cheapest listing or current price display)
       let price = window.lowestPrice || 0;
@@ -351,11 +563,7 @@ function interceptBuyForm() {
         form: form,
         bucket_id: bucketId,
         quantity: quantity,
-        price: price,
-        graded_only: gradedOnly,
-        any_grader: anyGrader,
-        pcgs: pcgs,
-        ngc: ngc
+        price: price
       };
 
       // Show confirmation modal
@@ -380,7 +588,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Close confirm modal on overlay click
   document.getElementById('buyItemConfirmModal')?.addEventListener('click', (e) => {
     if (e.target.id === 'buyItemConfirmModal') {
-      closeBuyItemConfirmModal();
+      // Don't close if address modal or confirmation modal is open (higher z-index)
+      const addressModal = document.getElementById('addressModal');
+      const confirmModal = document.getElementById('saveAddressConfirmModal');
+
+      const addressModalOpen = addressModal && addressModal.style.display === 'flex';
+      const confirmModalOpen = confirmModal && confirmModal.style.display === 'flex';
+
+      if (!addressModalOpen && !confirmModalOpen) {
+        closeBuyItemConfirmModal();
+      }
     }
   });
 
@@ -401,10 +618,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // Close modals on Escape key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      closeBuyItemConfirmModal();
-      closeBuyItemSuccessModal();
-      closeBuyPaymentModal();
-      closeBuyAddressErrorModal();
+      // Check if higher z-index modals are open first
+      const addressModal = document.getElementById('addressModal');
+      const confirmModal = document.getElementById('saveAddressConfirmModal');
+
+      const addressModalOpen = addressModal && addressModal.style.display === 'flex';
+      const confirmModalOpen = confirmModal && confirmModal.style.display === 'flex';
+
+      // Only close Buy Item modals if no higher z-index modals are open
+      if (!addressModalOpen && !confirmModalOpen) {
+        closeBuyItemConfirmModal();
+        closeBuyItemSuccessModal();
+        closeBuyPaymentModal();
+        closeBuyAddressErrorModal();
+      }
+      // If higher modals are open, let their own Escape handlers deal with them
     }
   });
 
@@ -414,6 +642,12 @@ document.addEventListener('DOMContentLoaded', () => {
       closeBuyAddressErrorModal();
     }
   });
+
+  // Wire up delivery address dropdown change handler
+  const deliveryAddressSelect = document.getElementById('deliveryAddressSelect');
+  if (deliveryAddressSelect) {
+    deliveryAddressSelect.addEventListener('change', handleAddressSelection);
+  }
 });
 
 /**
@@ -598,10 +832,6 @@ function refreshPriceLock() {
   // Prepare form data (same as original preview request)
   const formData = new FormData();
   formData.append('quantity', pendingBuyData.quantity);
-  formData.append('graded_only', pendingBuyData.graded_only || '0');
-  formData.append('any_grader', pendingBuyData.any_grader || '0');
-  formData.append('pcgs', pendingBuyData.pcgs || '0');
-  formData.append('ngc', pendingBuyData.ngc || '0');
 
   // Show loading state
   setTimeout(() => {
@@ -690,29 +920,20 @@ function openBuyItemConfirmModalWithData(itemData, previewData) {
   document.getElementById('buy-spec-grade').textContent = specs['Grading'] || '—';
   document.getElementById('buy-spec-product-line').textContent = specs['Product line'] || '—';
 
-  const requiresGrading = (specs.graded === 1 || specs.graded === '1') ? 'Yes' : 'No';
+  // Populate "Requires 3rd Party Grading" field based on buyer's toggle choice
+  // Check the TPG toggle state from the page
+  const tpgToggle = document.getElementById('tpgToggle');
+  const thirdPartyGradingRequested = tpgToggle && tpgToggle.checked;
+  const requiresGrading = thirdPartyGradingRequested ? 'Yes' : 'No';
   document.getElementById('buy-spec-requires-grading').textContent = requiresGrading;
 
+  // Conditionally show/hide grading service field (only show if listing is already graded)
   const gradingServiceRow = document.getElementById('buy-spec-grading-service-row');
   if ((specs.graded === 1 || specs.graded === '1') && specs.grading_service) {
     document.getElementById('buy-spec-grading-service').textContent = specs.grading_service;
     gradingServiceRow.style.display = '';
   } else {
     gradingServiceRow.style.display = 'none';
-  }
-
-  // Determine grading preference text
-  let gradingText = 'Any (Graded or Ungraded)';
-  if (itemData.graded_only === '1' || itemData.graded_only === 1) {
-    if (itemData.pcgs === '1' || itemData.pcgs === 1) {
-      gradingText = 'PCGS Graded Only';
-    } else if (itemData.ngc === '1' || itemData.ngc === 1) {
-      gradingText = 'NGC Graded Only';
-    } else if (itemData.any_grader === '1' || itemData.any_grader === 1) {
-      gradingText = 'Any Professional Grading';
-    } else {
-      gradingText = 'Graded Only';
-    }
   }
 
   // Update modal with actual prices from previewData
@@ -723,7 +944,6 @@ function openBuyItemConfirmModalWithData(itemData, previewData) {
   document.getElementById('buy-confirm-price').textContent = `$${avgPrice.toFixed(2)} USD (avg)`;
   document.getElementById('buy-confirm-quantity').textContent = totalQty;
   document.getElementById('buy-confirm-total').textContent = `$${totalCost.toFixed(2)} USD`;
-  document.getElementById('buy-confirm-grading').textContent = gradingText;
 
   // Show modal with animation
   modal.style.display = 'flex';
@@ -742,6 +962,133 @@ function openBuyItemConfirmModalWithData(itemData, previewData) {
   }
 }
 
+/**
+ * Fetch and populate delivery addresses dropdown
+ */
+function fetchAndPopulateAddresses(selectAddressId = null) {
+  const select = document.getElementById('deliveryAddressSelect');
+  const noAddressMessage = document.getElementById('noAddressesMessage');
+
+  if (!select) return;
+
+  // Set loading state
+  select.innerHTML = '<option value="">Loading addresses...</option>';
+  select.disabled = true;
+
+  // Fetch addresses from backend
+  fetch('/account/get_addresses')
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.addresses && data.addresses.length > 0) {
+        // Clear and populate dropdown
+        select.innerHTML = '';
+
+        // Add each address as an option
+        data.addresses.forEach(addr => {
+          const option = document.createElement('option');
+          option.value = addr.id;
+
+          // Format address label: "Name – Street, Apt, City, ST ZIP"
+          let label = addr.name || 'Address';
+          label += ' – ' + addr.street;
+
+          if (addr.street_line2 && addr.street_line2.trim()) {
+            label += ', ' + addr.street_line2;
+          }
+
+          label += ', ' + addr.city + ', ' + addr.state + ' ' + addr.zip_code;
+
+          option.textContent = label;
+          select.appendChild(option);
+        });
+
+        // Add "+ Add delivery address" option at bottom
+        const addNewOption = document.createElement('option');
+        addNewOption.value = 'add-new';
+        addNewOption.textContent = '+ Add delivery address';
+        select.appendChild(addNewOption);
+
+        // If selectAddressId is provided, select it; otherwise select the first address
+        if (selectAddressId) {
+          select.value = selectAddressId;
+        } else {
+          select.selectedIndex = 0;
+        }
+
+        // Enable dropdown
+        select.disabled = false;
+        noAddressMessage.style.display = 'none';
+      } else {
+        // No addresses - show message but keep dropdown interactive
+        select.innerHTML = '<option value="">No addresses available</option>';
+        select.disabled = false; // ✅ Keep enabled so user can see it's not broken
+        select.style.cursor = 'default'; // ✅ Normal cursor (not "not-allowed")
+        noAddressMessage.style.display = 'block';
+      }
+
+      // Auto-populate recipient name fields from user profile (if fields exist)
+      if (data.user_info) {
+        const firstNameInput = document.getElementById('buy-recipient-first');
+        const lastNameInput = document.getElementById('buy-recipient-last');
+        if (firstNameInput && data.user_info.first_name) {
+          firstNameInput.value = data.user_info.first_name;
+        }
+        if (lastNameInput && data.user_info.last_name) {
+          lastNameInput.value = data.user_info.last_name;
+        }
+      }
+    })
+    .catch(err => {
+      console.error('Error fetching addresses:', err);
+      select.innerHTML = '<option value="">Error loading addresses</option>';
+      select.disabled = true;
+    });
+}
+
+/**
+ * Handle address dropdown selection change
+ */
+function handleAddressSelection(event) {
+  const select = event.target;
+
+  if (select.value === 'add-new') {
+    // User selected "+ Add delivery address" - open address modal
+    // Reset selection to empty while modal is open
+    select.value = '';
+
+    // Open the address modal for adding new address
+    if (typeof openAddAddressModal === 'function') {
+      openAddAddressModal();
+    } else {
+      console.error('openAddAddressModal function not found');
+      alert('Unable to open address form. Please ensure all required scripts are loaded.');
+    }
+  }
+}
+
+/**
+ * Open the address modal from the Buy Confirm modal's "Add New Address" button
+ */
+function openAddAddressFromBuyConfirmModal() {
+  console.log('[BuyItemModal] Opening address modal from Buy Confirm modal');
+
+  // Set the callback context so the address modal knows to call our callback
+  window.addressModalContext = 'buyModal';
+
+  // Open the address modal
+  openAddAddressModal();
+}
+
+/**
+ * Callback after new address is saved (called from address modal)
+ */
+window.onAddressSavedFromBuyModal = function(newAddressId) {
+  console.log('[BuyItemModal] Address saved, refreshing dropdown and selecting new address:', newAddressId);
+
+  // Refresh the dropdown and select the newly created address
+  fetchAndPopulateAddresses(newAddressId);
+};
+
 // Expose functions globally
 window.openBuyItemConfirmModal = openBuyItemConfirmModal;
 window.closeBuyItemConfirmModal = closeBuyItemConfirmModal;
@@ -753,3 +1100,4 @@ window.confirmBuyPaymentMethod = confirmBuyPaymentMethod;
 window.openBuyAddressErrorModal = openBuyAddressErrorModal;
 window.closeBuyAddressErrorModal = closeBuyAddressErrorModal;
 window.openAddAddressFromBuyError = openAddAddressFromBuyError;
+window.openAddAddressFromBuyConfirmModal = openAddAddressFromBuyConfirmModal;

@@ -39,7 +39,7 @@
                     <span style="font-size: 11px; color: #1976d2; font-weight: 600; display: block; margin-bottom: 2px;">VARIABLE</span>
                     Spot + ${{ '%.2f'|format(bid.spot_premium or 0) }}
                     <span style="font-size: 11px; color: #666; display: block; margin-top: 2px;">
-                      (Max: ${{ '%.2f'|format(bid.floor_price or 0) }})
+                      (Max: ${{ '{:,.2f}'.format(bid.bid_ceiling_price_display or 0) }})
                     </span>
                   </span>
                 {% else %}
@@ -56,14 +56,22 @@
               </div>
 
               <div class="bid-card-subheader">
-                <span class="bid-current">
-                  Current price ask:
-                  {% if bid.current_price is not none %}
-                    ${{ '%.2f'|format(bid.current_price) }}
+                {# Show listing effective price (max of spot+premium and floor for variable listings) #}
+                <span class="bid-current" style="display: block; margin-bottom: 4px;">
+                  Current listing effective price:
+                  {% if bid.listing_effective_price is not none %}
+                    ${{ '{:,.2f}'.format(bid.listing_effective_price) }}
                   {% else %}
                     No current listings
                   {% endif %}
                 </span>
+
+                {# Show bid effective price (min of spot+premium and ceiling for variable bids) #}
+                {% if bid.pricing_mode == 'premium_to_spot' %}
+                  <span class="bid-current" style="display: block; color: #1976d2;">
+                    Current bid effective price: ${{ '{:,.2f}'.format(bid.bid_effective_price) }}
+                  </span>
+                {% endif %}
               </div>
 
               <div class="bid-card-timestamp">{{ bid.created_at }}</div>

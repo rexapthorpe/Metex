@@ -83,6 +83,41 @@
           Select Payment Method
         </button>
 
+        <!-- Recipient Name Fields -->
+        <div class="recipient-name-section" style="margin: 20px 0;">
+          <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px;">Recipient Name</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label for="buy-recipient-first" style="display: block; font-size: 14px; font-weight: 500; color: #6b7280; margin-bottom: 4px;">First Name *</label>
+              <input type="text" id="buy-recipient-first" name="recipient_first" required
+                     style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;"
+                     autocomplete="given-name">
+            </div>
+            <div>
+              <label for="buy-recipient-last" style="display: block; font-size: 14px; font-weight: 500; color: #6b7280; margin-bottom: 4px;">Last Name *</label>
+              <input type="text" id="buy-recipient-last" name="recipient_last" required
+                     style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;"
+                     autocomplete="family-name">
+            </div>
+          </div>
+        </div>
+
+        <!-- Delivery Address Dropdown -->
+        <div class="delivery-address-section">
+          <label for="deliveryAddressSelect" class="delivery-address-label">Delivery address</label>
+          <select id="deliveryAddressSelect" class="delivery-address-select">
+            <option value="">Loading addresses...</option>
+          </select>
+          <div id="noAddressesMessage" class="no-addresses-message" style="display: none;">
+            <p style="margin: 0 0 12px 0; font-size: 14px; color: #6b7280;">
+              You have no saved addresses. Please add one to continue.
+            </p>
+            <button type="button" class="btn btn-primary" onclick="openAddAddressFromBuyConfirmModal()" style="width: 100%;">
+              <i class="fas fa-plus"></i> Add New Address
+            </button>
+          </div>
+        </div>
+
         <!-- Purchase Summary -->
         <div class="purchase-summary-grid">
           <div class="summary-row">
@@ -100,9 +135,14 @@
             <span class="summary-value total-highlight" id="buy-confirm-total">—</span>
           </div>
 
-          <div class="summary-row">
-            <span class="summary-label">Grading Preference:</span>
-            <span class="summary-value" id="buy-confirm-grading">—</span>
+          <div class="summary-row" id="buy-confirm-grading-fee-row" style="display: none;">
+            <span class="summary-label">Third-Party Grading Fee:</span>
+            <span class="summary-value" id="buy-confirm-grading-fee">—</span>
+          </div>
+
+          <div class="summary-row" id="buy-confirm-grand-total-row" style="display: none;">
+            <span class="summary-label">Grand Total:</span>
+            <span class="summary-value total-highlight" id="buy-confirm-grand-total" style="font-weight: 700; font-size: 18px;">—</span>
           </div>
         </div>
 
@@ -134,30 +174,71 @@
         <div class="order-details">
           <h3>Order Summary</h3>
 
+          <!-- Purchase Details Container -->
           <div class="detail-section">
             <h4>Purchase Details</h4>
-            <div class="detail-row">
-              <span class="detail-label">Total Quantity:</span>
-              <span class="detail-value" id="success-total-quantity">—</span>
+            <div class="purchase-summary-grid">
+              <div class="summary-row">
+                <span class="summary-label">Total Quantity:</span>
+                <span class="summary-value" id="success-total-quantity">—</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Average Price per Item:</span>
+                <span class="summary-value price-highlight" id="success-avg-price">—</span>
+              </div>
+              <div class="summary-row" id="success-items-total-row" style="display: none;">
+                <span class="summary-label">Items Total:</span>
+                <span class="summary-value" id="success-items-total">—</span>
+              </div>
+              <div class="summary-row" id="success-grading-fee-row" style="display: none;">
+                <span class="summary-label">Third-Party Grading Fee:</span>
+                <span class="summary-value" id="success-grading-fee">—</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Total Amount:</span>
+                <span class="summary-value total-highlight" id="success-total-amount">—</span>
+              </div>
             </div>
-            <div class="detail-row">
-              <span class="detail-label">Average Price per Item:</span>
-              <span class="detail-value price-highlight" id="success-avg-price">—</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Total Amount:</span>
-              <span class="detail-value total-highlight" id="success-total-amount">—</span>
+
+            <!-- Third-Party Grading Callout (conditionally shown) -->
+            <div id="success-grading-callout" style="display: none; margin-top: 16px; padding: 12px; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 4px;">
+              <p style="margin: 0; font-size: 14px; font-weight: 500; color: #1e40af;">
+                <strong>📋 Third-Party Grading Service Added</strong>
+              </p>
+              <p style="margin: 8px 0 0 0; font-size: 13px; color: #475569; line-height: 1.5;">
+                The seller will ship your items directly to PCGS for professional grading. Once graded, PCGS will ship the graded coins to your delivery address.
+              </p>
             </div>
           </div>
 
+          <!-- Delivery Address Container -->
           <div class="detail-section">
-            <h4>Shipping Information</h4>
-            <div class="detail-row">
-              <span class="detail-label">Delivery Address:</span>
-              <span class="detail-value delivery-address" id="success-shipping-address">—</span>
+            <h4>Delivery Address</h4>
+            <div class="purchase-summary-grid">
+              <div class="summary-row">
+                <span class="summary-label">Address Line 1:</span>
+                <span class="summary-value" id="success-address-line1">—</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Address Line 2:</span>
+                <span class="summary-value" id="success-address-line2">—</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">City:</span>
+                <span class="summary-value" id="success-address-city">—</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">State:</span>
+                <span class="summary-value" id="success-address-state">—</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Zip Code:</span>
+                <span class="summary-value" id="success-address-zip">—</span>
+              </div>
             </div>
           </div>
 
+          <!-- Item Details Container -->
           <div class="detail-section">
             <h4>Item Details</h4>
             <div class="item-specs-grid">
@@ -195,6 +276,10 @@
               </div>
               <div class="spec-item" id="success-buy-spec-finish">
                 <span class="spec-label">Finish:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-buy-spec-grading">
+                <span class="spec-label">Requires 3rd Party Grading:</span>
                 <span class="spec-value">—</span>
               </div>
             </div>

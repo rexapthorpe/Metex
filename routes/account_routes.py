@@ -3,6 +3,8 @@ from flask import Blueprint, render_template, session, redirect, url_for, flash,
 from werkzeug.security import check_password_hash, generate_password_hash
 from database import get_db_connection
 from utils.cart_utils import get_cart_data
+from services.pricing_service import get_effective_price, get_effective_bid_price
+from services.spot_price_service import get_current_spot_prices
 from collections import defaultdict
 import os
 
@@ -37,24 +39,67 @@ def account():
         (user_id,)
     ).fetchone()
 
-    # 2) Bids (with category details)
-    bids = conn.execute(
+    # 2) Bids (with category details and pricing info)
+    bids_raw = conn.execute(
         """SELECT
              b.*,
              c.bucket_id, c.weight, c.metal, c.product_type, c.mint, c.year, c.finish,
-             c.grade, c.coin_series, c.purity, c.product_line,
-             (SELECT MIN(l.price_per_coin)
-                FROM listings AS l
-               WHERE l.category_id = b.category_id
-                 AND l.active = 1
-                 AND l.quantity > 0
-             ) AS current_price
+             c.grade, c.coin_series, c.purity, c.product_line
            FROM bids AS b
            LEFT JOIN categories AS c ON b.category_id = c.id
           WHERE b.buyer_id = ?
           ORDER BY b.created_at DESC
         """, (user_id,)
     ).fetchall()
+
+    # Get spot prices for calculating effective prices
+    spot_prices = get_current_spot_prices()
+
+    # Process each bid to calculate effective prices
+    bids = []
+    for bid_row in bids_raw:
+        bid = dict(bid_row)
+
+        # Calculate bid effective price (min of spot+premium and ceiling)
+        if bid.get('pricing_mode') == 'premium_to_spot':
+            bid['bid_effective_price'] = get_effective_bid_price(bid, spot_prices)
+            bid['bid_ceiling_price_display'] = bid.get('ceiling_price', 0)
+        else:
+            # Fixed price bid
+            bid['bid_effective_price'] = bid.get('price_per_coin', 0)
+            bid['bid_ceiling_price_display'] = None
+
+        # Find the best (lowest effective price) listing for this category
+        listings_for_category = conn.execute(
+            """SELECT l.id, l.price_per_coin, l.pricing_mode, l.spot_premium,
+                      l.floor_price, l.pricing_metal,
+                      c.metal, c.weight
+               FROM listings l
+               JOIN categories c ON l.category_id = c.id
+               WHERE l.category_id = ?
+                 AND l.active = 1
+                 AND l.quantity > 0
+               ORDER BY l.price_per_coin ASC
+            """,
+            (bid['category_id'],)
+        ).fetchall()
+
+        # Calculate effective price for each listing and find the minimum
+        min_listing_effective_price = None
+        for listing_row in listings_for_category:
+            listing_dict = dict(listing_row)
+            if listing_dict.get('pricing_mode') == 'premium_to_spot':
+                # Calculate effective price: max(spot + premium, floor)
+                listing_effective = get_effective_price(listing_dict, spot_prices)
+            else:
+                # Fixed price listing
+                listing_effective = listing_dict.get('price_per_coin', 0)
+
+            if min_listing_effective_price is None or listing_effective < min_listing_effective_price:
+                min_listing_effective_price = listing_effective
+
+        bid['listing_effective_price'] = min_listing_effective_price
+        bids.append(bid)
 
     # 3) Ratings
     avg_rating = conn.execute(
@@ -84,6 +129,11 @@ def account():
                 """, (order['id'],)
             ).fetchall()
             order['sellers'] = [r['username'] for r in seller_rows]
+
+            # Set year to "Random" if order has items from multiple years
+            if order.get('year_count', 1) > 1:
+                order['year'] = 'Random'
+
             out.append(order)
         return out
 
@@ -93,28 +143,45 @@ def account():
              SUM(oi.quantity) AS quantity,
              SUM(oi.quantity*oi.price_each)*1.0/SUM(oi.quantity) AS price_each,
              o.status, o.created_at AS order_date,
+             COALESCE(o.delivery_address, o.shipping_address) AS delivery_address,
              MIN(c.metal)       AS metal,
              MIN(c.product_type)AS product_type,
              MIN(c.weight)      AS weight,
              MIN(c.purity)      AS purity,
              MIN(c.mint)        AS mint,
              MIN(c.year)        AS year,
+             COUNT(DISTINCT c.year) AS year_count,
              MIN(c.finish)      AS finish,
              MIN(c.grade)       AS grade,
              MIN(c.product_line)AS product_line,
+             MIN(l.graded)      AS graded,
+             MIN(l.grading_service) AS grading_service,
+             MIN(c.is_isolated) AS is_isolated,
+             MIN(l.isolated_type) AS isolated_type,
+             MIN(l.issue_number) AS issue_number,
+             MIN(l.issue_total) AS issue_total,
+             MAX(oi.third_party_grading_requested) AS third_party_grading,
+             SUM(oi.grading_fee_charged) AS grading_fee_total,
+             MAX(oi.grading_service) AS grading_service_requested,
+             MAX(oi.grading_status) AS grading_status,
              (SELECT 1 FROM ratings r
                 WHERE r.order_id = o.id
                   AND r.rater_id = ?
-             ) AS already_rated
+             ) AS already_rated,
+             (SELECT COUNT(*) FROM order_items oi2
+                JOIN portfolio_exclusions pe ON pe.order_item_id = oi2.order_item_id
+               WHERE oi2.order_id = o.id
+                 AND pe.user_id = ?
+             ) AS excluded_count
            FROM orders o
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id
            JOIN categories c   ON l.category_id = c.id
           WHERE o.buyer_id = ?
             AND o.status IN ('Pending','Pending Shipment','Awaiting Shipment','Awaiting Delivery')
-          GROUP BY o.id, o.status, o.created_at
+          GROUP BY o.id, o.status, o.created_at, o.delivery_address, o.shipping_address
           ORDER BY o.created_at DESC
-        """, (user_id, user_id)
+        """, (user_id, user_id, user_id)
     ).fetchall()
     raw_completed = conn.execute(
         """SELECT
@@ -122,20 +189,37 @@ def account():
              SUM(oi.quantity) AS quantity,
              SUM(oi.quantity*oi.price_each)*1.0/SUM(oi.quantity) AS price_each,
              o.status, o.created_at AS order_date,
+             COALESCE(o.delivery_address, o.shipping_address) AS delivery_address,
              MIN(c.metal)       AS metal,
              MIN(c.product_type)AS product_type,
              MIN(c.weight)      AS weight,
              MIN(c.purity)      AS purity,
              MIN(c.mint)        AS mint,
              MIN(c.year)        AS year,
+             COUNT(DISTINCT c.year) AS year_count,
              MIN(c.finish)      AS finish,
              MIN(c.grade)       AS grade,
              MIN(c.product_line)AS product_line,
+             MIN(l.graded)      AS graded,
+             MIN(l.grading_service) AS grading_service,
+             MIN(c.is_isolated) AS is_isolated,
+             MIN(l.isolated_type) AS isolated_type,
+             MIN(l.issue_number) AS issue_number,
+             MIN(l.issue_total) AS issue_total,
              MIN(u.username)    AS seller_username,
+             MAX(oi.third_party_grading_requested) AS third_party_grading,
+             SUM(oi.grading_fee_charged) AS grading_fee_total,
+             MAX(oi.grading_service) AS grading_service_requested,
+             MAX(oi.grading_status) AS grading_status,
              (SELECT 1 FROM ratings r
                 WHERE r.order_id = o.id
                   AND r.rater_id = ?
-             ) AS already_rated
+             ) AS already_rated,
+             (SELECT COUNT(*) FROM order_items oi2
+                JOIN portfolio_exclusions pe ON pe.order_item_id = oi2.order_item_id
+               WHERE oi2.order_id = o.id
+                 AND pe.user_id = ?
+             ) AS excluded_count
            FROM orders o
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id
@@ -143,13 +227,69 @@ def account():
            JOIN users u        ON l.seller_id = u.id
           WHERE o.buyer_id = ?
             AND o.status IN ('Delivered','Complete','Refunded','Cancelled')
-          GROUP BY o.id, o.status, o.created_at
+          GROUP BY o.id, o.status, o.created_at, o.delivery_address, o.shipping_address
           ORDER BY o.created_at DESC
-        """, (user_id, user_id)
+        """, (user_id, user_id, user_id)
     ).fetchall()
 
     pending_orders   = attach_sellers(raw_pending)
     completed_orders = attach_sellers(raw_completed)
+
+    # Parse delivery addresses from plain text to structured format
+    def parse_delivery_address(address_text):
+        """Parse plain text address into structured format for modal display"""
+        if not address_text or address_text in ('null', 'None', ''):
+            return None
+
+        try:
+            # Format: "street • street_line2 • city, state zip"
+            # Split by bullet character (•) or similar separators
+            parts = address_text.replace('�', '•').split('•')
+
+            if len(parts) >= 3:
+                street = parts[0].strip()
+                street_line2 = parts[1].strip() if len(parts) > 1 else ''
+                location_part = parts[2].strip() if len(parts) > 2 else ''
+
+                # Parse "city, state zip"
+                if ',' in location_part:
+                    city_part, state_zip = location_part.split(',', 1)
+                    city = city_part.strip()
+                    state_zip = state_zip.strip().split()
+                    state = state_zip[0] if state_zip else ''
+                    zip_code = state_zip[1] if len(state_zip) > 1 else ''
+                else:
+                    city = ''
+                    state = ''
+                    zip_code = ''
+
+                return {
+                    'street': street,
+                    'street_line2': street_line2,
+                    'city': city,
+                    'state': state,
+                    'zip_code': zip_code
+                }
+            else:
+                # Fallback: return as plain string if parsing fails
+                return address_text
+        except Exception:
+            # If parsing fails, return the original string
+            return address_text
+
+    for order in pending_orders + completed_orders:
+        if order.get('delivery_address'):
+            parsed = parse_delivery_address(order['delivery_address'])
+            if parsed:
+                import json
+                order['delivery_address'] = json.dumps(parsed) if isinstance(parsed, dict) else parsed
+
+    # Format order dates
+    from datetime import datetime
+    for order in pending_orders + completed_orders:
+        if order.get('order_date'):
+            dt = datetime.fromisoformat(order['order_date'])
+            order['formatted_order_date'] = dt.strftime('%I:%M %p, %d %B %Y').lstrip('0')  # Remove leading zero from hour
 
     # 5) Active listings & sales
     active_listings_raw = conn.execute(
@@ -179,10 +319,7 @@ def account():
     ).fetchall()
 
     # Calculate effective price for variable pricing listings
-    from services.pricing_service import get_effective_price
-    from services.spot_price_service import get_current_spot_prices
-
-    spot_prices = get_current_spot_prices()
+    # Note: spot_prices already calculated earlier for bids
     active_listings = []
     for listing in active_listings_raw:
         listing_dict = dict(listing)
@@ -193,22 +330,33 @@ def account():
             listing_dict['effective_price'] = listing_dict.get('price_per_coin', 0)
         active_listings.append(listing_dict)
 
-    sales = conn.execute(
+    sales_raw = conn.execute(
         """SELECT o.id AS order_id,
                   c.metal, c.product_type, c.weight, c.mint, c.year,
                   c.finish, c.grade, c.purity, c.product_line, c.coin_series,
                   c.special_designation,
                   oi.quantity,
-                  l.price_per_coin AS price_each,
+                  COALESCE(oi.seller_price_each, oi.price_each) AS price_each,
                   l.graded,
                   l.grading_service,
+                  c.is_isolated,
+                  l.isolated_type,
+                  l.issue_number,
+                  l.issue_total,
                   u.username AS buyer_username,
                   u.first_name AS buyer_first_name,
                   u.last_name AS buyer_last_name,
                   o.shipping_address AS shipping_address,
                   o.shipping_address AS delivery_address,
+                  o.recipient_first_name,
+                  o.recipient_last_name,
                   o.status,
                   o.created_at AS order_date,
+                  oi.third_party_grading_requested,
+                  oi.grading_fee_charged,
+                  oi.grading_service AS grading_service_requested,
+                  oi.grading_status,
+                  oi.seller_tracking_to_grader,
                   (SELECT 1 FROM ratings r
                      WHERE r.order_id = o.id
                        AND r.rater_id = ?
@@ -223,14 +371,53 @@ def account():
         """, (user_id, user_id)
     ).fetchall()
 
+    # ✅ Build shipping name from order-level recipient fields (source of truth)
+    # Fallback: parse from delivery_address for old orders (backward compatibility)
+    sales = []
+    for sale_row in sales_raw:
+        sale = dict(sale_row)
+
+        # Priority 1: Use recipient names from order (if available)
+        if sale.get('recipient_first_name') or sale.get('recipient_last_name'):
+            first = sale.get('recipient_first_name', '').strip()
+            last = sale.get('recipient_last_name', '').strip()
+            shipping_name = f"{first} {last}".strip()
+        else:
+            # Priority 2: Parse from delivery_address (backward compatibility for old orders)
+            # Old format: "Name • Street • Street2 • City, State ZIP" (has name embedded)
+            shipping_name = None
+            if sale.get('delivery_address'):
+                parts = sale['delivery_address'].split('•')
+
+                # If 4+ parts, first part is the name
+                if len(parts) >= 4:
+                    shipping_name = parts[0].strip()
+                # If 3 parts, check if first part looks like a name (not an address)
+                elif len(parts) == 3:
+                    first_part = parts[0].strip()
+                    # Heuristic: names have spaces and don't start with digits
+                    if ' ' in first_part and (not first_part or not first_part[0].isdigit()):
+                        shipping_name = first_part
+
+        # Add shipping_name to sale dict
+        sale['shipping_name'] = shipping_name
+        sales.append(sale)
+
     # 6) Cart
-    buckets, cart_total = get_cart_data(conn)
+    buckets, _ = get_cart_data(conn)  # Ignore old cart_total, we'll recalculate with effective prices
+    cart_total = 0  # Recalculate with effective prices
     for bucket in buckets.values():
         total_qty = sum(item['quantity'] for item in bucket['listings'])
         bucket['total_quantity'] = total_qty
-        total_cost = sum(item['quantity']*item['price_per_coin']
-                         for item in bucket['listings'])
+        # Calculate effective price for each listing and sum
+        total_cost = 0
+        for item in bucket['listings']:
+            effective_price = get_effective_price(item)
+            item['effective_price'] = effective_price  # Store for template use
+            total_cost += item['quantity'] * effective_price
         bucket['avg_price'] = (total_cost/total_qty) if total_qty else 0
+        bucket['total_price'] = total_cost  # Update with effective price total
+        cart_total += total_cost  # Add to overall cart total
 
     # 7) Conversations
     conv_rows = conn.execute(
@@ -289,6 +476,9 @@ def account():
 
     conn.close()
 
+    # Import grading service addresses for Sold tab grading instructions
+    from config import GRADING_SERVICE_ADDRESSES
+
     # 8) Single return with _all_ context
     return render_template(
         'account.html',
@@ -305,7 +495,8 @@ def account():
         buckets=buckets,
         cart_total=cart_total,
         conversations=conversations,
-        current_user_id=user_id
+        current_user_id=user_id,
+        grading_service_addresses=GRADING_SERVICE_ADDRESSES
     )
 
 
@@ -852,6 +1043,55 @@ def edit_address(address_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@account_bp.route('/account/get_addresses', methods=['GET'])
+def get_addresses():
+    """Fetch all addresses for the current user (for dropdowns)"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+
+    user_id = session['user_id']
+    conn = get_db_connection()
+
+    try:
+        # Fetch user info for auto-populating recipient name fields
+        user_info = conn.execute(
+            'SELECT first_name, last_name FROM users WHERE id = ?',
+            (user_id,)
+        ).fetchone()
+
+        addresses = conn.execute(
+            'SELECT * FROM addresses WHERE user_id = ? ORDER BY id',
+            (user_id,)
+        ).fetchall()
+        conn.close()
+
+        # Convert to list of dicts
+        addresses_list = []
+        for addr in addresses:
+            addresses_list.append({
+                'id': addr['id'],
+                'name': addr['name'],
+                'street': addr['street'],
+                'street_line2': addr['street_line2'] if 'street_line2' in addr.keys() else '',
+                'city': addr['city'],
+                'state': addr['state'],
+                'zip_code': addr['zip_code'],
+                'country': addr['country']
+            })
+
+        return jsonify({
+            'success': True,
+            'addresses': addresses_list,
+            'user_info': {
+                'first_name': user_info['first_name'] if user_info else '',
+                'last_name': user_info['last_name'] if user_info else ''
+            }
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @account_bp.route('/account/get_address/<int:address_id>', methods=['GET'])
 def get_address(address_id):
     if 'user_id' not in session:
@@ -968,3 +1208,151 @@ def update_preferences():
     except Exception as e:
         conn.close()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# API: Get saved addresses
+@account_bp.route('/account/api/addresses', methods=['GET'])
+def get_saved_addresses():
+    """Get all saved addresses for the current user"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+
+    user_id = session['user_id']
+    conn = get_db_connection()
+
+    try:
+        addresses = conn.execute(
+            "SELECT * FROM addresses WHERE user_id = ? ORDER BY id",
+            (user_id,)
+        ).fetchall()
+
+        addresses_list = [dict(row) for row in addresses]
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'addresses': addresses_list
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# API: Include order in portfolio
+@account_bp.route('/account/api/orders/<int:order_id>/portfolio/include', methods=['POST'])
+def include_order_in_portfolio(order_id):
+    """Remove all portfolio exclusions for order items in this order"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+
+    user_id = session['user_id']
+    conn = get_db_connection()
+
+    try:
+        # Verify order belongs to user
+        order = conn.execute(
+            "SELECT id FROM orders WHERE id = ? AND buyer_id = ?",
+            (order_id, user_id)
+        ).fetchone()
+
+        if not order:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        # Get all order_items for this order
+        order_items = conn.execute(
+            "SELECT order_item_id FROM order_items WHERE order_id = ?",
+            (order_id,)
+        ).fetchall()
+
+        # Remove portfolio exclusions for all order items
+        for item in order_items:
+            conn.execute(
+                "DELETE FROM portfolio_exclusions WHERE user_id = ? AND order_item_id = ?",
+                (user_id, item['order_item_id'])
+            )
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Order included in portfolio'
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# API: Update order delivery address
+# REMOVED: Delivery address update route
+# The delivery address feature has been removed from the Orders tab
+"""
+@account_bp.route('/account/api/orders/<int:order_id>/delivery-address', methods=['PUT'])
+def update_order_delivery_address(order_id):
+    # Update the delivery address for an order
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+
+    user_id = session['user_id']
+    conn = get_db_connection()
+
+    try:
+        # Verify order belongs to user
+        order = conn.execute(
+            "SELECT id FROM orders WHERE id = ? AND buyer_id = ?",
+            (order_id, user_id)
+        ).fetchone()
+
+        if not order:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        # Get address_id from request
+        data = request.get_json()
+        address_id = data.get('address_id')
+
+        if not address_id:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Address ID required'}), 400
+
+        # Get address details
+        address = conn.execute(
+            "SELECT * FROM addresses WHERE id = ? AND user_id = ?",
+            (address_id, user_id)
+        ).fetchone()
+
+        if not address:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Address not found'}), 404
+
+        # Format address as JSON string for storage
+        import json
+        address_data = {
+            'name': address['name'],
+            'street': address['street'],
+            'street_line2': address['street_line2'] if address['street_line2'] else '',
+            'city': address['city'],
+            'state': address['state'],
+            'zip_code': address['zip_code'],
+            'country': address['country'] if address['country'] else 'USA'
+        }
+
+        # Update order delivery_address
+        conn.execute(
+            "UPDATE orders SET delivery_address = ? WHERE id = ?",
+            (json.dumps(address_data), order_id)
+        )
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Delivery address updated successfully',
+            'updated_address': address_data
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+"""

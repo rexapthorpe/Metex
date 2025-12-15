@@ -523,12 +523,16 @@ def remove_bucket(bucket_id):
     return '', 204
 
 
-@cart_bp.route('/update_bucket_quantity/<int:bucket_id>', methods=['POST'])
-def update_bucket_quantity(bucket_id):
+@cart_bp.route('/update_bucket_quantity/<int:category_id>', methods=['POST'])
+def update_bucket_quantity(category_id):
     """
-    Update the total quantity for a bucket in the cart.
+    Update the total quantity for a category/bucket in the cart.
     Adds or removes listings to reach the target quantity,
     prioritizing cheapest listings.
+    Validates inventory and refills from other sellers if needed.
+
+    Note: Despite the name, this route uses category_id as the identifier
+    for backwards compatibility with existing templates.
     """
     user_id = session.get('user_id')
     if not user_id:
@@ -543,7 +547,11 @@ def update_bucket_quantity(bucket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1) Get current cart items for this bucket
+    # First, validate and refill cart to ensure accurate inventory
+    from utils.cart_utils import validate_and_refill_cart
+    validate_and_refill_cart(conn, user_id)
+
+    # 1) Get current cart items for this category
     current_items = cursor.execute('''
         SELECT cart.listing_id, cart.quantity, listings.price_per_coin
           FROM cart
@@ -551,7 +559,7 @@ def update_bucket_quantity(bucket_id):
          WHERE cart.user_id = ?
            AND listings.category_id = ?
          ORDER BY listings.price_per_coin ASC
-    ''', (user_id, bucket_id)).fetchall()
+    ''', (user_id, category_id)).fetchall()
 
     current_qty = sum(item['quantity'] for item in current_items)
 
@@ -564,14 +572,15 @@ def update_bucket_quantity(bucket_id):
     if target_qty > current_qty:
         needed = target_qty - current_qty
 
-        # Get all available listings for this bucket, sorted by price
+        # Get all available listings for this category (excluding user's own), sorted by price
         available = cursor.execute('''
             SELECT id, quantity, price_per_coin
               FROM listings
              WHERE category_id = ?
                AND active = 1
+               AND seller_id != ?
              ORDER BY price_per_coin ASC
-        ''', (bucket_id,)).fetchall()
+        ''', (category_id, user_id)).fetchall()
 
         for listing in available:
             if needed <= 0:
@@ -628,5 +637,46 @@ def update_bucket_quantity(bucket_id):
             to_remove -= remove_from_this
 
     conn.commit()
+
+    # Get updated category data for frontend display
+    from services.pricing_service import get_effective_price
+
+    updated_items = cursor.execute('''
+        SELECT
+            cart.quantity,
+            listings.price_per_coin,
+            listings.pricing_mode,
+            listings.floor_price,
+            listings.spot_premium,
+            listings.pricing_metal,
+            categories.metal,
+            categories.weight,
+            categories.product_type
+        FROM cart
+        JOIN listings ON cart.listing_id = listings.id
+        JOIN categories ON listings.category_id = categories.id
+        WHERE cart.user_id = ?
+          AND categories.id = ?
+    ''', (user_id, category_id)).fetchall()
+
+    # Calculate new total quantity and average price
+    new_total_qty = 0
+    new_total_price = 0.0
+
+    for item in updated_items:
+        item_dict = dict(item)
+        effective_price = get_effective_price(item_dict)
+        qty = item['quantity']
+        new_total_qty += qty
+        new_total_price += qty * effective_price
+
+    new_avg_price = new_total_price / new_total_qty if new_total_qty > 0 else 0.0
+
     conn.close()
-    return jsonify({'success': True, 'quantity': target_qty})
+
+    return jsonify({
+        'success': True,
+        'quantity': new_total_qty,
+        'avg_price': round(new_avg_price, 2),
+        'total_price': round(new_total_price, 2)
+    })

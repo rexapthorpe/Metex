@@ -6,16 +6,17 @@ Handles all portfolio-related calculations and data processing
 from database import get_db_connection
 from datetime import datetime, timedelta
 from services.pricing_service import get_effective_price
+import time
 
 
 def get_user_holdings(user_id):
     """
     Get all holdings (order items) for a user, excluding items marked as excluded
-    Returns list of holdings with current market values calculated using effective pricing
+    Returns list of holdings consolidated by bucket_id with aggregated quantities and values
     """
     conn = get_db_connection()
 
-    # Get holdings without current_market_price (we'll calculate it separately using effective pricing)
+    # Get all holdings (individual lots)
     holdings = conn.execute("""
         SELECT
             oi.order_item_id,
@@ -35,12 +36,20 @@ def get_user_holdings(user_id):
             c.coin_series,
             c.special_designation,
             l.image_url,
+            l.graded,
+            l.grading_service,
+            c.is_isolated,
+            l.isolated_type,
+            l.issue_number,
+            l.issue_total,
             o.created_at AS purchase_date,
-            o.status AS order_status
+            o.status AS order_status,
+            u.username AS seller_username
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
         JOIN listings l ON oi.listing_id = l.id
         JOIN categories c ON l.category_id = c.id
+        LEFT JOIN users u ON l.seller_id = u.id
         WHERE o.buyer_id = ?
           AND oi.order_item_id NOT IN (
               SELECT order_item_id
@@ -50,19 +59,74 @@ def get_user_holdings(user_id):
         ORDER BY o.created_at DESC
     """, (user_id, user_id)).fetchall()
 
-    # Calculate current market price for each holding using effective pricing
-    holdings_with_prices = []
+    # Group holdings by bucket_id and aggregate
+    consolidated_holdings = {}
+
     for holding in holdings:
         holding_dict = dict(holding)
+        bucket_id = holding_dict['bucket_id']
 
-        # Get current market price using effective pricing
-        current_price = _get_current_market_price_for_bucket(conn, holding_dict['bucket_id'])
-        holding_dict['current_market_price'] = current_price
+        if bucket_id not in consolidated_holdings:
+            # First occurrence of this bucket - create consolidated entry
+            # Get current market price using effective pricing
+            current_price = _get_current_market_price_for_bucket(conn, bucket_id)
 
-        holdings_with_prices.append(holding_dict)
+            consolidated_holdings[bucket_id] = {
+                'bucket_id': bucket_id,
+                'metal': holding_dict['metal'],
+                'product_type': holding_dict['product_type'],
+                'weight': holding_dict['weight'],
+                'mint': holding_dict['mint'],
+                'year': holding_dict['year'],
+                'finish': holding_dict['finish'],
+                'grade': holding_dict['grade'],
+                'purity': holding_dict['purity'],
+                'product_line': holding_dict['product_line'],
+                'coin_series': holding_dict['coin_series'],
+                'special_designation': holding_dict['special_designation'],
+                'image_url': holding_dict['image_url'],
+                'graded': holding_dict['graded'],
+                'grading_service': holding_dict['grading_service'],
+                'is_isolated': holding_dict['is_isolated'],
+                'isolated_type': holding_dict['isolated_type'],
+                'issue_number': holding_dict['issue_number'],
+                'issue_total': holding_dict['issue_total'],
+                'seller_username': holding_dict['seller_username'],
+                'purchase_date': holding_dict['purchase_date'],  # Use earliest purchase date
+                'current_market_price': current_price,
+                'quantity': 0,  # Will be summed
+                'total_cost_basis': 0.0,  # Will be summed
+                'order_item_ids': []  # Track all order_item_ids for this bucket
+            }
+
+        # Aggregate quantities and cost basis
+        quantity = holding_dict['quantity']
+        purchase_price = holding_dict['purchase_price']
+        cost_basis = quantity * purchase_price
+
+        consolidated_holdings[bucket_id]['quantity'] += quantity
+        consolidated_holdings[bucket_id]['total_cost_basis'] += cost_basis
+        consolidated_holdings[bucket_id]['order_item_ids'].append(holding_dict['order_item_id'])
+
+    # Convert to list and calculate average purchase price and values
+    holdings_list = []
+    for bucket_id, holding in consolidated_holdings.items():
+        # Calculate average purchase price (for display consistency)
+        holding['purchase_price'] = holding['total_cost_basis'] / holding['quantity'] if holding['quantity'] > 0 else 0
+
+        # Calculate current value and gain/loss
+        current_price = holding['current_market_price'] or holding['purchase_price']
+        holding['current_value'] = holding['quantity'] * current_price
+        holding['gain_loss'] = holding['current_value'] - holding['total_cost_basis']
+        holding['gain_loss_percent'] = (holding['gain_loss'] / holding['total_cost_basis'] * 100) if holding['total_cost_basis'] > 0 else 0
+
+        # For compatibility with existing code, also set cost_basis
+        holding['cost_basis'] = holding['total_cost_basis']
+
+        holdings_list.append(holding)
 
     conn.close()
-    return holdings_with_prices
+    return holdings_list
 
 
 def _get_current_market_price_for_bucket(conn, bucket_id):
@@ -197,64 +261,14 @@ def get_portfolio_history(user_id, days=30):
     Returns list of snapshots with dates and values
 
     IMPORTANT:
-    - Always computes the most recent point using CURRENT market prices
-    - If user has exclusions, recomputes ALL historical points to ensure
-      excluded items never appear in history (as if never purchased)
+    - Always uses dynamic computation to ensure accurate historical representation
+    - Historical points show cost basis (purchase prices)
+    - Current point shows current market value
+    - This accurately reflects gains/losses over time
     """
-    conn = get_db_connection()
-
-    # Check if user has any exclusions
-    exclusions_count = conn.execute("""
-        SELECT COUNT(*) as count
-        FROM portfolio_exclusions
-        WHERE user_id = ?
-    """, (user_id,)).fetchone()['count']
-
-    has_exclusions = exclusions_count > 0
-
-    if has_exclusions:
-        # User has exclusions - recompute ALL historical points dynamically
-        # to ensure excluded items never appear in history
-        conn.close()
-        return _compute_dynamic_history(user_id, days)
-
-    # No exclusions - use stored snapshots for performance
-    start_date = datetime.now() - timedelta(days=days)
-    one_hour_ago = datetime.now() - timedelta(hours=1)
-
-    snapshots = conn.execute("""
-        SELECT
-            snapshot_date,
-            total_value,
-            total_cost_basis
-        FROM portfolio_snapshots
-        WHERE user_id = ?
-          AND snapshot_date >= ?
-          AND snapshot_date < ?
-        ORDER BY snapshot_date ASC
-    """, (user_id, start_date.isoformat(), one_hour_ago.isoformat())).fetchall()
-
-    conn.close()
-
-    # Convert snapshots to list of dicts
-    history = []
-    for snap in snapshots:
-        history.append({
-            'snapshot_date': snap['snapshot_date'],
-            'total_value': snap['total_value'],
-            'total_cost_basis': snap['total_cost_basis']
-        })
-
-    # ALWAYS compute and append current value with LIVE prices
-    # This ensures chart updates when market prices change
-    current_data = calculate_portfolio_value(user_id)
-    history.append({
-        'snapshot_date': datetime.now().isoformat(),
-        'total_value': current_data['total_value'],
-        'total_cost_basis': current_data['cost_basis']
-    })
-
-    return history
+    # Always use dynamic computation for consistent, accurate results
+    # This ensures the chart properly reflects acquisitions and market changes
+    return _compute_dynamic_history(user_id, days)
 
 
 def _compute_dynamic_history(user_id, days=30):
@@ -265,8 +279,11 @@ def _compute_dynamic_history(user_id, days=30):
     This ensures that when a user excludes an item, ALL historical points
     are recomputed as if that item never existed.
 
-    NOTE: Uses current market prices (with effective pricing) for all historical points
-    since we don't store per-item historical prices.
+    IMPORTANT: Historical points use purchase prices to show actual cost basis growth.
+    Only the final/current point uses current market prices to show current value.
+    This accurately reflects gains/losses over time.
+
+    UNIFORM INTERVALS: Generates evenly-spaced time points for consistent x-axis spacing.
     """
     conn = get_db_connection()
 
@@ -306,43 +323,83 @@ def _compute_dynamic_history(user_id, days=30):
     if not all_items:
         # No holdings after exclusions - return zero value
         return [{
-            'snapshot_date': datetime.now().isoformat(),
+            'snapshot_date': datetime.utcnow().isoformat(),
             'total_value': 0.0,
             'total_cost_basis': 0.0
         }]
 
-    # Determine time points to compute
+    # Use local time to match bucket chart behavior and display correct timezone
+    # Determine uniform time points based on the selected range
     start_date = datetime.now() - timedelta(days=days)
     now = datetime.now()
 
-    # Create time points (start of range + now)
-    # We'll add intermediate points if we have actual purchase dates in the range
+    # Generate UNIFORM time points based on range
+    # This ensures consistent x-axis spacing regardless of purchase dates
     time_points = []
 
-    # Add start of range
-    time_points.append(start_date)
+    if days == 1:
+        # 1D: Every hour (24 points)
+        interval_hours = 1
+        num_points = 24
+        for i in range(num_points + 1):
+            time_points.append(start_date + timedelta(hours=i * interval_hours))
+    elif days == 7:
+        # 1W: Every day (7 points)
+        for i in range(8):
+            time_points.append(start_date + timedelta(days=i))
+    elif days == 30:
+        # 1M: Every day (30 points)
+        for i in range(31):
+            time_points.append(start_date + timedelta(days=i))
+    elif days == 90:
+        # 3M: Every 3 days (~30 points)
+        for i in range(31):
+            time_points.append(start_date + timedelta(days=i * 3))
+    elif days == 365:
+        # 1Y: Every week (~52 points)
+        for i in range(53):
+            time_points.append(start_date + timedelta(weeks=i))
+    else:
+        # Default: Daily intervals
+        num_days = days + 1
+        for i in range(num_days):
+            time_points.append(start_date + timedelta(days=i))
 
-    # Add purchase dates that fall within the range (these create step changes in portfolio value)
-    for item in all_items:
-        purchase_dt = datetime.fromisoformat(item['purchase_date'])
-        if start_date <= purchase_dt <= now:
-            time_points.append(purchase_dt)
+    # Ensure the last point is exactly 'now' for current market value
+    time_points[-1] = now
 
-    # Add current time
-    time_points.append(now)
+    # Remove any points beyond 'now' and sort
+    time_points = sorted([tp for tp in time_points if tp <= now])
 
-    # Remove duplicates and sort
-    time_points = sorted(set(time_points))
+    # Log for debugging
+    print(f"[Portfolio History] Computing for {len(time_points)} time points")
+    print(f"[Portfolio History] Time range: {start_date} to {now}")
+    if all_items:
+        first_purchase = datetime.fromisoformat(all_items[0]['purchase_date'])
+        print(f"[Portfolio History] First purchase date: {first_purchase}")
+        print(f"[Portfolio History] Total items: {len(all_items)}")
 
     # Compute portfolio value at each time point
     history = []
-    for time_point in time_points:
+    for i, time_point in enumerate(time_points):
+        # Determine if this is the current/final time point
+        is_current_point = (i == len(time_points) - 1)
+
         # Determine which items existed at this time
         total_value = 0.0
         total_cost = 0.0
 
         for item in all_items:
-            purchase_dt = datetime.fromisoformat(item['purchase_date'])
+            # Parse purchase date - stored as UTC in database
+            purchase_dt_utc = datetime.fromisoformat(item['purchase_date'])
+
+            # Convert UTC to local time for comparison with time_point (which is local)
+            # Database uses datetime('now') which is UTC, but we compare with datetime.now() which is local
+            # Get system UTC offset (seconds east of UTC, negative for western timezones)
+            utc_offset_seconds = time.localtime().tm_gmtoff if hasattr(time.localtime(), 'tm_gmtoff') else -time.timezone
+            utc_offset_hours = utc_offset_seconds / 3600
+            # Convert: local_time = utc_time + offset (e.g., UTC 14:00 + (-5) = 09:00 EST)
+            purchase_dt = purchase_dt_utc + timedelta(hours=utc_offset_hours)
 
             # Include item if it was purchased on or before this time point
             if purchase_dt <= time_point:
@@ -353,14 +410,27 @@ def _compute_dynamic_history(user_id, days=30):
                 # Cost basis never changes (always purchase price)
                 total_cost += quantity * purchase_price
 
-                # Value uses current market price
-                total_value += quantity * current_price
+                # For historical points: use purchase price (shows actual portfolio growth)
+                # For current point: use current market price (shows current value)
+                if is_current_point:
+                    # Current point - use live market prices
+                    total_value += quantity * current_price
+                else:
+                    # Historical point - use purchase price (what it was worth when acquired)
+                    total_value += quantity * purchase_price
 
         history.append({
             'snapshot_date': time_point.isoformat(),
             'total_value': round(total_value, 2),
             'total_cost_basis': round(total_cost, 2)
         })
+
+    # Log summary of computed history
+    if history:
+        print(f"[Portfolio History] Computed {len(history)} points")
+        print(f"[Portfolio History] First value: ${history[0]['total_value']}, Last value: ${history[-1]['total_value']}")
+    else:
+        print(f"[Portfolio History] No history computed (empty result)")
 
     return history
 

@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="container">
-  
+
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -17,30 +17,124 @@
         {% endif %}
     {% endwith %}
 
-    {% if buckets %}
+    <!-- One-of-a-Kind & Numismatic Listings Section -->
+    {% if one_of_a_kind_buckets %}
+        <h2 style="margin-top: 1rem; margin-bottom: 1rem; font-size: 1.5rem; font-weight: bold;">One-of-a-Kind & Numismatic Listings</h2>
         <div class="grid">
-            {% for bucket in buckets %}
+            {% for bucket in one_of_a_kind_buckets %}
+            <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
+                <!-- Isolated/Numismatic Label Badge -->
+                <div style="position: absolute; top: 10px; left: 10px; z-index: 10;">
+                    {% if bucket.get('issue_number') and bucket.get('issue_total') %}
+                        <span style="background-color: #8b5cf6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">#{{ bucket['issue_number'] }} of {{ bucket['issue_total'] }}</span>
+                    {% else %}
+                        <span style="background-color: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">ONE-OF-A-KIND</span>
+                    {% endif %}
+                </div>
+
+                <div class="image-box">
+                    <span>Item image</span>  <!-- Placeholder text; image can go here later -->
+                </div>
+                <div class="product-text">
+                    <p class="product-title">
+                        {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
+                    </p>
+                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['grade'] }} {{ bucket['year'] }}</p>
+                    {% if bucket['lowest_price'] is not none %}
+                        <p class="price">${{ bucket['lowest_price']|commas }}</p>
+                        {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
+                            <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
+                        {% endif %}
+                    {% else %}
+                        {% if session.get('user_id') %}
+                            <p class="price no-listings">No listings from other sellers</p>
+                        {% else %}
+                            <p class="price no-listings">No listings available</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- Divider between sections -->
+        <div style="border-top: 2px solid #e5e7eb; margin: 2rem 0;"></div>
+    {% endif %}
+
+    <!-- Set Listings Section -->
+    {% if set_buckets %}
+        <h2 style="margin-top: 1rem; margin-bottom: 1rem; font-size: 1.5rem; font-weight: bold;">Set Listings</h2>
+        <div class="grid">
+            {% for bucket in set_buckets %}
+            <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
+                <!-- Set Label Badge -->
+                <div style="position: absolute; top: 10px; left: 10px; z-index: 10;">
+                    <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">SET</span>
+                </div>
+
+                <div class="image-box">
+                    <span>Item image</span>  <!-- Placeholder text; image can go here later -->
+                </div>
+                <div class="product-text">
+                    <p class="product-title">
+                        {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
+                    </p>
+                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['grade'] }} {{ bucket['year'] }}</p>
+                    {% if bucket['lowest_price'] is not none %}
+                        <p class="price">${{ bucket['lowest_price']|commas }}</p>
+                        {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
+                            <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
+                        {% endif %}
+                    {% else %}
+                        {% if session.get('user_id') %}
+                            <p class="price no-listings">No listings from other sellers</p>
+                        {% else %}
+                            <p class="price no-listings">No listings available</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- Divider between sections -->
+        <div style="border-top: 2px solid #e5e7eb; margin: 2rem 0;"></div>
+    {% endif %}
+
+    <!-- Standard Listings Section -->
+    {% if standard_buckets %}
+        <h2 style="margin-top: 1rem; margin-bottom: 1rem; font-size: 1.5rem; font-weight: bold;">Standard Listings</h2>
+        <div class="grid">
+            {% for bucket in standard_buckets %}
             <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
                 <div class="image-box">
                     <span>Item image</span>  <!-- Placeholder text; image can go here later -->
                 </div>
                 <div class="product-text">
                     <p class="product-title">
-                        {{ bucket['mint'] }} {{ bucket['product_line'] or bucket['coin_series'] or bucket['product_type'] }}
+                        {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
                     </p>
                     <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['grade'] }} {{ bucket['year'] }}</p>
                     {% if bucket['lowest_price'] is not none %}
-                        <p class="price">${{ bucket['lowest_price'] }}</p>
+                        <p class="price">${{ bucket['lowest_price']|commas }}</p>
+                        {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
+                            <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
+                        {% endif %}
                     {% else %}
-                        <p class="price no-listings">No listings available</p>
+                        {% if session.get('user_id') %}
+                            <p class="price no-listings">No listings from other sellers</p>
+                        {% else %}
+                            <p class="price no-listings">No listings available</p>
+                        {% endif %}
                     {% endif %}
                 </div>
             </a>
             {% endfor %}
         </div>
-    
-    
-    {% else %}
+    {% endif %}
+
+    <!-- No listings at all -->
+    {% if not standard_buckets and not one_of_a_kind_buckets and not set_buckets %}
         <p class="empty-message">No active listings available right now.</p>
     {% endif %}
 </div>

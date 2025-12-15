@@ -54,14 +54,14 @@
   box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
 }
 
-/* Tile as grid: image | details | meta + footer */
+/* Tile as grid: image | meta + footer */
 .orders-tab .order-tile {
   display: grid;
-  grid-template-columns: 100px 1fr auto;
+  grid-template-columns: 100px 1fr;
   grid-template-rows: auto auto;
   grid-template-areas:
-    "image details meta"
-    "footer footer  footer";
+    "image meta"
+    "footer footer";
   gap: 16px;
   background: #fff;
   border: 1px solid #ccc;
@@ -79,7 +79,6 @@
 
 /* Grid areas */
 .orders-tab .order-image  { grid-area: image; }
-.orders-tab .order-details { grid-area: details; }
 .orders-tab .order-meta    { grid-area: meta; }
 .orders-tab .order-footer  { grid-area: footer; }
 
@@ -89,14 +88,6 @@
   height: auto;
   object-fit: cover;
   border-radius: 8px;
-}
-
-/* Details (left) - Two column grid */
-.orders-tab .order-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 12px;
-  font-size: 0.95rem;
 }
 
 /* Meta (right) */
@@ -118,12 +109,30 @@
   color: #666;
 }
 
-/* Footer: full width, right-aligned buttons */
+/* Footer: full width with date on left, button grid on right */
 .orders-tab .order-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
   margin-top: 12px;
+}
+
+/* Order date display (bottom-left) */
+.orders-tab .order-date-display {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+  padding-top: 6px;
+}
+
+/* Button actions container: single row, right-aligned */
+.orders-tab .order-tile-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Button styling */
@@ -140,6 +149,18 @@
 .orders-tab .order-btn:hover {
   background-color: #3da6ff;
   color: #ffffff;
+}
+
+/* Portfolio button disabled state */
+.orders-tab .portfolio-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #e5e7eb !important;
+  color: #9ca3af !important;
+}
+.orders-tab .portfolio-btn-disabled:hover {
+  background-color: #e5e7eb !important;
+  color: #9ca3af !important;
 }
 
 .orders-tab .seller {

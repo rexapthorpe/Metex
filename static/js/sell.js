@@ -1,12 +1,3 @@
-function toggleGradingService() {
-    const graded = document.getElementById("graded");
-    const serviceDiv = document.getElementById("grading-service-section");
-    if (!graded || !serviceDiv) return;
-
-    const value = graded.value;
-    serviceDiv.style.display = value === "1" ? "block" : "none";
-}
-
 // NOTE: Datalist validation is now handled by field_validation_modal.js
 // This function is no longer used but kept for reference
 // function validateDatalistInputs(event) {
@@ -143,7 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
             'mint': 'mint',
             'year': 'year',
             'finish': 'finish',
-            'grade': 'grade'
+            'grade': 'grade',
+            'condition_category': 'condition_category',
+            'series_variant': 'series_variant'
         };
 
         // Pre-populate each field if it has a value
@@ -156,13 +149,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         });
-    }
-
-    // Initialize grading service visibility + change handler
-    toggleGradingService();
-    const gradedSelect = document.getElementById("graded");
-    if (gradedSelect) {
-        gradedSelect.addEventListener("change", toggleGradingService);
     }
 
     // NOTE: Form validation is now handled by field_validation_modal.js

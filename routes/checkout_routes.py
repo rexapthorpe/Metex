@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, sessio
 from database import get_db_connection
 from services.order_service import create_order
 from utils.cart_utils import get_cart_items
-from services.notification_service import notify_listing_sold
+from services.notification_service import notify_listing_sold, notify_order_confirmed
 from services.pricing_service import get_effective_price, create_price_lock
 
 checkout_bp = Blueprint('checkout', __name__)
@@ -17,175 +17,90 @@ def checkout():
     conn = get_db_connection()
 
     if request.method == 'POST':
-        # Check if this is an AJAX request (from modal)
-        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-
-        # For AJAX requests, expect JSON data
-        if is_ajax:
-            try:
-                data = request.get_json()
-                shipping_address = data.get('shipping_address', 'Default Address')
-
-                # Get cart items with pricing fields for effective price calculation
-                cart_items = conn.execute('''
-                    SELECT cart.id, cart.quantity, cart.listing_id,
-                           listings.price_per_coin, listings.pricing_mode,
-                           listings.spot_premium, listings.floor_price, listings.pricing_metal,
-                           categories.metal, categories.weight, categories.product_type
-                    FROM cart
-                    JOIN listings ON cart.listing_id = listings.id
-                    JOIN categories ON listings.category_id = categories.id
-                    WHERE cart.user_id = ?
-                      AND listings.active = 1
-                      AND listings.quantity > 0
-                ''', (user_id,)).fetchall()
-
-                if not cart_items:
-                    conn.close()
-                    return jsonify({
-                        'success': False,
-                        'message': 'Your cart is empty or items are no longer available'
-                    })
-
-                # Calculate effective prices for cart items
-                cart_data = []
-                for item in cart_items:
-                    item_dict = dict(item)
-                    effective_price = get_effective_price(item_dict)
-                    cart_data.append({
-                        'listing_id': item['listing_id'],
-                        'quantity': item['quantity'],
-                        'price_each': effective_price
-                    })
-
-                # Create order
-                order_id = create_order(user_id, cart_data, shipping_address)
-
-                # Calculate totals for response
-                total_items = sum(item['quantity'] for item in cart_data)
-                order_total = sum(item['quantity'] * item['price_each'] for item in cart_data)
-
-                # Collect notification data (will send after commit to avoid database locking)
-                notifications_to_send = []
-
-                # Decrement inventory
-                for item in cart_data:
-                    listing_info = conn.execute('''
-                        SELECT listings.quantity, listings.seller_id, listings.category_id,
-                               categories.metal, categories.product_type
-                        FROM listings
-                        JOIN categories ON listings.category_id = categories.id
-                        WHERE listings.id = ?
-                    ''', (item['listing_id'],)).fetchone()
-
-                    if listing_info:
-                        old_quantity = listing_info['quantity']
-                        new_quantity = old_quantity - item['quantity']
-
-                        # Update inventory
-                        if new_quantity <= 0:
-                            conn.execute('UPDATE listings SET quantity = 0, active = 0 WHERE id = ?', (item['listing_id'],))
-                        else:
-                            conn.execute('UPDATE listings SET quantity = ? WHERE id = ?', (new_quantity, item['listing_id']))
-
-                        # Collect notification data (will send after commit)
-                        item_description = f"{listing_info['metal']} {listing_info['product_type']}"
-                        is_partial = new_quantity > 0
-                        notifications_to_send.append({
-                            'seller_id': listing_info['seller_id'],
-                            'order_id': order_id,
-                            'listing_id': item['listing_id'],
-                            'item_description': item_description,
-                            'quantity_sold': item['quantity'],
-                            'price_per_unit': item['price_each'],
-                            'total_amount': item['quantity'] * item['price_each'],
-                            'shipping_address': shipping_address,
-                            'is_partial': is_partial,
-                            'remaining_quantity': new_quantity if is_partial else 0
-                        })
-
-                # Clear cart
-                conn.execute('DELETE FROM cart WHERE user_id = ?', (user_id,))
-                conn.commit()
-                conn.close()
-
-                # Send notifications AFTER commit (avoids database locking)
-                for notif_data in notifications_to_send:
-                    try:
-                        notify_listing_sold(**notif_data)
-                    except Exception as e:
-                        print(f"[CHECKOUT] Failed to send notification: {e}")
-
-                # Return JSON response
-                return jsonify({
-                    'success': True,
-                    'order_id': order_id,
-                    'total_items': total_items,
-                    'order_total': round(order_total, 2)
-                })
-
-            except Exception as e:
-                conn.close()
-                return jsonify({
-                    'success': False,
-                    'message': f'Error processing order: {str(e)}'
-                }), 500
-
-        # Original POST handling for non-AJAX requests
+        # Check for bucket purchase first (before AJAX cart checkout)
         bucket_id = request.form.get('bucket_id')
-        quantity = int(request.form.get('quantity', 1))
+        quantity = int(request.form.get('quantity') or 1)  # Handle empty string
 
         if bucket_id:
             # User is buying directly from a bucket (not from cart)
-            graded_only = request.form.get('graded_only') == '1'
-            any_grader = request.form.get('any_grader') == '1'
-            pcgs = request.form.get('pcgs') == '1'
-            ngc = request.form.get('ngc') == '1'
+            bucket_id = int(bucket_id)
+            random_year = request.form.get('random_year') == '1'
 
-            grading_filter_applied = graded_only and (any_grader or pcgs or ngc)
+            # Initialize user_listings_skipped early (before any potential early returns)
+            user_listings_skipped = False
+
+            # Get bucket_ids to query based on Random Year mode
+            if random_year:
+                # Get the base bucket info
+                bucket = conn.execute('SELECT * FROM categories WHERE bucket_id = ? LIMIT 1', (bucket_id,)).fetchone()
+
+                if not bucket:
+                    flash("Item not found.", "error")
+                    conn.close()
+                    return redirect(url_for('buy.buy'))
+
+                # Find all matching buckets (same specs except year)
+                matching_buckets_query = '''
+                    SELECT bucket_id FROM categories
+                    WHERE metal = ? AND product_type = ? AND weight = ? AND purity = ?
+                      AND mint = ? AND finish = ? AND grade = ? AND product_line = ?
+                      AND condition_category IS NOT DISTINCT FROM ?
+                      AND series_variant IS NOT DISTINCT FROM ?
+                      AND is_isolated = 0
+                '''
+                matching_buckets = conn.execute(matching_buckets_query, (
+                    bucket['metal'], bucket['product_type'], bucket['weight'], bucket['purity'],
+                    bucket['mint'], bucket['finish'], bucket['grade'], bucket['product_line'],
+                    bucket['condition_category'], bucket['series_variant']
+                )).fetchall()
+
+                bucket_ids = [row['bucket_id'] for row in matching_buckets] if matching_buckets else [bucket_id]
+                bucket_id_clause = f"c.bucket_id IN ({','.join('?' * len(bucket_ids))})"
+                params = bucket_ids.copy()
+            else:
+                bucket_ids = [bucket_id]
+                bucket_id_clause = "c.bucket_id = ?"
+                params = [bucket_id]
 
             # Get listings with pricing fields for effective price calculation
-            query = '''
+            # IMPORTANT: Include ALL listings (including user's own) to detect when they're skipped
+            query = f'''
                 SELECT l.id, l.quantity, l.price_per_coin, l.pricing_mode,
-                       l.spot_premium, l.floor_price, l.pricing_metal,
-                       c.metal, c.weight, c.product_type
+                       l.spot_premium, l.floor_price, l.pricing_metal, l.seller_id,
+                       c.metal, c.weight, c.product_type, c.year
                 FROM listings l
                 JOIN categories c ON l.category_id = c.id
-                WHERE l.category_id = ? AND l.active = 1 AND l.quantity > 0
+                WHERE {bucket_id_clause} AND l.active = 1 AND l.quantity > 0
             '''
-            params = [bucket_id]
-
-            if grading_filter_applied:
-                query += ' AND l.graded = 1'
-                if not any_grader:
-                    services = []
-                    if pcgs:
-                        services.append("'PCGS'")
-                    if ngc:
-                        services.append("'NGC'")
-                    if services:
-                        query += f" AND l.grading_service IN ({', '.join(services)})"
-                    else:
-                        flash("No matching graded listings found.", "error")
-                        conn.close()
-                        return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
             listings_raw = conn.execute(query, params).fetchall()
 
-            # Calculate effective prices and sort
+            # Calculate effective prices for all listings
             listings_with_prices = []
             for listing in listings_raw:
                 listing_dict = dict(listing)
                 listing_dict['effective_price'] = get_effective_price(listing_dict)
                 listings_with_prices.append(listing_dict)
 
-            # Sort by effective price
-            listings = sorted(listings_with_prices, key=lambda x: x['effective_price'])
+            # Sort by effective price (cheapest first)
+            listings_sorted = sorted(listings_with_prices, key=lambda x: x['effective_price'])
 
+            # Separate user's listings from others
+            user_listings = []
+            other_listings = []
+
+            for listing in listings_sorted:
+                if listing['seller_id'] == user_id:
+                    user_listings.append(listing)
+                else:
+                    other_listings.append(listing)
+
+            # Try to fill from other sellers' listings only (skip user's own listings)
             selected = []
+            selected_prices = []
             remaining = quantity
 
-            for listing in listings:
+            for listing in other_listings:
                 if remaining <= 0:
                     break
                 take = min(listing['quantity'], remaining)
@@ -194,19 +109,190 @@ def checkout():
                     'quantity': take,
                     'price_each': listing['effective_price']
                 })
+                selected_prices.append(listing['effective_price'])
                 remaining -= take
+
+            # Check if we skipped any competitive user listings
+            if user_listings and selected_prices and len(selected) > 0:
+                # If any user listing price is <= the highest price we selected, it was competitive
+                max_selected_price = max(selected_prices)
+                for user_listing in user_listings:
+                    if user_listing['effective_price'] <= max_selected_price:
+                        user_listings_skipped = True
+                        print(f"[CHECKOUT] User listing at ${user_listing['effective_price']:.2f} was skipped")
+                        break
 
             if remaining > 0:
                 flash("Not enough inventory to fulfill your request.")
                 conn.close()
                 return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
-            # Keep the selection in session for the GET render and final POST
-            session['checkout_items'] = selected
-            conn.close()
-            return redirect(url_for('checkout.checkout'))
+            # Check if this is an AJAX request (from Buy Item button)
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+            if is_ajax:
+                # Return JSON for AJAX requests (so modal can be shown before redirect)
+                print(f"[CHECKOUT] AJAX request. user_listings_skipped={user_listings_skipped}, items_selected={len(selected)}")
+                # Store selection in session for when user is redirected
+                session['checkout_items'] = selected
+                conn.close()
+                return jsonify({
+                    'success': True,
+                    'user_listings_skipped': user_listings_skipped and len(selected) > 0,
+                    'items_selected': len(selected),
+                    'message': f'{len(selected)} item(s) selected for checkout'
+                })
+            else:
+                # Traditional redirect for non-AJAX requests (backward compatibility)
+                if user_listings_skipped and len(selected) > 0:
+                    session['show_own_listings_skipped_modal'] = True
+                    print(f"[CHECKOUT] User listings were skipped. Setting session flag. User ID: {user_id}")
+
+                # Keep the selection in session for the GET render and final POST
+                session['checkout_items'] = selected
+                conn.close()
+                return redirect(url_for('checkout.checkout'))
 
         else:
+            # Not a bucket purchase - handle cart checkout
+            # Check if this is an AJAX request (from checkout modal)
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+            # For AJAX cart checkout requests, expect JSON data
+            if is_ajax:
+                try:
+                    data = request.get_json()
+                    shipping_address = data.get('shipping_address', 'Default Address')
+
+                    # Get cart items with pricing fields for effective price calculation
+                    cart_items = conn.execute('''
+                        SELECT cart.id, cart.quantity, cart.listing_id,
+                               listings.price_per_coin, listings.pricing_mode,
+                               listings.spot_premium, listings.floor_price, listings.pricing_metal,
+                               categories.metal, categories.weight, categories.product_type
+                        FROM cart
+                        JOIN listings ON cart.listing_id = listings.id
+                        JOIN categories ON listings.category_id = categories.id
+                        WHERE cart.user_id = ?
+                          AND listings.active = 1
+                          AND listings.quantity > 0
+                    ''', (user_id,)).fetchall()
+
+                    if not cart_items:
+                        conn.close()
+                        return jsonify({
+                            'success': False,
+                            'message': 'Your cart is empty or items are no longer available'
+                        })
+
+                    # Calculate effective prices for cart items
+                    cart_data = []
+                    for item in cart_items:
+                        item_dict = dict(item)
+                        effective_price = get_effective_price(item_dict)
+                        cart_data.append({
+                            'listing_id': item['listing_id'],
+                            'quantity': item['quantity'],
+                            'price_each': effective_price
+                        })
+
+                    # Create order
+                    order_id = create_order(user_id, cart_data, shipping_address)
+
+                    # Calculate totals for response
+                    total_items = sum(item['quantity'] for item in cart_data)
+                    order_total = sum(item['quantity'] * item['price_each'] for item in cart_data)
+
+                    # Collect notification data (will send after commit to avoid database locking)
+                    notifications_to_send = []
+
+                    # Decrement inventory
+                    for item in cart_data:
+                        listing_info = conn.execute('''
+                            SELECT listings.quantity, listings.seller_id, listings.category_id,
+                                   categories.metal, categories.product_type
+                            FROM listings
+                            JOIN categories ON listings.category_id = categories.id
+                            WHERE listings.id = ?
+                        ''', (item['listing_id'],)).fetchone()
+
+                        if listing_info:
+                            old_quantity = listing_info['quantity']
+                            new_quantity = old_quantity - item['quantity']
+
+                            # Update inventory
+                            if new_quantity <= 0:
+                                conn.execute('UPDATE listings SET quantity = 0, active = 0 WHERE id = ?', (item['listing_id'],))
+                            else:
+                                conn.execute('UPDATE listings SET quantity = ? WHERE id = ?', (new_quantity, item['listing_id']))
+
+                            # Collect notification data (will send after commit)
+                            item_description = f"{listing_info['metal']} {listing_info['product_type']}"
+                            is_partial = new_quantity > 0
+                            notifications_to_send.append({
+                                'seller_id': listing_info['seller_id'],
+                                'order_id': order_id,
+                                'listing_id': item['listing_id'],
+                                'item_description': item_description,
+                                'quantity_sold': item['quantity'],
+                                'price_per_unit': item['price_each'],
+                                'total_amount': item['quantity'] * item['price_each'],
+                                'shipping_address': shipping_address,
+                                'is_partial': is_partial,
+                                'remaining_quantity': new_quantity if is_partial else 0
+                            })
+
+                    # Clear cart
+                    conn.execute('DELETE FROM cart WHERE user_id = ?', (user_id,))
+                    conn.commit()
+                    conn.close()
+
+                    # Send notifications AFTER commit (avoids database locking)
+                    for notif_data in notifications_to_send:
+                        try:
+                            notify_listing_sold(**notif_data)
+                        except Exception as e:
+                            print(f"[CHECKOUT] Failed to send seller notification: {e}")
+
+                    # Send buyer notification
+                    try:
+                        # Calculate aggregate item description for the buyer
+                        item_descriptions = []
+                        for notif_data in notifications_to_send:
+                            item_descriptions.append(notif_data['item_description'])
+
+                        # Use first item description or "Multiple items" if more than one type
+                        if len(set(item_descriptions)) == 1:
+                            buyer_item_description = item_descriptions[0]
+                        else:
+                            buyer_item_description = f"{len(set(item_descriptions))} different items"
+
+                        notify_order_confirmed(
+                            buyer_id=user_id,
+                            order_id=order_id,
+                            item_description=buyer_item_description,
+                            quantity_purchased=total_items,
+                            price_per_unit=order_total / total_items if total_items > 0 else 0,
+                            total_amount=order_total
+                        )
+                    except Exception as e:
+                        print(f"[CHECKOUT] Failed to send buyer notification: {e}")
+
+                    # Return JSON response
+                    return jsonify({
+                        'success': True,
+                        'order_id': order_id,
+                        'total_items': total_items,
+                        'order_total': round(order_total, 2)
+                    })
+
+                except Exception as e:
+                    conn.close()
+                    return jsonify({
+                        'success': False,
+                        'message': f'Error processing order: {str(e)}'
+                    }), 500
+
             # Final submit: create the order from either session-selected items or the cart
             shipping_address = request.form.get('shipping_address')
 
@@ -297,6 +383,43 @@ def checkout():
             conn.execute('DELETE FROM cart WHERE user_id = ?', (user_id,))
             conn.commit()
             conn.close()
+
+            # Send buyer notification AFTER commit
+            try:
+                # Calculate totals
+                total_items = sum(item['quantity'] for item in cart_data)
+                order_total = sum(item['quantity'] * item['price_each'] for item in cart_data)
+
+                # Get unique item types for description
+                conn_temp = get_db_connection()
+                item_types = set()
+                for item in cart_data:
+                    listing = conn_temp.execute('''
+                        SELECT categories.metal, categories.product_type
+                        FROM listings
+                        JOIN categories ON listings.category_id = categories.id
+                        WHERE listings.id = ?
+                    ''', (item['listing_id'],)).fetchone()
+                    if listing:
+                        item_types.add(f"{listing['metal']} {listing['product_type']}")
+                conn_temp.close()
+
+                # Use first item description or "Multiple items" if more than one type
+                if len(item_types) == 1:
+                    buyer_item_description = list(item_types)[0]
+                else:
+                    buyer_item_description = f"{len(item_types)} different items"
+
+                notify_order_confirmed(
+                    buyer_id=user_id,
+                    order_id=order_id,
+                    item_description=buyer_item_description,
+                    quantity_purchased=total_items,
+                    price_per_unit=order_total / total_items if total_items > 0 else 0,
+                    total_amount=order_total
+                )
+            except Exception as e:
+                print(f"[CHECKOUT] Failed to send buyer notification: {e}")
 
             return redirect(url_for('checkout.order_confirmation', order_id=order_id))
 

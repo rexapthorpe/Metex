@@ -84,12 +84,54 @@
   text-align: center;
 }
 
-.listing-summary-grid {
+.listing-summary-grid,
+.item-specs-grid {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 24px;
+}
+
+/* Item specs grid layout */
+.item-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 20px;
+}
+
+/* Individual spec item (label + value pair) */
+.spec-item {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Remove border from last row items */
+.item-specs-grid .spec-item:nth-last-child(-n+2) {
+  border-bottom: none;
+}
+
+/* Spec labels - left aligned */
+.spec-item .spec-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* Spec values - right aligned */
+.spec-item .spec-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  text-align: right;
+  word-break: break-word;
 }
 
 .summary-row {

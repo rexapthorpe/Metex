@@ -15,12 +15,41 @@
                 {% if sale.product_line %}{{ sale.product_line }}{% endif %}
                 {% if sale.product_type %}{{ sale.product_type }}{% endif %}
               </h3>
-              <div class="status-badge status-{{ sale.status|lower|replace(' ', '-') }}">
-                <span class="status-dot"></span>
-                <span class="status-text">{{ sale.status }}</span>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <div class="status-badge status-{{ sale.status|lower|replace(' ', '-') }}">
+                  <span class="status-dot"></span>
+                  <span class="status-text">{{ sale.status }}</span>
+                </div>
+                <!-- Isolated/Set Badge -->
+                {% if sale.is_isolated %}
+                  {% if sale.isolated_type == 'set' %}
+                    <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">SET</span>
+                  {% elif sale.issue_number and sale.issue_total %}
+                    <span style="background-color: #8b5cf6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">#{{ sale.issue_number }} of {{ sale.issue_total }}</span>
+                  {% else %}
+                    <span style="background-color: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">ONE-OF-A-KIND</span>
+                  {% endif %}
+                {% endif %}
+                <!-- Third-Party Grading Badge -->
+                {% if sale.third_party_grading_requested %}
+                  <span style="background-color: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">TPG REQUIRED</span>
+                {% endif %}
               </div>
             </div>
           </div>
+
+          <!-- Third-Party Grading Notice (if applicable) -->
+          {% if sale.third_party_grading_requested %}
+          <div style="margin: 12px 20px; padding: 12px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px;">
+            <p style="margin: 0; font-size: 13px; font-weight: 500; color: #1e40af;">
+              <i class="fas fa-certificate" style="margin-right: 6px;"></i>
+              <strong>Third-Party Grading Required</strong>
+            </p>
+            <p style="margin: 6px 0 0 0; font-size: 12px; color: #475569; line-height: 1.5;">
+              This item must be shipped directly to {{ sale.grading_service_requested or 'the grading service' }} before the buyer receives it. Click "Grading Instructions" below for complete details.
+            </p>
+          </div>
+          {% endif %}
 
           <div class="sold-tile-content">
             <!-- Left Column: Price Details -->
@@ -71,12 +100,12 @@
             <div class="sold-section buyer-info-section">
               <h4 class="section-title">Buyer Information</h4>
               <div class="buyer-details-box">
-                {% if sale.buyer_first_name or sale.buyer_last_name %}
-                  <div class="buyer-line">
-                    <i class="fas fa-id-card"></i>
-                    <span><strong>Name:</strong> {{ sale.buyer_first_name }} {{ sale.buyer_last_name }}</span>
-                  </div>
-                {% endif %}
+                {# ✅ ALWAYS show Name field - display order-level recipient name #}
+                {# Do NOT fall back to account profile name - order name is the source of truth #}
+                <div class="buyer-line">
+                  <i class="fas fa-id-card"></i>
+                  <span><strong>Name:</strong> {{ sale.shipping_name if sale.shipping_name else '—' }}</span>
+                </div>
                 <div class="buyer-line">
                   <i class="fas fa-user"></i>
                   <span><strong>Username:</strong> {{ sale.buyer_username }}</span>
@@ -93,7 +122,7 @@
               <h4 class="section-title">Shipping Address</h4>
               <div class="address-details-box">
                 {% if sale.delivery_address %}
-                  {# Parse address - New simplified format: "Street • [Street2 •] City, State ZIP" #}
+                  {# Parse address - Format: "Street • [Street2 •] City, State ZIP" (NO NAME) #}
                   {% set parts = sale.delivery_address.split('•') %}
                   {% set parsed = namespace(street='', street2='', city='', state='', zip='') %}
 
@@ -130,41 +159,32 @@
                     {% endif %}
                   {% endif %}
 
-                  {# Display address components as labeled line items #}
-                  {% if parsed.street %}
-                    <div class="address-line">
-                      <strong>Address Line 1:</strong>
-                      <span>{{ parsed.street }}</span>
-                    </div>
-                  {% endif %}
-                  {% if parsed.street2 %}
-                    <div class="address-line">
-                      <strong>Address Line 2:</strong>
-                      <span>{{ parsed.street2 }}</span>
-                    </div>
-                  {% endif %}
-                  {% if parsed.city %}
-                    <div class="address-line">
-                      <strong>City:</strong>
-                      <span>{{ parsed.city }}</span>
-                    </div>
-                  {% endif %}
-                  {% if parsed.state %}
-                    <div class="address-line">
-                      <strong>State:</strong>
-                      <span>{{ parsed.state }}</span>
-                    </div>
-                  {% endif %}
-                  {% if parsed.zip %}
-                    <div class="address-line">
-                      <strong>ZIP Code:</strong>
-                      <span>{{ parsed.zip }}</span>
-                    </div>
-                  {% endif %}
+                  {# ✅ Display address components as labeled line items (matching Congrats modal style) #}
+                  <div class="address-line">
+                    <span class="address-label">Address Line 1:</span>
+                    <span class="address-value">{{ parsed.street if parsed.street else '—' }}</span>
+                  </div>
+                  {# ✅ ALWAYS show Address Line 2 row (even if empty) #}
+                  <div class="address-line">
+                    <span class="address-label">Address Line 2:</span>
+                    <span class="address-value">{{ parsed.street2 if parsed.street2 else '—' }}</span>
+                  </div>
+                  <div class="address-line">
+                    <span class="address-label">City:</span>
+                    <span class="address-value">{{ parsed.city if parsed.city else '—' }}</span>
+                  </div>
+                  <div class="address-line">
+                    <span class="address-label">State:</span>
+                    <span class="address-value">{{ parsed.state if parsed.state else '—' }}</span>
+                  </div>
+                  <div class="address-line">
+                    <span class="address-label">ZIP Code:</span>
+                    <span class="address-value">{{ parsed.zip if parsed.zip else '—' }}</span>
+                  </div>
 
-                  {# Fallback: if parsing failed, show raw address #}
-                  {% if not parsed.street %}
-                    <div class="address-line">
+                  {# Fallback: if parsing completely failed, show raw address #}
+                  {% if not parsed.street and not parsed.city %}
+                    <div class="address-line address-fallback">
                       <span>{{ sale.delivery_address }}</span>
                     </div>
                   {% endif %}
@@ -177,6 +197,38 @@
 
           <!-- Actions Row -->
           <div class="sold-actions-row">
+            {% if sale.third_party_grading_requested %}
+            {% set item_desc = [
+              sale.weight if sale.weight else '',
+              sale.year if sale.year else '',
+              sale.metal if sale.metal else '',
+              sale.product_line if sale.product_line else '',
+              sale.product_type if sale.product_type else ''
+            ]|select|join(' ') %}
+            {% set grading_service = sale.grading_service_requested or 'PCGS' %}
+            {% set service_addr = grading_service_addresses.get(grading_service, grading_service_addresses['PCGS']) %}
+            <button
+              class="sold-action-btn sold-action-btn--grading"
+              onclick="openGradingInstructionsModal(this)"
+              style="background-color: #3b82f6; color: white;"
+              data-order-id="{{ sale.order_id }}"
+              data-item-description="{{ item_desc }}"
+              data-quantity="{{ sale.quantity }}"
+              data-grading-service="{{ grading_service }}"
+              data-service-name="{{ service_addr.name }}"
+              data-service-line1="{{ service_addr.line1 }}"
+              data-service-line2="{{ service_addr.line2 }}"
+              data-service-city="{{ service_addr.city }}"
+              data-service-state="{{ service_addr.state }}"
+              data-service-zip="{{ service_addr.zip }}"
+              data-buyer-name="{{ sale.shipping_name if sale.shipping_name else '—' }}"
+              data-buyer-address="{{ sale.delivery_address if sale.delivery_address else '' }}"
+            >
+              <i class="fas fa-certificate"></i>
+              <span>Grading Instructions</span>
+            </button>
+            {% endif %}
+
             <button
               class="sold-action-btn sold-action-btn--message"
               onclick="openMessageModal({{ sale.order_id }}, 'buyer')"
@@ -208,4 +260,128 @@
   {% else %}
     <p class="empty-message">You have no sold items yet!</p>
   {% endif %}
+</div>
+
+<!-- Third-Party Grading Instructions Modal -->
+<div id="gradingInstructionsModal" class="buy-modal-overlay" style="display: none;" onclick="closeGradingInstructionsModalOnOverlayClick(event)">
+  <div class="buy-modal-dialog" style="max-width: 700px;">
+    <button type="button" class="modal-close" onclick="closeGradingInstructionsModal()" aria-label="Close">&times;</button>
+
+    <div class="modal-header">
+      <h2>Third-Party Grading Instructions</h2>
+      <p style="margin: 8px 0 0 0; font-size: 14px; color: #6b7280;">Order #<span id="grading-order-id">—</span></p>
+    </div>
+
+    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+      <!-- Section 1: Summary -->
+      <div style="margin-bottom: 24px;">
+        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+          Order Summary
+        </h3>
+        <p style="margin-bottom: 12px; font-size: 14px; color: #4b5563; line-height: 1.6;">
+          This order includes a third-party grading service requested by the buyer. The buyer has paid an additional grading fee, and you must ship the coin directly to the grading service.
+        </p>
+        <div style="background: #f9fafb; padding: 12px; border-radius: 6px; font-size: 13px;">
+          <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 4px;">
+            <span style="font-weight: 600; color: #374151;">Item:</span>
+            <span id="grading-item-description" style="color: #6b7280;">—</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px;">
+            <span style="font-weight: 600; color: #374151;">Quantity:</span>
+            <span id="grading-quantity" style="color: #6b7280;">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Ship-To (Grading Service) Address -->
+      <div style="margin-bottom: 24px;">
+        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+          <i class="fas fa-shipping-fast" style="margin-right: 8px; color: #3b82f6;"></i>
+          Ship To (Grading Service)
+        </h3>
+        <div style="background: #fffbeb; border: 2px solid #fbbf24; border-radius: 8px; padding: 16px;">
+          <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #92400e;">
+            Ship your item to this address:
+          </p>
+          <div id="grading-service-address" style="font-size: 14px; color: #1f2937; line-height: 1.8;">
+            <div id="grading-service-name" style="font-weight: 700;">—</div>
+            <div id="grading-service-line1">—</div>
+            <div id="grading-service-line2"></div>
+            <div>
+              <span id="grading-service-city">—</span>,
+              <span id="grading-service-state">—</span>
+              <span id="grading-service-zip">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Final Recipient (Buyer) Address -->
+      <div style="margin-bottom: 24px;">
+        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+          <i class="fas fa-home" style="margin-right: 8px; color: #10b981;"></i>
+          Final Recipient (After Grading)
+        </h3>
+        <p style="margin-bottom: 12px; font-size: 13px; color: #6b7280; font-style: italic;">
+          The grading service will ship the graded coin to this address:
+        </p>
+        <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; font-size: 14px; color: #1f2937; line-height: 1.8;">
+          <div id="buyer-name" style="font-weight: 700; margin-bottom: 8px;">—</div>
+          <div id="buyer-address-line1">—</div>
+          <div id="buyer-address-line2"></div>
+          <div>
+            <span id="buyer-city">—</span>,
+            <span id="buyer-state">—</span>
+            <span id="buyer-zip">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Step-by-Step Instructions -->
+      <div style="margin-bottom: 24px;">
+        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+          <i class="fas fa-list-ol" style="margin-right: 8px; color: #8b5cf6;"></i>
+          Seller Instructions
+        </h3>
+        <ol style="margin: 0; padding-left: 24px; font-size: 14px; color: #4b5563; line-height: 1.8;">
+          <li style="margin-bottom: 12px;">
+            <strong>Package the coin carefully</strong> for shipment to ensure it arrives safely at the grading service.
+          </li>
+          <li style="margin-bottom: 12px;">
+            <strong>Print or save this information</strong> to reference when preparing your shipment.
+          </li>
+          <li style="margin-bottom: 12px;">
+            <strong>Address the package</strong> to the grading service address shown above (highlighted in yellow).
+          </li>
+          <li style="margin-bottom: 12px;">
+            <strong>Include inside the package:</strong>
+            <ul style="margin-top: 6px; padding-left: 20px; list-style-type: disc;">
+              <li>Order ID: <strong><span id="grading-order-id-copy">—</span></strong></li>
+              <li>Buyer Name: <strong><span id="buyer-name-copy">—</span></strong></li>
+              <li>Item Description: <strong><span id="grading-item-description-copy">—</span></strong></li>
+            </ul>
+          </li>
+          <li style="margin-bottom: 12px;">
+            <strong>Use a trackable, insured shipping method</strong> to protect your shipment.
+          </li>
+          <li>
+            <strong>After shipping,</strong> return to the Sold tab and click "Add Tracking" to enter your tracking number.
+          </li>
+        </ol>
+      </div>
+
+      <!-- Section 5: Submission Reference (if available) -->
+      <div id="grading-submission-ref-section" style="display: none; margin-bottom: 16px;">
+        <div style="background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; padding: 12px;">
+          <p style="margin: 0; font-size: 13px; color: #1e40af;">
+            <strong>Metex Grading Submission ID:</strong> <span id="grading-submission-ref" style="font-family: monospace; font-weight: 600;">—</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding: 16px 20px; background: #f9fafb;">
+      <button type="button" class="btn btn-secondary" onclick="closeGradingInstructionsModal()">Close</button>
+    </div>
+  </div>
 </div>

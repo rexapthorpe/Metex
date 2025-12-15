@@ -150,6 +150,9 @@ function createNotificationTile(notification) {
     if (notification.type === 'bid_filled') {
         buttonText = 'View Order';
         targetUrl = '/account#orders';
+    } else if (notification.type === 'order_confirmed') {
+        buttonText = 'View Order';
+        targetUrl = '/account#orders';
     } else if (notification.type === 'listing_sold') {
         buttonText = 'View Sold';
         targetUrl = '/account#sold';

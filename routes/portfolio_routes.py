@@ -29,7 +29,7 @@ def get_portfolio_data():
     user_id = session['user_id']
 
     try:
-        # Get holdings
+        # Get holdings (already consolidated and with calculated values)
         holdings = get_user_holdings(user_id)
 
         # Calculate portfolio value
@@ -38,19 +38,18 @@ def get_portfolio_data():
         # Get allocation
         allocation = get_portfolio_allocation(user_id)
 
-        # Convert holdings to dict format for JSON
+        # Convert holdings to JSON-serializable format
         holdings_list = []
         for h in holdings:
-            holding_dict = dict(h)
-            # Calculate current value and gain/loss for this holding
-            quantity = holding_dict['quantity']
-            purchase_price = holding_dict['purchase_price']
-            current_price = holding_dict['current_market_price'] or purchase_price
+            # Holdings are already dicts with all calculated values
+            holding_dict = h if isinstance(h, dict) else dict(h)
 
-            holding_dict['current_value'] = round(quantity * current_price, 2)
-            holding_dict['cost_basis'] = round(quantity * purchase_price, 2)
-            holding_dict['gain_loss'] = round((current_price - purchase_price) * quantity, 2)
-            holding_dict['gain_loss_percent'] = round(((current_price - purchase_price) / purchase_price * 100), 2) if purchase_price > 0 else 0
+            # Round values for JSON display
+            holding_dict['current_value'] = round(holding_dict['current_value'], 2)
+            holding_dict['cost_basis'] = round(holding_dict['cost_basis'], 2)
+            holding_dict['gain_loss'] = round(holding_dict['gain_loss'], 2)
+            holding_dict['gain_loss_percent'] = round(holding_dict['gain_loss_percent'], 2)
+            holding_dict['purchase_price'] = round(holding_dict['purchase_price'], 2)
 
             holdings_list.append(holding_dict)
 
@@ -62,8 +61,10 @@ def get_portfolio_data():
         })
 
     except Exception as e:
+        import traceback
         print(f"Error getting portfolio data: {e}")
-        return jsonify({'error': str(e)}), 500
+        print(traceback.format_exc())
+        return jsonify({'error': str(e), 'success': False}), 500
 
 
 @portfolio_bp.route('/portfolio/history', methods=['GET'])
@@ -92,6 +93,7 @@ def get_history():
     try:
         # get_portfolio_history now ALWAYS includes current value with live prices
         snapshots = get_portfolio_history(user_id, days)
+        print(f"[Portfolio History] Received {len(snapshots)} snapshots from service")
 
         # Convert to list of dicts with consistent key names for frontend
         history = []
@@ -101,6 +103,12 @@ def get_history():
                 'value': snap['total_value'],
                 'cost_basis': snap['total_cost_basis']
             })
+
+        # Log first and last points to verify data
+        if history:
+            print(f"[Portfolio History] First point: value={history[0]['value']}, cost_basis={history[0]['cost_basis']}")
+            print(f"[Portfolio History] Last point: value={history[-1]['value']}, cost_basis={history[-1]['cost_basis']}")
+            print(f"[Portfolio History] Sample values: {[h['value'] for h in history[:5]]}")
 
         return jsonify({
             'success': True,

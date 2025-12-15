@@ -18,6 +18,14 @@ function openAddAddressModal() {
 
   // Show modal (use flex so centering works)
   modal.style.display = 'flex';
+
+  // Focus on first input for accessibility
+  requestAnimationFrame(() => {
+    const firstInput = document.getElementById('addressName');
+    if (firstInput) {
+      firstInput.focus();
+    }
+  });
 }
 
 // Open modal for editing an existing address
@@ -59,6 +67,16 @@ function editAddress(addressId) {
 function closeAddressModal() {
   const modal = document.getElementById('addressModal');
   modal.style.display = 'none';
+
+  // Return focus to Buy Item modal's delivery address dropdown if it exists
+  // This ensures proper focus flow when closing address modal from Buy flow
+  requestAnimationFrame(() => {
+    const deliverySelect = document.getElementById('deliveryAddressSelect');
+    if (deliverySelect && deliverySelect.offsetParent !== null) {
+      // deliverySelect is visible, so we're in the Buy Item modal flow
+      deliverySelect.focus();
+    }
+  });
 }
 
 // Handle form submission
@@ -86,6 +104,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Close address modal on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('addressModal');
+      const confirmModal = document.getElementById('saveAddressConfirmModal');
+
+      const addressModalOpen = modal && modal.style.display === 'flex';
+      const confirmModalOpen = confirmModal && confirmModal.style.display === 'flex';
+
+      // Close address modal if it's open and confirmation modal is NOT open
+      if (addressModalOpen && !confirmModalOpen) {
+        closeAddressModal();
+      }
+      // If confirmation modal is open, let it handle the Escape key
+    }
+  });
 
   // Check for URL parameter to auto-open address modal
   const urlParams = new URLSearchParams(window.location.search);

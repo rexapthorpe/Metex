@@ -43,6 +43,12 @@ function openBidModal(bucketId, bidId = null) {
   })
     .then(async resp => {
       const text = await resp.text();
+
+      // Handle 401 Unauthorized with specific message
+      if (resp.status === 401) {
+        throw new Error('AUTHENTICATION_REQUIRED');
+      }
+
       if (!resp.ok) throw new Error(`HTTP ${resp.status} — ${text.slice(0, 500)}`);
       return text;
     })
@@ -77,14 +83,30 @@ function openBidModal(bucketId, bidId = null) {
     })
     .catch(err => {
       console.error('❌ Bid form fetch error:', err);
-      content.innerHTML = `
-        <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
-        <div class="bid-modal-form">
-          <h2>Error Loading Form</h2>
-          <p class="error-msg">Unable to load bid form. Please try again.</p>
-          <button type="button" onclick="closeBidModal()" class="eb-confirm" style="margin-top: 16px;">Close</button>
-        </div>
-      `;
+
+      // Show specific message for authentication errors
+      if (err.message === 'AUTHENTICATION_REQUIRED') {
+        content.innerHTML = `
+          <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
+          <div class="bid-modal-form">
+            <h2>Authentication Required</h2>
+            <p class="error-msg">You must be logged in to place a bid.</p>
+            <div style="display: flex; gap: 12px; margin-top: 16px;">
+              <button type="button" onclick="window.location.href='/login'" class="eb-confirm">Log In</button>
+              <button type="button" onclick="closeBidModal()" class="btn btn-secondary">Close</button>
+            </div>
+          </div>
+        `;
+      } else {
+        content.innerHTML = `
+          <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
+          <div class="bid-modal-form">
+            <h2>Error Loading Form</h2>
+            <p class="error-msg">Unable to load bid form. Please try again.</p>
+            <button type="button" onclick="closeBidModal()" class="eb-confirm" style="margin-top: 16px;">Close</button>
+          </div>
+        `;
+      }
     });
 }
 
@@ -179,10 +201,14 @@ function initBidForm() {
     if (addr.single) return addr.single.value.trim();
 
     const parts = [];
-    const first = addr.first && addr.first.value && addr.first.value.trim();
-    const last  = addr.last  && addr.last.value  && addr.last.value.trim();
-    const nameLine = [first, last].filter(Boolean).join(' ');
-    if (nameLine) parts.push(nameLine);
+    // ✅ FIX: Do NOT include name in delivery_address
+    // Name is stored separately in users table (first_name, last_name)
+    // Including it causes parsing issues on Sold tab and other places
+    // Old code that included name:
+    // const first = addr.first && addr.first.value && addr.first.value.trim();
+    // const last  = addr.last  && addr.last.value  && addr.last.value.trim();
+    // const nameLine = [first, last].filter(Boolean).join(' ');
+    // if (nameLine) parts.push(nameLine);
 
     const line1 = addr.line1 && addr.line1.value && addr.line1.value.trim();
     const line2 = addr.line2 && addr.line2.value && addr.line2.value.trim();
@@ -192,9 +218,14 @@ function initBidForm() {
     const city  = addr.city && addr.city.value && addr.city.value.trim();
     const state = addr.state && addr.state.value && addr.state.value.trim();
     const zip   = addr.zip && addr.zip.value && addr.zip.value.trim();
-    const cityLine = [city, state, zip].filter(Boolean).join(', ');
+
+    // ✅ State and ZIP must be joined with SPACE (not comma) for correct parsing
+    // Format: "City, State ZIP" (comma after city, space between state and zip)
+    const stateZipPart = [state, zip].filter(Boolean).join(' ');
+    const cityLine = [city, stateZipPart].filter(Boolean).join(', ');
     if (cityLine) parts.push(cityLine);
 
+    // ✅ Final format: "Street • [Street2 •] City, State ZIP" (no name)
     return parts.join(' • ');
   }
 
@@ -542,7 +573,11 @@ function initBidForm() {
     });
 
     // Initialize: show/hide fields based on initial selection
-    if (addrSelector.value !== 'custom') {
+    if (addrSelector.value === 'custom') {
+      // Custom is selected (default when no saved addresses) - show fields
+      customAddressFields.style.display = 'block';
+    } else {
+      // Saved address is selected - hide custom fields
       customAddressFields.style.display = 'none';
     }
   }
@@ -598,6 +633,39 @@ function initBidForm() {
     const metal = (window.bucketSpecs && window.bucketSpecs['Metal']) || pricingMetal || '';
     const weightStr = (window.bucketSpecs && window.bucketSpecs['Weight']) || '1 oz';
 
+    // Extract delivery address from form (fields don't have name attributes, use IDs)
+    const addressLine1 = document.getElementById('addr-line1')?.value || '';
+    const addressLine2 = document.getElementById('addr-line2')?.value || '';
+    const city = document.getElementById('addr-city')?.value || '';
+    const state = document.getElementById('addr-state')?.value || '';
+    const zipCode = document.getElementById('addr-zip')?.value || '';
+
+    // Format address in bullet-separated format for modal display
+    let deliveryAddress = '';
+    if (addressLine1 || city || state || zipCode) {
+      const parts = [];
+      if (addressLine1) parts.push(addressLine1);
+      if (addressLine2) parts.push(addressLine2);
+
+      // Build city/state/zip string
+      const cityStateZip = [city, state && zipCode ? `${state} ${zipCode}` : state || zipCode]
+        .filter(Boolean)
+        .join(', ');
+
+      if (cityStateZip) parts.push(cityStateZip);
+
+      deliveryAddress = parts.join(' • ');
+    }
+
+    console.log('[BID MODAL] Extracted delivery address:', deliveryAddress);
+
+    // Add address fields to formData (they don't have name attributes in template)
+    formData.append('address_line1', addressLine1);
+    formData.append('address_line2', addressLine2);
+    formData.append('city', city);
+    formData.append('state', state);
+    formData.append('zip_code', zipCode);
+
     // Store form reference and action for later submission
     window.pendingBidFormData = {
       form: form,
@@ -621,7 +689,8 @@ function initBidForm() {
       ceilingPrice: ceilingPrice,
       pricingMetal: pricingMetal,
       metal: metal,
-      weight: weightStr
+      weight: weightStr,
+      deliveryAddress: deliveryAddress
     });
   });
 }
@@ -693,23 +762,44 @@ window.submitBidForm = function() {
         bidPrice = parseFloat(formData.get('bid_price') || formData.get('price_per_coin')) || 0;
       }
 
-      // Extract delivery address from form
-      const addressLine1 = formData.get('address_line1') || '';
-      const addressLine2 = formData.get('address_line2') || '';
-      const city = formData.get('city') || '';
-      const state = formData.get('state') || '';
-      const zipCode = formData.get('zip_code') || '';
+      // Extract delivery address from DOM (fields don't have name attributes, but we added them to formData)
+      const addressLine1 = formData.get('address_line1') || document.getElementById('addr-line1')?.value || '';
+      const addressLine2 = formData.get('address_line2') || document.getElementById('addr-line2')?.value || '';
+      const city = formData.get('city') || document.getElementById('addr-city')?.value || '';
+      const state = formData.get('state') || document.getElementById('addr-state')?.value || '';
+      const zipCode = formData.get('zip_code') || document.getElementById('addr-zip')?.value || '';
 
-      // Construct delivery address in the same format as stored: "Street • [Street2 •] City, State ZIP"
+      // Construct delivery address in bullet-separated format
       let deliveryAddress = '';
-      if (addressLine1) {
-        deliveryAddress = addressLine1;
-        if (addressLine2) {
-          deliveryAddress += ' • ' + addressLine2;
-        }
-        if (city || state || zipCode) {
-          deliveryAddress += ' • ' + city + ', ' + state + ' ' + zipCode;
-        }
+      if (addressLine1 || city || state || zipCode) {
+        const parts = [];
+        if (addressLine1) parts.push(addressLine1);
+        if (addressLine2) parts.push(addressLine2);
+
+        // Build city/state/zip string
+        const cityStateZip = [city, state && zipCode ? `${state} ${zipCode}` : state || zipCode]
+          .filter(Boolean)
+          .join(', ');
+
+        if (cityStateZip) parts.push(cityStateZip);
+
+        deliveryAddress = parts.join(' • ');
+      }
+
+      // Extract bucket specs from form data attributes for Item Details section
+      let bucketMetal = '', bucketProductLine = '', bucketProductType = '', bucketWeight = '';
+      let bucketYear = '', bucketMint = '', bucketGrade = '', bucketPurity = '', bucketFinish = '';
+
+      if (form) {
+        bucketMetal = form.dataset.bucketMetal || '';
+        bucketProductLine = form.dataset.bucketProductLine || '';
+        bucketProductType = form.dataset.bucketProductType || '';
+        bucketWeight = form.dataset.bucketWeight || '';
+        bucketYear = form.dataset.bucketYear || '';
+        bucketMint = form.dataset.bucketMint || '';
+        bucketGrade = form.dataset.bucketGrade || '';
+        bucketPurity = form.dataset.bucketPurity || '';
+        bucketFinish = form.dataset.bucketFinish || '';
       }
 
       const bidData = {
@@ -728,7 +818,17 @@ window.submitBidForm = function() {
         effectivePrice: data.effective_price,
         currentSpotPrice: data.current_spot_price,
         // Include delivery address for success modal
-        deliveryAddress: deliveryAddress
+        deliveryAddress: deliveryAddress,
+        // Include all bucket specs for Item Details section
+        bucketMetal: bucketMetal,
+        bucketProductLine: bucketProductLine,
+        bucketProductType: bucketProductType,
+        bucketWeight: bucketWeight,
+        bucketYear: bucketYear,
+        bucketMint: bucketMint,
+        bucketGrade: bucketGrade,
+        bucketPurity: bucketPurity,
+        bucketFinish: bucketFinish
       };
 
       // Debug logging

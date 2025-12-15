@@ -259,8 +259,12 @@
           <!-- Quantity -->
           <div class="field-group">
             <label>Quantity</label>
-            <input type="number" name="quantity" min="1"
-                   value="{{ listing.quantity }}" placeholder="Quantity" required>
+            <div class="qty-dial">
+              <button type="button" class="qty-btn" data-action="decrease" aria-label="Decrease quantity">−</button>
+              <span class="qty-value" id="qtyDisplay-{{ listing.listing_id }}">{{ listing.quantity }}</span>
+              <button type="button" class="qty-btn" data-action="increase" aria-label="Increase quantity">+</button>
+            </div>
+            <input type="hidden" name="quantity" id="qtyInput-{{ listing.listing_id }}" value="{{ listing.quantity }}" required>
             <p class="description">Example: 5 Items</p>
           </div>
 
@@ -273,6 +277,19 @@
             </select>
             <p class="description">Choose how to price your listing</p>
           </div>
+
+          <!-- Current Spot Price Indicator -->
+          {% if current_spot_price %}
+          <div class="spot-price-indicator" style="padding: 12px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 13px; font-weight: 600; color: #0369a1;">Current {{ listing.metal }} Spot Price:</span>
+              <span style="font-size: 16px; font-weight: 700; color: #0c4a6e;">${{ '%.2f' | format(current_spot_price) }}/oz</span>
+            </div>
+            <div style="font-size: 11px; color: #075985; margin-top: 4px;">
+              Live market price updated every 5 minutes
+            </div>
+          </div>
+          {% endif %}
 
           <!-- Static Pricing Fields (shown when pricing_mode = 'static') -->
           <div class="field-group static-pricing-fields"

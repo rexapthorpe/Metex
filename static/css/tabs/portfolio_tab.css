@@ -197,7 +197,7 @@
 .holdings-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .loading-message,
@@ -208,30 +208,42 @@
   font-size: 16px;
 }
 
-/* Holding Tile */
+/* Holding Tile - Single Column Layout (category details moved to modal) */
 .holding-tile {
-  display: grid;
-  grid-template-columns: 100px 1fr auto auto;
-  gap: 20px;
-  padding: 20px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  display: block;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   transition: all 0.2s;
-  align-items: center;
 }
 
 .holding-tile:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: #d1d5db;
+  border-color: #9ca3af;
+}
+
+/* Left Column: Image + Summary + Actions */
+.holding-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.holding-image-summary-row {
+  display: flex;
+  gap: 12px;
+  align-items: start;
 }
 
 .holding-image {
   width: 100px;
   height: 100px;
+  flex-shrink: 0;
   border-radius: 8px;
   overflow: hidden;
-  background: #ffffff;
+  background: #f5f5f5;
   border: 1px solid #e5e7eb;
 }
 
@@ -241,51 +253,25 @@
   object-fit: cover;
 }
 
-.holding-details {
-  flex: 1;
-}
-
-.holding-specs {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.spec-row {
-  display: flex;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.spec-label {
-  font-weight: 600;
-  color: #6b7280;
-  min-width: 110px;
-}
-
-.spec-value {
-  color: #111827;
-  font-weight: 500;
-}
-
-/* Holding Values */
+/* Summary Values (to right of image) */
 .holding-values {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 180px;
+  gap: 4px;
+  flex: 1;
 }
 
 .value-row {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  font-size: 14px;
+  gap: 12px;
+  font-size: 0.85rem;
+  line-height: 1.3;
 }
 
 .value-row.highlight {
-  padding-top: 8px;
-  margin-top: 4px;
+  padding-top: 4px;
+  margin-top: 2px;
   border-top: 1px solid #d1d5db;
 }
 
@@ -302,61 +288,90 @@
 .value-label {
   font-weight: 500;
   color: #6b7280;
+  font-size: 0.85rem;
 }
 
 .value-amount {
   font-weight: 600;
   color: #111827;
+  font-size: 0.85rem;
 }
 
 .value-row.highlight .value-amount {
-  font-size: 16px;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #0066cc;
 }
 
-/* Holding Actions */
+/* Action Buttons (below image/summary) */
 .holding-actions {
   display: flex;
-  flex-direction: column;
   gap: 8px;
+  margin-top: 4px;
 }
 
 .holding-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: transparent;
+  color: #000000;
+  border: transparent;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
   white-space: nowrap;
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
 .holding-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background-color: #3da6ff;
+  color: #ffffff;
 }
 
 .holding-btn i {
-  font-size: 14px;
+  font-size: 0.85rem;
 }
 
-.list-btn:hover {
-  background: #eff6ff;
-  border-color: #0066cc;
-  color: #0066cc;
+/* Specific button colors */
+.holding-btn.details-btn:hover {
+  background-color: #2563eb;
+  color: #ffffff;
 }
 
-.exclude-btn:hover {
-  background: #fef2f2;
-  border-color: #ef4444;
-  color: #ef4444;
+.holding-btn.list-btn:hover {
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+.holding-btn.exclude-btn:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+/* Right Column: Description Grid (REMOVED - no longer used) */
+.holding-description-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  font-size: 0.9rem;
+  align-content: start;
+  line-height: 1.4;
+}
+
+.holding-description-grid div {
+  line-height: 1.4;
+  padding: 0;
+  margin: 0;
+}
+
+.holding-description-grid strong {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
 }
 
 /* Allocation Section */
@@ -444,23 +459,16 @@
   }
 
   .holding-tile {
-    grid-template-columns: 80px 1fr;
-    gap: 16px;
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
-  .holding-image {
-    width: 80px;
-    height: 80px;
+  .holding-left-column {
+    width: 100%;
   }
 
-  .holding-values,
-  .holding-actions {
-    grid-column: 1 / -1;
-    margin-top: 12px;
-  }
-
-  .holding-actions {
-    flex-direction: row;
+  .holding-description-grid {
+    width: 100%;
   }
 }
 
@@ -498,13 +506,21 @@
     grid-template-columns: 1fr;
   }
 
+  .holding-image-summary-row {
+    flex-direction: column;
+  }
+
   .holding-image {
     width: 100%;
     height: 200px;
   }
 
-  .holding-specs {
+  .holding-description-grid {
     grid-template-columns: 1fr;
+  }
+
+  .holding-actions {
+    flex-direction: column;
   }
 }
 
@@ -520,7 +536,16 @@
     font-size: 13px;
   }
 
+  .holding-tile {
+    padding: 12px;
+  }
+
   .holding-actions {
     flex-direction: column;
+    gap: 6px;
+  }
+
+  .holding-btn {
+    width: 100%;
   }
 }

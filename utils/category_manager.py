@@ -10,7 +10,7 @@ def get_or_create_category(conn, category_spec):
     Args:
         conn: Database connection
         category_spec: Dict with keys: metal, product_line, product_type, weight,
-                      purity, mint, year, finish, grade
+                      purity, mint, year, finish, grade, condition_category, series_variant
 
     Returns:
         category_id: ID of existing or newly created category
@@ -27,8 +27,10 @@ def get_or_create_category(conn, category_spec):
     year = category_spec['year']
     finish = category_spec['finish']
     grade = category_spec['grade']
+    condition_category = category_spec.get('condition_category')
+    series_variant = category_spec.get('series_variant')
 
-    # 1. Look for existing category with exact specifications
+    # 1. Look for existing category with exact specifications (exclude isolated buckets)
     existing_cat = cursor.execute(
         '''
         SELECT id, bucket_id
@@ -36,24 +38,34 @@ def get_or_create_category(conn, category_spec):
         WHERE metal = ? AND product_line = ? AND product_type = ?
           AND weight = ? AND purity = ? AND mint = ?
           AND year = ? AND finish = ? AND grade = ?
+          AND condition_category IS NOT DISTINCT FROM ?
+          AND series_variant IS NOT DISTINCT FROM ?
+          AND is_isolated = 0
         LIMIT 1
         ''',
-        (metal, product_line, product_type, weight, purity, mint, year, finish, grade)
+        (metal, product_line, product_type, weight, purity, mint, year, finish, grade,
+         condition_category, series_variant)
     ).fetchone()
 
     if existing_cat:
         return existing_cat['id']
 
     # 2. No exact match - check for existing bucket (same core attributes, different finish/grade)
+    #    Exclude isolated buckets to prevent non-isolated listings from joining isolated buckets
+    #    Include condition_category and series_variant to ensure proper bucket grouping
     bucket_row = cursor.execute(
         '''
         SELECT bucket_id
         FROM categories
         WHERE metal = ? AND product_line = ? AND product_type = ?
           AND weight = ? AND purity = ? AND mint = ? AND year = ?
+          AND condition_category IS NOT DISTINCT FROM ?
+          AND series_variant IS NOT DISTINCT FROM ?
+          AND is_isolated = 0
         LIMIT 1
         ''',
-        (metal, product_line, product_type, weight, purity, mint, year)
+        (metal, product_line, product_type, weight, purity, mint, year,
+         condition_category, series_variant)
     ).fetchone()
 
     if bucket_row:
@@ -83,9 +95,11 @@ def get_or_create_category(conn, category_spec):
             mint,
             year,
             finish,
-            grade
+            grade,
+            condition_category,
+            series_variant
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''',
         (
             bucket_id,
@@ -98,7 +112,9 @@ def get_or_create_category(conn, category_spec):
             mint,
             year,
             finish,
-            grade
+            grade,
+            condition_category,
+            series_variant
         )
     )
 

@@ -11,6 +11,72 @@
 
       <h2 class="sell-header">List an Item</h2>
 
+      <!-- ========== SPECIAL LISTING TYPES ========== -->
+      <div class="row-divider"></div>
+      <h3 class="section-header">Special Listing Options</h3>
+
+      <!-- Isolated/Numismatic Listing Toggle -->
+      <div class="input-group special-listing-controls" style="grid-column: 1 / -1;">
+        <label class="checkbox-label">
+          <input type="checkbox" name="is_isolated" id="isIsolatedToggle" value="1">
+          <span style="font-weight: 600;">List as isolated / numismatic item (dedicated bucket)</span>
+        </label>
+        <div id="isolatedWarning" class="warning-message" style="display: none; margin-top: 8px;">
+          ⚠️ <strong>Important:</strong> This listing will be placed in its own isolated bucket. No other sellers
+          will be able to add items to this bucket. This may reduce liquidity for your item.
+        </div>
+      </div>
+
+      <!-- Set Listing Toggle -->
+      <div class="input-group special-listing-controls" style="grid-column: 1 / -1;">
+        <label class="checkbox-label">
+          <input type="checkbox" name="is_set" id="isSetToggle" value="1">
+          <span style="font-weight: 600;">List as part of a set (multiple items sold together)</span>
+        </label>
+        <small class="example-text" style="margin-top: 4px; display: block;">
+          Check this if you're selling multiple different items as one unit (e.g., a matched set of coins)
+        </small>
+      </div>
+
+      <!-- ========== TITLE & DESCRIPTION (Isolated/Set only) ========== -->
+      <div id="titleDescriptionContainer" style="display: none;">
+        <div class="row-divider"></div>
+        <h3 class="section-header">Listing Details</h3>
+
+        <!-- Title Input -->
+        <div class="input-group" style="grid-column: 1 / -1;">
+          <label for="listing_title">Listing Title *</label>
+          <input
+            type="text"
+            name="listing_title"
+            id="listing_title"
+            placeholder="e.g., 2024 American Silver Eagle Proof"
+            style="width: 100%;"
+          >
+          <small class="example-text">This will be the main title displayed on the Buy page and bucket view</small>
+        </div>
+
+        <!-- Description Textarea -->
+        <div class="input-group" style="grid-column: 1 / -1;">
+          <label for="listing_description">Item Description</label>
+          <textarea
+            name="listing_description"
+            id="listing_description"
+            rows="4"
+            placeholder="Describe the item, its condition, history, or any special features..."
+            style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; font-size: 14px; resize: vertical;"
+          ></textarea>
+          <small class="example-text">Optional: Provide additional details about this item</small>
+        </div>
+      </div>
+
+      <!-- ========== MAIN ITEM FIELDS ========== -->
+      <div class="row-divider"></div>
+      <h3 class="section-header" id="mainItemHeader">Item Specifications</h3>
+      <div id="setItemLabel" style="display: none; grid-column: 1 / -1; color: #1976d2; font-weight: 600; margin-bottom: 8px;">
+        Set Item #1
+      </div>
+
       <!-- Metal (searchable, validated) -->
       <div class="input-group">
         <label for="metal">Metal</label>
@@ -196,6 +262,89 @@
         <small class="example-text">Example: PF-70</small>
       </div>
 
+      <!-- Condition Category (bucket-level, searchable) -->
+      <div class="input-group">
+        <label for="condition_category">Condition Category</label>
+        <input
+          type="text"
+          name="condition_category"
+          id="condition_category"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="condition_category_options"
+          autocomplete="off"
+        >
+        <datalist id="condition_category_options">
+          {% for condition in condition_categories %}
+          <option value="{{ condition }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: BU</small>
+      </div>
+
+      <!-- Series Variant (bucket-level, searchable) -->
+      <div class="input-group">
+        <label for="series_variant">Series Variant</label>
+        <input
+          type="text"
+          name="series_variant"
+          id="series_variant"
+          class="validated-datalist custom-dropdown-input"
+          data-list-id="series_variant_options"
+          autocomplete="off"
+        >
+        <datalist id="series_variant_options">
+          {% for variant in series_variants %}
+          <option value="{{ variant }}"></option>
+          {% endfor %}
+        </datalist>
+        <small class="example-text">Example: First_Strike</small>
+      </div>
+
+      <!-- Numismatic Issue Fields (X of Y) - Only shown when isolated toggle is ON -->
+      <div class="input-group numismatic-fields" id="numismaticFields" style="grid-column: 1 / -1; margin-top: 8px; display: none;">
+        <label>Numismatic Issue (optional)</label>
+        <div class="inline-inputs" style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+          <span style="font-size: 14px;">Issue #</span>
+          <input type="number" name="issue_number" id="issueNumber"
+                 min="1" placeholder="X" style="width: 100px; padding: 8px;">
+          <span style="font-size: 14px;">out of</span>
+          <input type="number" name="issue_total" id="issueTotal"
+                 min="1" placeholder="Y" style="width: 100px; padding: 8px;">
+        </div>
+        <small class="example-text" style="margin-top: 4px; display: block;">
+          Example: Issue #5 out of 100 (for limited edition/numismatic items)
+        </small>
+      </div>
+
+      <!-- Certification Number (listing-level) -->
+      <div class="input-group">
+        <label for="cert_number">Certification Number (optional)</label>
+        <input type="text" name="cert_number" id="cert_number" placeholder="e.g., 12345678">
+        <small class="example-text">Grading certification number</small>
+      </div>
+
+      <!-- Condition Notes (listing-level) -->
+      <div class="input-group" style="grid-column: 1 / -1;">
+        <label for="condition_notes">Condition Notes (optional)</label>
+        <textarea name="condition_notes" id="condition_notes" rows="2" placeholder="Additional condition details..."></textarea>
+        <small class="example-text">Extra details about item condition</small>
+      </div>
+
+      <!-- Add Set Item Button (shown when set mode is active) -->
+      <div id="addSetItemBtnContainer" style="display: none; grid-column: 1 / -1; margin-top: 16px;">
+        <button type="button" id="addSetItemBtn" class="btn btn-secondary" style="width: 100%;">
+          + Add This Item to Set
+        </button>
+      </div>
+
+      <!-- Set Contents Display (shown when set mode is active and items have been added) -->
+      <div id="setContentsDisplay" style="display: none; grid-column: 1 / -1; margin-top: 24px;">
+        <h4 style="margin-bottom: 12px; font-size: 1rem; font-weight: 600;">Items in This Set</h4>
+        <div id="setItemsList" style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Saved set items will appear here -->
+        </div>
+      </div>
+
       <!-- Divider between rows -->
       <div class="row-divider"></div>
       <h3 class="section-header">Listing Specifications</h3>
@@ -228,24 +377,48 @@
 
         <!-- Right Column: Graded + Grading Service + Quantity + Price -->
         <div class="listing-specs-right">
-          <!-- Item has been graded? -->
-          <div class="input-group">
-            <label for="graded">Item has been graded?</label>
-            <select name="graded" id="graded" onchange="toggleGradingService()" required>
-              <option value="0" selected>No</option>
-              <option value="1">Yes</option>
-            </select>
-            <small class="example-text">Select if item is graded</small>
+          <!-- Cover Photo Upload (Set Listings Only) -->
+          <div class="input-group" id="coverPhotoGroup" style="display: none;">
+            <label for="cover_photo">Set Cover Photo (required)</label>
+            <div class="photo-upload-box" id="coverPhotoUploadBox" style="height: 120px;">
+              <span class="photo-upload-plus">+</span>
+              <img id="coverPhotoPreview" class="photo-preview" style="display: none;" alt="Cover Preview">
+              <button type="button" class="close-button" id="coverPhotoClearBtn" style="display: none;" aria-label="Clear photo">&times;</button>
+            </div>
+            <input
+              type="file"
+              name="cover_photo"
+              id="cover_photo"
+              accept="image/*"
+              style="display: none;"
+            >
+            <small class="example-text">Photo displayed on Buy page tile</small>
           </div>
 
-          <!-- Grading Service (conditionally shown) -->
-          <div class="input-group" id="grading-service-section">
-            <label for="grading_service">Grading Service</label>
-            <select name="grading_service" id="grading_service">
-              <option value="PCGS">PCGS</option>
-              <option value="NBS">NBS</option>
-            </select>
-            <small class="example-text">Select grading service</small>
+          <!-- Packaging Type -->
+          <div class="input-group">
+            <label for="packaging_type">Packaging</label>
+            <input
+              type="text"
+              name="packaging_type"
+              id="packaging_type"
+              class="validated-datalist custom-dropdown-input"
+              data-list-id="packaging_type_options"
+              autocomplete="off"
+            >
+            <datalist id="packaging_type_options">
+              {% for pkg in packaging_types %}
+              <option value="{{ pkg }}"></option>
+              {% endfor %}
+            </datalist>
+            <small class="example-text">Example: Capsule</small>
+          </div>
+
+          <!-- Packaging Notes (optional) -->
+          <div class="input-group">
+            <label for="packaging_notes">Packaging Notes (optional)</label>
+            <textarea name="packaging_notes" id="packaging_notes" rows="2" placeholder="e.g., Original mint tube with some wear..."></textarea>
+            <small class="example-text">Additional packaging details</small>
           </div>
 
           <!-- Quantity Input -->
@@ -349,4 +522,418 @@
 <script src="{{ url_for('static', filename='js/sell.js') }}"></script>
 <script src="{{ url_for('static', filename='js/modals/sell_listing_modals.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/modals/field_validation_modal.js') }}"></script>
+
+<!-- Isolated/Set/Numismatic Listing Controls -->
+<script>
+(function() {
+  'use strict';
+
+  const isIsolatedToggle = document.getElementById('isIsolatedToggle');
+  const isSetToggle = document.getElementById('isSetToggle');
+  const isolatedWarning = document.getElementById('isolatedWarning');
+  const numismaticFields = document.getElementById('numismaticFields');
+  const issueNumberInput = document.getElementById('issueNumber');
+  const issueTotalInput = document.getElementById('issueTotal');
+  const addSetItemBtnContainer = document.getElementById('addSetItemBtnContainer');
+  const addSetItemBtn = document.getElementById('addSetItemBtn');
+  const setContentsDisplay = document.getElementById('setContentsDisplay');
+  const setItemsList = document.getElementById('setItemsList');
+  const sellForm = document.getElementById('sellForm');
+  const mainItemHeader = document.getElementById('mainItemHeader');
+  const setItemLabel = document.getElementById('setItemLabel');
+  const titleDescriptionContainer = document.getElementById('titleDescriptionContainer');
+  const listingTitleInput = document.getElementById('listing_title');
+  const coverPhotoGroup = document.getElementById('coverPhotoGroup');
+  const coverPhotoInput = document.getElementById('cover_photo');
+  const coverPhotoBox = document.getElementById('coverPhotoUploadBox');
+  const coverPhotoPreview = document.getElementById('coverPhotoPreview');
+  const coverPhotoClearBtn = document.getElementById('coverPhotoClearBtn');
+
+  let setItems = []; // Array to store set items
+  let setItemCount = 0;
+
+  // Setup cover photo upload functionality
+  if (coverPhotoBox && coverPhotoInput && coverPhotoPreview && coverPhotoClearBtn) {
+    coverPhotoBox.addEventListener('click', (e) => {
+      if (!e.target.closest('.close-button') && !coverPhotoBox.classList.contains('has-image')) {
+        coverPhotoInput.click();
+      }
+    });
+
+    coverPhotoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        if (!file.type.startsWith('image/')) {
+          alert('Please select an image file (JPG, PNG, etc.)');
+          coverPhotoInput.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          coverPhotoPreview.src = event.target.result;
+          coverPhotoPreview.style.display = 'block';
+          coverPhotoClearBtn.style.display = 'flex';
+          coverPhotoBox.classList.add('has-image');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        clearCoverPhoto();
+      }
+    });
+
+    coverPhotoClearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearCoverPhoto();
+    });
+  }
+
+  function clearCoverPhoto() {
+    coverPhotoPreview.style.display = 'none';
+    coverPhotoPreview.src = '';
+    coverPhotoClearBtn.style.display = 'none';
+    coverPhotoBox.classList.remove('has-image');
+    coverPhotoInput.value = '';
+  }
+
+  // Function to update Title/Description visibility
+  function updateTitleDescriptionVisibility() {
+    const shouldShow = isIsolatedToggle.checked || isSetToggle.checked;
+    titleDescriptionContainer.style.display = shouldShow ? 'block' : 'none';
+
+    // Conditionally set required attribute on title
+    if (shouldShow) {
+      listingTitleInput.setAttribute('required', 'required');
+    } else {
+      listingTitleInput.removeAttribute('required');
+    }
+  }
+
+  // Toggle isolated warning, numismatic fields, and title/description
+  isIsolatedToggle.addEventListener('change', function(e) {
+    isolatedWarning.style.display = e.target.checked ? 'block' : 'none';
+    if (numismaticFields) {
+      numismaticFields.style.display = e.target.checked ? 'block' : 'none';
+    }
+    updateTitleDescriptionVisibility();
+  });
+
+  // Auto-check isolated when numismatic fields are filled
+  function checkNumismaticFields() {
+    const num = issueNumberInput.value.trim();
+    const total = issueTotalInput.value.trim();
+
+    if (num && total && parseInt(num) > 0 && parseInt(total) > 0) {
+      isIsolatedToggle.checked = true;
+      isolatedWarning.style.display = 'block';
+      if (numismaticFields) {
+        numismaticFields.style.display = 'block';
+      }
+    }
+  }
+
+  issueNumberInput.addEventListener('input', checkNumismaticFields);
+  issueTotalInput.addEventListener('input', checkNumismaticFields);
+
+  // Set listing toggle
+  isSetToggle.addEventListener('change', function(e) {
+    if (e.target.checked) {
+      // Show button and label
+      addSetItemBtnContainer.style.display = 'block';
+      setItemLabel.style.display = 'block';
+      mainItemHeader.textContent = 'Product Specifications';
+
+      // Show cover photo field
+      if (coverPhotoGroup) {
+        coverPhotoGroup.style.display = 'block';
+      }
+
+      // Force isolated
+      isIsolatedToggle.checked = true;
+      isIsolatedToggle.disabled = true;
+      isolatedWarning.style.display = 'block';
+      if (numismaticFields) {
+        numismaticFields.style.display = 'block';
+      }
+    } else {
+      // Hide button, label, and contents
+      addSetItemBtnContainer.style.display = 'none';
+      setContentsDisplay.style.display = 'none';
+      setItemLabel.style.display = 'none';
+      mainItemHeader.textContent = 'Item Specifications';
+
+      // Hide cover photo field
+      if (coverPhotoGroup) {
+        coverPhotoGroup.style.display = 'none';
+        clearCoverPhoto();
+      }
+
+      // Re-enable isolated toggle
+      isIsolatedToggle.disabled = false;
+
+      // Hide numismatic fields if isolated is unchecked
+      if (!isIsolatedToggle.checked && numismaticFields) {
+        numismaticFields.style.display = 'none';
+      }
+
+      // Clear set items array
+      setItems = [];
+      setItemCount = 0;
+      renderSetItems();
+    }
+
+    // Update title/description visibility
+    updateTitleDescriptionVisibility();
+  });
+
+  // Capture current spec values from the form
+  function captureSpecValues() {
+    const photoInput = document.getElementById('item_photo');
+    const photoFile = photoInput && photoInput.files.length > 0 ? photoInput.files[0] : null;
+
+    return {
+      metal: document.getElementById('metal').value.trim(),
+      product_line: document.getElementById('product_line').value.trim(),
+      product_type: document.getElementById('product_type').value.trim(),
+      weight: document.getElementById('weight').value.trim(),
+      purity: document.getElementById('purity').value.trim(),
+      mint: document.getElementById('mint').value.trim(),
+      year: document.getElementById('year').value.trim(),
+      finish: document.getElementById('finish').value.trim(),
+      grade: document.getElementById('grade').value.trim(),
+      coin_series: document.getElementById('coin_series') ? document.getElementById('coin_series').value.trim() : '',
+      photo: photoFile,
+      quantity: document.getElementById('quantity').value.trim()
+    };
+  }
+
+  // Clear Product Specification fields
+  function clearSpecFields() {
+    document.getElementById('metal').value = '';
+    document.getElementById('product_line').value = '';
+    document.getElementById('product_type').value = '';
+    document.getElementById('weight').value = '';
+    document.getElementById('purity').value = '';
+    document.getElementById('mint').value = '';
+    document.getElementById('year').value = '';
+    document.getElementById('finish').value = '';
+    document.getElementById('grade').value = '';
+    if (document.getElementById('coin_series')) {
+      document.getElementById('coin_series').value = '';
+    }
+    document.getElementById('quantity').value = '';
+
+    // Clear photo
+    const photoInput = document.getElementById('item_photo');
+    const photoPreview = document.getElementById('photoPreview');
+    const photoClearBtn = document.getElementById('photoClearBtn');
+    const photoBox = document.getElementById('photoUploadBox');
+
+    if (photoInput) photoInput.value = '';
+    if (photoPreview) {
+      photoPreview.style.display = 'none';
+      photoPreview.src = '';
+    }
+    if (photoClearBtn) photoClearBtn.style.display = 'none';
+    if (photoBox) photoBox.classList.remove('has-image');
+  }
+
+  // Render set items list
+  function renderSetItems() {
+    setItemsList.innerHTML = '';
+
+    if (setItems.length === 0) {
+      setContentsDisplay.style.display = 'none';
+      return;
+    }
+
+    setContentsDisplay.style.display = 'block';
+
+    setItems.forEach((item, index) => {
+      const itemDiv = document.createElement('div');
+      itemDiv.style.cssText = 'background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; position: relative;';
+
+      const summary = `${item.weight || '?'} ${item.metal || '?'} ${item.product_line || '?'} ${item.year || '?'}`;
+
+      // Create thumbnail if photo exists
+      let thumbnailHTML = '';
+      if (item.photo) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const thumb = itemDiv.querySelector('.item-thumbnail');
+          if (thumb) thumb.src = e.target.result;
+        };
+        reader.readAsDataURL(item.photo);
+        thumbnailHTML = '<img class="item-thumbnail" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 12px;" alt="Item photo">';
+      }
+
+      itemDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          ${thumbnailHTML}
+          <div style="flex: 1;">
+            <div style="font-weight: 600; margin-bottom: 4px; color: #1976d2;">Item #${index + 1}</div>
+            <div style="font-size: 14px; color: #4b5563;">${summary}</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+              ${item.mint || ''} • ${item.finish || ''} • ${item.grade || ''}${item.quantity ? ' • Qty: ' + item.quantity : ''}
+            </div>
+          </div>
+          <button type="button" class="remove-set-item-btn" data-index="${index}"
+                  style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 20px; padding: 4px 8px; line-height: 1;">
+            ×
+          </button>
+        </div>
+      `;
+
+      // Re-read the photo for thumbnail (since we just set innerHTML)
+      if (item.photo) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const thumb = itemDiv.querySelector('.item-thumbnail');
+          if (thumb) thumb.src = e.target.result;
+        };
+        reader.readAsDataURL(item.photo);
+      }
+
+      // Add hidden inputs for backend submission (exclude photo, will handle separately)
+      Object.keys(item).forEach(key => {
+        if (key !== 'photo') {
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = `set_items[${index + 1}][${key}]`;
+          hiddenInput.value = item[key] || '';
+          itemDiv.appendChild(hiddenInput);
+        }
+      });
+
+      setItemsList.appendChild(itemDiv);
+    });
+
+    // Update item count label
+    if (setItems.length > 0) {
+      setItemLabel.textContent = `Set Item #${setItems.length + 1}`;
+    } else {
+      setItemLabel.textContent = 'Set Item #1';
+    }
+  }
+
+  // Add set item button handler
+  addSetItemBtn.addEventListener('click', function() {
+    // Validate current fields
+    const specs = captureSpecValues();
+    const itemNumber = setItems.length + 1; // Current item being added
+
+    // Validation rules based on item number
+    if (itemNumber <= 2) {
+      // First 2 items: ALL dropdowns + photo + quantity required
+      if (!specs.metal || !specs.product_line || !specs.product_type || !specs.weight ||
+          !specs.purity || !specs.mint || !specs.year || !specs.finish || !specs.grade) {
+        alert('First two items require ALL Product Specification fields to be filled.');
+        return;
+      }
+
+      if (!specs.photo) {
+        alert('First two items require a photo to be uploaded.');
+        return;
+      }
+
+      if (!specs.quantity || parseInt(specs.quantity) < 1) {
+        alert('Please enter a valid quantity for this item.');
+        return;
+      }
+    } else {
+      // Items 3+: Only photo required, dropdowns optional
+      if (!specs.photo) {
+        alert('Please upload a photo for this item.');
+        return;
+      }
+    }
+
+    // Add to array
+    setItems.push(specs);
+    setItemCount++;
+
+    // Render updated list
+    renderSetItems();
+
+    // Clear fields for next item
+    clearSpecFields();
+
+    // Focus first field
+    document.getElementById('metal').focus();
+  });
+
+  // Remove set item handler (event delegation)
+  setItemsList.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-set-item-btn')) {
+      const index = parseInt(e.target.getAttribute('data-index'));
+      setItems.splice(index, 1);
+      setItemCount--;
+      renderSetItems();
+    }
+  });
+
+  // Form validation before submit
+  sellForm.addEventListener('submit', function(e) {
+    const isSet = isSetToggle.checked;
+
+    // Validate set has at least 2 items (main + saved items)
+    if (isSet && setItems.length < 1) {
+      e.preventDefault();
+      alert('A set listing must contain at least 2 items. Please add at least one additional item to the set.');
+      return false;
+    }
+
+    // Validate cover photo for sets
+    if (isSet && coverPhotoInput && !coverPhotoInput.files.length) {
+      e.preventDefault();
+      alert('Please upload a cover photo for your set listing.');
+      coverPhotoInput.focus();
+      return false;
+    }
+
+    // Validate numismatic fields (both or neither)
+    const issueNum = issueNumberInput.value.trim();
+    const issueTotal = issueTotalInput.value.trim();
+
+    if ((issueNum && !issueTotal) || (!issueNum && issueTotal)) {
+      e.preventDefault();
+      alert('Please fill both issue number and total, or leave both empty.');
+      issueNumberInput.focus();
+      return false;
+    }
+
+    // Validate issue number is <= issue total
+    if (issueNum && issueTotal) {
+      const num = parseInt(issueNum);
+      const total = parseInt(issueTotal);
+      if (num > total) {
+        e.preventDefault();
+        alert('Issue number cannot be greater than issue total.');
+        issueNumberInput.focus();
+        return false;
+      }
+    }
+
+    // For set listings: Attach photo files as form inputs
+    if (isSet && setItems.length > 0) {
+      // Create a DataTransfer object to hold files
+      setItems.forEach((item, index) => {
+        if (item.photo) {
+          // Create a hidden file input for this photo
+          const fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.name = `set_item_photo_${index + 1}`;
+          fileInput.style.display = 'none';
+
+          // Transfer the file to the input
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(item.photo);
+          fileInput.files = dataTransfer.files;
+
+          sellForm.appendChild(fileInput);
+        }
+      });
+    }
+  });
+})();
+</script>
 {% endblock %}

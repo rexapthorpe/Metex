@@ -9,87 +9,19 @@
 
     <div class="modal-body">
       <div class="confirm-summary">
-        <p class="confirm-message">You are about to accept the following bid:</p>
+        <p class="confirm-message">You are about to accept the following bid(s):</p>
 
-        <!-- Bidder & Transaction Info -->
-        <div class="content-container">
-          <h3 class="container-subheader">Transaction Details</h3>
-          <div class="bid-summary-grid">
-            <div class="summary-row">
-              <span class="summary-label">Bidder:</span>
-              <span class="summary-value" id="confirm-bidder-name">—</span>
-            </div>
-
-            <div class="summary-row">
-              <span class="summary-label">Price per item:</span>
-              <span class="summary-value price-highlight" id="confirm-price">—</span>
-            </div>
-
-            <div class="summary-row">
-              <span class="summary-label">Quantity:</span>
-              <span class="summary-value" id="confirm-quantity">—</span>
-            </div>
-
-            <div class="summary-row">
-              <span class="summary-label">Total value:</span>
-              <span class="summary-value total-highlight" id="confirm-total">—</span>
-            </div>
-          </div>
+        <!-- ✅ Container for dynamically generated bid cards (supports single or multiple bids) -->
+        <div id="confirm-bids-container">
+          <!-- Bid cards will be inserted here by JavaScript -->
         </div>
 
-        <!-- Item Specifications -->
-        <div class="content-container item-specifications">
-          <h3 class="container-subheader">Item Specifications</h3>
-          <div class="item-specs-grid">
-            <div class="spec-item">
-              <span class="spec-label">Metal:</span>
-              <span class="spec-value" id="confirm-spec-metal">—</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Product Line:</span>
-              <span class="spec-value" id="confirm-spec-product-line">—</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Product Type:</span>
-              <span class="spec-value" id="confirm-spec-product-type">—</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Weight:</span>
-              <span class="spec-value" id="confirm-spec-weight">—</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Grade:</span>
-              <span class="spec-value" id="confirm-spec-grade">—</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Year:</span>
-              <span class="spec-value" id="confirm-spec-year">—</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Mint:</span>
-              <span class="spec-value" id="confirm-spec-mint">—</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Purity:</span>
-              <span class="spec-value" id="confirm-spec-purity">—</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Grading Requirement -->
-        <div class="content-container">
-          <h3 class="container-subheader">Grading Requirement</h3>
-          <div class="grading-requirement">
-            <p id="confirm-grading-text">—</p>
-          </div>
-        </div>
-
-        <!-- Delivery Address -->
+        <!-- Delivery Address Notice (applies to all bids) -->
         <div class="content-container delivery-address">
           <h3 class="container-subheader">Delivery Address</h3>
           <div class="privacy-notice">
             <i class="fas fa-lock"></i>
-            <span>User's delivery address is hidden until bid is accepted for the purpose of protecting user privacy.</span>
+            <span>Buyer delivery addresses are hidden until bids are accepted for the purpose of protecting user privacy.</span>
           </div>
         </div>
 
@@ -115,104 +47,19 @@
 
     <div class="modal-body">
       <div class="success-content">
-        <p class="success-message">You have successfully accepted the bid!</p>
+        <p class="success-message">You have successfully accepted the bid(s)!</p>
 
         <div class="order-details">
           <h3>Order Details</h3>
 
-          <div class="detail-section">
-            <h4>Buyer Information</h4>
-            <div class="detail-row">
-              <span class="detail-label">Name:</span>
-              <span class="detail-value" id="success-buyer-name">—</span>
-            </div>
-          </div>
-
-          <div class="detail-section">
-            <h4>Delivery Address</h4>
-            <div class="detail-row" id="success-address-line1-row">
-              <span class="detail-label">Address Line 1:</span>
-              <span class="detail-value" id="success-address-line1">—</span>
-            </div>
-            <div class="detail-row" id="success-address-line2-row">
-              <span class="detail-label">Address Line 2:</span>
-              <span class="detail-value" id="success-address-line2">—</span>
-            </div>
-            <div class="detail-row" id="success-address-city-row">
-              <span class="detail-label">City:</span>
-              <span class="detail-value" id="success-address-city">—</span>
-            </div>
-            <div class="detail-row" id="success-address-state-row">
-              <span class="detail-label">State:</span>
-              <span class="detail-value" id="success-address-state">—</span>
-            </div>
-            <div class="detail-row" id="success-address-zip-row">
-              <span class="detail-label">ZIP Code:</span>
-              <span class="detail-value" id="success-address-zip">—</span>
-            </div>
-          </div>
-
-          <div class="detail-section">
-            <h4>Transaction Details</h4>
-            <div class="detail-row">
-              <span class="detail-label">Price per item:</span>
-              <span class="detail-value price-highlight" id="success-price">—</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Quantity:</span>
-              <span class="detail-value" id="success-quantity">—</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Total value:</span>
-              <span class="detail-value total-highlight" id="success-total">—</span>
-            </div>
-          </div>
-
-          <div class="detail-section">
-            <h4>Item Details</h4>
-            <div class="item-specs-grid">
-              <div class="spec-item" id="success-spec-metal">
-                <span class="spec-label">Metal:</span>
-                <span class="spec-value">—</span>
-              </div>
-              <div class="spec-item" id="success-spec-product-line">
-                <span class="spec-label">Product Line:</span>
-                <span class="spec-value">—</span>
-              </div>
-              <div class="spec-item" id="success-spec-product-type">
-                <span class="spec-label">Product Type:</span>
-                <span class="spec-value">—</span>
-              </div>
-              <div class="spec-item" id="success-spec-weight">
-                <span class="spec-label">Weight:</span>
-                <span class="spec-value">—</span>
-              </div>
-              <div class="spec-item" id="success-spec-grade">
-                <span class="spec-label">Grade:</span>
-                <span class="spec-value">—</span>
-              </div>
-              <div class="spec-item" id="success-spec-year">
-                <span class="spec-label">Year:</span>
-                <span class="spec-value">—</span>
-              </div>
-              <div class="spec-item" id="success-spec-mint">
-                <span class="spec-label">Mint:</span>
-                <span class="spec-value">—</span>
-              </div>
-              <div class="spec-item" id="success-spec-purity">
-                <span class="spec-label">Purity:</span>
-                <span class="spec-value">—</span>
-              </div>
-              <div class="spec-item" id="success-spec-finish">
-                <span class="spec-label">Finish:</span>
-                <span class="spec-value">—</span>
-              </div>
-            </div>
+          <!-- ✅ Container for dynamically generated order cards (supports single or multiple orders) -->
+          <div id="success-orders-container">
+            <!-- Order cards will be inserted here by JavaScript -->
           </div>
 
           <div class="shipping-notice">
-            <strong>⚠️ Important:</strong> You have <strong>4 days</strong> to input a shipping tracking link for this order.
-            Failure to do so will result in forfeiting the contract, and you will be flagged in our system going forward.
+            <strong>⚠️ Important:</strong> You have <strong>4 days</strong> to input shipping tracking links for these orders.
+            Failure to do so will result in forfeiting the contracts, and you will be flagged in our system going forward.
           </div>
         </div>
       </div>

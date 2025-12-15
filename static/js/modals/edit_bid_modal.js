@@ -402,10 +402,14 @@ function initEditBidFormSafe() {
     if (addr.single) return addr.single.value.trim();
 
     const parts = [];
-    const first = addr.first && addr.first.value && addr.first.value.trim();
-    const last  = addr.last  && addr.last.value  && addr.last.value.trim();
-    const nameLine = [first, last].filter(Boolean).join(' ');
-    if (nameLine) parts.push(nameLine);
+    // ✅ FIX: Do NOT include name in delivery_address
+    // Name is stored separately in users table (first_name, last_name)
+    // Including it causes parsing issues on Sold tab and other places
+    // Old code that included name:
+    // const first = addr.first && addr.first.value && addr.first.value.trim();
+    // const last  = addr.last  && addr.last.value  && addr.last.value.trim();
+    // const nameLine = [first, last].filter(Boolean).join(' ');
+    // if (nameLine) parts.push(nameLine);
 
     const line1 = addr.line1 && addr.line1.value && addr.line1.value.trim();
     const line2 = addr.line2 && addr.line2.value && addr.line2.value.trim();
@@ -415,9 +419,14 @@ function initEditBidFormSafe() {
     const city  = addr.city && addr.city.value && addr.city.value.trim();
     const state = addr.state && addr.state.value && addr.state.value.trim();
     const zip   = addr.zip && addr.zip.value && addr.zip.value.trim();
-    const cityLine = [city, state, zip].filter(Boolean).join(', ');
+
+    // ✅ State and ZIP must be joined with SPACE (not comma) for correct parsing
+    // Format: "City, State ZIP" (comma after city, space between state and zip)
+    const stateZipPart = [state, zip].filter(Boolean).join(' ');
+    const cityLine = [city, stateZipPart].filter(Boolean).join(', ');
     if (cityLine) parts.push(cityLine);
 
+    // ✅ Final format: "Street • [Street2 •] City, State ZIP" (no name)
     return parts.join(' • ');
   }
 

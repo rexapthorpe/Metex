@@ -7,7 +7,7 @@ def calculate_cart_total(cart_items):
         total += item['price_each'] * item['quantity']
     return round(total, 2)
 
-def create_order(buyer_id, cart_items, shipping_address):
+def create_order(buyer_id, cart_items, shipping_address, recipient_first='', recipient_last=''):
     """Create a new order and related order items."""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -15,9 +15,9 @@ def create_order(buyer_id, cart_items, shipping_address):
     total_price = calculate_cart_total(cart_items)
 
     cursor.execute('''
-        INSERT INTO orders (buyer_id, total_price, shipping_address)
-        VALUES (?, ?, ?)
-    ''', (buyer_id, total_price, shipping_address))
+        INSERT INTO orders (buyer_id, total_price, shipping_address, recipient_first_name, recipient_last_name)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (buyer_id, total_price, shipping_address, recipient_first, recipient_last))
 
     order_id = cursor.lastrowid
 

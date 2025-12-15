@@ -1,6 +1,9 @@
 {# templates/tabs/cart_tab.html #}
 
-<!-- bring in the remove-item confirmation styling -->
+<!-- Cart page styles -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/view_cart.css') }}">
+
+<!-- Modal styles -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_remove_item_confirmation_modal.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/remove_listing_confirmation_modal.css') }}">
 
@@ -11,80 +14,74 @@
     {% if buckets %}
       {% for bucket_id, bucket in buckets.items() %}
         <div class="cart-item-tile" data-bucket-id="{{ bucket_id }}">
-          <div class="tile-image">Image</div>
+          <!-- Image -->
+          <div class="cart-image">
+            <img src="{{ url_for('static', filename='img/placeholder.png') }}" alt="Product">
+          </div>
 
-          <div class="tile-info">
-            <!-- INFO + PRICE + QTY ROW (identical structure to view_cart.html) -->
-            <div class="tile-info-main">
-              <div class="tile-info-left">
-                <h3>{{ bucket.category.weight }} {{ bucket.category.metal }} {{ bucket.category.product_type }}</h3>
-                <p>
-                  <strong>Mint:</strong> {{ bucket.category.mint }}<br>
-                  <strong>Year:</strong> {{ bucket.category.year }}<br>
-                  <strong>Finish:</strong> {{ bucket.category.finish }}<br>
-                  <strong>Grade:</strong> {{ bucket.category.grade }}
-                </p>
-                {% if bucket.grading_preference %}
-                  <p><strong>Grading Preference:</strong> {{ bucket.grading_preference }}</p>
-                {% endif %}
-              </div>
+          <!-- Item Details (two-column grid) -->
+          <div class="cart-details">
+            <div><strong>Metal:</strong> {{ bucket.category.metal }}</div>
+            <div><strong>Product Type:</strong> {{ bucket.category.product_type }}</div>
+            <div><strong>Weight:</strong> {{ bucket.category.weight }}</div>
+            <div><strong>Purity:</strong> {{ bucket.category.purity }}</div>
+            <div><strong>Mint:</strong> {{ bucket.category.mint }}</div>
+            <div><strong>Year:</strong> {{ bucket.category.year }}</div>
+            <div><strong>Finish:</strong> {{ bucket.category.finish }}</div>
+            <div><strong>Grade:</strong> {{ bucket.category.grade }}</div>
+            <div><strong>Product Line:</strong> {{ bucket.category.product_line }}</div>
+            {% if bucket.listings %}
+              {% set first_listing = bucket.listings[0] %}
+              {% if first_listing.graded %}
+                <div><strong>3rd party graded:</strong> Yes ({{ first_listing.grading_service }})</div>
+              {% else %}
+                <div><strong>3rd party graded:</strong> No</div>
+              {% endif %}
+            {% endif %}
+          </div>
 
-              <div class="tile-info-right">
-                <div class="item-price avg-price">
-                  ${{ '%.2f'|format(bucket.avg_price) }}
-                </div>
-                <span class="price-subtext">price per item</span>
+          <!-- Price & Quantity -->
+          <div class="cart-meta">
+            <div class="price">${{ '%.2f'|format(bucket.avg_price) }}</div>
+            <div class="price-subtext">per item</div>
 
-                <!-- Pill qty dial (class names match view_cart for shared styles/JS) -->
-                <div class="quantity-controls">
-                  <div class="cart-qty"
-                       role="group"
-                       aria-label="Quantity"
-                       data-bucket-id="{{ bucket_id }}">
-                    <button class="cart-qty__btn cart-qty__minus" type="button" aria-label="Decrease quantity">−</button>
-                    <input
-                      class="cart-qty__value quantity-input"
-                      type="text"
-                      id="quantity-{{ bucket_id }}"
-                      inputmode="numeric"
-                      pattern="[0-9]*"
-                      min="1"
-                      max="{{ bucket.total_available }}"
-                      value="{{ bucket.total_qty }}"
-                      aria-live="polite"
-                    />
-                    <button class="cart-qty__btn cart-qty__plus" type="button" aria-label="Increase quantity">+</button>
-                  </div>
-                </div>
-              </div>
+            <!-- Pill qty dial -->
+            <div class="cart-qty"
+                 role="group"
+                 aria-label="Quantity"
+                 data-bucket-id="{{ bucket_id }}">
+              <button class="cart-qty__btn cart-qty__minus" type="button" aria-label="Decrease quantity">−</button>
+              <input
+                class="cart-qty__value quantity-input"
+                type="text"
+                id="quantity-{{ bucket_id }}"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                min="1"
+                max="{{ bucket.total_available }}"
+                value="{{ bucket.total_qty }}"
+                aria-live="polite"
+              />
+              <button class="cart-qty__btn cart-qty__plus" type="button" aria-label="Increase quantity">+</button>
             </div>
+          </div>
 
-            <!-- Buttons row (right-aligned, same as view_cart) -->
-            <div class="tile-actions-inline">
-              <button
-                class="icon-button"
-                title="View Sellers"
-                onclick="openSellerPopup({{ bucket_id }})">
-                <i class="fa-solid fa-user"></i>
-                <span class="icon-label">Sellers</span>
-              </button>
+          <!-- Footer buttons -->
+          <div class="cart-footer">
+            <button class="cart-btn" title="View Sellers" onclick="openSellerPopup({{ bucket_id }})">
+              <i class="fa-solid fa-user"></i>
+              <span>Sellers</span>
+            </button>
 
-              <button
-                class="icon-button"
-                title="View Items"
-                onclick="openPriceBreakdown({{ bucket_id }})">
-                <i class="fa-solid fa-list"></i>
-                <span class="icon-label">Items</span>
-              </button>
+            <button class="cart-btn" title="View Items" onclick="openPriceBreakdown({{ bucket_id }})">
+              <i class="fa-solid fa-list"></i>
+              <span>Items</span>
+            </button>
 
-              <button
-                class="icon-button"
-                title="Remove"
-                onclick="openRemoveItemModal({{ bucket_id }})">
-                <i class="fa-solid fa-trash"></i>
-                <span class="icon-label">Remove</span>
-              </button>
-            </div>
+            <button class="cart-btn" title="Remove" onclick="openRemoveItemModal({{ bucket_id }})">
+              <i class="fa-solid fa-trash"></i>
+              <span>Remove</span>
+            </button>
           </div>
         </div>
       {% endfor %}
@@ -100,27 +97,41 @@
     {% endif %}
   </div>
 
-  {# Order Summary - same as cart page #}
+  {# Order Summary - receipt-style layout matching cart page #}
   {% if buckets %}
-  <div class="cart-summary-fixed">
-    <h3>Order Summary</h3>
+  <div class="order-summary-card">
+    <h3 class="summary-header">Order Summary</h3>
+
     {% for bucket_id, bucket in buckets.items() %}
-      <div class="summary-line" data-bucket-id="{{ bucket_id }}">
-        <p><strong>{{ bucket.category.metal }} {{ bucket.category.product_type }}</strong></p>
-        <p class="summary-qty" id="summary-qty-{{ bucket_id }}">Quantity: {{ bucket.total_qty }}</p>
-        <p>Avg Price: ${{ '%.2f' % bucket.avg_price }}</p>
-        <p class="summary-total" id="summary-total-{{ bucket_id }}">Total: ${{ '%.2f' % bucket.total_price }}</p>
-        <hr>
+      <div class="summary-item-section" data-bucket-id="{{ bucket_id }}">
+        <div class="summary-item-name">{{ bucket.category.weight }} {{ bucket.category.metal }} {{ bucket.category.product_type }}</div>
+        <div class="summary-line">
+          <span class="summary-label">Quantity:</span>
+          <span class="summary-value" id="summary-qty-{{ bucket_id }}">{{ bucket.total_qty }}</span>
+        </div>
+        <div class="summary-line">
+          <span class="summary-label">Average Price:</span>
+          <span class="summary-value">${{ '%.2f' % bucket.avg_price }}</span>
+        </div>
+        <div class="summary-line">
+          <span class="summary-label">Subtotal:</span>
+          <span class="summary-value" id="summary-total-{{ bucket_id }}">${{ '%.2f' % bucket.total_price }}</span>
+        </div>
       </div>
     {% endfor %}
-    <p><strong>Total for All Items:</strong> ${{ '%.2f' % cart_total }}</p>
+
+    <hr class="summary-divider">
+
+    <div class="summary-line summary-total">
+      <span class="summary-label">Total:</span>
+      <span class="summary-value">${{ '%.2f' % cart_total }}</span>
+    </div>
+
     {% if session.get('user_id') %}
-      <a href="{{ url_for('checkout.checkout') }}">
-        <button class="btn proceed-btn">Proceed to Checkout</button>
-      </a>
+      <button class="proceed-checkout-btn" onclick="openCheckoutModal()">Proceed to Checkout</button>
     {% else %}
       <a href="{{ url_for('auth.login') }}">
-        <button class="btn login-btn">Login to Checkout</button>
+        <button class="proceed-checkout-btn">Login to Checkout</button>
       </a>
     {% endif %}
   </div>
@@ -134,7 +145,7 @@
     "{{ bucket_id }}": [
       {% for listing in bucket.listings %}
         {% for _ in range(listing.quantity) %}
-          {{ listing.price_per_coin }},
+          {{ listing.effective_price }},
         {% endfor %}
       {% endfor %}
     ],

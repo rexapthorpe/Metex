@@ -9,59 +9,190 @@
 let pendingAcceptData = null;
 
 /**
+ * Show warning for isolated listings before accepting bids
+ * @param {Object|Array} bidsData - Bid data to pass through after confirmation
+ * @param {FormData} formData - Form data to pass through
+ */
+function showIsolatedBidWarning(bidsData, formData) {
+  const confirmed = confirm(
+    'This is a one-of-a-kind listing. Accepting this bid will close the listing.\n\nDo you want to proceed?'
+  );
+
+  if (confirmed) {
+    // User confirmed - proceed with normal accept bid flow
+    // Call the actual modal opening logic directly
+    const bidsArray = Array.isArray(bidsData) ? bidsData : [bidsData];
+    pendingAcceptData = { bidsData: bidsArray, formData };
+
+    const modal = document.getElementById('acceptBidConfirmModal');
+    if (!modal) return;
+
+    // Get the bids container element
+    const bidsContainer = document.getElementById('confirm-bids-container');
+    if (!bidsContainer) {
+      console.error('Bids container not found in confirmation modal');
+      return;
+    }
+
+    // Clear previous content
+    bidsContainer.innerHTML = '';
+
+    // Populate each bid
+    bidsArray.forEach((bidData, index) => {
+      const bidderName = bidData.buyer_name || 'Unknown';
+      const price = bidData.effective_price || bidData.price_per_coin || 0;
+      const quantity = bidData.quantity || 1;
+      const total = price * quantity;
+
+      const requiresGrading = bidData.requires_grading;
+      const preferredGrader = bidData.preferred_grader;
+      let gradingText = 'No 3rd party grading required';
+
+      if (requiresGrading) {
+        if (preferredGrader) {
+          gradingText = `Requires 3rd party grading (${preferredGrader})`;
+        } else {
+          gradingText = 'Requires 3rd party grading';
+        }
+      }
+
+      // Create bid card HTML
+      const bidCard = document.createElement('div');
+      bidCard.className = 'bid-confirmation-card';
+      bidCard.innerHTML = `
+        <h3 class="bid-card-header">Bid #${index + 1}</h3>
+
+        <div class="content-container">
+          <h4 class="container-subheader">Transaction Details</h4>
+          <div class="bid-summary-grid">
+            <div class="summary-row">
+              <span class="summary-label">Bidder:</span>
+              <span class="summary-value">${bidderName}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Price per item:</span>
+              <span class="summary-value price-highlight">$${price.toFixed(2)} USD</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Quantity:</span>
+              <span class="summary-value">${quantity}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Total value:</span>
+              <span class="summary-value total-highlight">$${total.toFixed(2)} USD</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-container">
+          <h4 class="container-subheader">Grading Requirement</h4>
+          <div class="grading-requirement">
+            <p>${gradingText}</p>
+          </div>
+        </div>
+      `;
+
+      bidsContainer.appendChild(bidCard);
+    });
+
+    // Show modal with animation
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+      modal.classList.add('active');
+    });
+  }
+  // If not confirmed, do nothing (user cancelled)
+}
+
+/**
  * Open confirmation modal with bid summary
- * @param {Object} bidData - Bid information
+ * ✅ NOW SUPPORTS SINGLE OR MULTIPLE BIDS
+ * @param {Object|Array} bidsData - Single bid object OR array of bid objects
  * @param {FormData} formData - Form data to submit
  */
-function openAcceptBidConfirmModal(bidData, formData) {
-  pendingAcceptData = { bidData, formData };
+function openAcceptBidConfirmModal(bidsData, formData) {
+  // Check if this is an isolated bucket - show warning first
+  if (window.bucketIsIsolated) {
+    showIsolatedBidWarning(bidsData, formData);
+    return;
+  }
+
+  // Normalize to array (support both single bid and multiple bids)
+  const bidsArray = Array.isArray(bidsData) ? bidsData : [bidsData];
+
+  pendingAcceptData = { bidsData: bidsArray, formData };
 
   const modal = document.getElementById('acceptBidConfirmModal');
   if (!modal) return;
 
-  // Populate modal with bid details
-  const bidderName = bidData.buyer_name || 'Unknown';
-  const price = bidData.price_per_coin || 0;
-  const quantity = bidData.quantity || 1;
-  const total = price * quantity;
-
-  document.getElementById('confirm-bidder-name').textContent = bidderName;
-  document.getElementById('confirm-price').textContent = `$${price.toFixed(2)} USD`;
-  document.getElementById('confirm-quantity').textContent = quantity;
-  document.getElementById('confirm-total').textContent = `$${total.toFixed(2)} USD`;
-
-  // Populate item specs (8 attributes)
-  const specs = window.bucketSpecs || {};
-  const specMap = {
-    'confirm-spec-metal': specs.Metal || specs.metal || '—',
-    'confirm-spec-product-line': specs['Product line'] || specs.product_line || '—',
-    'confirm-spec-product-type': specs['Product type'] || specs.product_type || '—',
-    'confirm-spec-weight': specs.Weight || specs.weight || '—',
-    'confirm-spec-grade': specs.Grading || specs.grade || '—',
-    'confirm-spec-year': specs.Year || specs.year || '—',
-    'confirm-spec-mint': specs.Mint || specs.mint || '—',
-    'confirm-spec-purity': specs.Purity || specs.purity || '—'
-  };
-
-  Object.entries(specMap).forEach(([id, value]) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value;
-  });
-
-  // Populate grading requirement
-  const requiresGrading = bidData.requires_grading;
-  const preferredGrader = bidData.preferred_grader;
-  let gradingText = 'This item does not require 3rd party grading';
-
-  if (requiresGrading) {
-    if (preferredGrader) {
-      gradingText = `This item requires 3rd party grading (${preferredGrader})`;
-    } else {
-      gradingText = 'This item requires 3rd party grading';
-    }
+  // Get the bids container element
+  const bidsContainer = document.getElementById('confirm-bids-container');
+  if (!bidsContainer) {
+    console.error('Bids container not found in confirmation modal');
+    return;
   }
 
-  document.getElementById('confirm-grading-text').textContent = gradingText;
+  // Clear previous content
+  bidsContainer.innerHTML = '';
+
+  // Populate each bid
+  bidsArray.forEach((bidData, index) => {
+    const bidderName = bidData.buyer_name || 'Unknown';
+    // Use effective_price for correct display (handles both fixed and variable bids)
+    const price = bidData.effective_price || bidData.price_per_coin || 0;
+    const quantity = bidData.quantity || 1;
+    const total = price * quantity;
+
+    const requiresGrading = bidData.requires_grading;
+    const preferredGrader = bidData.preferred_grader;
+    let gradingText = 'No 3rd party grading required';
+
+    if (requiresGrading) {
+      if (preferredGrader) {
+        gradingText = `Requires 3rd party grading (${preferredGrader})`;
+      } else {
+        gradingText = 'Requires 3rd party grading';
+      }
+    }
+
+    // Create bid card HTML
+    const bidCard = document.createElement('div');
+    bidCard.className = 'bid-confirmation-card';
+    bidCard.innerHTML = `
+      <h3 class="bid-card-header">Bid #${index + 1}</h3>
+
+      <div class="content-container">
+        <h4 class="container-subheader">Transaction Details</h4>
+        <div class="bid-summary-grid">
+          <div class="summary-row">
+            <span class="summary-label">Bidder:</span>
+            <span class="summary-value">${bidderName}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Price per item:</span>
+            <span class="summary-value price-highlight">$${price.toFixed(2)} USD</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Quantity:</span>
+            <span class="summary-value">${quantity}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Total value:</span>
+            <span class="summary-value total-highlight">$${total.toFixed(2)} USD</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-container">
+        <h4 class="container-subheader">Grading Requirement</h4>
+        <div class="grading-requirement">
+          <p>${gradingText}</p>
+        </div>
+      </div>
+    `;
+
+    bidsContainer.appendChild(bidCard);
+  });
 
   // Show modal with animation
   modal.style.display = 'flex';
@@ -86,178 +217,175 @@ function closeAcceptBidConfirmModal() {
 
 /**
  * Open success modal with order details
- * @param {Object} orderData - Order information from backend
+ * ✅ NOW SUPPORTS SINGLE OR MULTIPLE ORDERS
+ * @param {Object|Array} ordersData - Single order object OR array of order objects
  */
-function openAcceptBidSuccessModal(orderData) {
+function openAcceptBidSuccessModal(ordersData) {
+  // Normalize to array (support both single order and multiple orders)
+  const ordersArray = Array.isArray(ordersData) ? ordersData : [ordersData];
+
   const modal = document.getElementById('acceptBidSuccessModal');
   if (!modal) return;
 
-  // Populate buyer information
-  document.getElementById('success-buyer-name').textContent = orderData.buyer_name || 'Unknown';
+  // Get the orders container element
+  const ordersContainer = document.getElementById('success-orders-container');
+  if (!ordersContainer) {
+    console.error('Orders container not found in success modal');
+    return;
+  }
 
-  // Parse and populate delivery address
-  console.log('[SUCCESS MODAL] Raw delivery_address:', orderData.delivery_address);
-  console.log('[SUCCESS MODAL] Type:', typeof orderData.delivery_address);
+  // Clear previous content
+  ordersContainer.innerHTML = '';
 
-  let address = orderData.delivery_address || '';
-  let street = '';
-  let street2 = '';
-  let city = '';
-  let state = '';
-  let zip = '';
+  // Populate each order
+  ordersArray.forEach((orderData, index) => {
+    const buyerName = orderData.buyer_name || 'Unknown';
+    // Use effective_price for correct display (handles both fixed and variable bids)
+    // Backend sends this as price_per_coin in order_details, which is already the effective price
+    const price = orderData.price_per_coin || 0;
+    const quantity = orderData.quantity || 1;
+    const total = orderData.total_price || (price * quantity);
 
-  // Handle different address formats
-  if (!address || address === 'Not provided') {
-    console.log('[SUCCESS MODAL] No address provided');
-  } else if (typeof address === 'object') {
-    // Address is an object with separate fields
-    console.log('[SUCCESS MODAL] Address is object:', address);
-    street = address.line1 || address.street || '';
-    street2 = address.line2 || address.street2 || '';
-    city = address.city || '';
-    state = address.state || '';
-    zip = address.zip || address.zip_code || '';
-  } else if (typeof address === 'string' && address.includes('•')) {
-    // Address uses bullet separator format: "Name • Line1 • [Line2 •] City, State ZIP"
-    console.log('[SUCCESS MODAL] Parsing bullet-separated address');
+    // Parse 3rd party grading info
+    const requiresGrading = orderData.requires_grading || false;
+    const preferredGrader = orderData.preferred_grader || '';
 
-    // Clean delivery address (remove name prefix if present)
-    let cleanAddress = address;
-    if (address.includes(' - ')) {
-      cleanAddress = address.split(' - ').slice(1).join(' - ');
-    }
+    // Parse delivery address
+    let address = orderData.delivery_address || '';
+    let street = '';
+    let street2 = '';
+    let city = '';
+    let state = '';
+    let zip = '';
 
-    const addressParts = cleanAddress.split('•').map(p => p.trim());
-    console.log('[SUCCESS MODAL] Address parts:', addressParts);
+    // Handle different address formats
+    if (!address || address === 'Not provided') {
+      // No address
+    } else if (typeof address === 'object') {
+      street = address.line1 || address.street || '';
+      street2 = address.line2 || address.street2 || '';
+      city = address.city || '';
+      state = address.state || '';
+      zip = address.zip || address.zip_code || '';
+    } else if (typeof address === 'string' && address.includes('•')) {
+      // Parse bullet-separated format: "Name • Line1 • Line2 • City, State ZIP"
+      const addressParts = address.split('•').map(p => p.trim());
 
-    // Extract name if it's in the first part (before first •)
-    if (addressParts.length >= 1) {
-      street = addressParts[0];
-    }
-
-    // Check for 2, 3, or 4 parts
-    let cityStateZip = '';
-    if (addressParts.length === 4) {
-      // Format: Name • Line1 • Line2 • City, State ZIP
-      street = addressParts[1];
-      street2 = addressParts[2];
-      cityStateZip = addressParts[3];
-    } else if (addressParts.length === 3) {
-      // Format: Line1 • Line2 • City, State ZIP  OR  Name • Line1 • City, State ZIP
-      // Check if last part looks like city, state, zip
-      const lastPart = addressParts[2];
-      if (lastPart.includes(',')) {
-        // Has comma, likely city,state format
-        street2 = addressParts[1];
-        cityStateZip = lastPart;
-      } else {
-        // No comma, treat as name • line1 • line2
+      if (addressParts.length >= 2) {
+        // First part might be name, or might be line1
         street = addressParts[0];
-        street2 = addressParts[1];
-        cityStateZip = addressParts[2];
-      }
-    } else if (addressParts.length === 2) {
-      // Format: Line1 • City, State ZIP
-      cityStateZip = addressParts[1];
-    }
 
-    // Parse "City, State ZIP" or "City, State, ZIP"
-    if (cityStateZip && cityStateZip.includes(',')) {
-      const cityParts = cityStateZip.split(',').map(p => p.trim());
-      city = cityParts[0];
+        // Last part should be city, state, zip
+        const lastPart = addressParts[addressParts.length - 1];
+        if (lastPart.includes(',')) {
+          const cityParts = lastPart.split(',').map(p => p.trim());
+          city = cityParts[0] || '';
 
-      if (cityParts.length === 2) {
-        // Format: "City, State ZIP"
-        const stateZipParts = cityParts[1].split(/\s+/);
-        if (stateZipParts.length >= 1) {
-          state = stateZipParts[0];
+          if (cityParts.length >= 2) {
+            // Parse "State ZIP" from "City, State ZIP"
+            const stateZipStr = cityParts[1].trim();
+            const stateZipParts = stateZipStr.split(/\s+/);
+            state = stateZipParts[0] || '';
+            zip = stateZipParts.slice(1).join(' ') || '';
+          }
         }
-        if (stateZipParts.length >= 2) {
-          zip = stateZipParts.slice(1).join(' ');
+
+        // Middle parts
+        if (addressParts.length === 3) {
+          // Format: Line1 • Line2 • City,State ZIP
+          street2 = addressParts[1];
+        } else if (addressParts.length === 4) {
+          // Format: Name • Line1 • Line2 • City,State ZIP
+          street = addressParts[1];
+          street2 = addressParts[2];
         }
-      } else if (cityParts.length >= 3) {
-        // Format: "City, State, ZIP"
-        state = cityParts[1];
-        zip = cityParts.slice(2).join(', ');
       }
+    } else if (typeof address === 'string') {
+      street = address;
     }
-  } else if (typeof address === 'string') {
-    // Simple text address - display as Line 1
-    console.log('[SUCCESS MODAL] Simple text address, displaying as Line 1');
-    street = address;
-  }
 
-  console.log('[SUCCESS MODAL] Parsed address:', {
-    street, street2, city, state, zip
-  });
+    // Create order card HTML with THREE SECTIONS
+    const orderCard = document.createElement('div');
+    orderCard.className = 'order-success-card';
+    orderCard.innerHTML = `
+      <h3 class="order-card-header">Order #${index + 1}</h3>
 
-  // Get all address elements and populate them
-  const line1El = document.getElementById('success-address-line1');
-  const line2El = document.getElementById('success-address-line2');
-  const cityEl = document.getElementById('success-address-city');
-  const stateEl = document.getElementById('success-address-state');
-  const zipEl = document.getElementById('success-address-zip');
+      <!-- ✅ SECTION 1: Price Details -->
+      <div class="success-section price-details-section">
+        <h4 class="section-title">Price Details</h4>
+        <div class="section-content">
+          <div class="detail-row">
+            <span class="detail-label">Price per item:</span>
+            <span class="detail-value price-highlight">$${price.toFixed(2)} USD</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Quantity:</span>
+            <span class="detail-value">${quantity}</span>
+          </div>
+          <div class="detail-row total-row">
+            <span class="detail-label">Total value:</span>
+            <span class="detail-value total-highlight">$${total.toFixed(2)} USD</span>
+          </div>
+        </div>
+      </div>
 
-  // Populate each component (or leave as "—" if empty)
-  if (line1El) {
-    line1El.textContent = street || '—';
-    console.log('[SUCCESS MODAL] Line 1:', street || '—');
-  }
+      <!-- ✅ SECTION 2: Bidder ID (Buyer Information) -->
+      <div class="success-section bidder-id-section">
+        <h4 class="section-title">Bidder ID</h4>
+        <div class="section-content">
+          <div class="detail-row">
+            <span class="detail-label">Name:</span>
+            <span class="detail-value">${buyerName}</span>
+          </div>
+        </div>
+      </div>
 
-  if (line2El) {
-    line2El.textContent = street2 || '—';
-    console.log('[SUCCESS MODAL] Line 2:', street2 || '—');
-  }
+      <!-- ✅ SECTION 3: 3rd Party Grading -->
+      <div class="success-section grading-section">
+        <h4 class="section-title">3rd Party Grading</h4>
+        <div class="section-content">
+          <div class="detail-row">
+            <span class="detail-label">Requires 3rd Party Grading:</span>
+            <span class="detail-value">${requiresGrading ? 'Yes' : 'No'}</span>
+          </div>
+          ${requiresGrading && preferredGrader ? `
+            <div class="detail-row">
+              <span class="detail-label">Grader:</span>
+              <span class="detail-value">${preferredGrader}</span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
 
-  if (cityEl) {
-    cityEl.textContent = city || '—';
-    console.log('[SUCCESS MODAL] City:', city || '—');
-  }
+      <!-- ✅ Delivery Address (with proper label/value rows) -->
+      <div class="success-section delivery-address-section">
+        <h4 class="section-title">Delivery Address</h4>
+        <div class="section-content address-rows">
+          <div class="address-row">
+            <span class="address-label">Address line 1:</span>
+            <span class="address-value">${street || '—'}</span>
+          </div>
+          <div class="address-row">
+            <span class="address-label">Address line 2:</span>
+            <span class="address-value">${street2 || '—'}</span>
+          </div>
+          <div class="address-row">
+            <span class="address-label">City:</span>
+            <span class="address-value">${city || '—'}</span>
+          </div>
+          <div class="address-row">
+            <span class="address-label">State:</span>
+            <span class="address-value">${state || '—'}</span>
+          </div>
+          <div class="address-row">
+            <span class="address-label">Zip code:</span>
+            <span class="address-value">${zip || '—'}</span>
+          </div>
+        </div>
+      </div>
+    `;
 
-  if (stateEl) {
-    stateEl.textContent = state || '—';
-    console.log('[SUCCESS MODAL] State:', state || '—');
-  }
-
-  if (zipEl) {
-    zipEl.textContent = zip || '—';
-    console.log('[SUCCESS MODAL] ZIP:', zip || '—');
-  }
-
-  // Check if any address fields were populated
-  const hasAddress = street || street2 || city || state || zip;
-  console.log('[SUCCESS MODAL] Has address data:', hasAddress);
-
-  // Populate transaction details
-  const price = orderData.price_per_coin || 0;
-  const quantity = orderData.quantity || 1;
-  const total = orderData.total_price || (price * quantity);
-
-  document.getElementById('success-price').textContent = `$${price.toFixed(2)} USD`;
-  document.getElementById('success-quantity').textContent = quantity;
-  document.getElementById('success-total').textContent = `$${total.toFixed(2)} USD`;
-
-  // Populate item specs (all 9 attributes)
-  const specs = window.bucketSpecs || {};
-
-  const specMap = {
-    'success-spec-metal': specs.Metal || specs.metal || '—',
-    'success-spec-product-line': specs['Product line'] || specs.product_line || '—',
-    'success-spec-product-type': specs['Product type'] || specs.product_type || '—',
-    'success-spec-weight': specs.Weight || specs.weight || '—',
-    'success-spec-grade': specs.Grading || specs.grade || '—',
-    'success-spec-year': specs.Year || specs.year || '—',
-    'success-spec-mint': specs.Mint || specs.mint || '—',
-    'success-spec-purity': specs.Purity || specs.purity || '—',
-    'success-spec-finish': specs.Finish || specs.finish || '—'
-  };
-
-  Object.entries(specMap).forEach(([id, value]) => {
-    const el = document.getElementById(id);
-    if (el) {
-      const valueEl = el.querySelector('.spec-value');
-      if (valueEl) valueEl.textContent = value;
-    }
+    ordersContainer.appendChild(orderCard);
   });
 
   // Show modal with animation
@@ -284,11 +412,12 @@ function closeAcceptBidSuccessModal() {
 
 /**
  * Handle confirmation button click - submit via AJAX
+ * ✅ NOW SUPPORTS MULTIPLE BIDS
  */
 function handleConfirmAccept() {
   if (!pendingAcceptData) return;
 
-  const { bidData, formData } = pendingAcceptData;
+  const { bidsData, formData } = pendingAcceptData;
   const confirmBtn = document.getElementById('confirmAcceptBtn');
 
   if (!confirmBtn) return;
@@ -306,6 +435,12 @@ function handleConfirmAccept() {
     }
   })
     .then(async res => {
+      // Handle 401 Unauthorized
+      if (res.status === 401) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error('AUTHENTICATION_REQUIRED: ' + (data.message || 'Please log in'));
+      }
+
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         return res.json();
@@ -321,42 +456,62 @@ function handleConfirmAccept() {
 
         // Show success modal with order details from backend response
         setTimeout(() => {
-          if (data.order_details) {
-            // Use order details from backend (includes fresh delivery_address)
-            openAcceptBidSuccessModal(data.order_details);
+          if (data.all_order_details) {
+            // ✅ Use all order details from backend (multiple orders)
+            openAcceptBidSuccessModal(data.all_order_details);
+          } else if (data.order_details) {
+            // Legacy: single order (backward compatibility)
+            openAcceptBidSuccessModal([data.order_details]);
           } else {
-            // Fallback to bidData if order_details not provided
-            openAcceptBidSuccessModal({
-              buyer_name: bidData.buyer_name,
-              delivery_address: bidData.delivery_address,
-              price_per_coin: bidData.price_per_coin,
-              quantity: bidData.quantity,
-              total_price: data.total_price || (bidData.price_per_coin * bidData.quantity)
+            // Fallback: construct from bidsData
+            const fallbackOrders = bidsData.map(bid => {
+              // Use effective_price for correct display (handles both fixed and variable bids)
+              const effectivePrice = bid.effective_price || bid.price_per_coin || 0;
+              return {
+                buyer_name: bid.buyer_name,
+                delivery_address: bid.delivery_address,
+                price_per_coin: effectivePrice,
+                quantity: bid.quantity,
+                total_price: effectivePrice * bid.quantity
+              };
             });
+            openAcceptBidSuccessModal(fallbackOrders);
           }
         }, 350);
       } else {
         // Show error
-        alert(data.message || 'Failed to accept bid. Please try again.');
+        alert(data.message || 'Failed to accept bids. Please try again.');
         closeAcceptBidConfirmModal();
       }
     })
     .catch(err => {
       console.error('Accept bid error:', err);
-      alert('An error occurred while accepting the bid. Please try again.');
-      closeAcceptBidConfirmModal();
+
+      // Show specific message for authentication errors
+      if (err.message.startsWith('AUTHENTICATION_REQUIRED')) {
+        alert('You must be logged in to accept bids. Please log in and try again.');
+        closeAcceptBidConfirmModal();
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1000);
+      } else {
+        alert('An error occurred while accepting the bids. Please try again.');
+        closeAcceptBidConfirmModal();
+      }
     })
     .finally(() => {
       // Reset button
       if (confirmBtn) {
         confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Yes, Accept Bid';
+        confirmBtn.textContent = `Yes, Accept ${bidsData.length > 1 ? 'Bids' : 'Bid'}`;
       }
     });
 }
 
 /**
  * Intercept "Accept Bids" form submission
+ * ✅ NOW SUPPORTS MULTIPLE BIDS
  */
 function interceptAcceptBidsForm() {
   const form = document.getElementById('accept-bids-form');
@@ -372,43 +527,39 @@ function interceptAcceptBidsForm() {
       return;
     }
 
-    // For now, only handle single bid selection for modal flow
-    // (Could be extended to handle multiple bids)
-    if (selectedCheckboxes.length > 1) {
-      alert('Please select only one bid at a time for acceptance.');
-      return;
-    }
-
-    const checkbox = selectedCheckboxes[0];
-    const bidId = parseInt(checkbox.value, 10);
-    const hiddenInput = form.querySelector(`#accept_qty_${bidId}`);
-    const quantity = parseInt(hiddenInput?.value || '0', 10);
-
-    if (quantity <= 0) {
-      alert('Please set a quantity greater than 0.');
-      return;
-    }
-
-    // Find bid data
+    // Collect all selected bids with their quantities
     const allBids = window.allBids || [];
-    const bid = allBids.find(b => b.id === bidId);
+    const selectedBidsData = [];
 
-    if (!bid) {
-      alert('Bid data not found.');
-      return;
+    for (const checkbox of selectedCheckboxes) {
+      const bidId = parseInt(checkbox.value, 10);
+      const hiddenInput = form.querySelector(`#accept_qty_${bidId}`);
+      const quantity = parseInt(hiddenInput?.value || '0', 10);
+
+      if (quantity <= 0) {
+        alert(`Please set a quantity greater than 0 for Bid #${bidId}.`);
+        return;
+      }
+
+      // Find bid data
+      const bid = allBids.find(b => b.id === bidId);
+      if (!bid) {
+        alert(`Bid #${bidId} data not found.`);
+        return;
+      }
+
+      // Add to selected bids array
+      selectedBidsData.push({
+        ...bid,
+        quantity: quantity
+      });
     }
 
     // Prepare form data
     const formData = new FormData(form);
 
-    // Prepare bid data
-    const bidData = {
-      ...bid,
-      quantity: quantity
-    };
-
-    // Show confirmation modal
-    openAcceptBidConfirmModal(bidData, formData);
+    // Show confirmation modal with all selected bids
+    openAcceptBidConfirmModal(selectedBidsData, formData);
   });
 }
 

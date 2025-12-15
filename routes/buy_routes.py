@@ -5,8 +5,9 @@ from routes.auto_fill_bid import auto_fill_bid
 from datetime import datetime
 from database import get_db_connection
 from utils.cart_utils import get_cart_items
-from services.notification_service import notify_listing_sold
+from services.notification_service import notify_listing_sold, notify_order_confirmed
 from services.pricing_service import get_effective_price, get_effective_bid_price, get_listings_with_effective_prices
+from services.spot_price_service import get_spot_price
 import sqlite3
 import os
 
@@ -23,8 +24,12 @@ def buy():
     pcgs = request.args.get('pcgs') == '1'
     ngc = request.args.get('ngc') == '1'
 
-    # First, get all categories (buckets)
-    categories_query = '''
+    # Get current user ID to exclude their own listings
+    user_id = session.get('user_id')
+
+    # Get NON-ISOLATED categories (standard listings)
+    # IMPORTANT: Filter out categories with NULL bucket_id to prevent URL building errors
+    standard_categories_query = '''
         SELECT DISTINCT
             categories.id AS category_id,
             categories.bucket_id,
@@ -38,13 +43,45 @@ def buy():
             categories.coin_series,
             categories.product_line
         FROM categories
+        WHERE categories.bucket_id IS NOT NULL
+          AND categories.is_isolated = 0
     '''
-    categories = conn.execute(categories_query).fetchall()
+    standard_categories = conn.execute(standard_categories_query).fetchall()
+
+    # Get ISOLATED categories (one-of-a-kind and sets)
+    isolated_categories_query = '''
+        SELECT DISTINCT
+            categories.id AS category_id,
+            categories.bucket_id,
+            categories.metal,
+            categories.product_type,
+            categories.weight,
+            categories.mint,
+            categories.year,
+            categories.finish,
+            categories.grade,
+            categories.coin_series,
+            categories.product_line,
+            categories.is_isolated,
+            listings.isolated_type,
+            listings.issue_number,
+            listings.issue_total,
+            listings.name AS listing_title
+        FROM categories
+        LEFT JOIN listings ON categories.id = listings.category_id AND listings.active = 1
+        WHERE categories.bucket_id IS NOT NULL
+          AND categories.is_isolated = 1
+    '''
+    isolated_categories = conn.execute(isolated_categories_query).fetchall()
+
+    # Combine both lists for listings query
+    categories = list(standard_categories) + list(isolated_categories)
 
     # Then, get all active listings with pricing fields
+    # IMPORTANT: Include ALL listings (including user's own) for best ask calculation
     listings_query = '''
         SELECT
-            l.id, l.category_id, l.quantity, l.price_per_coin,
+            l.id, l.category_id, l.quantity, l.price_per_coin, l.seller_id,
             l.pricing_mode, l.spot_premium, l.floor_price, l.pricing_metal,
             l.graded, l.grading_service,
             c.metal, c.weight, c.product_type, c.bucket_id
@@ -55,6 +92,8 @@ def buy():
 
     where_clauses = []
     params = []
+
+    # DO NOT exclude user's own listings - we need them for best ask calculation
 
     if graded_only:
         where_clauses.append('l.graded = 1')
@@ -85,13 +124,18 @@ def buy():
         listings_with_prices.append(listing_dict)
 
     # Aggregate by bucket_id
+    # Track all listings and non-user listings separately
     bucket_data = {}
     for listing in listings_with_prices:
         bucket_id = listing['bucket_id']
+        is_user_listing = user_id and listing['seller_id'] == user_id
+
         if bucket_id not in bucket_data:
             bucket_data[bucket_id] = {
                 'lowest_price': listing['effective_price'],
-                'total_available': listing['quantity']
+                'total_available': listing['quantity'],
+                'has_non_user_listings': not is_user_listing,
+                'total_non_user_available': 0 if is_user_listing else listing['quantity']
             }
         else:
             bucket_data[bucket_id]['lowest_price'] = min(
@@ -99,37 +143,122 @@ def buy():
                 listing['effective_price']
             )
             bucket_data[bucket_id]['total_available'] += listing['quantity']
+            if not is_user_listing:
+                bucket_data[bucket_id]['has_non_user_listings'] = True
+                bucket_data[bucket_id]['total_non_user_available'] += listing['quantity']
 
-    # Merge bucket data with categories
-    buckets = []
-    for category in categories:
+    # Merge bucket data with standard categories
+    standard_buckets = []
+    for category in standard_categories:
         cat_dict = dict(category)
         bucket_id = cat_dict['bucket_id']
+
+        # Skip categories with NULL bucket_id (defensive check)
+        if bucket_id is None:
+            continue
 
         if bucket_id in bucket_data:
             cat_dict['lowest_price'] = bucket_data[bucket_id]['lowest_price']
             cat_dict['total_available'] = bucket_data[bucket_id]['total_available']
+            cat_dict['all_listings_are_users'] = not bucket_data[bucket_id]['has_non_user_listings']
+            cat_dict['total_non_user_available'] = bucket_data[bucket_id]['total_non_user_available']
         else:
             cat_dict['lowest_price'] = None
             cat_dict['total_available'] = 0
+            cat_dict['all_listings_are_users'] = False
+            cat_dict['total_non_user_available'] = 0
 
-        buckets.append(cat_dict)
+        standard_buckets.append(cat_dict)
 
-    # Sort: items with no listings last, then by lowest_price
-    buckets.sort(key=lambda b: (b['lowest_price'] is None, b['lowest_price'] if b['lowest_price'] is not None else 0))
+    # Merge bucket data with isolated categories and split into two groups
+    one_of_a_kind_buckets = []
+    set_buckets = []
 
-    return render_template('buy.html', buckets=buckets, graded_only=graded_only)
+    for category in isolated_categories:
+        cat_dict = dict(category)
+        bucket_id = cat_dict['bucket_id']
+
+        # Skip categories with NULL bucket_id (defensive check)
+        if bucket_id is None:
+            continue
+
+        if bucket_id in bucket_data:
+            cat_dict['lowest_price'] = bucket_data[bucket_id]['lowest_price']
+            cat_dict['total_available'] = bucket_data[bucket_id]['total_available']
+            cat_dict['all_listings_are_users'] = not bucket_data[bucket_id]['has_non_user_listings']
+            cat_dict['total_non_user_available'] = bucket_data[bucket_id]['total_non_user_available']
+        else:
+            cat_dict['lowest_price'] = None
+            cat_dict['total_available'] = 0
+            cat_dict['all_listings_are_users'] = False
+            cat_dict['total_non_user_available'] = 0
+
+        # ISOLATED BUCKET VISIBILITY RULE:
+        # Skip isolated buckets with qty=0 (remove from Buy page)
+        # Standard pooled buckets keep current behavior (shown even with qty=0)
+        if cat_dict['total_available'] == 0:
+            continue
+
+        # Split into sets vs one-of-a-kind/numismatic
+        if cat_dict.get('isolated_type') == 'set':
+            set_buckets.append(cat_dict)
+        else:
+            # One-of-a-kind or numismatic (has issue_number/issue_total)
+            one_of_a_kind_buckets.append(cat_dict)
+
+    # Sort standard buckets: items with no listings last, then by lowest_price
+    standard_buckets.sort(key=lambda b: (b['lowest_price'] is None, b['lowest_price'] if b['lowest_price'] is not None else 0))
+
+    # Sort one-of-a-kind buckets: items with no listings last, then by lowest_price
+    one_of_a_kind_buckets.sort(key=lambda b: (b['lowest_price'] is None, b['lowest_price'] if b['lowest_price'] is not None else 0))
+
+    # Sort set buckets: items with no listings last, then by lowest_price
+    set_buckets.sort(key=lambda b: (b['lowest_price'] is None, b['lowest_price'] if b['lowest_price'] is not None else 0))
+
+    return render_template('buy.html',
+                         standard_buckets=standard_buckets,
+                         one_of_a_kind_buckets=one_of_a_kind_buckets,
+                         set_buckets=set_buckets,
+                         graded_only=graded_only)
 
 @buy_bp.route('/bucket/<int:bucket_id>')
 def view_bucket(bucket_id):
     conn = get_db_connection()
 
-    # Query by bucket_id, not by category id
-    bucket = conn.execute('SELECT * FROM categories WHERE bucket_id = ? LIMIT 1', (bucket_id,)).fetchone()
+    # User ID for ownership checks
+    user_id = session.get('user_id')
+
+    # If user is logged in, try to get category from their own listing first
+    # This ensures specs show the actual item they'll be shipping when accepting bids
+    if user_id:
+        bucket = conn.execute('''
+            SELECT DISTINCT c.*
+            FROM categories c
+            JOIN listings l ON c.id = l.category_id
+            WHERE c.bucket_id = ? AND l.seller_id = ? AND l.active = 1
+            LIMIT 1
+        ''', (bucket_id, user_id)).fetchone()
+
+    # If user not logged in or has no listings, get any category in bucket
+    if not user_id or not bucket:
+        bucket = conn.execute('SELECT * FROM categories WHERE bucket_id = ? LIMIT 1', (bucket_id,)).fetchone()
+
     if not bucket:
         conn.close()
         flash("Item not found.", "error")
         return redirect(url_for('buy.buy'))
+
+    # Get title and description from a listing in this bucket
+    listing_info = conn.execute('''
+        SELECT name, description
+        FROM listings
+        WHERE category_id IN (SELECT id FROM categories WHERE bucket_id = ?)
+          AND active = 1
+        LIMIT 1
+    ''', (bucket_id,)).fetchone()
+
+    listing_title = listing_info['name'] if listing_info and listing_info['name'] else None
+    listing_description = listing_info['description'] if listing_info and listing_info['description'] else None
 
     cols = set(bucket.keys()) if hasattr(bucket, 'keys') else set()
 
@@ -152,63 +281,126 @@ def view_bucket(bucket_id):
         'Finish'       : take('finish'),
         'Grading'      : take('grade'),
     }
-    specs = {k: (('--' if (v is None or str(v).strip() == '') else v)) for k, v in specs.items()}
+    # Don't convert None to '--' here - let the frontend handle empty values
+    # This allows JavaScript to properly use its own fallback values
+    # specs = {k: (('--' if (v is None or str(v).strip() == '') else v)) for k, v in specs.items()}
 
     # Add graded and grading_service fields directly from bucket (preserving original values)
-    specs['graded'] = bucket.get('graded', 0) if 'graded' in cols else 0
-    specs['grading_service'] = bucket.get('grading_service', '') if 'grading_service' in cols else ''
+    specs['graded'] = bucket['graded'] if 'graded' in cols else 0
+    specs['grading_service'] = bucket['grading_service'] if 'grading_service' in cols else ''
 
     images = []
 
-    # --- grading filter flags from query (default: nothing selected) ---
-    graded_only = request.args.get('graded_only') == '1'
-    any_grader  = request.args.get('any_grader') == '1'
-    pcgs        = request.args.get('pcgs') == '1'
-    ngc         = request.args.get('ngc') == '1'
-    grading_filter_applied = graded_only and (any_grader or pcgs or ngc)
+    # --- packaging filters from query (multi-select) ---
+    packaging_styles = request.args.getlist('packaging_styles')
+    # Clean and validate packaging styles
+    packaging_styles = [ps.strip() for ps in packaging_styles if ps.strip()]
+
+    # --- random year mode from query ---
+    random_year = request.args.get('random_year') == '1'
+
+    # Update Year display for Random Year mode
+    if random_year:
+        specs['Year'] = 'Random'
+
+    # --- Random Year aggregation: find matching buckets ---
+    if random_year:
+        # Get all bucket_ids that match current bucket's specs except year
+        matching_buckets_query = '''
+            SELECT bucket_id FROM categories
+            WHERE metal = ? AND product_type = ? AND weight = ? AND purity = ?
+              AND mint = ? AND finish = ? AND grade = ? AND product_line = ?
+              AND condition_category IS NOT DISTINCT FROM ?
+              AND series_variant IS NOT DISTINCT FROM ?
+              AND is_isolated = 0
+        '''
+        matching_buckets = conn.execute(matching_buckets_query, (
+            bucket['metal'], bucket['product_type'], bucket['weight'], bucket['purity'],
+            bucket['mint'], bucket['finish'], bucket['grade'], bucket['product_line'],
+            bucket['condition_category'], bucket['series_variant']
+        )).fetchall()
+
+        bucket_ids = [row['bucket_id'] for row in matching_buckets] if matching_buckets else [bucket_id]
+        bucket_id_clause = f"c.bucket_id IN ({','.join('?' * len(bucket_ids))})"
+    else:
+        bucket_ids = [bucket_id]
+        bucket_id_clause = "c.bucket_id = ?"
+
+    # Get ALL listings for best ask calculation (including user's own)
+    all_listings_query = f'''
+        SELECT l.*, c.metal, c.weight, c.product_type, c.year
+        FROM listings l
+        JOIN categories c ON l.category_id = c.id
+        WHERE {bucket_id_clause} AND l.active = 1
+    '''
+    all_listings_params = bucket_ids.copy()
+
+    # Apply packaging filters to all_listings if specified
+    if packaging_styles:
+        packaging_placeholders = ','.join('?' * len(packaging_styles))
+        all_listings_query += f' AND l.packaging_type IN ({packaging_placeholders})'
+        all_listings_params.extend(packaging_styles)
 
     # Listings query (respect filters) - JOIN with categories to query by bucket_id
     # Include pricing fields for effective price calculation
-    listings_query = '''
-        SELECT l.*, c.metal, c.weight, c.product_type
+    # Exclude user's own listings from the detailed listings display
+    listings_query = f'''
+        SELECT l.*, c.metal, c.weight, c.product_type, c.year
         FROM listings l
         JOIN categories c ON l.category_id = c.id
-        WHERE c.bucket_id = ? AND l.active = 1
+        WHERE {bucket_id_clause} AND l.active = 1
     '''
-    listings_params = [bucket_id]
+    listings_params = bucket_ids.copy()
 
-    # Exclude current user's own listings if logged in
-    user_id = session.get('user_id')
+    # Exclude current user's own listings from detailed view if logged in
     if user_id:
         listings_query += ' AND l.seller_id != ?'
         listings_params.append(user_id)
 
-    if grading_filter_applied:
-        listings_query += ' AND l.graded = 1'
-        if not any_grader:
-            services = []
-            if pcgs: services.append("'PCGS'")
-            if ngc:  services.append("'NGC'")
-            if services:
-                listings_query += f" AND l.grading_service IN ({', '.join(services)})"
-            else:
-                listings = []
-    if 'listings' not in locals():
-        listings_raw = conn.execute(listings_query, listings_params).fetchall()
-        # Calculate effective prices for all listings
-        listings = []
-        for listing in listings_raw:
-            listing_dict = dict(listing)
-            listing_dict['effective_price'] = get_effective_price(listing_dict)
-            listings.append(listing_dict)
+    # Apply packaging filters to visible listings if specified
+    if packaging_styles:
+        packaging_placeholders = ','.join('?' * len(packaging_styles))
+        listings_query += f' AND l.packaging_type IN ({packaging_placeholders})'
+        listings_params.extend(packaging_styles)
 
-    # Calculate availability from listings with effective prices
-    if listings:
-        lowest_price = min(l['effective_price'] for l in listings)
-        total_available = sum(l['quantity'] for l in listings)
-        availability = {'lowest_price': lowest_price, 'total_available': total_available}
+    # Execute listings query
+    listings_raw = conn.execute(listings_query, listings_params).fetchall()
+    # Calculate effective prices for all listings
+    listings = []
+    for listing in listings_raw:
+        listing_dict = dict(listing)
+        listing_dict['effective_price'] = get_effective_price(listing_dict)
+        listings.append(listing_dict)
+
+    # Calculate availability from ALL listings (including user's own) for best ask
+    all_listings_raw = conn.execute(all_listings_query, all_listings_params).fetchall()
+    all_listings = []
+    has_non_user_listings = False
+    for listing in all_listings_raw:
+        listing_dict = dict(listing)
+        listing_dict['effective_price'] = get_effective_price(listing_dict)
+        all_listings.append(listing_dict)
+        # Check if this is not the user's listing
+        if user_id and listing_dict['seller_id'] != user_id:
+            has_non_user_listings = True
+
+    # Calculate availability from ALL listings with effective prices
+    if all_listings:
+        lowest_price = min(l['effective_price'] for l in all_listings)
+        total_available = sum(l['quantity'] for l in all_listings)
+        # Determine if all listings are user's own
+        all_listings_are_users = not has_non_user_listings and user_id is not None
+        availability = {
+            'lowest_price': lowest_price,
+            'total_available': total_available,
+            'all_listings_are_users': all_listings_are_users
+        }
     else:
-        availability = {'lowest_price': None, 'total_available': 0}
+        availability = {
+            'lowest_price': None,
+            'total_available': 0,
+            'all_listings_are_users': False
+        }
 
     user_bids = []
     if user_id:
@@ -304,8 +496,8 @@ def view_bucket(bucket_id):
     else:
         best_bid = None
 
-    # Get sellers with effective prices
-    sellers_raw = conn.execute('''
+    # Get sellers with effective prices (use multi-year bucket_ids if Random Year is ON)
+    sellers_query = f'''
         SELECT
           u.id                  AS seller_id,
           u.username            AS username,
@@ -320,7 +512,8 @@ def view_bucket(bucket_id):
           l.quantity,
           c.metal,
           c.weight,
-          c.product_type
+          c.product_type,
+          c.year
         FROM listings AS l
         JOIN categories c ON l.category_id = c.id
         JOIN users AS u ON u.id = l.seller_id
@@ -328,8 +521,17 @@ def view_bucket(bucket_id):
             SELECT ratee_id, AVG(rating) AS rating, COUNT(*) AS rating_count
             FROM ratings GROUP BY ratee_id
         ) AS rr ON rr.ratee_id = u.id
-        WHERE c.bucket_id = ? AND l.active = 1 AND l.quantity > 0
-    ''', (bucket_id,)).fetchall()
+        WHERE {bucket_id_clause} AND l.active = 1 AND l.quantity > 0
+    '''
+    sellers_params = bucket_ids.copy()
+
+    # Apply packaging filters to sellers if specified
+    if packaging_styles:
+        packaging_placeholders = ','.join('?' * len(packaging_styles))
+        sellers_query += f' AND l.packaging_type IN ({packaging_placeholders})'
+        sellers_params.extend(packaging_styles)
+
+    sellers_raw = conn.execute(sellers_query, sellers_params).fetchall()
 
     # Aggregate sellers with effective prices
     sellers_data = {}
@@ -359,6 +561,82 @@ def view_bucket(bucket_id):
     sellers.sort(key=lambda s: (s['rating'] is None, -s['rating'] if s['rating'] else 0, s['lowest_price']))
 
     user_is_logged_in = 'user_id' in session
+
+    # Fetch spot price for the bucket's metal
+    bucket_metal = specs.get('Metal')
+    spot_price = None
+    if bucket_metal and bucket_metal != '--':
+        spot_price = get_spot_price(bucket_metal)
+
+    # Get isolated/set information from listing
+    # Check if this bucket has isolated listings
+    is_isolated = bucket['is_isolated'] if 'is_isolated' in cols else 0
+    isolated_type = None
+    issue_number = None
+    issue_total = None
+    set_items = []
+
+    if is_isolated:
+        # Get isolated details from any active listing in this bucket
+        listing_info = conn.execute('''
+            SELECT isolated_type, issue_number, issue_total
+            FROM listings
+            WHERE category_id IN (
+                SELECT id FROM categories WHERE bucket_id = ?
+            )
+            AND active = 1
+            LIMIT 1
+        ''', (bucket_id,)).fetchone()
+
+        if listing_info:
+            isolated_type = listing_info['isolated_type']
+            issue_number = listing_info['issue_number']
+            issue_total = listing_info['issue_total']
+
+            # If this is a set, get all set items with photos
+            if isolated_type == 'set':
+                # Get the listing ID to query set items
+                listing_id_row = conn.execute('''
+                    SELECT l.id
+                    FROM listings l
+                    JOIN categories c ON l.category_id = c.id
+                    WHERE c.bucket_id = ? AND l.active = 1
+                    LIMIT 1
+                ''', (bucket_id,)).fetchone()
+
+                if listing_id_row:
+                    listing_id = listing_id_row['id']
+
+                    # Get set items with photo_path
+                    set_items_raw = conn.execute('''
+                        SELECT *
+                        FROM listing_set_items
+                        WHERE listing_id = ?
+                        ORDER BY position_index
+                    ''', (listing_id,)).fetchall()
+
+                    set_items = [dict(item) for item in set_items_raw]
+
+                    # Get cover photo (first photo in listing_photos table)
+                    cover_photo_row = conn.execute('''
+                        SELECT file_path
+                        FROM listing_photos
+                        WHERE listing_id = ?
+                        ORDER BY id ASC
+                        LIMIT 1
+                    ''', (listing_id,)).fetchone()
+
+                    # Store cover photo path for template
+                    cover_photo = cover_photo_row['file_path'] if cover_photo_row else None
+                else:
+                    cover_photo = None
+            else:
+                cover_photo = None
+        else:
+            cover_photo = None
+    else:
+        cover_photo = None
+
     conn.close()
 
     return render_template(
@@ -368,26 +646,28 @@ def view_bucket(bucket_id):
         images=images,
         listings=listings,
         availability=availability,
-        graded_only=graded_only,
-        any_grader=any_grader,   # <<< added
-        pcgs=pcgs,               # <<< added
-        ngc=ngc,                 # <<< added
+        packaging_styles=packaging_styles,  # <<< updated for multi-select packaging filter
+        random_year=random_year,  # <<< added for random year mode
         user_bids=user_bids,
         bids=bids,
         best_bid=best_bid,
         sellers=sellers,
-        user_is_logged_in=user_is_logged_in
+        user_is_logged_in=user_is_logged_in,
+        spot_price=spot_price,   # <<< added
+        is_isolated=is_isolated,  # <<< added for isolated/set display
+        isolated_type=isolated_type,
+        issue_number=issue_number,
+        issue_total=issue_total,
+        set_items=set_items,
+        cover_photo=cover_photo,  # <<< added for set cover photo
+        listing_title=listing_title,
+        listing_description=listing_description
     )
 
 
 @buy_bp.route('/bucket/<int:bucket_id>/availability_json')
 def bucket_availability_json(bucket_id):
     conn = get_db_connection()
-
-    graded_only = request.args.get('graded_only') == '1'
-    any_grader  = request.args.get('any_grader') == '1'
-    pcgs        = request.args.get('pcgs') == '1'
-    ngc         = request.args.get('ngc') == '1'
 
     # Get listings with pricing fields
     query = '''
@@ -397,18 +677,6 @@ def bucket_availability_json(bucket_id):
         WHERE c.bucket_id = ? AND l.active = 1
     '''
     params = [bucket_id]
-
-    if graded_only:
-        query += ' AND l.graded = 1'
-        if not any_grader:
-            services = []
-            if pcgs: services.append("'PCGS'")
-            if ngc:  services.append("'NGC'")
-            if services:
-                query += f" AND l.grading_service IN ({', '.join(services)})"
-            else:
-                conn.close()
-                return {'lowest_price': None, 'total_available': 0}
 
     listings = conn.execute(query, params).fetchall()
     conn.close()
@@ -438,57 +706,58 @@ def auto_fill_bucket_purchase(bucket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    graded_only = request.form.get('graded_only') == '1'
-    any_grader = request.form.get('any_grader') == '1'
-    pcgs = request.form.get('pcgs') == '1'
-    ngc = request.form.get('ngc') == '1'
+    # TPG (Third-Party Grading) service add-on
+    third_party_grading = int(request.form.get('third_party_grading', 0))
 
-    # 🆕 Determine grading preference string
-    if any_grader:
-        grading_preference = 'Any Grader'
-    elif pcgs:
-        grading_preference = 'PCGS'
-    elif ngc:
-        grading_preference = 'NGC'
+    # Random Year mode and packaging filter
+    random_year = request.form.get('random_year') == '1'
+    packaging_filter = request.form.get('packaging_filter', '').strip()
+
+    # --- Random Year aggregation for cart ---
+    if random_year:
+        # Get the current bucket's specs
+        bucket_specs = cursor.execute('SELECT * FROM categories WHERE bucket_id = ? LIMIT 1', (bucket_id,)).fetchone()
+        if bucket_specs:
+            # Find all matching bucket_ids (same specs except year)
+            matching_buckets = cursor.execute('''
+                SELECT bucket_id FROM categories
+                WHERE metal = ? AND product_type = ? AND weight = ? AND purity = ?
+                  AND mint = ? AND finish = ? AND grade = ? AND product_line = ?
+                  AND condition_category IS NOT DISTINCT FROM ?
+                  AND series_variant IS NOT DISTINCT FROM ?
+                  AND is_isolated = 0
+            ''', (
+                bucket_specs['metal'], bucket_specs['product_type'], bucket_specs['weight'], bucket_specs['purity'],
+                bucket_specs['mint'], bucket_specs['finish'], bucket_specs['grade'], bucket_specs['product_line'],
+                bucket_specs.get('condition_category'), bucket_specs.get('series_variant')
+            )).fetchall()
+            bucket_ids = [row['bucket_id'] for row in matching_buckets] if matching_buckets else [bucket_id]
+        else:
+            bucket_ids = [bucket_id]
+        bucket_id_clause = f"c.bucket_id IN ({','.join('?' * len(bucket_ids))})"
     else:
-        grading_preference = None
-
-    session['grading_preference'] = grading_preference  # optional: still store for display
+        bucket_ids = [bucket_id]
+        bucket_id_clause = "c.bucket_id = ?"
 
     # Build listings query with grading filters - JOIN with categories to query by bucket_id
     # Include pricing fields for effective price calculation
-    listings_query = '''
-        SELECT l.*, c.metal, c.weight, c.product_type
+    # IMPORTANT: Include ALL listings (including user's own) to detect when they're skipped
+    listings_query = f'''
+        SELECT l.*, c.metal, c.weight, c.product_type, c.year
         FROM listings l
         JOIN categories c ON l.category_id = c.id
-        WHERE c.bucket_id = ? AND l.active = 1
+        WHERE {bucket_id_clause} AND l.active = 1
     '''
-    params = [bucket_id]
+    params = bucket_ids.copy()
 
-    if user_id:
-        listings_query += ' AND l.seller_id != ?'
-        params.append(user_id)
-
-    if graded_only:
-        listings_query += ' AND l.graded = 1'
-        if not any_grader:
-            services = []
-            if pcgs:
-                services.append("'PCGS'")
-            if ngc:
-                services.append("'NGC'")
-            if services:
-                listings_query += f" AND l.grading_service IN ({', '.join(services)})"
-            elif not pcgs and not ngc:
-                listings = []
-                total_active = 0
-                conn.close()
-                flash("No matching graded listings available.", "error")
-                return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
+    # Apply packaging filter if specified
+    if packaging_filter:
+        listings_query += ' AND l.packaging_type = ?'
+        params.append(packaging_filter)
 
     listings_raw = cursor.execute(listings_query, params).fetchall()
 
-    # Calculate effective prices and sort by them
+    # Calculate effective prices for all listings
     listings_with_prices = []
     for listing in listings_raw:
         listing_dict = dict(listing)
@@ -496,16 +765,27 @@ def auto_fill_bucket_purchase(bucket_id):
         listings_with_prices.append(listing_dict)
 
     # Sort by effective price (cheapest first)
-    listings = sorted(listings_with_prices, key=lambda x: x['effective_price'])
+    listings_sorted = sorted(listings_with_prices, key=lambda x: x['effective_price'])
 
-    total_active = cursor.execute('''
-        SELECT COUNT(*)
-        FROM listings l
-        JOIN categories c ON l.category_id = c.id
-        WHERE c.bucket_id = ? AND l.active = 1
-    ''', (bucket_id,)).fetchone()[0]
+    # Separate user's listings from others
+    user_listings = []
+    other_listings = []
 
-    if not listings:
+    for listing in listings_sorted:
+        if user_id and listing['seller_id'] == user_id:
+            user_listings.append(listing)
+        else:
+            other_listings.append(listing)
+
+    # Check if there are any non-user listings available
+    if not other_listings:
+        total_active = cursor.execute('''
+            SELECT COUNT(*)
+            FROM listings l
+            JOIN categories c ON l.category_id = c.id
+            WHERE c.bucket_id = ? AND l.active = 1
+        ''', (bucket_id,)).fetchone()[0]
+
         if total_active > 0:
             flash("You cannot add your own listings to your cart.", "error")
         else:
@@ -513,17 +793,21 @@ def auto_fill_bucket_purchase(bucket_id):
         conn.close()
         return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
+    # Fill cart from other sellers' listings only
     total_filled = 0
     guest_cart = session.get('guest_cart', [])
+    user_listings_skipped = False  # Track if we skipped any user listings
+    selected_prices = []  # Track prices of listings we actually selected
 
-    for listing in listings:
-        if user_id and listing['seller_id'] == user_id:
-            continue  # skip own listings
+    for listing in other_listings:
         if total_filled >= quantity_to_buy:
             break
 
         available = listing['quantity']
         to_add = min(available, quantity_to_buy - total_filled)
+
+        # Track the price of this listing we're selecting
+        selected_prices.append(listing['effective_price'])
 
         if user_id:
             # Authenticated user: update DB cart
@@ -535,28 +819,40 @@ def auto_fill_bucket_purchase(bucket_id):
             if existing:
                 new_qty = existing['quantity'] + to_add
                 cursor.execute('''
-                    UPDATE cart SET quantity = ?, grading_preference = ?
+                    UPDATE cart SET quantity = ?, grading_preference = ?, third_party_grading_requested = ?
                     WHERE user_id = ? AND listing_id = ?
-                ''', (new_qty, grading_preference, user_id, listing['id']))
+                ''', (new_qty, grading_preference, third_party_grading, user_id, listing['id']))
             else:
                 cursor.execute('''
-                    INSERT INTO cart (user_id, listing_id, quantity, grading_preference)
-                    VALUES (?, ?, ?, ?)
-                ''', (user_id, listing['id'], to_add, grading_preference))
+                    INSERT INTO cart (user_id, listing_id, quantity, grading_preference, third_party_grading_requested)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (user_id, listing['id'], to_add, grading_preference, third_party_grading))
         else:
             # Guest user: use session cart
             for item in guest_cart:
                 if item['listing_id'] == listing['id']:
                     item['quantity'] += to_add
+                    item['third_party_grading_requested'] = third_party_grading  # Update TPG preference
                     break
             else:
                 guest_cart.append({
                     'listing_id': listing['id'],
                     'quantity': to_add,
-                    'grading_preference': grading_preference  # 🆕 include grading filter
+                    'grading_preference': grading_preference,  # 🆕 include grading filter
+                    'third_party_grading_requested': third_party_grading  # 🆕 include TPG add-on
                 })
 
         total_filled += to_add
+
+    # After filling, check if we skipped any competitive user listings
+    if user_listings and selected_prices and total_filled > 0:
+        # If any user listing price is <= the highest price we selected, it was competitive
+        max_selected_price = max(selected_prices)
+        for user_listing in user_listings:
+            if user_listing['effective_price'] <= max_selected_price:
+                user_listings_skipped = True
+                print(f"[DEBUG] User listing at ${user_listing['effective_price']:.2f} was skipped (would have been selected)")
+                break
 
     if not user_id:
         session['guest_cart'] = guest_cart
@@ -571,7 +867,27 @@ def auto_fill_bucket_purchase(bucket_id):
     if total_filled < quantity_to_buy:
         flash(f"Only {total_filled} units could be added to your cart due to limited stock.", "warning")
 
-    return redirect(url_for('buy.view_cart'))  # ✅ Sends user directly to cart
+    # Check if this is an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    if is_ajax:
+        # Return JSON for AJAX requests (so modal can be shown before redirect)
+        print(f"[DEBUG] AJAX request. user_listings_skipped={user_listings_skipped}, total_filled={total_filled}")
+        return jsonify({
+            'success': True,
+            'user_listings_skipped': user_listings_skipped and total_filled > 0,
+            'total_filled': total_filled,
+            'message': f'{total_filled} items added to cart'
+        })
+    else:
+        # Traditional redirect for non-AJAX requests (backward compatibility)
+        if user_listings_skipped and total_filled > 0:
+            session['show_own_listings_skipped_modal'] = True
+            print(f"[DEBUG] User listings were skipped. Setting session flag. User ID: {user_id}")
+        else:
+            print(f"[DEBUG] No user listings skipped. user_listings_skipped={user_listings_skipped}, total_filled={total_filled}")
+
+        return redirect(url_for('buy.view_cart'))  # ✅ Sends user directly to cart
 
 
 @buy_bp.route('/add_to_cart/<int:listing_id>', methods=['POST'])
@@ -619,9 +935,19 @@ def add_to_cart(listing_id):
 
 @buy_bp.route('/view_cart')
 def view_cart():
-    from utils.cart_utils import get_cart_items  # ✅ Make sure this import is present
+    from utils.cart_utils import get_cart_items, validate_and_refill_cart
 
     conn = get_db_connection()
+
+    # Validate cart and refill from other listings if inventory changed
+    user_id = session.get('user_id')
+    if user_id:
+        refill_log = validate_and_refill_cart(conn, user_id)
+        # Optional: flash messages for items that couldn't be refilled
+        for bucket_id, log in refill_log.items():
+            if log['missing'] > 0:
+                flash(f"{log['missing']} item(s) no longer available and couldn't be replaced.", "warning")
+
     raw_items = get_cart_items(conn)  # ✅ Replaces all manual logic
 
     # Organize items into buckets and recalculate effective prices
@@ -633,17 +959,19 @@ def view_cart():
         item_dict = dict(item)
         effective_price = get_effective_price(item_dict)
 
-        bucket_id = item['category_id']
-        if bucket_id not in buckets:
-            buckets[bucket_id] = {
+        category_id = item['category_id']
+        if category_id not in buckets:
+            buckets[category_id] = {
                 'category': {
                     'metal': item['metal'],
                     'product_type': item['product_type'],
                     'weight': item['weight'],
+                    'purity': item.get('purity'),  # Added
                     'mint': item['mint'],
                     'year': item['year'],
                     'finish': item['finish'],
-                    'grade': item['grade']
+                    'grade': item['grade'],
+                    'product_line': item.get('product_line')  # Added
                 },
                 'listings': [],
                 'total_qty': 0,
@@ -653,13 +981,13 @@ def view_cart():
 
             # Attach grading preference if available
             if 'grading_preference' in item and item['grading_preference']:
-                buckets[bucket_id]['grading_preference'] = item['grading_preference']
+                buckets[category_id]['grading_preference'] = item['grading_preference']
 
         # Use effective price for subtotal
         subtotal = effective_price * item['quantity']
         cart_total += subtotal
 
-        buckets[bucket_id]['listings'].append({
+        buckets[category_id]['listings'].append({
             'seller_id': item['seller_id'],
             'username': item['seller_username'],
             'quantity': item['quantity'],
@@ -667,24 +995,33 @@ def view_cart():
             'subtotal': subtotal,
             'rating': item['seller_rating'],
             'rating_count': item['seller_rating_count'],
-            'listing_id': item['listing_id']
+            'listing_id': item['listing_id'],
+            'graded': item.get('graded'),  # Added: whether this specific listing is graded
+            'grading_service': item.get('grading_service')  # Added: grading service (PCGS/NGC)
         })
 
-        buckets[bucket_id]['total_qty'] += item['quantity']
-        buckets[bucket_id]['total_price'] += subtotal
+        buckets[category_id]['total_qty'] += item['quantity']
+        buckets[category_id]['total_price'] += subtotal
 
     # Compute average price and total available quantity per bucket
-    for bucket_id, bucket in buckets.items():
+    for category_id, bucket in buckets.items():
         if bucket['total_qty'] > 0:
             bucket['avg_price'] = round(bucket['total_price'] / bucket['total_qty'], 2)
 
-        # Get total available quantity for this bucket
-        result = conn.execute('''
-            SELECT SUM(l.quantity) as total_available
-            FROM listings l
-            JOIN categories c ON l.category_id = c.id
-            WHERE c.bucket_id = ? AND l.active = 1
-        ''', (bucket_id,)).fetchone()
+        # Get total available quantity for this category (excluding user's own listings)
+        if user_id:
+            result = conn.execute('''
+                SELECT SUM(quantity) as total_available
+                FROM listings
+                WHERE category_id = ? AND active = 1 AND seller_id != ?
+            ''', (category_id, user_id)).fetchone()
+        else:
+            # Guest cart - include all listings
+            result = conn.execute('''
+                SELECT SUM(quantity) as total_available
+                FROM listings
+                WHERE category_id = ? AND active = 1
+            ''', (category_id,)).fetchone()
         bucket['total_available'] = result['total_available'] if result and result['total_available'] else 0
 
     conn.close()
@@ -739,45 +1076,75 @@ def preview_buy(bucket_id):
     Preview purchase breakdown without creating orders.
     Returns the actual total and item breakdown for confirmation modal.
     For premium-to-spot listings, creates price locks.
+    Supports Random Year mode for multi-year aggregation.
     """
     from services.pricing_service import create_price_lock
+    from config import GRADING_FEE_PER_UNIT
     user_id = session.get('user_id')
 
     try:
         # Get form data
         quantity = int(request.form.get('quantity', 1))
-        graded_only = request.form.get('graded_only') == '1'
-        any_grader = request.form.get('any_grader') == '1'
-        pcgs = request.form.get('pcgs') == '1'
-        ngc = request.form.get('ngc') == '1'
+        random_year = request.form.get('random_year') == '1'
+        third_party_grading = request.form.get('third_party_grading') == '1'
+
+        # Get packaging filters (multi-select)
+        packaging_styles = request.form.getlist('packaging_styles')
+        packaging_styles = [ps.strip() for ps in packaging_styles if ps.strip()]
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Get bucket_ids to query based on Random Year mode
+        if random_year:
+            # Get the base bucket info
+            bucket = conn.execute('SELECT * FROM categories WHERE bucket_id = ? LIMIT 1', (bucket_id,)).fetchone()
+
+            if not bucket:
+                conn.close()
+                return jsonify(success=False, message='Item not found.'), 404
+
+            # Find all matching buckets (same specs except year)
+            matching_buckets_query = '''
+                SELECT bucket_id FROM categories
+                WHERE metal = ? AND product_type = ? AND weight = ? AND purity = ?
+                  AND mint = ? AND finish = ? AND grade = ? AND product_line = ?
+                  AND condition_category IS NOT DISTINCT FROM ?
+                  AND series_variant IS NOT DISTINCT FROM ?
+                  AND is_isolated = 0
+            '''
+            matching_buckets = conn.execute(matching_buckets_query, (
+                bucket['metal'], bucket['product_type'], bucket['weight'], bucket['purity'],
+                bucket['mint'], bucket['finish'], bucket['grade'], bucket['product_line'],
+                bucket['condition_category'], bucket['series_variant']
+            )).fetchall()
+
+            bucket_ids = [row['bucket_id'] for row in matching_buckets] if matching_buckets else [bucket_id]
+            bucket_id_clause = f"c.bucket_id IN ({','.join('?' * len(bucket_ids))})"
+            params = bucket_ids.copy()
+        else:
+            bucket_ids = [bucket_id]
+            bucket_id_clause = "c.bucket_id = ?"
+            params = [bucket_id]
+
         # Build listings query (include pricing fields for effective price calculation)
-        listings_query = '''
-            SELECT l.*, c.metal, c.weight, c.product_type
+        listings_query = f'''
+            SELECT l.*, c.metal, c.weight, c.product_type, c.year
             FROM listings l
             JOIN categories c ON l.category_id = c.id
-            WHERE c.bucket_id = ? AND l.active = 1 AND l.quantity > 0
+            WHERE {bucket_id_clause} AND l.active = 1 AND l.quantity > 0
         '''
-        params = [bucket_id]
 
         # Exclude user's own listings
         if user_id:
             listings_query += ' AND l.seller_id != ?'
             params.append(user_id)
 
-        if graded_only:
-            listings_query += ' AND l.graded = 1'
-            if not any_grader:
-                services = []
-                if pcgs:
-                    services.append("'PCGS'")
-                if ngc:
-                    services.append("'NGC'")
-                if services:
-                    listings_query += f" AND l.grading_service IN ({', '.join(services)})"
+        # Apply packaging filters if specified
+        if packaging_styles:
+            packaging_placeholders = ','.join('?' * len(packaging_styles))
+            listings_query += f' AND l.packaging_type IN ({packaging_placeholders})'
+            params.extend(packaging_styles)
 
         listings_raw = cursor.execute(listings_query, params).fetchall()
 
@@ -853,7 +1220,12 @@ def preview_buy(bucket_id):
         if total_filled == 0:
             return jsonify(success=False, message='No items could be filled.'), 400
 
-        # Return preview data with price lock info
+        # Calculate grading fees if requested
+        grading_fee_per_unit = GRADING_FEE_PER_UNIT if third_party_grading else 0
+        grading_fee_total = grading_fee_per_unit * total_filled
+        grand_total = total_cost + grading_fee_total
+
+        # Return preview data with price lock info and grading fees
         response_data = {
             'success': True,
             'total_quantity': total_filled,
@@ -863,7 +1235,11 @@ def preview_buy(bucket_id):
             'can_fill_completely': total_filled >= quantity,
             'has_price_lock': has_premium_to_spot and len(price_locks) > 0,
             'price_locks': price_locks,
-            'lock_expires_at': lock_expires_at
+            'lock_expires_at': lock_expires_at,
+            'third_party_grading': third_party_grading,
+            'grading_fee_per_unit': grading_fee_per_unit,
+            'grading_fee_total': grading_fee_total,
+            'grand_total': grand_total
         }
 
         return jsonify(response_data)
@@ -888,10 +1264,6 @@ def refresh_price_lock(bucket_id):
     try:
         # Get form data (same as preview_buy)
         quantity = int(request.form.get('quantity', 1))
-        graded_only = request.form.get('graded_only') == '1'
-        any_grader = request.form.get('any_grader') == '1'
-        pcgs = request.form.get('pcgs') == '1'
-        ngc = request.form.get('ngc') == '1'
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -909,17 +1281,6 @@ def refresh_price_lock(bucket_id):
         if user_id:
             listings_query += ' AND l.seller_id != ?'
             params.append(user_id)
-
-        if graded_only:
-            listings_query += ' AND l.graded = 1'
-            if not any_grader:
-                services = []
-                if pcgs:
-                    services.append("'PCGS'")
-                if ngc:
-                    services.append("'NGC'")
-                if services:
-                    listings_query += f" AND l.grading_service IN ({', '.join(services)})"
 
         listings_raw = cursor.execute(listings_query, params).fetchall()
 
@@ -996,6 +1357,8 @@ def direct_buy_item(bucket_id):
     Directly create an order from bucket purchase (bypasses checkout).
     Returns JSON for AJAX handling with success modal.
     """
+    from config import GRADING_FEE_PER_UNIT, GRADING_SERVICE_DEFAULT, GRADING_STATUS_NOT_REQUESTED, GRADING_STATUS_PENDING_SELLER_SHIP
+
     if 'user_id' not in session:
         return jsonify(success=False, message='You must be logged in to purchase items.'), 401
 
@@ -1004,28 +1367,71 @@ def direct_buy_item(bucket_id):
     try:
         # Get form data
         quantity = int(request.form.get('quantity', 1))
-        graded_only = request.form.get('graded_only') == '1'
-        any_grader = request.form.get('any_grader') == '1'
-        pcgs = request.form.get('pcgs') == '1'
-        ngc = request.form.get('ngc') == '1'
+        random_year = request.form.get('random_year') == '1'
+        third_party_grading = request.form.get('third_party_grading') == '1'
+
+        # Get packaging filters (multi-select)
+        packaging_styles = request.form.getlist('packaging_styles')
+        packaging_styles = [ps.strip() for ps in packaging_styles if ps.strip()]
+
+        # Get recipient name (source of truth for Buyer Name on Sold tiles)
+        recipient_first = request.form.get('recipient_first', '').strip()
+        recipient_last = request.form.get('recipient_last', '').strip()
+
+        # Get selected address ID from form
+        address_id = request.form.get('address_id')
+        if not address_id:
+            return jsonify(success=False, message='Please select a delivery address.'), 400
 
         # Get price lock IDs (comma-separated string from frontend)
         price_lock_ids_str = request.form.get('price_lock_ids', '')
         price_lock_ids = [int(id.strip()) for id in price_lock_ids_str.split(',') if id.strip().isdigit()]
 
-        # Get user's default shipping address
+        # Get user's selected shipping address
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Get first address for user (or could require address selection in modal)
+        # Get bucket_ids to query based on Random Year mode
+        if random_year:
+            # Get the base bucket info
+            bucket = conn.execute('SELECT * FROM categories WHERE bucket_id = ? LIMIT 1', (bucket_id,)).fetchone()
+
+            if not bucket:
+                conn.close()
+                return jsonify(success=False, message='Item not found.'), 404
+
+            # Find all matching buckets (same specs except year)
+            matching_buckets_query = '''
+                SELECT bucket_id FROM categories
+                WHERE metal = ? AND product_type = ? AND weight = ? AND purity = ?
+                  AND mint = ? AND finish = ? AND grade = ? AND product_line = ?
+                  AND condition_category IS NOT DISTINCT FROM ?
+                  AND series_variant IS NOT DISTINCT FROM ?
+                  AND is_isolated = 0
+            '''
+            matching_buckets = conn.execute(matching_buckets_query, (
+                bucket['metal'], bucket['product_type'], bucket['weight'], bucket['purity'],
+                bucket['mint'], bucket['finish'], bucket['grade'], bucket['product_line'],
+                bucket['condition_category'], bucket['series_variant']
+            )).fetchall()
+
+            bucket_ids = [row['bucket_id'] for row in matching_buckets] if matching_buckets else [bucket_id]
+            bucket_id_clause = f"c.bucket_id IN ({','.join('?' * len(bucket_ids))})"
+            params = bucket_ids.copy()
+        else:
+            bucket_ids = [bucket_id]
+            bucket_id_clause = "c.bucket_id = ?"
+            params = [bucket_id]
+
+        # Get the selected address (verify it belongs to the user)
         address_row = cursor.execute(
-            'SELECT street, street_line2, city, state, zip_code FROM addresses WHERE user_id = ? LIMIT 1',
-            (user_id,)
+            'SELECT street, street_line2, city, state, zip_code FROM addresses WHERE id = ? AND user_id = ?',
+            (address_id, user_id)
         ).fetchone()
 
         if not address_row:
             conn.close()
-            return jsonify(success=False, message='Please add a shipping address to your account first.'), 400
+            return jsonify(success=False, message='Selected address not found or does not belong to you.'), 400
 
         # Format shipping address with all components, using bullet as separator for Line 2
         street_line2 = address_row['street_line2'] or ''
@@ -1033,6 +1439,15 @@ def direct_buy_item(bucket_id):
             shipping_address = f"{address_row['street']} • {street_line2} • {address_row['city']}, {address_row['state']} {address_row['zip_code']}"
         else:
             shipping_address = f"{address_row['street']} • {address_row['city']}, {address_row['state']} {address_row['zip_code']}"
+
+        # Build structured delivery address for frontend (do this while connection is still open)
+        delivery_address = {
+            'line1': address_row['street'],
+            'line2': address_row['street_line2'] or '',
+            'city': address_row['city'],
+            'state': address_row['state'],
+            'zip': address_row['zip_code']
+        }
 
         # Load price locks if provided
         price_lock_map = {}  # listing_id -> locked_price
@@ -1058,30 +1473,20 @@ def direct_buy_item(bucket_id):
                     # Lock expired - will use current effective price
                     print(f"[WARNING] Price lock for listing {lock['listing_id']} has expired")
 
-        # Build listings query with grading filters (include pricing fields)
-        listings_query = '''
-            SELECT l.*, c.metal, c.weight, c.product_type
+        # Build listings query (include pricing fields)
+        # IMPORTANT: Include ALL listings (including user's own) to detect when they're skipped
+        listings_query = f'''
+            SELECT l.*, c.metal, c.weight, c.product_type, c.year
             FROM listings l
             JOIN categories c ON l.category_id = c.id
-            WHERE c.bucket_id = ? AND l.active = 1 AND l.quantity > 0
+            WHERE {bucket_id_clause} AND l.active = 1 AND l.quantity > 0
         '''
-        params = [bucket_id]
 
-        # Exclude user's own listings
-        if user_id:
-            listings_query += ' AND l.seller_id != ?'
-            params.append(user_id)
-
-        if graded_only:
-            listings_query += ' AND l.graded = 1'
-            if not any_grader:
-                services = []
-                if pcgs:
-                    services.append("'PCGS'")
-                if ngc:
-                    services.append("'NGC'")
-                if services:
-                    listings_query += f" AND l.grading_service IN ({', '.join(services)})"
+        # Apply packaging filters if specified
+        if packaging_styles:
+            packaging_placeholders = ','.join('?' * len(packaging_styles))
+            listings_query += f' AND l.packaging_type IN ({packaging_placeholders})'
+            params.extend(packaging_styles)
 
         listings_raw = cursor.execute(listings_query, params).fetchall()
 
@@ -1089,7 +1494,7 @@ def direct_buy_item(bucket_id):
             conn.close()
             return jsonify(success=False, message='No matching listings available for purchase.'), 400
 
-        # Calculate effective prices and sort
+        # Calculate effective prices for ALL listings
         # Use locked prices when available, otherwise calculate current effective price
         listings_with_prices = []
         for listing in listings_raw:
@@ -1106,12 +1511,26 @@ def direct_buy_item(bucket_id):
 
             listings_with_prices.append(listing_dict)
 
-        # Sort by effective price
-        listings = sorted(listings_with_prices, key=lambda x: (x['effective_price'], x['id']))
+        # Sort ALL listings by effective price
+        listings_sorted = sorted(listings_with_prices, key=lambda x: (x['effective_price'], x['id']))
+
+        # Separate user's listings from others
+        user_listings = []
+        other_listings = []
+
+        for listing in listings_sorted:
+            if listing['seller_id'] == user_id:
+                user_listings.append(listing)
+            else:
+                other_listings.append(listing)
+
+        # Use only other sellers' listings for filling the order
+        listings = other_listings
 
         # Fill order from listings (group by seller)
         seller_fills = {}  # seller_id -> list of {listing_id, quantity, price_each}
         total_filled = 0
+        selected_prices = []
 
         for listing in listings:
             if total_filled >= quantity:
@@ -1136,18 +1555,38 @@ def direct_buy_item(bucket_id):
                 'listing_id': listing['id'],
                 'quantity': fill_qty,
                 'price_each': listing['effective_price'],  # Use effective price
+                'graded': listing.get('graded', 0),
                 'grading_service': listing.get('grading_service')
             })
 
+            selected_prices.append(listing['effective_price'])
             total_filled += fill_qty
 
         if total_filled == 0:
             conn.close()
             return jsonify(success=False, message='No items could be filled from available listings.'), 400
 
+        # Check if we skipped any competitive user listings
+        user_listings_skipped = False
+        if user_listings and selected_prices and len(selected_prices) > 0:
+            # If any user listing price is <= the highest price we selected, it was competitive
+            max_selected_price = max(selected_prices)
+            for user_listing in user_listings:
+                if user_listing['effective_price'] <= max_selected_price:
+                    user_listings_skipped = True
+                    print(f"[DIRECT_BUY] User listing at ${user_listing['effective_price']:.2f} was skipped")
+                    break
+
         # Get category/bucket info for notifications
         bucket_row = cursor.execute('SELECT * FROM categories WHERE bucket_id = ? LIMIT 1', (bucket_id,)).fetchone()
         bucket_dict = dict(bucket_row) if bucket_row else {}
+
+        # Update year display for Random Year purchases
+        if random_year:
+            bucket_dict['year'] = 'Random'
+
+        # Calculate grading fees if requested
+        grading_fee_per_unit = GRADING_FEE_PER_UNIT if third_party_grading else 0
 
         # Collect notification data (will send after commit to avoid database locking)
         notifications_to_send = []
@@ -1155,22 +1594,41 @@ def direct_buy_item(bucket_id):
         # Create one order per seller
         orders_created = []
         for seller_id, items in seller_fills.items():
-            total_price = sum(item['quantity'] * item['price_each'] for item in items)
+            # Calculate total for items
+            items_total = sum(item['quantity'] * item['price_each'] for item in items)
+
+            # Calculate grading fees for this order
+            total_quantity_in_order = sum(item['quantity'] for item in items)
+            grading_fee_total = grading_fee_per_unit * total_quantity_in_order
+
+            # Grand total includes item cost + grading fees
+            total_price = items_total + grading_fee_total
 
             # Create order
             cursor.execute('''
-                INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at)
-                VALUES (?, ?, ?, 'Pending Shipment', datetime('now'))
-            ''', (user_id, total_price, shipping_address))
+                INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at,
+                                   recipient_first_name, recipient_last_name)
+                VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?)
+            ''', (user_id, total_price, shipping_address, recipient_first, recipient_last))
 
             order_id = cursor.lastrowid
 
             # Create order_items and notify seller for each listing
             for item in items:
+                # Calculate grading fee for this line item
+                item_grading_fee = grading_fee_per_unit * item['quantity']
+
+                # Determine grading status
+                grading_status = GRADING_STATUS_PENDING_SELLER_SHIP if third_party_grading else GRADING_STATUS_NOT_REQUESTED
+
                 cursor.execute('''
-                    INSERT INTO order_items (order_id, listing_id, quantity, price_each)
-                    VALUES (?, ?, ?, ?)
-                ''', (order_id, item['listing_id'], item['quantity'], item['price_each']))
+                    INSERT INTO order_items (order_id, listing_id, quantity, price_each,
+                                           third_party_grading_requested, grading_fee_charged,
+                                           grading_service, grading_status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (order_id, item['listing_id'], item['quantity'], item['price_each'],
+                      1 if third_party_grading else 0, item_grading_fee,
+                      GRADING_SERVICE_DEFAULT if third_party_grading else None, grading_status))
 
                 # Build item description for notification
                 item_desc_parts = []
@@ -1209,8 +1667,14 @@ def direct_buy_item(bucket_id):
             orders_created.append({
                 'order_id': order_id,
                 'total_price': total_price,
+                'items_total': items_total,
+                'grading_fee_total': grading_fee_total,
                 'quantity': sum(i['quantity'] for i in items),
-                'price_each': items[0]['price_each']  # First item price for display
+                'price_each': items[0]['price_each'],  # First item price for display
+                'graded': items[0].get('graded', 0),  # Grading status from first item (legacy field)
+                'grading_service': items[0].get('grading_service'),  # Grading service from first item (legacy field)
+                'third_party_grading': third_party_grading,
+                'grading_fee_per_unit': grading_fee_per_unit
             })
 
         conn.commit()
@@ -1223,6 +1687,33 @@ def direct_buy_item(bucket_id):
             except Exception as notify_error:
                 print(f"[ERROR] Failed to notify seller {notif_data['seller_id']}: {notify_error}")
 
+        # Send buyer notification for each order created
+        for order in orders_created:
+            try:
+                # Get item description from bucket
+                item_desc_parts = []
+                if bucket_dict.get('metal'):
+                    item_desc_parts.append(bucket_dict['metal'])
+                if bucket_dict.get('product_type'):
+                    item_desc_parts.append(bucket_dict['product_type'])
+                if bucket_dict.get('weight'):
+                    item_desc_parts.append(bucket_dict['weight'])
+                item_description = ' '.join(item_desc_parts) if item_desc_parts else 'Item'
+
+                notify_order_confirmed(
+                    buyer_id=user_id,
+                    order_id=order['order_id'],
+                    item_description=item_description,
+                    quantity_purchased=order['quantity'],
+                    price_per_unit=order['price_each'],
+                    total_amount=order['total_price']
+                )
+            except Exception as notify_error:
+                print(f"[ERROR] Failed to notify buyer for order {order['order_id']}: {notify_error}")
+
+        # Calculate overall grading fee
+        overall_grading_fee_total = grading_fee_per_unit * total_filled
+
         # Build success response with order details
         return jsonify(
             success=True,
@@ -1230,7 +1721,12 @@ def direct_buy_item(bucket_id):
             orders=orders_created,
             total_quantity=total_filled,
             bucket=bucket_dict,
-            shipping_address=shipping_address
+            shipping_address=shipping_address,
+            delivery_address=delivery_address,
+            user_listings_skipped=user_listings_skipped,
+            third_party_grading=third_party_grading,
+            grading_fee_per_unit=grading_fee_per_unit,
+            grading_fee_total=overall_grading_fee_total
         )
 
     except ValueError as e:

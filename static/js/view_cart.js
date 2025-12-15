@@ -123,7 +123,7 @@ function handleQuantityChange(e) {
   if (isNaN(qty) || qty < 1) qty = 1;
   input.value = qty;
 
-  // Persist to backend and reload page
+  // Persist to backend and update UI dynamically
   fetch(`/cart/update_bucket_quantity/${bucketId}`, {
     method: 'POST',
     headers: {
@@ -136,12 +136,46 @@ function handleQuantityChange(e) {
     if (!res.ok) throw new Error('Failed to update quantity');
     return res.json();
   })
-  .then(() => {
-    // Reload page to show updated totals
-    location.reload();
+  .then(data => {
+    if (data.success) {
+      // Update tile quantity display (in case backend adjusted it)
+      input.value = data.quantity;
+
+      // Update order summary for this bucket
+      const summaryQtyEl = document.getElementById(`summary-qty-${bucketId}`);
+      const summaryTotalEl = document.getElementById(`summary-total-${bucketId}`);
+
+      if (summaryQtyEl) {
+        summaryQtyEl.textContent = data.quantity;
+      }
+
+      if (summaryTotalEl) {
+        summaryTotalEl.textContent = `$${data.total_price.toFixed(2)}`;
+        bucketTotals[bucketId] = data.total_price;
+      }
+
+      // Update tile price display (average price)
+      const tilePrice = document.querySelector(`[data-bucket-id="${bucketId}"] .price`);
+      if (tilePrice) {
+        tilePrice.textContent = `$${data.avg_price.toFixed(2)}`;
+      }
+
+      // Recalculate and update grand total
+      updateGrandTotal();
+
+      // If quantity is now 0, reload to remove the tile
+      if (data.quantity === 0) {
+        location.reload();
+      }
+    } else {
+      throw new Error(data.error || 'Update failed');
+    }
   })
   .catch(err => {
+    console.error('Update error:', err);
     alert(`Error updating quantity: ${err.message}`);
+    // Reload to show accurate state
+    location.reload();
   });
 }
 
@@ -154,10 +188,10 @@ function updateGrandTotal() {
     grandTotal += bucketTotals[bucketId];
   }
 
-  // Update the "Total for All Items" line
-  const allItemsTotalEl = document.querySelector('.cart-summary-fixed > p:last-of-type');
-  if (allItemsTotalEl) {
-    allItemsTotalEl.innerHTML = `<strong>Total for All Items:</strong> $${grandTotal.toFixed(2)}`;
+  // Update the grand total in the order summary
+  const grandTotalEl = document.querySelector('.summary-total .summary-value');
+  if (grandTotalEl) {
+    grandTotalEl.textContent = `$${grandTotal.toFixed(2)}`;
   }
 }
 

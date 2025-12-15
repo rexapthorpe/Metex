@@ -5,6 +5,7 @@ from .category_options import get_dropdown_options
 from utils.category_manager import get_or_create_category, validate_category_specification
 from services.pricing_service import get_effective_price
 from services.spot_price_service import get_current_spot_prices, get_spot_price
+from services.bucket_price_history_service import update_bucket_price
 from werkzeug.utils import secure_filename
 import sqlite3
 import os
@@ -242,6 +243,19 @@ def edit_listing(listing_id):
                 # Explicitly commit the transaction
                 conn.commit()
 
+                # Update bucket price history after listing change
+                try:
+                    bucket_id_row = conn.execute(
+                        'SELECT bucket_id FROM categories WHERE id = ?',
+                        (new_cat_id,)
+                    ).fetchone()
+                    if bucket_id_row:
+                        bucket_id = bucket_id_row['bucket_id']
+                        update_bucket_price(bucket_id)
+                except Exception as e:
+                    # Don't fail the listing update if price tracking fails
+                    print(f"[WARNING] Failed to update bucket price: {e}")
+
                 # Fetch the updated listing with full details for success modal
                 updated_listing = conn.execute(
                     '''
@@ -343,6 +357,17 @@ def edit_listing(listing_id):
         print(f"[PERF] get_dropdown_options took: {time.time() - options_start:.3f}s")
         grading_services = ['PCGS', 'NGC', 'ANACS', 'ICG']
 
+        # Fetch current spot price for the listing's metal
+        current_spot_price = None
+        listing_metal = listing['metal']
+        if listing_metal:
+            try:
+                current_spot_price = get_spot_price(listing_metal)
+                print(f"[INFO] Fetched spot price for {listing_metal}: ${current_spot_price}")
+            except Exception as e:
+                print(f"[WARNING] Failed to fetch spot price for {listing_metal}: {e}")
+                # Continue without spot price - modal will still work
+
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             render_start = time.time()
             html = render_template(
@@ -358,7 +383,8 @@ def edit_listing(listing_id):
                 years=options['years'],
                 finishes=options['finishes'],
                 grades=options['grades'],
-                grading_services=grading_services
+                grading_services=grading_services,
+                current_spot_price=current_spot_price  # Add spot price for display
             )
             print(f"[PERF] Template render took: {time.time() - render_start:.3f}s")
             print(f"[PERF] TOTAL edit_listing GET request took: {time.time() - start_time:.3f}s")
@@ -377,8 +403,25 @@ def cancel_listing(listing_id):
     listing = conn.execute('SELECT seller_id FROM listings WHERE id = ?', (listing_id,)).fetchone()
 
     if listing and listing['seller_id'] == session['user_id']:
+        # Get bucket_id before deactivating
+        bucket_id_row = conn.execute('''
+            SELECT c.bucket_id
+            FROM listings l
+            JOIN categories c ON l.category_id = c.id
+            WHERE l.id = ?
+        ''', (listing_id,)).fetchone()
+
         conn.execute('UPDATE listings SET active = 0 WHERE id = ?', (listing_id,))
         conn.commit()
+
+        # Update bucket price history after deactivating listing
+        if bucket_id_row:
+            try:
+                bucket_id = bucket_id_row['bucket_id']
+                update_bucket_price(bucket_id)
+            except Exception as e:
+                # Don't fail the deactivation if price tracking fails
+                print(f"[WARNING] Failed to update bucket price: {e}")
 
     conn.close()
     # if this is an AJAX request, just return 204 No Content

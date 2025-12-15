@@ -162,6 +162,22 @@ function renderOrderItem() {
     return n.toFixed(3); // e.g., 0.999
   })();
 
+  // Combined grading field: "Requires 3rd Party Grading"
+  // Check item.graded flag (1 = yes, 0 = no)
+  const requiresGrading = (() => {
+    const gradedFlag = item.graded ?? item.is_graded ?? null;
+    if (gradedFlag === 1 || gradedFlag === '1' || gradedFlag === true) {
+      // Graded = Yes, show "Yes (SERVICE)" if service is available
+      if (gradingSvc) {
+        return `Yes (${gradingSvc})`;
+      }
+      return 'Yes';
+    } else if (gradedFlag === 0 || gradedFlag === '0' || gradedFlag === false) {
+      return 'No';
+    }
+    return null;
+  })();
+
   // Numbers: do not default to 0; show "--" if missing
   const qtyRaw   = (item.total_quantity ?? item.quantity ?? null);
   const priceRaw = (item.price_each ?? item.unit_price ?? item.price_per_coin ?? null);
@@ -201,7 +217,7 @@ function renderOrderItem() {
     ? `<button class="order-items-remove-btn" type="button">Remove Item</button>`
     : '';
 
-  // Left column: ALWAYS render these 11 rows (label left, value right)
+  // Left column: ALWAYS render these 10 rows (label left, value right)
   const leftHTML = `
     <div><dt>Metal</dt><dd>${show(metal)}</dd></div>
     <div><dt>Product line</dt><dd>${show(productLine)}</dd></div>
@@ -211,8 +227,7 @@ function renderOrderItem() {
     <div><dt>Mint</dt><dd>${show(mint)}</dd></div>
     <div><dt>Purity</dt><dd>${show(purity)}</dd></div>
     <div><dt>Finish</dt><dd>${show(finish)}</dd></div>
-    <div><dt>Grading</dt><dd>${show(grading)}</dd></div>
-    <div><dt>Grading service</dt><dd>${show(gradingSvc)}</dd></div>
+    <div><dt>Requires 3rd Party Grading</dt><dd>${show(requiresGrading)}</dd></div>
     <div><dt>Seller</dt><dd>${show(seller)}</dd></div>
   `;
 

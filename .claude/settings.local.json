@@ -4,7 +4,22 @@
       "Bash(del:*)",
       "Bash(sqlite3:*)",
       "Bash(python:*)",
-      "Bash(start test_accept_bid_address_fix.html)"
+      "Bash(start test_accept_bid_address_fix.html)",
+      "Bash(dir:*)",
+      "Bash(start test_bid_confirm_modal_restructure.html)",
+      "Bash(start test_step_chart_visual.html)",
+      "Bash(start test_uniform_intervals_visual.html)",
+      "Bash(start test_time_scale_positioning.html)",
+      "Bash(start test_bucket_chart_polish.html)",
+      "Bash(start test_monotonic_interpolation.html)",
+      "Bash(start test_listing_skipped_modal.html)",
+      "Bash(start test_ajax_fix_verification.html)",
+      "Bash(findstr:*)",
+      "Bash(timeout 3 bash:*)",
+      "Bash(timeout 3 python:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(timeout 5 python:*)"
     ],
     "deny": [],
     "ask": []

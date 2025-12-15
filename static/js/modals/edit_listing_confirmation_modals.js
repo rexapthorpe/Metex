@@ -378,17 +378,17 @@ function openEditListingSuccessModal(data) {
   const isVariablePricing = pricingMode === 'premium_to_spot';
 
   // Populate item detail fields
-  const metalEl = document.getElementById('success-metal');
-  const productLineEl = document.getElementById('success-product-line');
-  const productTypeEl = document.getElementById('success-product-type');
-  const weightEl = document.getElementById('success-weight');
-  const yearEl = document.getElementById('success-year');
-  const mintEl = document.getElementById('success-mint');
-  const finishEl = document.getElementById('success-finish');
-  const gradeEl = document.getElementById('success-grade');
-  const quantityEl = document.getElementById('success-quantity');
-  const gradingEl = document.getElementById('success-grading');
-  const photoEl = document.getElementById('success-photo');
+  const metalEl = modal.querySelector('#success-metal');
+  const productLineEl = modal.querySelector('#success-product-line');
+  const productTypeEl = modal.querySelector('#success-product-type');
+  const weightEl = modal.querySelector('#success-weight');
+  const yearEl = modal.querySelector('#success-year');
+  const mintEl = modal.querySelector('#success-mint');
+  const finishEl = modal.querySelector('#success-finish');
+  const gradeEl = modal.querySelector('#success-grade');
+  const quantityEl = modal.querySelector('#success-quantity');
+  const gradingEl = modal.querySelector('#success-grading');
+  const photoEl = modal.querySelector('#success-photo');
   const pricingModeEl = document.getElementById('edit-success-pricing-mode');
 
   if (metalEl) metalEl.textContent = data.metal || '—';

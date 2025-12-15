@@ -151,6 +151,96 @@ def notify_bid_filled(buyer_id, order_id, bid_id, item_description, quantity_fil
     return True
 
 
+def notify_order_confirmed(buyer_id, order_id, item_description, quantity_purchased,
+                           price_per_unit, total_amount):
+    """
+    Notify a buyer that their order has been confirmed (for normal purchases, not bid fills)
+
+    Args:
+        buyer_id: ID of the buyer
+        order_id: ID of the created order
+        item_description: Description of the item
+        quantity_purchased: How many units were purchased
+        price_per_unit: Price per unit
+        total_amount: Total amount for the purchase
+
+    Returns:
+        bool: True if notification created successfully
+    """
+    # Get buyer info and preferences
+    conn = get_db_connection()
+    buyer = conn.execute('SELECT username, email FROM users WHERE id = ?', (buyer_id,)).fetchone()
+
+    # Get user notification preferences (default to enabled if not set)
+    # For now, we'll use the bid_filled preferences as a base
+    # TODO: Add separate order_confirmed preferences in future migration
+    prefs = conn.execute('SELECT * FROM user_preferences WHERE user_id = ?', (buyer_id,)).fetchone()
+    conn.close()
+
+    if not buyer:
+        print(f"[NOTIFICATION ERROR] Buyer {buyer_id} not found")
+        return False
+
+    # Use bid_filled preferences as default for order notifications
+    # This ensures buyers who want notifications for purchases will get them
+    send_email = True if not prefs else bool(prefs['email_bid_filled'])
+    send_inapp = True if not prefs else bool(prefs['inapp_bid_filled'])
+
+    # If both are disabled, skip notification
+    if not send_email and not send_inapp:
+        print(f"[NOTIFICATION] User {buyer_id} has disabled all purchase notifications")
+        return False
+
+    # Create in-app notification if enabled
+    notification_id = None
+    if send_inapp:
+        title = f"Order Confirmed - {quantity_purchased} Units!"
+        message = f"Your purchase of {item_description} has been confirmed! {quantity_purchased} units at ${price_per_unit:.2f} each (${total_amount:.2f} total). Check your Orders tab for details."
+
+        metadata = {
+            'quantity': quantity_purchased,
+            'price_per_unit': price_per_unit,
+            'total_amount': total_amount,
+            'item_description': item_description
+        }
+
+        notification_id = create_notification(
+            user_id=buyer_id,
+            notification_type='order_confirmed',
+            title=title,
+            message=message,
+            related_order_id=order_id,
+            metadata=metadata
+        )
+
+    # Send email notification if enabled
+    # For now, we'll use a simplified email approach
+    # TODO: Create dedicated order_confirmed email template in future
+    if send_email and buyer['email']:
+        try:
+            # Build full URL for orders page
+            base_url = 'http://127.0.0.1:5000'  # TODO: Get from config or request
+            orders_url = f"{base_url}/account#orders"
+
+            # For now, reuse bid_filled email format with adjusted text
+            # This can be replaced with a dedicated email template later
+            send_bid_filled_email(
+                to_email=buyer['email'],
+                username=buyer['username'],
+                item_description=item_description,
+                quantity=quantity_purchased,
+                price_per_unit=price_per_unit,
+                total_amount=total_amount,
+                partial=False,
+                remaining_quantity=0,
+                orders_url=orders_url
+            )
+        except Exception as e:
+            print(f"[EMAIL ERROR] Failed to send order confirmed email: {e}")
+
+    return True
+
+
 def notify_listing_sold(seller_id, order_id, listing_id, item_description, quantity_sold,
                         price_per_unit, total_amount, shipping_address, is_partial=False,
                         remaining_quantity=0):

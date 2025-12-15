@@ -17,69 +17,116 @@
       <div class="confirm-summary">
         <p class="confirm-message">You are about to list the following item:</p>
 
-        <div class="listing-summary-grid">
-          <div class="summary-row">
-            <span class="summary-label">Metal:</span>
-            <span class="summary-value" id="confirm-metal">—</span>
+        <!-- Item Category Details Container -->
+        <div class="detail-section">
+          <h4>Item Category Details</h4>
+          <div class="item-specs-grid">
+            <div class="spec-item">
+              <span class="spec-label">Metal:</span>
+              <span class="spec-value" id="confirm-metal">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Product Line:</span>
+              <span class="spec-value" id="confirm-product-line">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Product Type:</span>
+              <span class="spec-value" id="confirm-product-type">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Weight:</span>
+              <span class="spec-value" id="confirm-weight">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Purity:</span>
+              <span class="spec-value" id="confirm-purity">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Mint:</span>
+              <span class="spec-value" id="confirm-mint">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Year:</span>
+              <span class="spec-value" id="confirm-year">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Grade:</span>
+              <span class="spec-value" id="confirm-grade">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Finish:</span>
+              <span class="spec-value" id="confirm-finish">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Require 3rd Party Grading:</span>
+              <span class="spec-value" id="confirm-graded">—</span>
+            </div>
           </div>
-          <div class="summary-row">
-            <span class="summary-label">Product Line:</span>
-            <span class="summary-value" id="confirm-product-line">—</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-label">Product Type:</span>
-            <span class="summary-value" id="confirm-product-type">—</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-label">Weight:</span>
-            <span class="summary-value" id="confirm-weight">—</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-label">Year:</span>
-            <span class="summary-value" id="confirm-year">—</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-label">Quantity:</span>
-            <span class="summary-value" id="confirm-quantity">—</span>
-          </div>
+        </div>
 
-          <!-- Pricing Mode Row (shown for all) -->
-          <div class="summary-row">
-            <span class="summary-label">Pricing Mode:</span>
-            <span class="summary-value" id="confirm-pricing-mode">—</span>
+        <!-- Listing Classification Container -->
+        <div class="detail-section">
+          <h4>Listing Classification</h4>
+          <div class="listing-summary-grid">
+            <div class="summary-row">
+              <span class="summary-label">Type:</span>
+              <span class="summary-value" id="confirm-listing-type">—</span>
+            </div>
+            <!-- Numismatic details (conditionally shown) -->
+            <div class="summary-row" id="confirm-numismatic-row" style="display: none;">
+              <span class="summary-label">Issue:</span>
+              <span class="summary-value" id="confirm-numismatic-issue">—</span>
+            </div>
+            <!-- Set items count (conditionally shown) -->
+            <div class="summary-row" id="confirm-set-items-row" style="display: none;">
+              <span class="summary-label">Set Items:</span>
+              <span class="summary-value" id="confirm-set-items-count">—</span>
+            </div>
           </div>
+        </div>
 
-          <!-- Static Pricing (shown only for static mode) -->
-          <div class="summary-row" id="confirm-static-price-row">
-            <span class="summary-label">Price per Coin:</span>
-            <span class="summary-value price-highlight" id="confirm-price">—</span>
-          </div>
-          <div class="summary-row" id="confirm-static-total-row">
-            <span class="summary-label">Total Value:</span>
-            <span class="summary-value total-highlight" id="confirm-total-value">—</span>
-          </div>
+        <!-- Price Details Container -->
+        <div class="detail-section">
+          <h4>Price Details</h4>
+          <div class="listing-summary-grid">
+            <div class="summary-row">
+              <span class="summary-label">Quantity:</span>
+              <span class="summary-value" id="confirm-quantity">—</span>
+            </div>
 
-          <!-- Premium-to-Spot Pricing (shown only for premium-to-spot mode) -->
-          <div class="summary-row" id="confirm-premium-row" style="display: none;">
-            <span class="summary-label">Premium Above Spot:</span>
-            <span class="summary-value" id="confirm-premium">—</span>
-          </div>
-          <div class="summary-row" id="confirm-floor-row" style="display: none;">
-            <span class="summary-label">No Lower Than:</span>
-            <span class="summary-value" id="confirm-floor">—</span>
-          </div>
-          <div class="summary-row" id="confirm-effective-price-row" style="display: none;">
-            <span class="summary-label">Current Effective Price:</span>
-            <span class="summary-value price-highlight" id="confirm-effective-price">—</span>
-          </div>
-          <div class="summary-row" id="confirm-effective-total-row" style="display: none;">
-            <span class="summary-label">Current Total Value:</span>
-            <span class="summary-value total-highlight" id="confirm-effective-total">—</span>
-          </div>
+            <!-- Pricing Mode Row (shown for all) -->
+            <div class="summary-row">
+              <span class="summary-label">Pricing Mode:</span>
+              <span class="summary-value" id="confirm-pricing-mode">—</span>
+            </div>
 
-          <div class="summary-row">
-            <span class="summary-label">Graded:</span>
-            <span class="summary-value" id="confirm-graded">—</span>
+            <!-- Static Pricing (shown only for static mode) -->
+            <div class="summary-row" id="confirm-static-price-row">
+              <span class="summary-label">Price per Coin:</span>
+              <span class="summary-value price-highlight" id="confirm-price">—</span>
+            </div>
+            <div class="summary-row" id="confirm-static-total-row">
+              <span class="summary-label">Total Value:</span>
+              <span class="summary-value total-highlight" id="confirm-total-value">—</span>
+            </div>
+
+            <!-- Premium-to-Spot Pricing (shown only for premium-to-spot mode) -->
+            <div class="summary-row" id="confirm-premium-row" style="display: none;">
+              <span class="summary-label">Premium Above Spot:</span>
+              <span class="summary-value" id="confirm-premium">—</span>
+            </div>
+            <div class="summary-row" id="confirm-floor-row" style="display: none;">
+              <span class="summary-label">No Lower Than:</span>
+              <span class="summary-value" id="confirm-floor">—</span>
+            </div>
+            <div class="summary-row" id="confirm-effective-price-row" style="display: none;">
+              <span class="summary-label">Current Effective Price:</span>
+              <span class="summary-value price-highlight" id="confirm-effective-price">—</span>
+            </div>
+            <div class="summary-row" id="confirm-effective-total-row" style="display: none;">
+              <span class="summary-label">Current Total Value:</span>
+              <span class="summary-value total-highlight" id="confirm-effective-total">—</span>
+            </div>
           </div>
         </div>
 
@@ -119,58 +166,122 @@
       <div class="success-content">
         <p class="success-message">Your item has been successfully listed on the marketplace!</p>
 
-        <div class="success-details">
-          <h3>Listing Details</h3>
-
-          <div class="detail-section">
-            <div class="detail-row">
-              <span class="detail-label">Item:</span>
-              <span class="detail-value" id="success-item-desc">—</span>
+        <!-- Item Category Details Container -->
+        <div class="detail-section">
+          <h4>Item Category Details</h4>
+          <div class="item-specs-grid">
+            <div class="spec-item">
+              <span class="spec-label">Metal:</span>
+              <span class="spec-value" id="success-metal">—</span>
             </div>
-            <div class="detail-row">
-              <span class="detail-label">Quantity:</span>
-              <span class="detail-value" id="success-quantity">—</span>
+            <div class="spec-item">
+              <span class="spec-label">Product Line:</span>
+              <span class="spec-value" id="success-product-line">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Product Type:</span>
+              <span class="spec-value" id="success-product-type">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Weight:</span>
+              <span class="spec-value" id="success-weight">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Purity:</span>
+              <span class="spec-value" id="success-purity">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Mint:</span>
+              <span class="spec-value" id="success-mint">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Year:</span>
+              <span class="spec-value" id="success-year">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Grade:</span>
+              <span class="spec-value" id="success-grade">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Finish:</span>
+              <span class="spec-value" id="success-finish">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Require 3rd Party Grading:</span>
+              <span class="spec-value" id="success-graded">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Listing Classification Container -->
+        <div class="detail-section">
+          <h4>Listing Classification</h4>
+          <div class="listing-summary-grid">
+            <div class="summary-row">
+              <span class="summary-label">Type:</span>
+              <span class="summary-value" id="success-listing-type">—</span>
+            </div>
+            <!-- Numismatic details (conditionally shown) -->
+            <div class="summary-row" id="success-numismatic-row" style="display: none;">
+              <span class="summary-label">Issue:</span>
+              <span class="summary-value" id="success-numismatic-issue">—</span>
+            </div>
+            <!-- Set items count (conditionally shown) -->
+            <div class="summary-row" id="success-set-items-row" style="display: none;">
+              <span class="summary-label">Set Items:</span>
+              <span class="summary-value" id="success-set-items-count">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Price Details Container -->
+        <div class="detail-section">
+          <h4>Price Details</h4>
+          <div class="listing-summary-grid">
+            <div class="summary-row">
+              <span class="summary-label">Quantity:</span>
+              <span class="summary-value" id="success-quantity">—</span>
             </div>
 
             <!-- Pricing Mode Row (shown for all) -->
-            <div class="detail-row">
-              <span class="detail-label">Pricing Mode:</span>
-              <span class="detail-value" id="success-pricing-mode">—</span>
+            <div class="summary-row">
+              <span class="summary-label">Pricing Mode:</span>
+              <span class="summary-value" id="success-pricing-mode">—</span>
             </div>
 
             <!-- Static Pricing (shown only for static mode) -->
-            <div class="detail-row" id="success-static-price-row">
-              <span class="detail-label">Price per Coin:</span>
-              <span class="detail-value price-highlight" id="success-price">—</span>
+            <div class="summary-row" id="success-static-price-row">
+              <span class="summary-label">Price per Coin:</span>
+              <span class="summary-value price-highlight" id="success-price">—</span>
             </div>
-            <div class="detail-row" id="success-static-total-row">
-              <span class="detail-label">Total Value:</span>
-              <span class="detail-value total-highlight" id="success-total-value">—</span>
+            <div class="summary-row" id="success-static-total-row">
+              <span class="summary-label">Total Value:</span>
+              <span class="summary-value total-highlight" id="success-total-value">—</span>
             </div>
 
             <!-- Premium-to-Spot Pricing (shown only for premium-to-spot mode) -->
-            <div class="detail-row" id="success-premium-row" style="display: none;">
-              <span class="detail-label">Premium Above Spot:</span>
-              <span class="detail-value" id="success-premium">—</span>
+            <div class="summary-row" id="success-premium-row" style="display: none;">
+              <span class="summary-label">Premium Above Spot:</span>
+              <span class="summary-value" id="success-premium">—</span>
             </div>
-            <div class="detail-row" id="success-floor-row" style="display: none;">
-              <span class="detail-label">No Lower Than:</span>
-              <span class="detail-value" id="success-floor">—</span>
+            <div class="summary-row" id="success-floor-row" style="display: none;">
+              <span class="summary-label">No Lower Than:</span>
+              <span class="summary-value" id="success-floor">—</span>
             </div>
-            <div class="detail-row" id="success-effective-price-row" style="display: none;">
-              <span class="detail-label">Current Effective Price:</span>
-              <span class="detail-value price-highlight" id="success-effective-price">—</span>
+            <div class="summary-row" id="success-effective-price-row" style="display: none;">
+              <span class="summary-label">Current Effective Price:</span>
+              <span class="summary-value price-highlight" id="success-effective-price">—</span>
             </div>
-            <div class="detail-row" id="success-effective-total-row" style="display: none;">
-              <span class="detail-label">Current Total Value:</span>
-              <span class="detail-value total-highlight" id="success-effective-total">—</span>
+            <div class="summary-row" id="success-effective-total-row" style="display: none;">
+              <span class="summary-label">Current Total Value:</span>
+              <span class="summary-value total-highlight" id="success-effective-total">—</span>
             </div>
           </div>
+        </div>
 
-          <div class="next-steps-notice">
-            <strong>What's Next?</strong><br>
-            Your listing is now live! Buyers can find it by browsing or searching for items matching your specifications. You'll be notified when someone purchases your item or places a bid.
-          </div>
+        <div class="next-steps-notice">
+          <strong>What's Next?</strong><br>
+          Your listing is now live! Buyers can find it by browsing or searching for items matching your specifications. You'll be notified when someone purchases your item or places a bid.
         </div>
       </div>
     </div>

@@ -4,7 +4,12 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from database import get_db_connection
 from services.notification_service import notify_bid_filled
 from services.spot_price_service import get_spot_price
-from services.pricing_service import get_effective_price, get_effective_bid_price
+from services.pricing_service import (
+    get_effective_price,
+    get_effective_bid_price,
+    can_bid_fill_listing,
+    calculate_trade_prices
+)
 
 bid_bp = Blueprint('bid', __name__, url_prefix='/bids')
 
@@ -27,6 +32,7 @@ def place_bid(bucket_id):
         delivery_address = request.form['delivery_address'].strip()
         requires_grading = request.form.get('requires_grading') == 'yes'
         preferred_grader = request.form.get('preferred_grader') if requires_grading else None
+        random_year = 1 if request.form.get('random_year') == 'on' else 0
 
         # Extract pricing parameters based on mode
         if pricing_mode == 'premium_to_spot':
@@ -71,16 +77,32 @@ def place_bid(bucket_id):
         flash("❌ Bid quantity must be greater than zero.", "error")
         return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
+    # ✅ Get recipient name from user's Account Details (source of truth)
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    user_info = cursor.execute(
+        'SELECT first_name, last_name FROM users WHERE id = ?',
+        (session['user_id'],)
+    ).fetchone()
+
+    if not user_info or not user_info['first_name'] or not user_info['last_name']:
+        conn.close()
+        flash("❌ Please add your full name in Account Details before placing a bid.", "error")
+        return redirect('/account#personal-info')
+
+    recipient_first = user_info['first_name']
+    recipient_last = user_info['last_name']
+
     cursor.execute(
         '''
         INSERT INTO bids (
             category_id, buyer_id, quantity_requested, price_per_coin,
             remaining_quantity, active, requires_grading, preferred_grader,
             delivery_address, status,
-            pricing_mode, spot_premium, ceiling_price, pricing_metal
-        ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'Open', ?, ?, ?, ?)
+            pricing_mode, spot_premium, ceiling_price, pricing_metal,
+            recipient_first_name, recipient_last_name, random_year
+        ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?)
         ''',
         (
             bucket_id,
@@ -94,7 +116,10 @@ def place_bid(bucket_id):
             pricing_mode,
             spot_premium,
             ceiling_price,
-            pricing_metal
+            pricing_metal,
+            recipient_first,
+            recipient_last,
+            random_year
         )
     )
     conn.commit()
@@ -128,11 +153,15 @@ def edit_bid(bid_id):
         (bid['category_id'],)
     ).fetchone()
 
-    listings = cursor.execute(
+    # Get listings with all pricing fields to calculate effective prices
+    listings_raw = cursor.execute(
         '''
-        SELECT price_per_coin FROM listings
-        WHERE category_id = ? AND active = 1 AND quantity > 0
-        ORDER BY price_per_coin ASC
+        SELECT l.price_per_coin, l.pricing_mode, l.spot_premium, l.floor_price, l.pricing_metal,
+               c.metal, c.weight
+        FROM listings l
+        JOIN categories c ON l.category_id = c.id
+        WHERE l.category_id = ? AND l.active = 1 AND l.quantity > 0
+        ORDER BY l.price_per_coin ASC
         LIMIT 10
         ''',
         (bid['category_id'],)
@@ -140,8 +169,15 @@ def edit_bid(bid_id):
 
     conn.close()
 
-    if listings:
-        prices = [row['price_per_coin'] for row in listings]
+    if listings_raw:
+        # Calculate effective prices for each listing
+        from services.pricing_service import get_effective_price
+        prices = []
+        for row in listings_raw:
+            listing_dict = dict(row)
+            effective_price = get_effective_price(listing_dict)
+            prices.append(effective_price)
+
         best_bid_price = round(sum(prices) / len(prices), 2)
         good_bid_price = round(best_bid_price * 0.95, 2)
     else:
@@ -237,6 +273,23 @@ def update_bid():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # ✅ Get recipient name from user's Account Details (source of truth)
+    user_info = cursor.execute(
+        'SELECT first_name, last_name FROM users WHERE id = ?',
+        (session['user_id'],)
+    ).fetchone()
+
+    if not user_info or not user_info['first_name'] or not user_info['last_name']:
+        conn.close()
+        return jsonify(
+            success=False,
+            message="Please add your full name in Account Details before updating a bid.",
+            redirect_to="/account#personal-info"
+        ), 400
+
+    recipient_first = user_info['first_name']
+    recipient_last = user_info['last_name']
+
     # Ensure ownership & fetch existing address so we can preserve if blank
     existing = cursor.execute(
         'SELECT buyer_id, delivery_address FROM bids WHERE id = ?',
@@ -270,6 +323,8 @@ def update_bid():
                spot_premium        = ?,
                ceiling_price       = ?,
                pricing_metal       = ?,
+               recipient_first_name = ?,
+               recipient_last_name  = ?,
                status              = 'Open',
                active              = 1
          WHERE id = ? AND buyer_id = ?
@@ -285,6 +340,8 @@ def update_bid():
             spot_premium,
             ceiling_price,
             pricing_metal,
+            recipient_first,
+            recipient_last,
             bid_id,
             session['user_id']
         )
@@ -388,17 +445,15 @@ def edit_bid_form(bid_id):
 
 @bid_bp.route('/my_bids')
 def my_bids():
+    """
+    Legacy route that redirects to the Account page.
+    The 'My Bids' tab on the Account page shows all user bids.
+    """
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
 
-    conn = get_db_connection()
-    bids = conn.execute(
-        'SELECT * FROM bids WHERE buyer_id = ? ORDER BY created_at DESC',
-        (session['user_id'],)
-    ).fetchall()
-    conn.close()
-
-    return render_template('my_bids.html', bids=bids)
+    # Redirect to account page where user can access My Bids tab
+    return redirect(url_for('account.account') + '#bids')
 
 
 @bid_bp.route("/bid/<int:bucket_id>", methods=["GET"])
@@ -454,8 +509,20 @@ def accept_bid(bucket_id):
       - accept_qty[<bid_id>]: integer accepted quantity for that bid (0..remaining_quantity)
     Falls back to legacy quantity_<bid_id> if present.
     """
+    # Debug logging for session
+    print(f"[DEBUG] /accept_bid session keys: {list(session.keys())}")
+    print(f"[DEBUG] /accept_bid user_id in session: {'user_id' in session}")
+    if 'user_id' in session:
+        print(f"[DEBUG] /accept_bid user_id value: {session['user_id']}")
+
+    # Check authentication - return JSON 401 for AJAX, redirect for traditional form submissions
     if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
+        print(f"[ERROR] /accept_bid - No user_id in session. Session: {dict(session)}")
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify(success=False, message="Authentication required. Please log in."), 401
+        else:
+            return redirect(url_for('auth.login'))
 
     seller_id = session['user_id']
     selected_bid_ids = request.form.getlist('selected_bids')
@@ -476,8 +543,8 @@ def accept_bid(bucket_id):
     # Collect notification data (will send after commit to avoid database locking)
     notifications_to_send = []
 
-    # Collect order details for AJAX response (for success modal)
-    first_order_details = None
+    # Collect order details for AJAX response (for success modal) - SUPPORTS MULTIPLE BIDS
+    all_order_details = []
 
     for bid_id in selected_bid_ids:
         # Load bid with all pricing fields needed to calculate effective price
@@ -485,6 +552,7 @@ def accept_bid(bucket_id):
             SELECT b.id, b.category_id, b.quantity_requested, b.remaining_quantity,
                    b.price_per_coin, b.buyer_id, b.delivery_address, b.status,
                    b.pricing_mode, b.spot_premium, b.ceiling_price, b.pricing_metal,
+                   b.recipient_first_name, b.recipient_last_name,
                    c.metal, c.weight
             FROM bids b
             JOIN categories c ON b.category_id = c.id
@@ -497,9 +565,11 @@ def accept_bid(bucket_id):
         if bid['buyer_id'] == seller_id:
             continue
 
-        category_id      = bid['category_id']
-        buyer_id         = bid['buyer_id']
-        delivery_address = bid['delivery_address']
+        category_id          = bid['category_id']
+        buyer_id             = bid['buyer_id']
+        delivery_address     = bid['delivery_address']
+        recipient_first_name = bid['recipient_first_name']
+        recipient_last_name  = bid['recipient_last_name']
 
         # Calculate effective bid price (handles both static and premium-to-spot)
         bid_dict = dict(bid)
@@ -622,25 +692,26 @@ def accept_bid(bucket_id):
 
             # Create the order record
             cursor.execute('''
-                INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at)
-                VALUES (?, ?, ?, 'Pending Shipment', datetime('now'))
-            ''', (buyer_id, total_price, delivery_address))
+                INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at,
+                                   recipient_first_name, recipient_last_name)
+                VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?)
+            ''', (buyer_id, total_price, delivery_address, recipient_first_name, recipient_last_name))
 
             order_id = cursor.lastrowid
 
-            # Capture order details for first accepted bid (for AJAX response to show in modal)
-            if first_order_details is None:
-                # Get buyer name
-                buyer_info = cursor.execute('SELECT username, first_name, last_name FROM users WHERE id = ?', (buyer_id,)).fetchone()
-                first_order_details = {
-                    'buyer_name': buyer_info['username'] if buyer_info else 'Unknown',
-                    'buyer_first_name': buyer_info['first_name'] if buyer_info else '',
-                    'buyer_last_name': buyer_info['last_name'] if buyer_info else '',
-                    'delivery_address': delivery_address,
-                    'price_per_coin': effective_bid_price,
-                    'quantity': filled,
-                    'total_price': total_price
-                }
+            # Capture order details for THIS accepted bid (for AJAX response to show in modal)
+            # Get buyer name
+            buyer_info = cursor.execute('SELECT username, first_name, last_name FROM users WHERE id = ?', (buyer_id,)).fetchone()
+            all_order_details.append({
+                'buyer_name': buyer_info['username'] if buyer_info else 'Unknown',
+                'buyer_first_name': buyer_info['first_name'] if buyer_info else '',
+                'buyer_last_name': buyer_info['last_name'] if buyer_info else '',
+                'delivery_address': delivery_address,
+                'price_per_coin': effective_bid_price,
+                'quantity': filled,
+                'total_price': total_price,
+                'order_id': order_id
+            })
 
             # Create order_items for each fill
             for item in order_items_to_create:
@@ -719,12 +790,15 @@ def accept_bid(bucket_id):
         if total_filled > 0:
             response_data = {
                 'success': True,
-                'message': f'You fulfilled a total of {total_filled} coin(s) across selected bids.',
-                'total_filled': total_filled
+                'message': f'You fulfilled a total of {total_filled} coin(s) across {len(all_order_details)} bid(s).',
+                'total_filled': total_filled,
+                'orders_created': len(all_order_details)
             }
-            # Include order details if available (for success modal)
-            if first_order_details:
-                response_data['order_details'] = first_order_details
+            # Include ALL order details (for success modal to show all accepted bids)
+            if all_order_details:
+                response_data['all_order_details'] = all_order_details
+                # Keep first one for backward compatibility with old JS
+                response_data['order_details'] = all_order_details[0] if all_order_details else None
             return jsonify(response_data)
         else:
             return jsonify({
@@ -754,17 +828,26 @@ def cancel_bid(bid_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 2) Verify bid is open & owned by this user
+    # 2) Verify bid exists & is owned by this user
     row = cursor.execute(
-        'SELECT active, status FROM bids WHERE id = ? AND buyer_id = ?',
+        'SELECT active, status, remaining_quantity FROM bids WHERE id = ? AND buyer_id = ?',
         (bid_id, user_id)
     ).fetchone()
 
-    if not row or not row['active'] or row['status'] != 'Open':
+    if not row:
         conn.close()
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify(error="Cannot cancel this bid"), 400
-        flash("❌ Cannot cancel that bid.", "error")
+            return jsonify(error="Bid not found"), 404
+        flash("❌ Bid not found.", "error")
+        return redirect(url_for('bid.my_bids'))
+
+    # Check if bid can be cancelled (must be active with remaining quantity)
+    # Allow cancelling 'Open' or 'Partially Filled' bids that still have remaining quantity
+    if not row['active'] or (row['remaining_quantity'] or 0) <= 0:
+        conn.close()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(error="This bid cannot be cancelled (already inactive or fully filled)"), 400
+        flash("❌ This bid cannot be cancelled (already inactive or fully filled).", "error")
         return redirect(url_for('bid.my_bids'))
 
     # 3) Soft‐delete it
@@ -806,8 +889,15 @@ def bid_form_unified(bucket_id, bid_id=None):
     Returns:
         HTML partial (bid_form.html) for AJAX injection into modal
     """
+    # Debug logging for session
+    print(f"[DEBUG] /bids/form session keys: {list(session.keys())}")
+    print(f"[DEBUG] /bids/form user_id in session: {'user_id' in session}")
+    if 'user_id' in session:
+        print(f"[DEBUG] /bids/form user_id value: {session['user_id']}")
+
     if 'user_id' not in session:
-        return jsonify(error="Authentication required"), 401
+        print(f"[ERROR] /bids/form - No user_id in session. Session: {dict(session)}")
+        return jsonify(error="Authentication required. Please log in to place a bid."), 401
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -993,6 +1083,8 @@ def auto_match_bid_to_listings(bid_id, cursor):
     requires_grading = bid['requires_grading']
     preferred_grader = bid['preferred_grader']
     quantity_needed = bid['remaining_quantity']
+    recipient_first_name = bid['recipient_first_name']
+    recipient_last_name = bid['recipient_last_name']
 
     # Fetch spot prices from the SAME database connection
     # This ensures test databases and production use consistent spot prices
@@ -1052,27 +1144,35 @@ def auto_match_bid_to_listings(bid_id, cursor):
     if not listings:
         return {'filled_quantity': 0, 'orders_created': 0, 'message': 'No matching listings found'}
 
-    # Calculate effective price for each listing and filter by effective bid price
-    # This ensures we only match listings whose CURRENT effective price is <= bid's effective price
+    # ============================================================================
+    # SPREAD MODEL MATCHING
+    # Uses can_bid_fill_listing() to match all 4 combinations (fixed/variable)
+    # ============================================================================
+
+    # Calculate pricing info for each listing using spread model
     matched_listings = []
     for listing in listings:
         listing_dict = dict(listing)
-        listing_effective_price = get_effective_price(listing_dict, spot_prices=spot_prices)
 
-        # Only match if listing's current effective price is at or below bid's effective price
-        if listing_effective_price <= effective_bid_price:
-            # Store the effective price on the listing for later use
-            listing_dict['effective_price'] = listing_effective_price
+        # Check if bid can fill this listing (works for all 4 combinations)
+        pricing_info = can_bid_fill_listing(bid_dict, listing_dict, spot_prices=spot_prices)
+
+        if pricing_info['can_fill']:
+            # Store pricing info on the listing for later use
+            listing_dict['bid_effective_price'] = pricing_info['bid_effective_price']
+            listing_dict['listing_effective_price'] = pricing_info['listing_effective_price']
+            listing_dict['spread'] = pricing_info['spread']
             matched_listings.append(listing_dict)
 
-    # Sort by effective price (cheapest first), then by id for consistency
-    matched_listings.sort(key=lambda x: (x['effective_price'], x['id']))
+    # Sort by listing effective price (cheapest for seller first), then by id
+    matched_listings.sort(key=lambda x: (x['listing_effective_price'], x['id']))
 
     if not matched_listings:
-        return {'filled_quantity': 0, 'orders_created': 0, 'message': 'No matching listings found (effective prices do not overlap)'}
+        return {'filled_quantity': 0, 'orders_created': 0, 'message': 'No matching listings found (bid price < listing price)'}
 
     # Group fills by seller (one order per seller)
-    seller_fills = {}  # seller_id -> list of {listing_id, quantity, price_each}
+    # Store BOTH buyer and seller prices for each fill
+    seller_fills = {}  # seller_id -> list of {listing_id, quantity, buyer_price, seller_price}
     total_filled = 0
 
     for listing in matched_listings:
@@ -1090,16 +1190,19 @@ def auto_match_bid_to_listings(bid_id, cursor):
         else:
             cursor.execute('UPDATE listings SET quantity = ? WHERE id = ?', (new_qty, listing['id']))
 
-        # Track fill for this seller
+        # Track fill for this seller with BOTH prices
         if seller_id not in seller_fills:
             seller_fills[seller_id] = []
 
-        # Use bid's effective price as the transaction price
-        # Buyer pays what they bid, platform captures the spread between bid and listing
+        # SPREAD MODEL:
+        # - Buyer pays: bid effective price
+        # - Seller receives: listing effective price
+        # - Metex keeps: bid effective - listing effective
         seller_fills[seller_id].append({
             'listing_id': listing['id'],
             'quantity': fill_qty,
-            'price_each': effective_bid_price
+            'buyer_price_each': listing['bid_effective_price'],      # What buyer pays
+            'seller_price_each': listing['listing_effective_price']  # What seller receives
         })
 
         total_filled += fill_qty
@@ -1107,23 +1210,31 @@ def auto_match_bid_to_listings(bid_id, cursor):
     # Create one order per seller
     orders_created = 0
     for seller_id, items in seller_fills.items():
-        total_price = sum(item['quantity'] * item['price_each'] for item in items)
+        # Calculate total based on BUYER price (what buyer pays)
+        total_price = sum(item['quantity'] * item['buyer_price_each'] for item in items)
 
         # Create order
         cursor.execute('''
-            INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at)
-            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'))
-        ''', (buyer_id, total_price, delivery_address))
+            INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at,
+                               recipient_first_name, recipient_last_name)
+            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?)
+        ''', (buyer_id, total_price, delivery_address, recipient_first_name, recipient_last_name))
 
         order_id = cursor.lastrowid
         orders_created += 1
 
-        # Create order_items
+        # Create order_items with BOTH buyer and seller prices
         for item in items:
             cursor.execute('''
-                INSERT INTO order_items (order_id, listing_id, quantity, price_each)
-                VALUES (?, ?, ?, ?)
-            ''', (order_id, item['listing_id'], item['quantity'], item['price_each']))
+                INSERT INTO order_items (order_id, listing_id, quantity, price_each, seller_price_each)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                order_id,
+                item['listing_id'],
+                item['quantity'],
+                item['buyer_price_each'],   # What buyer pays
+                item['seller_price_each']   # What seller receives
+            ))
 
     # Update bid status
     new_remaining = quantity_needed - total_filled
@@ -1235,10 +1346,27 @@ def create_bid_unified(bucket_id):
     if errors:
         return jsonify(success=False, errors=errors), 400
 
-    # Insert bid into database
+    # ✅ Get recipient name from user's Account Details (source of truth)
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    user_info = cursor.execute(
+        'SELECT first_name, last_name FROM users WHERE id = ?',
+        (session['user_id'],)
+    ).fetchone()
+
+    if not user_info or not user_info['first_name'] or not user_info['last_name']:
+        conn.close()
+        return jsonify(
+            success=False,
+            message="Please add your full name in Account Details before placing a bid.",
+            redirect_to="/account#personal-info"
+        ), 400
+
+    recipient_first = user_info['first_name']
+    recipient_last = user_info['last_name']
+
+    # Insert bid into database
     try:
         cursor.execute(
             '''
@@ -1246,8 +1374,9 @@ def create_bid_unified(bucket_id):
                 category_id, buyer_id, quantity_requested, price_per_coin,
                 remaining_quantity, active, requires_grading, preferred_grader,
                 delivery_address, status,
-                pricing_mode, spot_premium, ceiling_price, pricing_metal
-            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'Open', ?, ?, ?, ?)
+                pricing_mode, spot_premium, ceiling_price, pricing_metal,
+                recipient_first_name, recipient_last_name
+            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'Open', ?, ?, ?, ?, ?, ?)
             ''',
             (
                 bucket_id,
@@ -1261,7 +1390,9 @@ def create_bid_unified(bucket_id):
                 pricing_mode,
                 spot_premium,
                 ceiling_price,
-                pricing_metal
+                pricing_metal,
+                recipient_first,
+                recipient_last
             )
         )
         new_bid_id = cursor.lastrowid

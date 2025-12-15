@@ -1,0 +1,94 @@
+/*
+ * Own Listings Skipped Modal Styles
+ * Non-blocking notification modal for when user's own listings are skipped
+ */
+
+#ownListingsSkippedModal.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000; /* High z-index to appear above other elements */
+}
+
+#ownListingsSkippedModal .modal-content {
+  background: #fff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  padding: 0;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+#ownListingsSkippedModal .modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+#ownListingsSkippedModal .modal-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #333;
+  font-weight: 600;
+}
+
+#ownListingsSkippedModal .modal-body {
+  padding: 24px;
+}
+
+#ownListingsSkippedModal .modal-message {
+  margin: 0;
+  font-size: 1rem;
+  color: #555;
+  line-height: 1.6;
+}
+
+#ownListingsSkippedModal .modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+#ownListingsSkippedModal .btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#ownListingsSkippedModal .btn-primary {
+  background: #007bff;
+  color: #ffffff;
+}
+
+#ownListingsSkippedModal .btn-primary:hover {
+  background: #0056b3;
+}
+
+#ownListingsSkippedModal .btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Animation */
+#ownListingsSkippedModal.show {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

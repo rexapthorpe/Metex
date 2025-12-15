@@ -5,6 +5,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}?v=bucket-v7-bidder"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bucket_ID_sellers_modal.css') }}?v=bucket-v2"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pricing_badges.css') }}?v=1"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bucket_price_chart.css') }}?v=1"/>
+
+<!-- Chart.js library for price history chart -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Chart.js time adapter for time-based x-axis -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 
 <div id="popup-message-container"></div>
 
@@ -17,56 +23,103 @@
       <!-- Gallery -->
       <div class="gallery">
         <div class="gallery-main" id="galleryMain" aria-live="polite">
-          {% set has_images = images and images|length > 0 %}
-
-          <button class="gal-arrow left" id="galPrev" aria-label="Previous image"
-                  {% if not has_images or images|length < 2 %}disabled{% endif %}>‹</button>
-
-          {% if has_images %}
-            <img src="{{ images[0] }}" alt="Item image" id="mainImage">
+          {% if isolated_type == 'set' and (cover_photo or set_items) %}
+            {# Set listing: show cover photo as main image #}
+            {% set main_photo = cover_photo if cover_photo else 'static/uploads/placeholder.jpg' %}
+            <img src="/{{ main_photo }}" alt="Set cover image" id="mainImage">
+            <div id="mainImagePlaceholder" class="gallery-ph" style="display: none;" aria-label="Image placeholder"></div>
           {% else %}
-            <div id="mainImagePlaceholder" class="gallery-ph" aria-label="Image placeholder"></div>
-          {% endif %}
+            {# Standard or one-of-a-kind listing: use existing images array #}
+            {% set has_images = images and images|length > 0 %}
 
-          <button class="gal-arrow right" id="galNext" aria-label="Next image"
-                  {% if not has_images or images|length < 2 %}disabled{% endif %}>›</button>
+            <button class="gal-arrow left" id="galPrev" aria-label="Previous image"
+                    {% if not has_images or images|length < 2 %}disabled{% endif %}>‹</button>
 
-          <div class="gal-dots" id="galDots">
             {% if has_images %}
-              {% for i in range(images|length) %}
-                <span class="dot {{ 'active' if i == 0 else '' }}" data-idx="{{ i }}"></span>
-              {% endfor %}
+              <img src="{{ images[0] }}" alt="Item image" id="mainImage">
+            {% else %}
+              <div id="mainImagePlaceholder" class="gallery-ph" aria-label="Image placeholder"></div>
             {% endif %}
-          </div>
+
+            <button class="gal-arrow right" id="galNext" aria-label="Next image"
+                    {% if not has_images or images|length < 2 %}disabled{% endif %}>›</button>
+
+            <div class="gal-dots" id="galDots">
+              {% if has_images %}
+                {% for i in range(images|length) %}
+                  <span class="dot {{ 'active' if i == 0 else '' }}" data-idx="{{ i }}"></span>
+                {% endfor %}
+              {% endif %}
+            </div>
+          {% endif %}
         </div>
 
         <!-- Thumbs row -->
-        <div class="thumbs-row">
-          <div class="thumbs">
-            {% if has_images %}
-              <button class="thumb" data-idx="0" aria-label="Show first image">
-                <img src="{{ images[0] }}" alt="">
-              </button>
-              <button class="thumb" data-idx="1" aria-label="Show second image">
-                <img src="{{ images[1] if images|length>1 else images[0] }}" alt="">
-              </button>
-            {% else %}
-              <div class="thumb ph" aria-hidden="true"></div>
-              <div class="thumb ph" aria-hidden="true"></div>
+        {% if isolated_type == 'set' and set_items %}
+          {# Set listing: show item photo thumbnails #}
+          <div class="thumbs-row">
+            <div class="thumbs" style="display: flex; gap: 8px; overflow-x: auto; padding: 8px 0;">
+              {% for item in set_items %}
+                {% if item.photo_path %}
+                  <button class="thumb set-item-thumb" data-photo="/{{ item.photo_path }}" aria-label="View item #{{ loop.index }} photo"
+                          style="min-width: 80px; height: 80px; border: 2px solid #ddd; border-radius: 6px; overflow: hidden; cursor: pointer; padding: 0; background: none;">
+                    <img src="/{{ item.photo_path }}" alt="Item #{{ loop.index }}" style="width: 100%; height: 100%; object-fit: cover;">
+                  </button>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% else %}
+          {# Standard listing: show existing thumb layout #}
+          <div class="thumbs-row">
+            <div class="thumbs">
+              {% set has_images = images and images|length > 0 %}
+              {% if has_images %}
+                <button class="thumb" data-idx="0" aria-label="Show first image">
+                  <img src="{{ images[0] }}" alt="">
+                </button>
+                <button class="thumb" data-idx="1" aria-label="Show second image">
+                  <img src="{{ images[1] if images|length>1 else images[0] }}" alt="">
+                </button>
+              {% else %}
+                <div class="thumb ph" aria-hidden="true"></div>
+                <div class="thumb ph" aria-hidden="true"></div>
+              {% endif %}
+            </div>
+
+            {% if not is_isolated %}
+            <div class="sell-stack">
+              <div class="sell-kicker soft">List an Item?</div>
+              <a class="sell-circle-btn" href="/sell" aria-label="Go to sell page">Sell</a>
+            </div>
             {% endif %}
           </div>
-
-          <div class="sell-stack">
-            <div class="sell-kicker soft">List an Item?</div>
-            <a class="sell-circle-btn" href="/sell" aria-label="Go to sell page">Sell</a>
-          </div>
-        </div>
+        {% endif %}
 
       </div>
 
       <!-- Item Description tile -->
       <article class="content-tile description-tile">
         <h3 class="section-heading">Item Description</h3>
+
+        <!-- Isolated/Set/Numismatic Label Badge -->
+        {% if is_isolated %}
+          <div style="margin-bottom: 1rem;">
+            {% if isolated_type == 'set' %}
+              <span style="background-color: #10b981; color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: bold; display: inline-block;">
+                SET LISTING
+              </span>
+            {% elif issue_number and issue_total %}
+              <span style="background-color: #8b5cf6; color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: bold; display: inline-block;">
+                NUMISMATIC ITEM #{{ issue_number }} of {{ issue_total }}
+              </span>
+            {% else %}
+              <span style="background-color: #f59e0b; color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: bold; display: inline-block;">
+                ONE-OF-A-KIND
+              </span>
+            {% endif %}
+          </div>
+        {% endif %}
 
         <div class="specs-two-col">
           <div class="spec-col">
@@ -85,12 +138,47 @@
         </div>
 
         <div class="subsection">
-          <h4 class="section-heading">History of the Item</h4>
-          <p class="item-history"></p>
+          <h4 class="section-heading">Item Description</h4>
           <p class="item-description">
-            {{ bucket['description'] if bucket['description'] else '—' }}
+            {{ listing_description if listing_description else 'No description provided.' }}
           </p>
         </div>
+
+        <!-- Set Items Display (for set listings) -->
+        {% if set_items and set_items|length > 0 %}
+          <div class="subsection" style="margin-top: 1.5rem;">
+            <h4 class="section-heading">Items Included in This Set</h4>
+            <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
+              This set includes {{ set_items|length }} item{{ 's' if set_items|length != 1 else '' }}:
+            </p>
+
+            {% for item in set_items %}
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                <div style="font-weight: bold; margin-bottom: 8px; font-size: 0.95rem;">
+                  Item #{{ loop.index }}
+                </div>
+                <div class="specs-two-col">
+                  <div class="spec-col">
+                    <div class="spec-row"><span class="spec-label">Metal</span><span class="spec-value">{{ item['metal'] or '--' }}</span></div>
+                    <div class="spec-row"><span class="spec-label">Product line</span><span class="spec-value">{{ item['product_line'] or '--' }}</span></div>
+                    <div class="spec-row"><span class="spec-label">Product type</span><span class="spec-value">{{ item['product_type'] or '--' }}</span></div>
+                    <div class="spec-row"><span class="spec-label">Weight</span><span class="spec-value">{{ item['weight'] or '--' }}</span></div>
+                    {% if item['graded'] %}
+                      <div class="spec-row"><span class="spec-label">Grading</span><span class="spec-value">{{ item['grading_service'] }} {{ item['grade'] }}</span></div>
+                    {% endif %}
+                  </div>
+                  <div class="spec-col">
+                    <div class="spec-row"><span class="spec-label">Year</span><span class="spec-value">{{ item['year'] or '--' }}</span></div>
+                    <div class="spec-row"><span class="spec-label">Mint</span><span class="spec-value">{{ item['mint'] or '--' }}</span></div>
+                    <div class="spec-row"><span class="spec-label">Purity</span><span class="spec-value">{{ item['purity'] or '--' }}</span></div>
+                    <div class="spec-row"><span class="spec-label">Finish</span><span class="spec-value">{{ item['finish'] or '--' }}</span></div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
       </article>
     </section>
 
@@ -99,8 +187,12 @@
 
       <!-- Title aligned with top of image -->
       <h1 class="right-title">
-        {% set title_parts = [bucket['Weight'], specs['Year'], bucket['metal'], specs['Product line'], specs['Purity'], bucket['product_type']] | select | list %}
-        {{ title_parts | join(' ') }}
+        {% if listing_title %}
+          {{ listing_title }}
+        {% else %}
+          {% set title_parts = [bucket['Weight'], specs['Year'], bucket['metal'], specs['Product line'], specs['Purity'], bucket['product_type']] | select | list %}
+          {{ title_parts | join(' ') }}
+        {% endif %}
       </h1>
 
       {% if specs['Mint'] %}
@@ -110,11 +202,16 @@
 
       <!-- Sellers header/button/link -->
       <div class="sellers-cta">
-        <div class="sellers-kicker">See all available sellers</div>
-        <button id="openSellersBtn" class="btn sellers-btn" type="button">View All Sellers</button>
-        <div class="sellers-foot">
-          <a href="/sell?metal={{ bucket.metal or '' }}&product_line={{ bucket.product_line or '' }}&product_type={{ bucket.product_type or '' }}&weight={{ bucket.weight or '' }}&purity={{ bucket.purity or '' }}&mint={{ bucket.mint or '' }}&year={{ bucket.year or '' }}&finish={{ bucket.finish or '' }}&grade={{ bucket.grade or '' }}" class="sellers-foot-link">List this item?</a>
-        </div>
+        {% if is_isolated %}
+          <div class="sellers-kicker">See seller information</div>
+          <button id="openSellersBtn" class="btn sellers-btn" type="button">View Seller</button>
+        {% else %}
+          <div class="sellers-kicker">See all available sellers</div>
+          <button id="openSellersBtn" class="btn sellers-btn" type="button">View All Sellers</button>
+          <div class="sellers-foot">
+            <a href="/sell?metal={{ bucket.metal or '' }}&product_line={{ bucket.product_line or '' }}&product_type={{ bucket.product_type or '' }}&weight={{ bucket.weight or '' }}&purity={{ bucket.purity or '' }}&mint={{ bucket.mint or '' }}&year={{ bucket.year or '' }}&finish={{ bucket.finish or '' }}&grade={{ bucket.grade or '' }}&condition_category={{ bucket.condition_category or '' }}&series_variant={{ bucket.series_variant or '' }}" class="sellers-foot-link">List this item?</a>
+          </div>
+        {% endif %}
       </div>
       <hr class="divider">
 
@@ -135,7 +232,7 @@
             <div class="bb-colR">
               <div class="bb-row1r">
                 <div class="best-bid-price price-box" id="bestBidPriceBox">
-                  <div id="bestBidPrice">${{ '%.2f'|format(best_bid.get('effective_price', best_bid['price_per_coin'])) }} USD</div>
+                  <div id="bestBidPrice">${{ best_bid.get('effective_price', best_bid['price_per_coin'])|commas }} USD</div>
                   <div class="soft">Best bid per item
                     {% if best_bid.get('pricing_mode') == 'premium_to_spot' %}
                       <span style="font-size: 11px; color: #4caf50; font-weight: 600;"> (Variable)</span>
@@ -174,38 +271,94 @@
 
 
 
-      <!-- ===================== Grading filter tile (collapsible) ===================== -->
-      <section class="grading-tile" id="gradingTile" aria-label="Require 3rd Party Grading">
-        <div class="soft grading-kicker">Filter for professionally graded items</div>
-        <button type="button" id="gradingToggleBtn" class="btn grading-toggle-btn" aria-expanded="false" aria-controls="gradingPanel">
-          Require 3rd Party Grading?
+      <!-- ===================== Packaging filter tile (collapsible) ===================== -->
+      <section class="grading-tile" id="packagingTile" aria-label="Filter by Packaging Type" style="margin-top: 16px;">
+        <div class="soft grading-kicker">Filter by packaging type</div>
+        <button type="button" id="packagingToggleBtn" class="btn grading-toggle-btn" aria-expanded="false" aria-controls="packagingPanel">
+          Packaging Filter
           <span class="chev" aria-hidden="true">▸</span>
         </button>
 
-        <div id="gradingPanel" class="grading-panel" hidden>
+        <div id="packagingPanel" class="grading-panel" hidden>
           <div class="grading-rows">
-            <div class="grading-row">
-              <div class="glabel">Any Grader</div>
-              <label class="toggle">
-                <input type="checkbox" id="switchAny" autocomplete="off" {% if graded_only and any_grader %}checked{% endif %}>
+            <!-- Parse current packaging filters from query string -->
+            {% set packaging_filters_list = request.args.getlist('packaging_styles') %}
+            {% set any_packaging = (packaging_filters_list|length == 0) %}
+
+            <!-- Any packaging style toggle (default ON) -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 12px;">
+              <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 14px; color: #111827;">Any packaging style</div>
+                <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Show listings in any packaging</div>
+              </div>
+              <label class="toggle" style="margin-left: 16px;">
+                <input type="checkbox" id="anyPackagingToggle" autocomplete="off" {% if any_packaging %}checked{% endif %}>
                 <span class="slider"></span>
               </label>
             </div>
-            <div class="grading-row">
-              <div class="glabel">PCGS</div>
-              <label class="toggle">
-                <input type="checkbox" id="switchPCGS" autocomplete="off" {% if graded_only and pcgs %}checked{% endif %}>
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="grading-row">
-              <div class="glabel">NGC</div>
-              <label class="toggle">
-                <input type="checkbox" id="switchNGC" autocomplete="off" {% if graded_only and ngc %}checked{% endif %}>
-                <span class="slider"></span>
-              </label>
+
+            <!-- Specific packaging types (multi-select checkboxes) -->
+            <div style="padding: 12px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px;">
+              <div style="font-weight: 600; font-size: 13px; color: #6b7280; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Specific Packaging Types</div>
+
+              <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                <label class="packaging-checkbox-label">
+                  <input type="checkbox" class="packaging-type-checkbox" value="Loose" {% if 'Loose' in packaging_filters_list %}checked{% endif %}>
+                  <span class="packaging-checkbox-text">Loose</span>
+                </label>
+
+                <label class="packaging-checkbox-label">
+                  <input type="checkbox" class="packaging-type-checkbox" value="Capsule" {% if 'Capsule' in packaging_filters_list %}checked{% endif %}>
+                  <span class="packaging-checkbox-text">Capsule</span>
+                </label>
+
+                <label class="packaging-checkbox-label">
+                  <input type="checkbox" class="packaging-type-checkbox" value="OGP" {% if 'OGP' in packaging_filters_list %}checked{% endif %}>
+                  <span class="packaging-checkbox-text">OGP (Original Government Packaging)</span>
+                </label>
+
+                <label class="packaging-checkbox-label">
+                  <input type="checkbox" class="packaging-type-checkbox" value="Tube_Full" {% if 'Tube_Full' in packaging_filters_list %}checked{% endif %}>
+                  <span class="packaging-checkbox-text">Tube - Full</span>
+                </label>
+
+                <label class="packaging-checkbox-label">
+                  <input type="checkbox" class="packaging-type-checkbox" value="Tube_Partial" {% if 'Tube_Partial' in packaging_filters_list %}checked{% endif %}>
+                  <span class="packaging-checkbox-text">Tube - Partial</span>
+                </label>
+
+                <label class="packaging-checkbox-label">
+                  <input type="checkbox" class="packaging-type-checkbox" value="MonsterBox_Full" {% if 'MonsterBox_Full' in packaging_filters_list %}checked{% endif %}>
+                  <span class="packaging-checkbox-text">Monster Box - Full</span>
+                </label>
+
+                <label class="packaging-checkbox-label">
+                  <input type="checkbox" class="packaging-type-checkbox" value="MonsterBox_Partial" {% if 'MonsterBox_Partial' in packaging_filters_list %}checked{% endif %}>
+                  <span class="packaging-checkbox-text">Monster Box - Partial</span>
+                </label>
+
+                <label class="packaging-checkbox-label">
+                  <input type="checkbox" class="packaging-type-checkbox" value="Assay_Card" {% if 'Assay_Card' in packaging_filters_list %}checked{% endif %}>
+                  <span class="packaging-checkbox-text">Assay Card</span>
+                </label>
+              </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- ===================== Random Year toggle ===================== -->
+      <section class="grading-tile" id="randomYearTile" aria-label="Random Year Mode" style="margin-top: 16px;">
+        <div class="soft grading-kicker">Aggregate across years</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
+          <div style="flex: 1;">
+            <div style="font-weight: 600; font-size: 14px; color: #111827;">Random Year Mode</div>
+            <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Show listings from all years with matching specs</div>
+          </div>
+          <label class="toggle" style="margin-left: 16px;">
+            <input type="checkbox" id="randomYearToggle" autocomplete="off" {% if random_year %}checked{% endif %}>
+            <span class="slider"></span>
+          </label>
         </div>
       </section>
 
@@ -218,9 +371,14 @@
           <div class="buy-block">
             <div class="best-ask-text">Best Ask</div>
             <div class="buy-price" aria-label="Current price">
-              <span class="buy-price-amount" id="buyPriceAmount">${{ '%.2f'|format(availability['lowest_price']) }} USD</span>
+              <span class="buy-price-amount" id="buyPriceAmount">${{ availability['lowest_price']|commas }} USD</span>
               <span class="soft">per item</span>
             </div>
+            {% if spot_price %}
+              <div class="spot-price-subtext" style="font-size: 13px; color: #6b7280; margin-top: 6px;">
+                {{ specs['Metal'] }} spot: ${{ spot_price|commas }}/oz
+              </div>
+            {% endif %}
           </div>
         {% else %}
           <div class="buy-price" aria-label="Current price">
@@ -249,39 +407,63 @@
           <span class="qty-available" id="qtyAvailable">Only {{ availability['total_available'] }} left</span>
         </div>
 
+        <!-- Third-Party Grading Add-On (buyer-side service) -->
+        <div class="tpg-addon-row" style="margin-top: 16px; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="flex: 1;">
+            <div style="font-weight: 600; font-size: 14px; color: #111827; margin-bottom: 4px;">Add Third-Party Grading Service</div>
+            <div style="font-size: 13px; color: #6b7280;">Professional authentication and grading (+$30/item)</div>
+          </div>
+          <label class="toggle" style="margin-left: 16px;">
+            <input type="checkbox" id="tpgToggle" autocomplete="off">
+            <span class="slider"></span>
+          </label>
+        </div>
+
         <input type="hidden" id="quantityInput" name="quantity" value="1">
+        <input type="hidden" id="tpgInput" name="third_party_grading" value="0">
 
-        <!-- Hidden grading inputs updated by JS -->
-        <input type="hidden" id="gradedOnlyInput" name="graded_only" value="{{ 1 if graded_only else 0 }}">
-        <input type="hidden" id="anyGraderInput" name="any_grader" value="{{ 1 if graded_only and any_grader else 0 }}">
-        <input type="hidden" id="pcgsInput" name="pcgs" value="{{ 1 if graded_only and pcgs else 0 }}">
-        <input type="hidden" id="ngcInput" name="ngc" value="{{ 1 if graded_only and ngc else 0 }}">
+        <!-- Hidden random year input -->
+        <input type="hidden" id="randomYearInput" name="random_year" value="{{ '1' if random_year else '0' }}">
 
-        <form method="POST" action="{{ url_for('checkout.checkout') }}" class="action-buttons">
-          <input type="hidden" name="bucket_id" value="{{ bucket['bucket_id'] }}">
-          <input type="hidden" name="quantity" id="buyQuantityInput">
-          <!-- forward grading too (harmless if checkout ignores) -->
-          <input type="hidden" name="graded_only" id="buyGradedOnly">
-          <input type="hidden" name="any_grader" id="buyAnyGrader">
-          <input type="hidden" name="pcgs" id="buyPcgs">
-          <input type="hidden" name="ngc" id="buyNgc">
-          <button type="submit" class="btn buy-btn" onclick="syncQuantity('buyQuantityInput')">Buy Item</button>
-        </form>
+        {% if availability.get('all_listings_are_users', False) and session.get('user_id') %}
+          <!-- Edge case: All listings belong to user -->
+          <div class="own-listings-message" style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 12px; margin-top: 16px; margin-bottom: 16px; color: #92400e; font-size: 14px; line-height: 1.5;">
+            <strong>You can't buy your own listing.</strong> There are no other sellers for this item.
+          </div>
+          <form method="POST" action="{{ url_for('checkout.checkout') }}" class="action-buttons">
+            <input type="hidden" name="bucket_id" value="{{ bucket['bucket_id'] }}">
+            <button type="submit" class="btn buy-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Buy Item</button>
+          </form>
 
-        <!-- NEW: Opens unified bid modal for creating bid -->
-        <button type="button" class="btn bid-btn" onclick="openBidModal({{ bucket['id'] }})">Make a Bid</button>
-        <!-- OLD: Full page navigation (kept as backup)
-        <a class="btn bid-btn" href="{{ url_for('bid.bid_page', bucket_id=bucket['id']) }}">Make a Bid</a>
-        -->
+          <!-- Bid button still active -->
+          <button type="button" class="btn bid-btn" onclick="openBidModal({{ bucket['id'] }})">Make a Bid</button>
 
-        <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
-          <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
-          <input type="hidden" name="graded_only" id="cartGradedOnly">
-          <input type="hidden" name="any_grader" id="cartAnyGrader">
-          <input type="hidden" name="pcgs" id="cartPcgs">
-          <input type="hidden" name="ngc" id="cartNgc">
-          <button type="submit" class="btn add-cart-btn" onclick="syncQuantity('cartQuantityInput')">Add to Cart</button>
-        </form>
+          <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
+            <button type="submit" class="btn add-cart-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Add to Cart</button>
+          </form>
+        {% else %}
+          <!-- Normal case: User can buy -->
+          <form method="POST" action="{{ url_for('checkout.checkout') }}" class="action-buttons">
+            <input type="hidden" name="bucket_id" value="{{ bucket['bucket_id'] }}">
+            <input type="hidden" name="quantity" id="buyQuantityInput">
+            <input type="hidden" name="third_party_grading" id="buyTPG">
+            <!-- Random Year mode -->
+            <input type="hidden" name="random_year" id="buyRandomYear" value="{{ '1' if random_year else '0' }}">
+            <button type="submit" class="btn buy-btn" onclick="syncQuantityAndTPG('buyQuantityInput', 'buyTPG')">Buy Item</button>
+          </form>
+
+          <!-- NEW: Opens unified bid modal for creating bid -->
+          <button type="button" class="btn bid-btn" onclick="openBidModal({{ bucket['id'] }})">Make a Bid</button>
+          <!-- OLD: Full page navigation (kept as backup)
+          <a class="btn bid-btn" href="{{ url_for('bid.bid_page', bucket_id=bucket['id']) }}">Make a Bid</a>
+          -->
+
+          <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
+            <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
+            <input type="hidden" name="third_party_grading" id="cartTPG">
+            <button type="submit" class="btn add-cart-btn" onclick="syncQuantityAndTPG('cartQuantityInput', 'cartTPG')">Add to Cart</button>
+          </form>
+        {% endif %}
       </div>
 
       <p class="out-of-stock" id="outOfStockMsg" {% if in_stock %}style="display:none"{% endif %}>
@@ -327,6 +509,45 @@
   </div>
 </div>
 
+<!-- ================== FULL-WIDTH PRICE HISTORY SECTION ================== -->
+<section class="content-tile bucket-price-history-section">
+  <div class="bucket-price-card">
+    <div class="bucket-price-header">
+      <div class="bucket-price-title">
+        <h2>Price History</h2>
+        <div class="bucket-price-display">
+          <span class="bucket-current-price" id="bucket-current-price">--</span>
+          <span class="bucket-price-change neutral" id="bucket-price-change">
+            <span id="bucket-price-change-amount">$0.00</span>
+            <span id="bucket-price-change-percent">(0.00%)</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Time Range Selector -->
+    <div class="bucket-time-range-selector">
+      <button class="bucket-time-btn active" data-range="1d">1D</button>
+      <button class="bucket-time-btn" data-range="1w">1W</button>
+      <button class="bucket-time-btn" data-range="1m">1M</button>
+      <button class="bucket-time-btn" data-range="3m">3M</button>
+      <button class="bucket-time-btn" data-range="1y">1Y</button>
+    </div>
+
+    <!-- Chart Container -->
+    <div class="bucket-price-chart-container" id="bucket-price-chart-container">
+      <canvas id="bucket-price-chart"></canvas>
+    </div>
+
+    <!-- Empty State -->
+    <div class="bucket-price-empty-state" id="bucket-price-empty-state">
+      <i class="fas fa-chart-line"></i>
+      <p><strong>This item has no price history.</strong></p>
+      <p>List an item to get it going!</p>
+    </div>
+  </div>
+</section>
+
 <!-- ================== FULL-WIDTH BIDS SECTION (anchor target) ================== -->
 <section class="content-tile bids-panel" id="bidsSection" aria-label="Bids">
   {% if user_bids %}
@@ -341,7 +562,7 @@
         <article class="account-bid-tile">
           <div class="abt-top">
             <div class="abt-price">
-              ${{ '%.2f' | format(bid.get('effective_price', bid['price_per_coin'])) }}
+              ${{ bid.get('effective_price', bid['price_per_coin'])|commas }}
               <span class="abt-price-suffix">BID</span>
               {% if bid.get('pricing_mode') == 'premium_to_spot' %}
                 <span class="pricing-mode-badge variable">Variable</span>
@@ -353,9 +574,9 @@
           {% if bid.get('pricing_mode') == 'premium_to_spot' %}
           <div class="abt-row pricing-info">
             <div class="abt-curr" style="font-size: 12px; color: #4caf50;">
-              <strong>Variable Pricing:</strong> Spot + ${{ '%.2f' | format(bid.get('spot_premium', 0)) }}
+              <strong>Variable Pricing:</strong> Spot + ${{ bid.get('spot_premium', 0)|commas }}
               {% if bid.get('floor_price') %}
-                (Floor: ${{ '%.2f' | format(bid['floor_price']) }})
+                (Floor: ${{ bid['floor_price']|commas }})
               {% endif %}
             </div>
           </div>
@@ -447,7 +668,12 @@
 
                 <div class="bid-card-content">
                   <div class="bid-top-row">
-                    <div class="bid-price-strong">${{ '%.2f' | format(bid['price_per_coin']) }} BID / unit</div>
+                    <div class="bid-price-strong">
+                      ${{ bid.get('effective_price', bid['price_per_coin'])|commas }} BID / unit
+                      {% if bid.get('pricing_mode') == 'premium_to_spot' %}
+                        <span class="pricing-mode-badge variable">Variable</span>
+                      {% endif %}
+                    </div>
                     <div class="bid-units">{{ max_qty }} units</div>
                   </div>
 
@@ -520,6 +746,15 @@
 <!-- ============ Error Notification Modal ============ -->
 {% include 'modals/error_notification_modal.html' %}
 
+<!-- ============ Own Listings Skipped Modal ============ -->
+{% include 'modals/own_listings_skipped_modal.html' %}
+
+<!-- ============ Address Modal ============ -->
+{% include 'modals/address_modal.html' %}
+
+<!-- ============ Save Address Confirmation Modal ============ -->
+{% include 'modals/save_address_confirmation_modal.html' %}
+
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/confirmation_modal_base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_sellers_modal.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/order_sellers_modal.css') }}">
@@ -528,15 +763,192 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_bid_modal.css') }}?v=1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/accept_bid_modals.css') }}?v=1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/buy_item_modal.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/own_listings_skipped_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/address_modal.css') }}">
 
 <script>
   window.flashMessages = {{ get_flashed_messages(with_categories=true) | tojson }};
   window.bucketImages  = {{ (images or []) | tojson }};
   window.bestBid       = {{ (best_bid or {}) | tojson }};
   window.bucketId      = {{ bucket['id'] }};
+  window.actualBucketId = {{ bucket['bucket_id'] }};  // For price history chart
   window.bucketSpecs   = {{ specs | tojson }};
   window.allBids       = {{ (bids or []) | tojson }};
   window.lowestPrice   = {{ availability.lowest_price if availability and availability.lowest_price else 0 }};
+  window.bucketIsIsolated = {{ 'true' if is_isolated else 'false' }};
+
+  // Set photo gallery: handle thumbnail clicks
+  {% if isolated_type == 'set' and set_items %}
+  document.addEventListener('DOMContentLoaded', function() {
+    const mainImage = document.getElementById('mainImage');
+    const setItemThumbs = document.querySelectorAll('.set-item-thumb');
+
+    setItemThumbs.forEach(function(thumb) {
+      thumb.addEventListener('click', function() {
+        const photoPath = this.getAttribute('data-photo');
+        if (photoPath && mainImage) {
+          mainImage.src = photoPath;
+
+          // Update active state on thumbnails
+          setItemThumbs.forEach(t => t.style.borderColor = '#ddd');
+          this.style.borderColor = '#1976d2';
+        }
+      });
+    });
+  });
+  {% endif %}
+
+  // TPG toggle handler
+  document.addEventListener('DOMContentLoaded', function() {
+    const tpgToggle = document.getElementById('tpgToggle');
+    const tpgInput = document.getElementById('tpgInput');
+
+    if (tpgToggle && tpgInput) {
+      tpgToggle.addEventListener('change', function() {
+        tpgInput.value = this.checked ? '1' : '0';
+      });
+    }
+
+    // Packaging filter panel toggle with animation
+    const packagingToggleBtn = document.getElementById('packagingToggleBtn');
+    const packagingPanel = document.getElementById('packagingPanel');
+
+    if (packagingToggleBtn && packagingPanel) {
+      // Initialize panel state
+      packagingPanel.setAttribute('aria-expanded', 'false');
+      packagingPanel.style.height = '0px';
+      packagingPanel.style.opacity = '0';
+
+      packagingToggleBtn.addEventListener('click', function() {
+        const isExpanded = packagingPanel.getAttribute('aria-expanded') === 'true';
+
+        if (isExpanded) {
+          // Collapse panel
+          packagingPanel.style.height = '0px';
+          packagingPanel.style.opacity = '0';
+          packagingPanel.setAttribute('aria-expanded', 'false');
+          packagingToggleBtn.setAttribute('aria-expanded', 'false');
+          const chevron = packagingToggleBtn.querySelector('.chev');
+          if (chevron) chevron.textContent = '▸';
+        } else {
+          // Expand panel
+          packagingPanel.removeAttribute('hidden');
+          packagingPanel.setAttribute('aria-expanded', 'true');
+
+          // Measure the natural height
+          packagingPanel.style.height = 'auto';
+          packagingPanel.style.opacity = '0';
+          const targetHeight = packagingPanel.scrollHeight + 'px';
+
+          // Force reflow, then animate to target height
+          packagingPanel.style.height = '0px';
+          requestAnimationFrame(() => {
+            packagingPanel.style.height = targetHeight;
+            packagingPanel.style.opacity = '1';
+          });
+
+          packagingToggleBtn.setAttribute('aria-expanded', 'true');
+          const chevron = packagingToggleBtn.querySelector('.chev');
+          if (chevron) chevron.textContent = '▾';
+        }
+      });
+    }
+
+    // Packaging filter change handler (multi-select checkboxes)
+    const anyPackagingToggle = document.getElementById('anyPackagingToggle');
+    const packagingTypeCheckboxes = document.querySelectorAll('.packaging-type-checkbox');
+
+    function applyPackagingFilters() {
+      const currentUrl = new URL(window.location.href);
+
+      // Check if "Any packaging style" is checked
+      if (anyPackagingToggle && anyPackagingToggle.checked) {
+        // Remove all packaging_styles parameters
+        currentUrl.searchParams.delete('packaging_styles');
+      } else {
+        // Get all checked packaging types
+        const selectedTypes = [];
+        packagingTypeCheckboxes.forEach(checkbox => {
+          if (checkbox.checked) {
+            selectedTypes.push(checkbox.value);
+          }
+        });
+
+        // Remove old parameters and add new ones
+        currentUrl.searchParams.delete('packaging_styles');
+        selectedTypes.forEach(type => {
+          currentUrl.searchParams.append('packaging_styles', type);
+        });
+
+        // If no specific types selected, revert to "Any"
+        if (selectedTypes.length === 0 && anyPackagingToggle) {
+          anyPackagingToggle.checked = true;
+          currentUrl.searchParams.delete('packaging_styles');
+        }
+      }
+
+      window.location.href = currentUrl.toString();
+    }
+
+    // "Any packaging style" toggle handler
+    if (anyPackagingToggle) {
+      anyPackagingToggle.addEventListener('change', function() {
+        if (this.checked) {
+          // Uncheck all specific packaging type checkboxes
+          packagingTypeCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+          });
+        }
+        applyPackagingFilters();
+      });
+    }
+
+    // Individual packaging type checkbox handlers
+    packagingTypeCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        if (this.checked && anyPackagingToggle) {
+          // Turn off "Any packaging style" when a specific type is selected
+          anyPackagingToggle.checked = false;
+        }
+
+        // Check if all specific types are now unchecked
+        const anyChecked = Array.from(packagingTypeCheckboxes).some(cb => cb.checked);
+        if (!anyChecked && anyPackagingToggle) {
+          // If no specific types selected, turn "Any" back on
+          anyPackagingToggle.checked = true;
+        }
+
+        applyPackagingFilters();
+      });
+    });
+
+    // Random Year toggle handler
+    const randomYearToggle = document.getElementById('randomYearToggle');
+    const randomYearInput = document.getElementById('randomYearInput');
+
+    if (randomYearToggle && randomYearInput) {
+      randomYearToggle.addEventListener('change', function() {
+        randomYearInput.value = this.checked ? '1' : '0';
+        // Trigger page reload with random_year parameter
+        const currentUrl = new URL(window.location.href);
+        if (this.checked) {
+          currentUrl.searchParams.set('random_year', '1');
+        } else {
+          currentUrl.searchParams.delete('random_year');
+        }
+        window.location.href = currentUrl.toString();
+      });
+    }
+  });
+
+  // Sync quantity and TPG to form hidden inputs
+  function syncQuantityAndTPG(quantityTargetId, tpgTargetId) {
+    const quantityValue = document.getElementById('buyQtyValue').textContent;
+    const tpgValue = document.getElementById('tpgInput').value;
+
+    document.getElementById(quantityTargetId).value = quantityValue;
+    document.getElementById(tpgTargetId).value = tpgValue;
+  }
 </script>
 <script src="{{ url_for('static', filename='js/modals/bucket_ID_sellers_modal.js') }}?v=bucket-v2"></script>
 <script src="{{ url_for('static', filename='js/modals/bid_bidder_modal.js') }}?v=OVERLAY_FIX"></script>
@@ -547,4 +959,17 @@
 <script src="{{ url_for('static', filename='js/modals/buy_item_modal.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/modals/error_notification_modal.js') }}"></script>
 <script src="{{ url_for('static', filename='js/modals/close_bid_buy_page_confirmation_modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bucket_price_chart.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/modals/own_listings_skipped_modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/add_to_cart_ajax.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modals/address_modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modals/save_address_confirmation_modal.js') }}"></script>
+<script>
+  // Initialize bucket price chart when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    if (window.actualBucketId) {
+      initBucketPriceChart(window.actualBucketId);
+    }
+  });
+</script>
 {% endblock %}

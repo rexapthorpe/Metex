@@ -65,11 +65,11 @@
                     </div>
                     <div class="pricing-row">
                       <span class="pricing-label">Average Price:</span>
-                      <span class="pricing-value">${{ '%.2f' | format(bucket.avg_price) }}</span>
+                      <span class="pricing-value">${{ bucket.avg_price|commas }}</span>
                     </div>
                     <div class="pricing-row pricing-total">
                       <span class="pricing-label">Item Total:</span>
-                      <span class="pricing-value">${{ '%.2f' | format(bucket.total_price) }}</span>
+                      <span class="pricing-value">${{ bucket.total_price|commas }}</span>
                     </div>
                   </div>
                 </div>
@@ -80,7 +80,7 @@
             <div class="order-total-section">
               <div class="total-row">
                 <span class="total-label">Total</span>
-                <span class="total-value">${{ '%.2f' | format(cart_total) }}</span>
+                <span class="total-value">${{ cart_total|commas }}</span>
               </div>
             </div>
           {% else %}
@@ -133,5 +133,16 @@
   </div>
 {% endif %}
 
+<!-- Own Listings Skipped Modal -->
+{% include 'modals/own_listings_skipped_modal.html' %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/own_listings_skipped_modal.css') }}">
+<script src="{{ url_for('static', filename='js/modals/own_listings_skipped_modal.js') }}"></script>
 <script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
+
+<script>
+  // Check session flag and show modal if user's own listings were skipped
+  window.showOwnListingsSkippedModal = {% if session.pop('show_own_listings_skipped_modal', False) %}true{% else %}false{% endif %};
+  console.log('[DEBUG] Checkout page loaded. showOwnListingsSkippedModal =', window.showOwnListingsSkippedModal);
+</script>
 {% endblock %}

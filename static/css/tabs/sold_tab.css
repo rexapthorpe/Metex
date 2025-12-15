@@ -272,14 +272,38 @@
 
 .address-line {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 13px;
-  color: #374151;
-  line-height: 1.6;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
 }
 
+.address-line:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.address-line:first-child {
+  padding-top: 0;
+}
+
+/* ✅ Label/value styling matching Congrats modal */
+.address-label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 14px;
+  min-width: 130px;
+}
+
+.address-value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 15px;
+  text-align: right;
+  flex: 1;
+}
+
+/* Legacy support for old strong/span structure (if any exist) */
 .address-line strong {
   color: #6b7280;
   font-weight: 600;
@@ -287,13 +311,9 @@
   flex-shrink: 0;
 }
 
-.address-line span {
+.address-line span:not(.address-label):not(.address-value) {
   color: #111827;
   flex: 1;
-}
-
-.address-line:first-child {
-  padding-top: 0;
 }
 
 .address-not-collected {

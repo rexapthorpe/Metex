@@ -1,0 +1,207 @@
+/* ==========================================================================
+   Bucket Price History Chart Styles
+   Matches Portfolio tab design for consistency
+   ========================================================================== */
+
+.bucket-price-history-section {
+  margin: 28px auto 40px auto;
+  max-width: 1200px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid rgba(13, 42, 82, 0.06);
+  box-shadow:
+    0 20px 50px rgba(24, 119, 255, 0.10),
+    0 8px 20px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 24px;
+}
+
+.bucket-price-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+/* Price Summary Header */
+.bucket-price-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.bucket-price-title {
+  flex: 1;
+  min-width: 300px;
+}
+
+.bucket-price-title h2 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bucket-price-display {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.bucket-current-price {
+  font-size: 48px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+}
+
+.bucket-price-change {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.bucket-price-change.positive {
+  color: #10b981;
+}
+
+.bucket-price-change.negative {
+  color: #ef4444;
+}
+
+.bucket-price-change.neutral {
+  color: #6b7280;
+}
+
+/* Time Range Selector */
+.bucket-time-range-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: #f3f4f6;
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.bucket-time-btn {
+  padding: 8px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bucket-time-btn:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.bucket-time-btn.active {
+  background: #ffffff;
+  color: #0066cc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Chart Container */
+.bucket-price-chart-container {
+  height: 400px;
+  width: 100%;
+  position: relative;
+  margin: 20px 0;
+}
+
+#bucket-price-chart {
+  width: 100% !important;
+  height: 400px !important;
+  display: block;
+}
+
+/* Empty State */
+.bucket-price-empty-state {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 16px;
+  padding: 60px 20px;
+}
+
+.bucket-price-empty-state i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #d1d5db;
+}
+
+.bucket-price-empty-state p {
+  margin: 8px 0 0 0;
+}
+
+/* Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .bucket-price-history-section {
+    padding: 16px;
+    margin: 20px 16px;
+  }
+
+  .bucket-current-price {
+    font-size: 36px;
+  }
+
+  .bucket-price-change {
+    font-size: 16px;
+  }
+
+  .bucket-price-chart-container {
+    height: 300px;
+  }
+
+  #bucket-price-chart {
+    height: 300px !important;
+  }
+
+  .bucket-time-range-selector {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .bucket-time-btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bucket-price-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .bucket-price-title {
+    width: 100%;
+  }
+
+  .bucket-current-price {
+    font-size: 32px;
+  }
+}

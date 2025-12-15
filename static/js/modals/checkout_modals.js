@@ -287,12 +287,18 @@ function openSuccessModal(data) {
   const modal = document.getElementById('checkoutSuccessModal');
   if (!modal) return;
 
-  // Populate success modal
-  document.getElementById('success-order-id').textContent = data.order_id || '—';
-  document.getElementById('success-total-items').textContent = data.total_items || '—';
-  document.getElementById('success-order-total').textContent = data.order_total
-    ? `$${parseFloat(data.order_total).toFixed(2)}`
-    : '—';
+  // Populate success modal (scoped to this modal to avoid conflicts)
+  const orderIdEl = modal.querySelector('#success-order-id');
+  const totalItemsEl = modal.querySelector('#success-total-items');
+  const orderTotalEl = modal.querySelector('#success-order-total');
+
+  if (orderIdEl) orderIdEl.textContent = data.order_id || '—';
+  if (totalItemsEl) totalItemsEl.textContent = data.total_items || '—';
+  if (orderTotalEl) {
+    orderTotalEl.textContent = data.order_total
+      ? `$${parseFloat(data.order_total).toFixed(2)}`
+      : '—';
+  }
 
   // Show modal with animation
   modal.style.display = 'flex';

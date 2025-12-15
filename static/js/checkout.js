@@ -30,7 +30,7 @@ function showOrderSummary() {
  */
 function closeCheckout() {
   if (confirm('Are you sure you want to close checkout? Your items will remain in the cart.')) {
-    window.location.href = '/cart';
+    window.location.href = '/view_cart';  // Fixed: correct route
   }
 }
 

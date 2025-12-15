@@ -88,17 +88,45 @@ async function openBidConfirmModal(data) {
     }
   }
 
-  // Populate basic fields
-  const itemDescEl = document.getElementById('bid-confirm-item-desc');
-  const gradingEl = document.getElementById('bid-confirm-grading');
-  const priceEl = document.getElementById('bid-confirm-price');
-  const quantityEl = document.getElementById('bid-confirm-quantity');
-  const totalEl = document.getElementById('bid-confirm-total');
+  // Populate item specs from form data attributes
+  const form = document.getElementById('bid-form');
+  let metal = '', productLine = '', productType = '', weight = '', year = '', mint = '', finish = '', grade = '', purity = '';
 
-  if (itemDescEl) {
-    itemDescEl.textContent = bucketDesc || data.itemDesc || '—';
+  if (form) {
+    metal = form.dataset.bucketMetal || '';
+    productLine = form.dataset.bucketProductLine || '';
+    productType = form.dataset.bucketProductType || '';
+    weight = form.dataset.bucketWeight || '';
+    year = form.dataset.bucketYear || '';
+    mint = form.dataset.bucketMint || '';
+    finish = form.dataset.bucketFinish || '';
+    grade = form.dataset.bucketGrade || '';
+    purity = form.dataset.bucketPurity || '';
   }
 
+  // Populate item detail spec fields
+  const metalSpec = modal.querySelector('#confirm-spec-metal .spec-value');
+  const productLineSpec = modal.querySelector('#confirm-spec-product-line .spec-value');
+  const productTypeSpec = modal.querySelector('#confirm-spec-product-type .spec-value');
+  const weightSpec = modal.querySelector('#confirm-spec-weight .spec-value');
+  const gradeSpec = modal.querySelector('#confirm-spec-grade .spec-value');
+  const yearSpec = modal.querySelector('#confirm-spec-year .spec-value');
+  const mintSpec = modal.querySelector('#confirm-spec-mint .spec-value');
+  const puritySpec = modal.querySelector('#confirm-spec-purity .spec-value');
+  const finishSpec = modal.querySelector('#confirm-spec-finish .spec-value');
+
+  if (metalSpec) metalSpec.textContent = metal || '—';
+  if (productLineSpec) productLineSpec.textContent = productLine || '—';
+  if (productTypeSpec) productTypeSpec.textContent = productType || '—';
+  if (weightSpec) weightSpec.textContent = weight || '—';
+  if (gradeSpec) gradeSpec.textContent = grade || 'N/A';
+  if (yearSpec) yearSpec.textContent = year || '—';
+  if (mintSpec) mintSpec.textContent = mint || '—';
+  if (puritySpec) puritySpec.textContent = purity || '—';
+  if (finishSpec) finishSpec.textContent = finish || 'N/A';
+
+  // Populate grading requirement
+  const gradingEl = modal.querySelector('#bid-confirm-grading');
   if (gradingEl) {
     if (data.requiresGrading) {
       const graderText = data.preferredGrader || 'Any';
@@ -108,20 +136,24 @@ async function openBidConfirmModal(data) {
     }
   }
 
+  // Populate quantity
+  const quantityEl = modal.querySelector('#bid-confirm-quantity');
   if (quantityEl) {
     quantityEl.textContent = data.quantity;
   }
 
   // Handle pricing mode display
-  const modeRow = document.getElementById('bid-confirm-mode-row');
-  const modeEl = document.getElementById('bid-confirm-mode');
-  const spotRow = document.getElementById('bid-confirm-spot-row');
-  const spotEl = document.getElementById('bid-confirm-spot');
-  const premiumRow = document.getElementById('bid-confirm-premium-row');
-  const premiumEl = document.getElementById('bid-confirm-premium');
-  const ceilingRow = document.getElementById('bid-confirm-ceiling-row');
-  const ceilingEl = document.getElementById('bid-confirm-ceiling');
-  const priceLabel = document.getElementById('bid-confirm-price-label');
+  const priceEl = modal.querySelector('#bid-confirm-price');
+  const totalEl = modal.querySelector('#bid-confirm-total');
+  const modeRow = modal.querySelector('#bid-confirm-mode-row');
+  const modeEl = modal.querySelector('#bid-confirm-mode');
+  const spotRow = modal.querySelector('#bid-confirm-spot-row');
+  const spotEl = modal.querySelector('#bid-confirm-spot');
+  const premiumRow = modal.querySelector('#bid-confirm-premium-row');
+  const premiumEl = modal.querySelector('#bid-confirm-premium');
+  const ceilingRow = modal.querySelector('#bid-confirm-ceiling-row');
+  const ceilingEl = modal.querySelector('#bid-confirm-ceiling');
+  const priceLabel = modal.querySelector('#bid-confirm-price-label');
 
   console.log('🔍 [Bid Confirm Modal] Display Logic:', {
     isVariablePricing,
@@ -221,6 +253,139 @@ async function openBidConfirmModal(data) {
       const total = parseFloat(data.price) * parseInt(data.quantity);
       totalEl.textContent = `$${total.toFixed(2)}`;
     }
+  }
+
+  // Parse and populate delivery address
+  console.log('[BID CONFIRM] Raw delivery_address:', data.deliveryAddress);
+
+  let address = data.deliveryAddress || '';
+  let street = '';
+  let street2 = '';
+  let city = '';
+  let state = '';
+  let zip = '';
+
+  // Handle different address formats
+  if (!address || address === 'Not provided') {
+    console.log('[BID CONFIRM] No address provided');
+  } else if (typeof address === 'object') {
+    // Address is an object with separate fields
+    street = address.line1 || address.street || '';
+    street2 = address.line2 || address.street2 || '';
+    city = address.city || '';
+    state = address.state || '';
+    zip = address.zip || address.zip_code || '';
+  } else if (typeof address === 'string' && address.includes('•')) {
+    // Bullet separator format: "Name • Line1 • [Line2 •] City, State ZIP"
+    console.log('[BID CONFIRM] Parsing bullet-separated address');
+
+    let cleanAddress = address;
+    if (address.includes(' - ')) {
+      cleanAddress = address.split(' - ').slice(1).join(' - ');
+    }
+
+    const addressParts = cleanAddress.split('•').map(p => p.trim());
+    console.log('[BID CONFIRM] Address parts:', addressParts);
+
+    // Extract components based on number of parts
+    let cityStateZip = '';
+    if (addressParts.length === 4) {
+      // Format: Name • Line1 • Line2 • City, State ZIP
+      street = addressParts[1];
+      street2 = addressParts[2];
+      cityStateZip = addressParts[3];
+    } else if (addressParts.length === 3) {
+      // Format: Line1 • Line2 • City, State ZIP  OR  Name • Line1 • City, State ZIP
+      const lastPart = addressParts[2];
+      if (lastPart.includes(',')) {
+        // Last part has comma, so it's City,State ZIP format
+        street = addressParts[0];
+        street2 = addressParts[1];
+        cityStateZip = lastPart;
+      } else {
+        street = addressParts[0];
+        street2 = addressParts[1];
+        cityStateZip = addressParts[2];
+      }
+    } else if (addressParts.length === 2) {
+      // Format: Line1 • City, State ZIP
+      street = addressParts[0];
+      cityStateZip = addressParts[1];
+    } else if (addressParts.length === 1) {
+      street = addressParts[0];
+    }
+
+    // Parse "City, State ZIP" or "City, State, ZIP"
+    if (cityStateZip && cityStateZip.includes(',')) {
+      const cityParts = cityStateZip.split(',').map(p => p.trim());
+      city = cityParts[0];
+
+      if (cityParts.length === 2) {
+        // Format: "City, State ZIP"
+        const stateZipParts = cityParts[1].split(/\s+/);
+        if (stateZipParts.length >= 1) {
+          state = stateZipParts[0];
+        }
+        if (stateZipParts.length >= 2) {
+          zip = stateZipParts.slice(1).join(' ');
+        }
+      } else if (cityParts.length >= 3) {
+        // Format: "City, State, ZIP"
+        state = cityParts[1];
+        zip = cityParts.slice(2).join(', ');
+      }
+    }
+  } else if (typeof address === 'string') {
+    // Simple text address
+    console.log('[BID CONFIRM] Simple text address');
+    street = address;
+  }
+
+  console.log('[BID CONFIRM] Parsed address:', {
+    street, street2, city, state, zip
+  });
+
+  // Get all address elements (scoped to this modal)
+  const line1Row = modal.querySelector('#confirm-address-line1-row');
+  const line1El = modal.querySelector('#confirm-address-line1');
+  const line2Row = modal.querySelector('#confirm-address-line2-row');
+  const line2El = modal.querySelector('#confirm-address-line2');
+  const cityRow = modal.querySelector('#confirm-address-city-row');
+  const cityEl = modal.querySelector('#confirm-address-city');
+  const stateRow = modal.querySelector('#confirm-address-state-row');
+  const stateEl = modal.querySelector('#confirm-address-state');
+  const zipRow = modal.querySelector('#confirm-address-zip-row');
+  const zipEl = modal.querySelector('#confirm-address-zip');
+
+  // Populate and show each component
+  if (line1El && line1Row) {
+    line1El.textContent = street || '—';
+    line1Row.style.display = 'flex';
+    console.log('[BID CONFIRM] Line 1:', street || '—');
+  }
+
+  if (line2El && line2Row) {
+    line2El.textContent = street2 || '—';
+    line2Row.style.display = 'flex';
+    console.log('[BID CONFIRM] Line 2:', street2 || '—');
+  }
+
+  if (cityEl && cityRow) {
+    cityEl.textContent = city || '—';
+    cityRow.style.display = 'flex';
+    console.log('[BID CONFIRM] City:', city || '—');
+  }
+
+  if (stateEl && stateRow) {
+    stateEl.textContent = state || '—';
+    stateRow.style.display = 'flex';
+    console.log('[BID CONFIRM] State:', state || '—');
+  }
+
+  if (zipEl && zipRow) {
+    zipEl.textContent = zip || '—';
+    zipRow.style.display = 'flex';
+    console.log('[BID CONFIRM] ZIP:', zip || '—');
   }
 
   // Show modal with animation
@@ -334,29 +499,62 @@ function openBidSuccessModal(data) {
   const isVariablePricing = pricingMode === 'premium_to_spot';
 
   // Populate basic fields
-  document.getElementById('success-bid-quantity').textContent = data.quantity || '—';
-  document.getElementById('success-bid-item-desc').textContent = data.itemDesc || '—';
+  modal.querySelector('#success-bid-quantity').textContent = data.quantity || '—';
 
+  // Populate grading requirement
   const gradingText = data.requiresGrading
     ? `Yes${data.preferredGrader ? ` (${data.preferredGrader})` : ''}`
     : 'No';
-  document.getElementById('success-bid-grading').textContent = gradingText;
+  modal.querySelector('#success-bid-grading').textContent = gradingText;
+
+  // Populate item detail spec fields from bucket data
+  const metalSpec = modal.querySelector('#success-spec-metal .spec-value');
+  const productLineSpec = modal.querySelector('#success-spec-product-line .spec-value');
+  const productTypeSpec = modal.querySelector('#success-spec-product-type .spec-value');
+  const weightSpec = modal.querySelector('#success-spec-weight .spec-value');
+  const gradeSpec = modal.querySelector('#success-spec-grade .spec-value');
+  const yearSpec = modal.querySelector('#success-spec-year .spec-value');
+  const mintSpec = modal.querySelector('#success-spec-mint .spec-value');
+  const puritySpec = modal.querySelector('#success-spec-purity .spec-value');
+  const finishSpec = modal.querySelector('#success-spec-finish .spec-value');
+
+  if (metalSpec) metalSpec.textContent = data.bucketMetal || '—';
+  if (productLineSpec) productLineSpec.textContent = data.bucketProductLine || '—';
+  if (productTypeSpec) productTypeSpec.textContent = data.bucketProductType || '—';
+  if (weightSpec) weightSpec.textContent = data.bucketWeight || '—';
+  if (gradeSpec) gradeSpec.textContent = data.bucketGrade || 'N/A';
+  if (yearSpec) yearSpec.textContent = data.bucketYear || '—';
+  if (mintSpec) mintSpec.textContent = data.bucketMint || '—';
+  if (puritySpec) puritySpec.textContent = data.bucketPurity || '—';
+  if (finishSpec) finishSpec.textContent = data.bucketFinish || 'N/A';
+
+  console.log('✅ [Bid Success Modal] Populated item specs:', {
+    metal: data.bucketMetal,
+    productLine: data.bucketProductLine,
+    productType: data.bucketProductType,
+    weight: data.bucketWeight,
+    grade: data.bucketGrade,
+    year: data.bucketYear,
+    mint: data.bucketMint,
+    purity: data.bucketPurity,
+    finish: data.bucketFinish
+  });
 
   // Handle pricing mode display
-  const modeRow = document.getElementById('success-mode-row');
-  const modeEl = document.getElementById('success-bid-mode');
-  const spotRow = document.getElementById('success-spot-row');
-  const spotEl = document.getElementById('success-spot-price');
-  const premiumRow = document.getElementById('success-premium-row');
-  const premiumEl = document.getElementById('success-bid-premium');
-  const successCeilingRow = document.getElementById('success-ceiling-row');
-  const successCeilingEl = document.getElementById('success-bid-ceiling');
-  const effectiveRow = document.getElementById('success-effective-row');
-  const effectiveEl = document.getElementById('success-effective-price');
-  const priceRow = document.getElementById('success-price-row');
-  const priceLabel = document.getElementById('success-price-label');
-  const priceEl = document.getElementById('success-bid-price');
-  const totalEl = document.getElementById('success-bid-total');
+  const modeRow = modal.querySelector('#success-mode-row');
+  const modeEl = modal.querySelector('#success-bid-mode');
+  const spotRow = modal.querySelector('#success-spot-row');
+  const spotEl = modal.querySelector('#success-spot-price');
+  const premiumRow = modal.querySelector('#success-premium-row');
+  const premiumEl = modal.querySelector('#success-bid-premium');
+  const successCeilingRow = modal.querySelector('#success-ceiling-row');
+  const successCeilingEl = modal.querySelector('#success-bid-ceiling');
+  const effectiveRow = modal.querySelector('#success-effective-row');
+  const effectiveEl = modal.querySelector('#success-effective-price');
+  const priceRow = modal.querySelector('#success-price-row');
+  const priceLabel = modal.querySelector('#success-price-label');
+  const priceEl = modal.querySelector('#success-bid-price');
+  const totalEl = modal.querySelector('#success-bid-total');
 
   console.log('🔍 [Bid Success Modal] Display Logic:', {
     isVariablePricing,
@@ -530,36 +728,36 @@ function openBidSuccessModal(data) {
     }
 
     // Display address components
-    const addressLine1Row = document.getElementById('success-address-line1-row');
-    const addressLine1El = document.getElementById('success-address-line1');
+    const addressLine1Row = modal.querySelector('#success-address-line1-row');
+    const addressLine1El = modal.querySelector('#success-address-line1');
     if (street && addressLine1Row && addressLine1El) {
       addressLine1El.textContent = street;
       addressLine1Row.style.display = 'flex';
     }
 
-    const addressLine2Row = document.getElementById('success-address-line2-row');
-    const addressLine2El = document.getElementById('success-address-line2');
+    const addressLine2Row = modal.querySelector('#success-address-line2-row');
+    const addressLine2El = modal.querySelector('#success-address-line2');
     if (street2 && addressLine2Row && addressLine2El) {
       addressLine2El.textContent = street2;
       addressLine2Row.style.display = 'flex';
     }
 
-    const cityRow = document.getElementById('success-address-city-row');
-    const cityEl = document.getElementById('success-address-city');
+    const cityRow = modal.querySelector('#success-address-city-row');
+    const cityEl = modal.querySelector('#success-address-city');
     if (city && cityRow && cityEl) {
       cityEl.textContent = city;
       cityRow.style.display = 'flex';
     }
 
-    const stateRow = document.getElementById('success-address-state-row');
-    const stateEl = document.getElementById('success-address-state');
+    const stateRow = modal.querySelector('#success-address-state-row');
+    const stateEl = modal.querySelector('#success-address-state');
     if (state && stateRow && stateEl) {
       stateEl.textContent = state;
       stateRow.style.display = 'flex';
     }
 
-    const zipRow = document.getElementById('success-address-zip-row');
-    const zipEl = document.getElementById('success-address-zip');
+    const zipRow = modal.querySelector('#success-address-zip-row');
+    const zipEl = modal.querySelector('#success-address-zip');
     if (zip && zipRow && zipEl) {
       zipEl.textContent = zip;
       zipRow.style.display = 'flex';

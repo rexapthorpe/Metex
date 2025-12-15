@@ -483,3 +483,109 @@ def get_listings_with_effective_prices(listing_ids=None, category_id=None, bucke
         result.append(listing_dict)
 
     return result
+
+
+# ============================================================================
+# SPREAD MODEL FUNCTIONS FOR AUTOFILL MATCHING
+# ============================================================================
+
+def can_bid_fill_listing(bid, listing, spot_prices=None):
+    """
+    Determine if a bid can fill a listing based on effective prices.
+
+    Works for ALL combinations:
+    - Fixed bid ↔ Fixed listing
+    - Fixed bid ↔ Variable listing
+    - Variable bid ↔ Fixed listing
+    - Variable bid ↔ Variable listing
+
+    Args:
+        bid: Bid dict/row with pricing fields
+        listing: Listing dict/row with pricing fields
+        spot_prices: Optional dict of current spot prices
+
+    Returns:
+        dict: {
+            'can_fill': bool,
+            'bid_effective_price': float,
+            'listing_effective_price': float,
+            'spread': float (bid - listing, >= 0 if can_fill)
+        }
+    """
+    # Get spot prices if not provided
+    if spot_prices is None:
+        spot_prices = get_current_spot_prices()
+
+    # Calculate bid effective price
+    # For static: fixed price
+    # For premium-to-spot: min(spot + premium, ceiling)
+    bid_effective = get_effective_bid_price(bid, spot_prices=spot_prices)
+
+    # Calculate listing effective price
+    # For static: fixed price
+    # For premium-to-spot: max(spot + premium, floor)
+    listing_effective = get_effective_price(listing, spot_prices=spot_prices)
+
+    # Can fill if bid price >= listing price
+    can_fill = bid_effective >= listing_effective
+
+    # Calculate spread (buyer pays more than seller receives)
+    spread = bid_effective - listing_effective
+
+    return {
+        'can_fill': can_fill,
+        'bid_effective_price': round(bid_effective, 2),
+        'listing_effective_price': round(listing_effective, 2),
+        'spread': round(spread, 2)
+    }
+
+
+def calculate_trade_prices(bid, listing, quantity, spot_prices=None):
+    """
+    Calculate execution prices for a trade between bid and listing.
+
+    This implements the spread model:
+    - Buyer pays: bid effective price
+    - Seller receives: listing effective price
+    - Metex spread: bid effective price - listing effective price
+
+    Args:
+        bid: Bid dict/row with pricing fields
+        listing: Listing dict/row with pricing fields
+        quantity: Number of units being traded
+        spot_prices: Optional dict of current spot prices
+
+    Returns:
+        dict: {
+            'buyer_unit_price': float (per unit),
+            'seller_unit_price': float (per unit),
+            'spread_unit': float (per unit),
+            'buyer_total': float (total buyer pays),
+            'seller_total': float (total seller receives),
+            'spread_total': float (total Metex keeps)
+        }
+    """
+    # Get pricing info
+    pricing_info = can_bid_fill_listing(bid, listing, spot_prices=spot_prices)
+
+    if not pricing_info['can_fill']:
+        logger.warning(f"Attempted to calculate trade prices for non-matching bid/listing")
+        return None
+
+    buyer_unit = pricing_info['bid_effective_price']
+    seller_unit = pricing_info['listing_effective_price']
+    spread_unit = pricing_info['spread']
+
+    # Calculate totals
+    buyer_total = buyer_unit * quantity
+    seller_total = seller_unit * quantity
+    spread_total = spread_unit * quantity
+
+    return {
+        'buyer_unit_price': round(buyer_unit, 2),
+        'seller_unit_price': round(seller_unit, 2),
+        'spread_unit': round(spread_unit, 2),
+        'buyer_total': round(buyer_total, 2),
+        'seller_total': round(seller_total, 2),
+        'spread_total': round(spread_total, 2)
+    }

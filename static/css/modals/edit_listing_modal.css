@@ -1,3 +1,7 @@
+/* ==========================================================================
+   Edit Listing Modal - Professional, Production-Grade Styling
+   ========================================================================== */
+
 /* Overlay + centering */
 .edit-listing-modal {
   position: fixed;
@@ -12,29 +16,37 @@
 .edit-listing-modal .modal-content {
   background: #fff;
   border-radius: 20px;
-  padding: 24px;
+  padding: 32px;
   width: 90%;
-  max-width: 600px;
+  max-width: 850px; /* Expanded from 600px for better spacing */
   position: relative;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
 
-    /* center and pad */
-  margin: 20px auto;                /* 20px from top & bottom, auto left/right */
+  /* center and pad */
+  margin: 20px auto;
 
   /* limit height */
-  max-height: 85vh;  /* Increased from 550px to 85% of viewport height */
+  max-height: 90vh;
 
   /* Enable scrolling for overflow content */
   overflow-y: auto;
   overflow-x: hidden;
+
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
 
   /* Ensure all corners maintain border-radius with scrolling */
   -webkit-mask-image: -webkit-radial-gradient(white, black);
   mask-image: radial-gradient(white, black);
 }
 
+/* Modal header */
 .edit-listing-modal h2 {
-  margin-top: 0;
+  margin: 0 0 24px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  text-align: left;
 }
 
 /* Note: Close button styling now uses unified modal-close-button.css */
@@ -44,25 +56,26 @@
 .list-specs-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  row-gap: 8px;   /* tightened from 12px */
-  column-gap: 12px;
-  margin: 16px 0;
+  row-gap: 20px; /* Increased from 8px for better spacing */
+  column-gap: 20px; /* Increased from 12px */
+  margin: 20px 0;
 }
 
 /* Modal dividers */
 .modal-divider {
   width: 100%;
-  border-bottom: 1px solid #ccc;
-  margin: 1.5rem 0 0.75rem 0;
+  border-bottom: 1px solid #e5e7eb;
+  margin: 32px 0 20px 0; /* Increased spacing */
 }
 
 /* Modal subheaders */
 .modal-subheader {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-  margin: 0.75rem 0 1rem 0;
+  font-size: 18px; /* Increased from 1.1rem */
+  font-weight: 700; /* Bolder */
+  color: #111827; /* Darker */
+  margin: 0 0 20px 0;
   text-align: left;
+  letter-spacing: -0.02em;
 }
 
 /* Field-group wrapper */
@@ -72,65 +85,125 @@
   position: relative; /* anchor for custom dropdowns */
 }
 
-/* Individual headers TEXT */
+/* Individual field labels */
 .field-group label {
-  font-weight: 500;
-  margin-bottom: 4px;
-  font-size: 1.0rem;
-  color: rgb(0, 0, 0);    /* header color */
+  font-weight: 600; /* Increased from 500 */
+  margin-bottom: 8px; /* Increased from 4px */
+  font-size: 14px;
+  color: #374151; /* Softer than pure black */
+  letter-spacing: 0.01em;
 }
 
-/* Inputs and selects */
+/* Inputs and selects - Professional styling */
 .field-group select,
-.field-group input {
+.field-group input[type="text"],
+.field-group input[type="number"] {
   width: 100%;
-  padding: 8px;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 11px;
+  padding: 12px 14px; /* Increased from 8px */
+  font-size: 15px; /* Slightly larger */
+  color: #111827;
+  border: 2px solid #e5e7eb; /* Thicker border */
+  border-radius: 10px; /* Slightly more rounded */
+  background: #fff;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
-/* Descriptions TEXT */
-.field-group .description {
-  font-size: 0.85rem;
-  color: #888;      /* description color */
-  margin-top: 2px;
+/* Focus states */
+.field-group select:focus,
+.field-group input[type="text"]:focus,
+.field-group input[type="number"]:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+  background: #ffffff;
 }
 
-/* Example text (matching sell page) */
+/* Hover states for inputs */
+.field-group input[type="text"]:hover,
+.field-group input[type="number"]:hover,
+.field-group select:hover {
+  border-color: #cbd5e1;
+}
+
+/* Select dropdowns - special styling */
+.field-group select {
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px;
+  padding-right: 40px;
+}
+
+/* Validated datalist inputs (custom dropdown) */
+.validated-datalist {
+  font-weight: 500;
+}
+
+/* Description/hint text */
+.field-group .description,
 .example-text {
-  font-size: 0.85rem;
-  color: #888;
-  margin-top: 0.25rem;
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 6px;
+  line-height: 1.4;
 }
 
 /* Buttons */
 .modal-actions {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 16px; /* Increased gap */
+  margin-top: 32px; /* More spacing from content */
 }
 
 .modal-actions .btn-save,
 .modal-actions .btn-cancel {
-  flex: 0 0 150px; /* Fixed width of 150px for equal sizing */
-  padding: 10px 16px;
-  border-radius: 4px;
+  flex: 0 0 180px; /* Wider buttons (was 150px) */
+  padding: 14px 24px; /* Increased padding */
+  border-radius: 10px; /* More rounded */
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
 }
 
 .modal-actions .btn-save {
-  background: #3da6ff;
+  background: #1976d2;
   color: #fff;
-  border: none;
+  border-color: #1976d2;
+}
+
+.modal-actions .btn-save:hover {
+  background: #1565c0;
+  border-color: #1565c0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+}
+
+.modal-actions .btn-save:active {
+  transform: translateY(0);
 }
 
 .modal-actions .btn-cancel {
   background: #fff;
-  color: #333;
-  border: 1px solid #ccc;
+  color: #374151;
+  border-color: #e5e7eb;
+}
+
+.modal-actions .btn-cancel:hover {
+  background: #f9fafb;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modal-actions .btn-cancel:active {
+  transform: translateY(0);
 }
 
 /* ---------- Custom dropdown (matching sell.css) ---------- */
@@ -139,29 +212,37 @@
   position: absolute;
   top: 100%;
   left: 0;
-  width: 100%;               /* same width as the input */
+  width: 100%;
   box-sizing: border-box;
   background-color: #fff;
-  border: 1px solid #ccc;
-  border-radius: 11px;
-  max-height: 220px;
+  border: 2px solid #1976d2; /* Thicker border when open */
+  border-radius: 10px;
+  max-height: 240px; /* Slightly taller */
   overflow-y: auto;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12); /* Better shadow */
   z-index: 1000;
-  display: none;             /* hidden by default */
+  display: none;
+  margin-top: 4px; /* Small gap from input */
 }
 
 .custom-dropdown-item {
-  padding: 0.5rem 0.75rem;
+  padding: 12px 16px; /* More generous padding */
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 15px;
+  color: #374151;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
+  transition: background-color 0.15s ease;
 }
 
 .custom-dropdown-item:hover {
-  background-color: #f0f4ff;
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.custom-dropdown-item:active {
+  background-color: #bbdefb;
 }
 
 /* ---------- Photo Upload Section ---------- */
@@ -170,48 +251,50 @@
   grid-column: 1 / 2; /* Left column only */
   display: flex;
   flex-direction: column;
-  margin: 0 0 16px 0;
+  margin: 0;
 }
 
 .photo-upload-section label {
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 8px;
-  font-size: 1.0rem;
-  color: rgb(0, 0, 0);
+  font-size: 14px;
+  color: #374151;
 }
 
 .photo-upload-box {
   width: 100%;
-  aspect-ratio: 1 / 1; /* Keep it square: height = width */
-  border: 2px dashed #ccc;
-  border-radius: 20px;
-  background-color: #f5f5f5;
+  aspect-ratio: 1 / 1; /* Keep it square */
+  border: 3px dashed #d1d5db; /* Thicker dashed border */
+  border-radius: 16px; /* More rounded */
+  background-color: #f9fafb;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   position: relative;
-  overflow: visible; /* Allow close button to extend outside */
-  transition: all 0.2s ease;
+  overflow: visible;
+  transition: all 0.25s ease;
 }
 
 .photo-upload-box:hover {
-  border-color: #007bff;
-  background-color: #f0f4ff;
+  border-color: #1976d2;
+  background-color: #e3f2fd;
+  transform: scale(1.01);
 }
 
 .photo-upload-plus {
   font-size: 4rem;
-  color: #999;
+  color: #9ca3af;
   user-select: none;
   pointer-events: none;
+  font-weight: 300;
 }
 
 .photo-preview {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 20px;
+  border-radius: 16px;
   position: absolute;
   top: 0;
   left: 0;
@@ -226,23 +309,24 @@
 .photo-upload-box.has-image:hover {
   border: none;
   background-color: transparent;
+  transform: none;
 }
 
 .photo-upload-box.has-image .photo-upload-plus {
   display: none;
 }
 
-/* Close button for photo - matches standardized close button style */
+/* Close button for photo */
 .photo-clear-btn {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 32px;
-  height: 32px;
+  top: -10px;
+  right: -10px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-  color: #666;
-  border: none;
+  background: #fff;
+  color: #dc2626;
+  border: 2px solid #dc2626;
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
@@ -252,16 +336,19 @@
   z-index: 10;
   transition: all 0.2s ease;
   padding: 0;
+  font-weight: 400;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .photo-clear-btn:hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: #333;
-  transform: scale(1.1);
+  background: #dc2626;
+  color: #fff;
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
 .photo-clear-btn:active {
-  transform: scale(0.95);
+  transform: scale(1.05);
 }
 
 .photo-upload-box.has-image .photo-clear-btn {
@@ -278,8 +365,8 @@
   grid-column: 2 / 3;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  align-self: start; /* Align to top of grid cell */
+  gap: 20px; /* Increased from 8px */
+  align-self: start;
 }
 
 /* Price Input with $ prefix */
@@ -291,20 +378,22 @@
 
 .price-currency {
   position: absolute;
-  left: 12px;
+  left: 14px;
   top: 50%;
-  transform: translateY(-95%);
-  font-size: 1rem;
-  color: #333;
-  font-weight: bold;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: #374151;
+  font-weight: 700;
   line-height: 1;
   pointer-events: none;
   z-index: 1;
 }
 
 .price-input-wrapper input {
-  padding-left: 28px !important;
-  font-weight: bold;
+  padding-left: 36px !important; /* More space for $ */
+  font-weight: 600;
+  font-size: 16px !important;
+  color: #111827;
 }
 
 /* ---------- Premium Pricing Container ---------- */
@@ -312,27 +401,28 @@
 .premium-pricing-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  margin-top: 8px;
+  gap: 16px; /* Increased spacing */
+  padding: 20px; /* More padding */
+  background: #f8fcff; /* Slightly blue tint */
+  border: 2px solid #90caf9; /* Blue border */
+  border-radius: 12px;
+  margin-top: 0;
 }
 
 .premium-pricing-notice {
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: 0;
+  padding: 16px;
   background: #e3f2fd;
-  border-radius: 4px;
+  border-radius: 8px;
   border-left: 4px solid #1976d2;
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #0d47a1;
 }
 
 .premium-pricing-notice strong {
   color: #1565c0;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* Static pricing fields container */
@@ -346,16 +436,242 @@
   margin-bottom: 0;
 }
 
-/* Pricing mode select styling */
+/* Pricing mode select styling - Make it stand out */
 .field-group select[name="pricing_mode"] {
   font-weight: 600;
   color: #1976d2;
-  border: 2px solid #90caf9;
+  border: 2px solid #1976d2;
   background-color: #e3f2fd;
+  padding-right: 40px;
 }
 
 .field-group select[name="pricing_mode"]:focus {
   outline: none;
   border-color: #1565c0;
-  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+  box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.15);
+}
+
+.field-group select[name="pricing_mode"]:hover {
+  border-color: #1565c0;
+  background-color: #bbdefb;
+}
+
+/* Graded select styling */
+.field-group select[name="graded"] {
+  font-weight: 600;
+}
+
+/* Grading service container - conditional visibility */
+.grading-service {
+  transition: opacity 0.2s ease, max-height 0.3s ease;
+}
+
+/* ========================== Quantity Dial ================================ */
+.edit-listing-modal .qty-dial {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 6px 12px;
+  background: #fff;
+  margin-top: 0;
+  transition: border-color 0.2s ease;
+}
+
+.edit-listing-modal .qty-dial:hover {
+  border-color: #cbd5e1;
+}
+
+.edit-listing-modal .qty-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  user-select: none;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.edit-listing-modal .qty-btn:hover {
+  background: #e3f2fd;
+  color: #1976d2;
+  transform: scale(1.05);
+}
+
+.edit-listing-modal .qty-btn:active {
+  background: #bbdefb;
+  transform: scale(0.98);
+}
+
+.edit-listing-modal .qty-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: transparent;
+}
+
+.edit-listing-modal .qty-btn:disabled:hover {
+  transform: none;
+  background: transparent;
+  color: #374151;
+}
+
+.edit-listing-modal .qty-value {
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 60px;
+  text-align: center;
+  color: #111827;
+  user-select: none;
+}
+
+/* Hide the underlying number input for quantity dial */
+.edit-listing-modal input[name="quantity"] {
+  display: none;
+}
+
+/* Spot Price Indicator - Professional styling */
+.spot-price-indicator {
+  padding: 16px;
+  background: linear-gradient(135deg, #e3f2fd 0%, #f0f9ff 100%);
+  border: 2px solid #90caf9;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.08);
+}
+
+.spot-price-indicator > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.spot-price-indicator span:first-child {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0369a1;
+}
+
+.spot-price-indicator span:nth-child(2) {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0c4a6e;
+}
+
+.spot-price-indicator > div:last-child {
+  font-size: 12px;
+  color: #075985;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* ---------- Responsive Design ---------- */
+
+/* Medium screens */
+@media (max-width: 992px) {
+  .edit-listing-modal .modal-content {
+    max-width: 750px;
+    padding: 28px;
+  }
+
+  .details-grid,
+  .list-specs-grid {
+    column-gap: 16px;
+  }
+}
+
+/* Tablet and below */
+@media (max-width: 768px) {
+  .edit-listing-modal .modal-content {
+    width: 95%;
+    max-width: 600px;
+    padding: 24px;
+    max-height: 92vh;
+  }
+
+  .edit-listing-modal h2 {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+
+  .modal-subheader {
+    font-size: 16px;
+  }
+
+  .details-grid,
+  .list-specs-grid {
+    grid-template-columns: 1fr;
+    row-gap: 16px;
+  }
+
+  .photo-upload-section {
+    grid-column: 1 / 2;
+    margin-bottom: 16px;
+  }
+
+  .list-specs-right {
+    grid-column: 1 / 2;
+    gap: 16px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .modal-actions .btn-save,
+  .modal-actions .btn-cancel {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .edit-listing-modal .modal-content {
+    width: 96%;
+    padding: 20px;
+    border-radius: 16px;
+  }
+
+  .edit-listing-modal h2 {
+    font-size: 20px;
+  }
+
+  .field-group select,
+  .field-group input[type="text"],
+  .field-group input[type="number"] {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .modal-actions .btn-save,
+  .modal-actions .btn-cancel {
+    padding: 12px 20px;
+    font-size: 15px;
+  }
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.edit-listing-modal .modal-content {
+  animation: fadeIn 0.2s ease;
 }

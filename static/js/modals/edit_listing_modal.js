@@ -367,6 +367,65 @@ function setupNumericInput(input) {
   });
 }
 
+/**
+ * Set up quantity dial functionality for a specific listing
+ * Matches the bid modal quantity dial behavior
+ */
+function setupQuantityDial(listingId) {
+  const qtyInput = document.getElementById(`qtyInput-${listingId}`);
+  const qtyDisplay = document.getElementById(`qtyDisplay-${listingId}`);
+  const qtyDial = qtyDisplay ? qtyDisplay.closest('.qty-dial') : null;
+
+  if (!qtyInput || !qtyDisplay || !qtyDial) {
+    console.warn('Quantity dial elements not found for listing', listingId);
+    return;
+  }
+
+  // Get the buttons
+  const decreaseBtn = qtyDial.querySelector('[data-action="decrease"]');
+  const increaseBtn = qtyDial.querySelector('[data-action="increase"]');
+
+  if (!decreaseBtn || !increaseBtn) {
+    console.warn('Quantity dial buttons not found for listing', listingId);
+    return;
+  }
+
+  // Initialize
+  let currentQty = parseInt(qtyInput.value) || 1;
+  if (currentQty < 1) currentQty = 1;
+
+  updateQuantityDisplay(currentQty);
+
+  // Decrease button
+  decreaseBtn.addEventListener('click', () => {
+    if (currentQty > 1) {
+      currentQty--;
+      updateQuantityDisplay(currentQty);
+    }
+  });
+
+  // Increase button
+  increaseBtn.addEventListener('click', () => {
+    currentQty++;
+    updateQuantityDisplay(currentQty);
+  });
+
+  // Update display and hidden input
+  function updateQuantityDisplay(qty) {
+    qtyDisplay.textContent = qty;
+    qtyInput.value = qty;
+
+    // Disable decrease button if at minimum
+    if (qty <= 1) {
+      decreaseBtn.disabled = true;
+    } else {
+      decreaseBtn.disabled = false;
+    }
+  }
+
+  console.log('✓ Quantity dial set up for listing', listingId);
+}
+
 // 1) Remove any existing modal(s) to avoid stacking
 // 2) Fetch & inject the HTML, wire up toggle & submit
 function openEditListingModal(listingId) {
@@ -431,6 +490,11 @@ function openEditListingModal(listingId) {
       console.log('Setting up pricing mode toggle...');
       setupPricingModeToggle(listingId);
       console.log('✓ Pricing mode toggle set up');
+
+      // 4.8) Set up quantity dial
+      console.log('Setting up quantity dial...');
+      setupQuantityDial(listingId);
+      console.log('✓ Quantity dial set up');
 
       // 5) Handle submit via AJAX with validation
       const form = document.getElementById(`editListingForm-${listingId}`);

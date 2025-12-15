@@ -12,6 +12,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openModal() {
+    // Update modal heading based on whether bucket is isolated
+    const modalTitle = document.getElementById('sellersModalTitle');
+    if (modalTitle && typeof window.bucketIsIsolated !== 'undefined') {
+      if (window.bucketIsIsolated) {
+        modalTitle.textContent = modalTitle.getAttribute('data-isolated-text') || 'Seller Information';
+      } else {
+        modalTitle.textContent = modalTitle.getAttribute('data-default-text') || 'Available Sellers';
+      }
+    }
+
     // Ensure visible even if something set inline display:none earlier
     modal.style.display = 'block';
     modal.classList.add('is-open');

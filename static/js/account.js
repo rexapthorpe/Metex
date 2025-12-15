@@ -47,20 +47,43 @@ function showTab(tabName) {
 
 // Automatically open tab based on URL hash (e.g. #bids), or default to cart
 document.addEventListener('DOMContentLoaded', () => {
-  const tabFromHash = window.location.hash.slice(1); // "orders" from "#orders"
-  const validTabs = ['cart','bids','listings','sold','orders','portfolio','ratings','messages','details'];
-  const tab = validTabs.includes(tabFromHash) ? tabFromHash : 'cart';
-  showTab(tab);
+  const hash = window.location.hash.slice(1); // "orders" from "#orders"
+  handleHashNavigation(hash);
 });
 
 // Handle hash changes (e.g., when clicking notification "View Order" button)
 window.addEventListener('hashchange', () => {
-  const tabFromHash = window.location.hash.slice(1);
-  const validTabs = ['cart','bids','listings','sold','orders','portfolio','ratings','messages','details'];
-  if (validTabs.includes(tabFromHash)) {
-    showTab(tabFromHash);
-  }
+  const hash = window.location.hash.slice(1);
+  handleHashNavigation(hash);
 });
+
+// Handle hash-based navigation with support for compound hashes (e.g., #details-personal)
+function handleHashNavigation(hash) {
+  const validTabs = ['cart','bids','listings','sold','orders','portfolio','ratings','messages','details'];
+
+  // Check for compound hash (e.g., "details-personal")
+  let tab = hash;
+  let detailsSection = null;
+
+  if (hash.includes('-')) {
+    const parts = hash.split('-');
+    tab = parts[0];
+    detailsSection = parts[1];
+  }
+
+  // Validate and show main tab
+  if (validTabs.includes(tab)) {
+    showTab(tab);
+
+    // If it's the details tab with a sub-section, navigate to that section
+    if (tab === 'details' && detailsSection && typeof showDetailsSection === 'function') {
+      setTimeout(() => showDetailsSection(detailsSection), 100);
+    }
+  } else if (hash === '') {
+    // No hash, show default cart tab
+    showTab('cart');
+  }
+}
 
 // Remove a single listing from cart (AJAX)
 function removeCartItem(listingId, buttonElement) {

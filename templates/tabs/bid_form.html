@@ -8,7 +8,8 @@
       data-bucket-year="{{ bucket.year if bucket else '' }}"
       data-bucket-mint="{{ bucket.mint if bucket else '' }}"
       data-bucket-finish="{{ bucket.finish if bucket else '' }}"
-      data-bucket-grade="{{ bucket.grade if bucket else '' }}">
+      data-bucket-grade="{{ bucket.grade if bucket else '' }}"
+      data-bucket-purity="{{ bucket.purity if bucket else '' }}">
   {% if bid %}
     <input type="hidden" name="bid_id" value="{{ bid.id }}">
   {% endif %}
@@ -181,6 +182,20 @@
           </div>
         </div>
 
+        <!-- Random Year toggle -->
+        <div class="feature-block" style="margin-bottom: 16px;">
+          <div class="switch-row">
+            <div style="flex: 1;">
+              <div class="eb-label">Random Year Bid</div>
+              <div class="eb-hint" style="font-size: 12px; color: #666;">Apply bid to all years with matching specs</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="random_year_bid" name="random_year" {% if bid and bid.random_year %}checked{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
         <!-- Grading options (always visible) -->
         <div class="eb-grading-block feature-block">
           <div class="eb-label">Require 3rd Party Grading</div>
@@ -222,9 +237,11 @@
         <!-- Address Selector Dropdown -->
         <div class="addr-field" style="margin-bottom: 16px;">
           <div class="addr-label">Delivery Address</div>
-          <select id="addr-selector" class="eb-input">
-            <option value="custom">Custom Address</option>
-            {% if addresses %}
+
+          {% if addresses and addresses|length > 0 %}
+            <!-- User has saved addresses - show dropdown -->
+            <select id="addr-selector" class="eb-input">
+              <option value="custom">Enter New Address</option>
               {% for address in addresses %}
                 <option value="{{ address.id }}"
                         data-first="{{ user_info.first_name if user_info and user_info.first_name else '' }}"
@@ -237,8 +254,20 @@
                   {{ address.name }} - {{ address.city }}, {{ address.state }}
                 </option>
               {% endfor %}
-            {% endif %}
-          </select>
+            </select>
+          {% else %}
+            <!-- No saved addresses - show message and auto-enable custom fields -->
+            <select id="addr-selector" class="eb-input">
+              <option value="custom" selected>Enter New Address (No saved addresses yet)</option>
+            </select>
+            <div class="no-addresses-hint" style="margin-top: 8px; padding: 10px; background: #e3f2fd; border-left: 3px solid #2196f3; border-radius: 4px;">
+              <p style="margin: 0; font-size: 13px; color: #1565c0;">
+                <i class="fas fa-info-circle"></i>
+                Fill in the address fields below to place your bid.
+                <a href="/account#details-shipping" style="color: #1565c0; text-decoration: underline; font-weight: 600;">Save addresses in Account Details</a> for faster checkout in the future.
+              </p>
+            </div>
+          {% endif %}
         </div>
 
         <!-- Address fields (without names - moved to Billing) -->
@@ -287,24 +316,41 @@
       <section class="eb-col col3" style="grid-area: col3;">
         <div class="col-title">Billing</div>
 
-        <!-- Name fields -->
+        <!-- Name on Order (Read-Only from Account Details) -->
         <div class="billing-fields">
-          <div class="addr-row names">
-            <div class="addr-subfield">
-              <div class="addr-label">First Name</div>
-              <input id="addr-first" class="eb-input" name="recipient_first" autocomplete="given-name" value="{{ (bid.parsed_address.first_name if bid and bid.parsed_address else (user_info.first_name if user_info else '')) }}">
+          {% set has_saved_name = user_info and user_info.first_name and user_info.last_name %}
+          {% set full_name = (user_info.first_name ~ ' ' ~ user_info.last_name)|trim if has_saved_name else '' %}
+
+          {% if has_saved_name %}
+            <!-- Name Display (Read-Only) -->
+            <div class="name-display-section">
+              <div class="addr-label">Name on Order</div>
+              <div class="name-display-value">{{ full_name }}</div>
+              <button type="button" class="btn btn-secondary change-name-btn" onclick="window.location.href='/account#details-personal'">
+                <i class="fas fa-edit"></i> Change Name in Account Details
+              </button>
             </div>
-            <div class="addr-subfield">
-              <div class="addr-label">Last Name</div>
-              <input id="addr-last" class="eb-input" name="recipient_last" autocomplete="family-name" value="{{ (bid.parsed_address.last_name if bid and bid.parsed_address else (user_info.last_name if user_info else '')) }}">
+          {% else %}
+            <!-- Warning: No Name Saved -->
+            <div class="name-warning-section">
+              <div class="addr-label">Name on Order</div>
+              <div class="name-warning-box">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p class="warning-text">Please add your full name in Account Details before placing a bid.</p>
+              </div>
+              <button type="button" class="btn btn-primary change-name-btn" onclick="window.location.href='/account#details-personal'">
+                <i class="fas fa-user-edit"></i> Add Name in Account Details
+              </button>
             </div>
-          </div>
+          {% endif %}
         </div>
 
         <!-- Confirm aligned with City/State/Zip row -->
         <hr class="eb-hr eb-col-hr">
         <div class="confirm-wrap">
-          <button id="eb-confirm" type="submit" class="eb-confirm">Confirm</button>
+          <button id="eb-confirm" type="submit" class="eb-confirm" {% if not has_saved_name %}disabled title="Please add your name in Account Details first"{% endif %}>
+            Confirm
+          </button>
         </div>
       </section>
 
