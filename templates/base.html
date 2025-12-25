@@ -62,6 +62,9 @@
             <a href="{{ url_for('buy.view_cart') }}" class="btn-pill cart-pill" title="View Cart">🛒</a>
             <a href="{{ url_for('sell.sell') }}" class="btn-pill {% if request.endpoint == 'sell.sell' %}active{% endif %}">Sell</a>
             {% if session.get('user_id') %}
+                {% if is_user_admin %}
+                <a href="{{ url_for('admin.analytics') }}" class="btn-pill admin-pill {% if request.endpoint == 'admin.analytics' %}active{% endif %}" title="Admin Analytics">📊 Analytics</a>
+                {% endif %}
                 <a href="{{ url_for('account.account') }}#cart" class="btn-pill">My Account</a>
             {% else %}
                 <a href="{{ url_for('auth.login') }}" class="btn-pill">Login</a>

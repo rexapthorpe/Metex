@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Analytics Dashboard{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/analytics.css') }}">
+
+<div class="analytics-container">
+    <!-- Page Header -->
+    <div class="analytics-header">
+        <h1 class="page-title">Analytics Dashboard</h1>
+        <p class="analytics-subtitle">Marketplace Performance & Insights</p>
+    </div>
+
+    <!-- Filter Bar (Sticky) -->
+    <div class="filter-bar" id="filterBar">
+        <div class="filter-group">
+            <label for="dateRange">Time Range</label>
+            <select id="dateRange" class="filter-select">
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d" selected>Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="90d">Last 90 Days</option>
+                <option value="ytd">Year to Date</option>
+                <option value="all">All Time</option>
+                <option value="custom">Custom Range</option>
+            </select>
+        </div>
+
+        <div class="filter-group custom-dates" id="customDatesGroup" style="display: none;">
+            <label for="startDate">Start Date</label>
+            <input type="date" id="startDate" class="filter-input">
+            <label for="endDate">End Date</label>
+            <input type="date" id="endDate" class="filter-input">
+        </div>
+
+        <div class="filter-group">
+            <label for="groupBy">Group By</label>
+            <select id="groupBy" class="filter-select">
+                <option value="day" selected>Daily</option>
+                <option value="week">Weekly</option>
+                <option value="month">Monthly</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="metric">Metric</label>
+            <select id="metric" class="filter-select">
+                <option value="volume" selected>Volume</option>
+                <option value="revenue">Revenue</option>
+                <option value="trades">Trades</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="compareToggle">
+                <span>Compare to Previous Period</span>
+            </label>
+        </div>
+
+        <div class="filter-actions">
+            <button class="btn btn-primary" id="applyFilters">Apply</button>
+            <button class="btn btn-secondary" id="resetFilters">Reset</button>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" id="loadingState" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Loading analytics data...</p>
+    </div>
+
+    <!-- KPI Cards (Clickable) -->
+    <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card clickable" data-kpi="volume" data-drilldown="volume">
+            <div class="kpi-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">
+                    Total Volume Traded
+                    <span class="info-icon" data-tooltip="Total value of all completed trades">
+                        <i class="fas fa-info-circle"></i>
+                    </span>
+                </div>
+                <div class="kpi-value" id="kpiVolume">$0</div>
+                <div class="kpi-change" id="kpiVolumeChange"></div>
+            </div>
+            <div class="kpi-chevron"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div class="kpi-card clickable" data-kpi="revenue" data-drilldown="revenue">
+            <div class="kpi-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">
+                    Website Revenue (5%)
+                    <span class="info-icon" data-tooltip="5% marketplace fee on completed trades">
+                        <i class="fas fa-info-circle"></i>
+                    </span>
+                </div>
+                <div class="kpi-value" id="kpiRevenue">$0</div>
+                <div class="kpi-change" id="kpiRevenueChange"></div>
+            </div>
+            <div class="kpi-chevron"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div class="kpi-card clickable" data-kpi="trades" data-drilldown="trades">
+            <div class="kpi-icon">
+                <i class="fas fa-exchange-alt"></i>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">
+                    Number of Trades
+                    <span class="info-icon" data-tooltip="Completed transaction count">
+                        <i class="fas fa-info-circle"></i>
+                    </span>
+                </div>
+                <div class="kpi-value" id="kpiTrades">0</div>
+                <div class="kpi-change" id="kpiTradesChange"></div>
+            </div>
+            <div class="kpi-chevron"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div class="kpi-card clickable" data-kpi="listings" data-drilldown="listings">
+            <div class="kpi-icon">
+                <i class="fas fa-box"></i>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">
+                    Active Listings
+                    <span class="info-icon" data-tooltip="Currently available listings">
+                        <i class="fas fa-info-circle"></i>
+                    </span>
+                </div>
+                <div class="kpi-value" id="kpiListings">0</div>
+            </div>
+            <div class="kpi-chevron"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div class="kpi-card clickable" data-kpi="users" data-drilldown="users">
+            <div class="kpi-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">
+                    Total Users
+                    <span class="info-icon" data-tooltip="Registered users on the platform">
+                        <i class="fas fa-info-circle"></i>
+                    </span>
+                </div>
+                <div class="kpi-value" id="kpiUsers">0</div>
+            </div>
+            <div class="kpi-chevron"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div class="kpi-card clickable" data-kpi="conversion" data-drilldown="users">
+            <div class="kpi-icon">
+                <i class="fas fa-funnel-dollar"></i>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">
+                    Conversion Funnel
+                    <span class="info-icon" data-tooltip="Users with listings / Users with purchases">
+                        <i class="fas fa-info-circle"></i>
+                    </span>
+                </div>
+                <div class="kpi-value conversion-funnel" id="kpiConversion">
+                    <div class="funnel-stat"><span class="funnel-number">0</span> sellers</div>
+                    <div class="funnel-stat"><span class="funnel-number">0</span> buyers</div>
+                </div>
+            </div>
+            <div class="kpi-chevron"><i class="fas fa-chevron-right"></i></div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h2 class="chart-title">Volume & Revenue Trends</h2>
+                <div class="chart-controls">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="breakdownByCategory">
+                        <span>Break down by category</span>
+                    </label>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="timeseriesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Tables Section -->
+    <div class="tables-section">
+        <div class="table-card">
+            <div class="table-header">
+                <h2 class="table-title">Top Items by Volume</h2>
+                <input type="text" class="table-search" placeholder="Search..." id="searchTopItems">
+            </div>
+            <div class="table-wrapper">
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="metal">Metal</th>
+                            <th class="sortable" data-sort="product_type">Type</th>
+                            <th class="sortable" data-sort="weight">Weight</th>
+                            <th class="sortable" data-sort="total_volume">Total Volume</th>
+                            <th class="sortable" data-sort="trade_count">Trade Count</th>
+                            <th class="sortable" data-sort="avg_price">Avg Price</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topItemsTable">
+                        <tr class="no-data">
+                            <td colspan="6">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-header">
+                <h2 class="table-title">Top Sellers</h2>
+                <input type="text" class="table-search" placeholder="Search..." id="searchTopSellers">
+            </div>
+            <div class="table-wrapper">
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="username">Username</th>
+                            <th class="sortable" data-sort="total_volume">Volume Sold</th>
+                            <th class="sortable" data-sort="order_count">Orders</th>
+                            <th class="sortable" data-sort="avg_rating">Avg Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topSellersTable">
+                        <tr class="no-data">
+                            <td colspan="4">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-header">
+                <h2 class="table-title">Top Buyers</h2>
+                <input type="text" class="table-search" placeholder="Search..." id="searchTopBuyers">
+            </div>
+            <div class="table-wrapper">
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="username">Username</th>
+                            <th class="sortable" data-sort="total_volume">Volume Purchased</th>
+                            <th class="sortable" data-sort="order_count">Orders</th>
+                            <th class="sortable" data-sort="avg_rating">Avg Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topBuyersTable">
+                        <tr class="no-data">
+                            <td colspan="4">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Health Section -->
+    <div class="health-section">
+        <h2 class="section-title">Market Health & Operations</h2>
+
+        <div class="health-grid">
+            <div class="health-card">
+                <h3 class="health-card-title">Liquidity Metrics</h3>
+                <div class="health-stats">
+                    <div class="health-stat">
+                        <span class="health-label">Median Time to Sell</span>
+                        <span class="health-value" id="medianTimeToSell">0 days</span>
+                    </div>
+                    <div class="health-stat">
+                        <span class="health-label">Sell-Through Rate</span>
+                        <span class="health-value" id="sellThroughRate">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="health-card">
+                <h3 class="health-card-title">User Engagement</h3>
+                <div class="health-stats">
+                    <div class="health-stat">
+                        <span class="health-label">Active Users</span>
+                        <span class="health-value" id="activeUsers">0</span>
+                    </div>
+                    <div class="health-stat">
+                        <span class="health-label">Activity Rate</span>
+                        <span class="health-value" id="activityRate">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="health-card">
+                <h3 class="health-card-title">Ratings & Quality</h3>
+                <div class="health-stats">
+                    <div class="health-stat">
+                        <span class="health-label">Average Rating</span>
+                        <span class="health-value" id="avgRating">0.0 ⭐</span>
+                    </div>
+                    <div class="health-stat">
+                        <span class="health-label">Total Ratings</span>
+                        <span class="health-value" id="totalRatings">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="health-card">
+                <h3 class="health-card-title">Communications</h3>
+                <div class="health-stats">
+                    <div class="health-stat">
+                        <span class="health-label">Messages</span>
+                        <span class="health-value" id="totalMessages">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expandable Details Section -->
+    <div class="expandable-section" id="largestTransactions">
+        <button class="expandable-header" data-target="largestTransactionsContent">
+            <span class="expandable-title">Largest Transactions</span>
+            <span class="expandable-icon">▼</span>
+        </button>
+        <div class="expandable-content" id="largestTransactionsContent">
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Buyer</th>
+                        <th>Total Value</th>
+                        <th>Items</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="largestTransactionsTable">
+                    <tr class="no-data">
+                        <td colspan="6">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Drilldown Modal -->
+<div class="modal-overlay" id="drilldownModalOverlay"></div>
+<div class="modal-drawer" id="drilldownModal">
+    <div class="modal-header">
+        <h2 class="modal-title" id="drilldownModalTitle">Details</h2>
+        <button class="modal-close" id="drilldownModalClose">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="modal-body" id="drilldownModalBody">
+        <!-- Content will be dynamically loaded -->
+    </div>
+</div>
+
+<!-- User Detail Modal -->
+<div class="modal-overlay" id="userDetailModalOverlay"></div>
+<div class="modal-drawer user-detail-modal" id="userDetailModal">
+    <div class="modal-header">
+        <h2 class="modal-title" id="userDetailModalTitle">User Details</h2>
+        <button class="modal-close" id="userDetailModalClose">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="modal-body" id="userDetailModalBody">
+        <!-- Content will be dynamically loaded -->
+    </div>
+</div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Analytics Dashboard JavaScript -->
+<script src="{{ url_for('static', filename='js/admin/analytics.js') }}"></script>
+
+{% endblock %}

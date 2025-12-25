@@ -86,3 +86,20 @@
     background-color: #e8f5ff;
     transform: scale(1.05);
 }
+
+/* Admin pill - matches other header buttons (no special gradient) */
+.admin-pill {
+    background-color: #3da6ff;
+    color: white;
+    border: none;
+}
+
+.admin-pill:hover {
+    background-color: #1e74f0;
+    transform: scale(1.05);
+}
+
+.admin-pill.active {
+    background-color: #0c63e7;
+    border: 2px solid #0c63e7;
+}

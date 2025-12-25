@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Access Denied{% endblock %}
+
+{% block content %}
+<div class="error-container" style="text-align: center; padding: 60px 20px; max-width: 600px; margin: 0 auto;">
+    <div class="error-icon" style="font-size: 72px; color: #dc3545; margin-bottom: 20px;">
+        🚫
+    </div>
+
+    <h1 style="font-size: 48px; color: #333; margin-bottom: 16px;">403</h1>
+    <h2 style="font-size: 24px; color: #555; margin-bottom: 24px;">Access Denied</h2>
+
+    <p style="font-size: 16px; color: #666; margin-bottom: 32px;">
+        You do not have permission to access this page. This area is restricted to administrators only.
+    </p>
+
+    <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+        <a href="{{ url_for('buy.buy') }}" class="btn btn-primary" style="padding: 12px 24px; text-decoration: none;">
+            Go to Marketplace
+        </a>
+        <a href="{{ url_for('account.account') }}" class="btn btn-secondary" style="padding: 12px 24px; text-decoration: none;">
+            My Account
+        </a>
+    </div>
+</div>
+{% endblock %}
