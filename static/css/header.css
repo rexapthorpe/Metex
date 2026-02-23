@@ -15,6 +15,7 @@
     box-sizing: border-box;
 }
 
+
 /* ===== CATEGORY SUBHEADER ===== */
 .subheader-bar {
     position: fixed;
@@ -37,9 +38,7 @@
     white-space: nowrap;
 }
 
-.subheader-inner::-webkit-scrollbar {
-    display: none;
-}
+.subheader-inner::-webkit-scrollbar { display: none; }
 
 .sub-pill {
     display: inline-flex;
@@ -58,10 +57,7 @@
     flex-shrink: 0;
 }
 
-.sub-pill:hover {
-    background: #f1f5f9;
-    color: #111827;
-}
+.sub-pill:hover { background: #f1f5f9; color: #111827; }
 
 .sub-pill.active {
     background: #eff6ff;
@@ -70,7 +66,6 @@
     font-weight: 600;
 }
 
-/* Metal color dots */
 .sub-metal::before {
     content: '';
     display: inline-block;
@@ -86,7 +81,6 @@
 .sub-palladium::before { background: #34d399; }
 .sub-copper::before  { background: #c2410c; }
 
-/* Divider between groups */
 .sub-divider {
     display: inline-block;
     width: 1px;
@@ -97,9 +91,11 @@
     vertical-align: middle;
 }
 
+/* On mobile the header is taller (auto-height with search on row 2).
+   JS in account.js measures the real bottom via getBoundingClientRect. */
 @media (max-width: 768px) {
     .subheader-bar {
-        top: 96px;
+        top: 100px; /* fallback — actual position set by header auto-height */
     }
 }
 

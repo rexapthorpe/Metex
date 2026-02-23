@@ -62,22 +62,54 @@ function showTab(tabName) {
     initReportsTab();
   }
 
-  // Update mobile title and close mobile sidebar after selection
-  var mobileTitle = document.getElementById('accountMobileTitle');
-  if (mobileTitle) {
+  // Update the tab name shown in the mobile menu button, then close sidebar
+  var mobileTabName = document.getElementById('accountMobileTabName');
+  if (mobileTabName) {
     var activeItem = document.querySelector('.account-sidebar .sidebar-item.active');
     if (activeItem) {
       var label = activeItem.querySelector('.sidebar-label');
-      if (label) mobileTitle.textContent = label.textContent.trim();
+      if (label) mobileTabName.textContent = label.textContent.trim();
     }
   }
   closeMobileAccountSidebar();
 }
 
 // Automatically open tab based on URL hash (e.g. #bids), or default to cart
+// ============================================================
+// Position mobile sidebar below the actual subheader bottom
+// ============================================================
+function positionMobileAccountSidebar() {
+  var header    = document.querySelector('.header-bar');
+  var subheader = document.querySelector('.subheader-bar');
+  var sidebar   = document.getElementById('accountSidebar');
+  var overlay   = document.getElementById('accountSidebarOverlay');
+  if (!header || !sidebar) return;
+
+  // Anchor the sidebar to the bottom of the main header.
+  // The subheader (z-index 999) sits above the sidebar (z-index 998)
+  // so it remains fully visible regardless of where the sidebar starts.
+  var headerBottom = Math.round(header.getBoundingClientRect().bottom);
+
+  // Also keep the subheader's mobile top in sync with the header bottom
+  if (subheader) {
+    subheader.style.top = headerBottom + 'px';
+  }
+
+  // Sidebar starts at main header bottom; subheader floats above it naturally
+  sidebar.style.top    = headerBottom + 'px';
+  sidebar.style.height = 'calc(100vh - ' + headerBottom + 'px)';
+
+  // Overlay greys out everything below the header (including account mobile header)
+  if (overlay) overlay.style.top = headerBottom + 'px';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const hash = window.location.hash.slice(1); // "orders" from "#orders"
   handleHashNavigation(hash);
+
+  // ── Position sidebar below the subheader ──
+  positionMobileAccountSidebar();
+  window.addEventListener('resize', positionMobileAccountSidebar);
 
   // ── Mobile Account Sidebar Toggle ──
   var menuBtn = document.getElementById('accountMobileMenuBtn');
@@ -86,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (menuBtn && sidebar) {
     menuBtn.addEventListener('click', function() {
+      positionMobileAccountSidebar(); // recalc in case header reflowed
       sidebar.classList.toggle('mobile-open');
       if (overlay) overlay.classList.toggle('show');
       document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';

@@ -119,37 +119,6 @@
         </div>
     </div>
 
-    <!-- === Category Subheader === -->
-    {% set _buy = request.endpoint == 'buy.buy' %}
-    {% set _m = request.args.get('metal', '') if _buy else '' %}
-    {% set _pl = request.args.get('product_line', '') if _buy else '' %}
-    {% set _all_active = _buy and not _m and not _pl and not request.args.get('search', '') %}
-    <div class="subheader-bar">
-        <div class="subheader-inner">
-
-            <a href="{{ url_for('buy.buy') }}" class="sub-pill {% if _all_active %}active{% endif %}">All</a>
-
-            <span class="sub-divider"></span>
-
-            <a href="{{ url_for('buy.buy', metal='Gold') }}"     class="sub-pill sub-metal sub-gold     {% if _m == 'Gold' %}active{% endif %}">Gold</a>
-            <a href="{{ url_for('buy.buy', metal='Silver') }}"   class="sub-pill sub-metal sub-silver   {% if _m == 'Silver' %}active{% endif %}">Silver</a>
-            <a href="{{ url_for('buy.buy', metal='Platinum') }}" class="sub-pill sub-metal sub-platinum {% if _m == 'Platinum' %}active{% endif %}">Platinum</a>
-            <a href="{{ url_for('buy.buy', metal='Palladium') }}" class="sub-pill sub-metal sub-palladium {% if _m == 'Palladium' %}active{% endif %}">Palladium</a>
-            <a href="{{ url_for('buy.buy', metal='Copper') }}"   class="sub-pill sub-metal sub-copper   {% if _m == 'Copper' %}active{% endif %}">Copper</a>
-
-            <span class="sub-divider"></span>
-
-            <a href="{{ url_for('buy.buy', product_line='American Eagle') }}"  class="sub-pill {% if _pl == 'American Eagle' %}active{% endif %}">American Eagle</a>
-            <a href="{{ url_for('buy.buy', product_line='American Buffalo') }}" class="sub-pill {% if _pl == 'American Buffalo' %}active{% endif %}">Buffalo</a>
-            <a href="{{ url_for('buy.buy', product_line='Maple Leaf') }}"      class="sub-pill {% if _pl == 'Maple Leaf' %}active{% endif %}">Maple Leaf</a>
-            <a href="{{ url_for('buy.buy', product_line='Krugerrand') }}"      class="sub-pill {% if _pl == 'Krugerrand' %}active{% endif %}">Krugerrand</a>
-            <a href="{{ url_for('buy.buy', product_line='Britannia') }}"       class="sub-pill {% if _pl == 'Britannia' %}active{% endif %}">Britannia</a>
-            <a href="{{ url_for('buy.buy', product_line='Panda') }}"           class="sub-pill {% if _pl == 'Panda' %}active{% endif %}">Panda</a>
-            <a href="{{ url_for('buy.buy', product_line='Philharmonic') }}"    class="sub-pill {% if _pl == 'Philharmonic' %}active{% endif %}">Philharmonic</a>
-
-        </div>
-    </div>
-
     <!-- Mobile Nav Drawer (slides from left on mobile) -->
     <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
     <div class="mobile-nav-drawer" id="mobileNavDrawer">

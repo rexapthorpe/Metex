@@ -159,11 +159,11 @@
     <div class="account-content">
       <!-- Mobile account header (only visible on small screens) -->
       <div class="account-mobile-header">
+        <span class="account-mobile-title">My Account</span>
         <button class="account-mobile-menu-btn" id="accountMobileMenuBtn" aria-label="Open account menu">
           <i class="fa-solid fa-bars"></i>
-          <span>Menu</span>
+          <span id="accountMobileTabName">Cart Items</span>
         </button>
-        <span class="account-mobile-title" id="accountMobileTitle">My Account</span>
       </div>
       <div id="cart-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/cart_tab.html' %}</div></div>
       <div id="bids-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/bids_tab.html' %}</div></div>
