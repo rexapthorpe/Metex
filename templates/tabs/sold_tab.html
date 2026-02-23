@@ -60,35 +60,8 @@
             <span class="sold-card-order-date">Order placed {{ sale.order_date }}</span>
           </div>
 
-          <!-- Specs + Buyer (two columns) -->
+          <!-- Buyer -->
           <div class="sold-card-body">
-            <!-- Item Specs -->
-            <div class="sold-specs-section">
-              <div class="sold-section-label">ITEM SPECIFICATIONS</div>
-              <div class="sold-specs-grid">
-                <div class="sold-spec"><span>Metal</span><strong>{{ sale.metal or '—' }}</strong></div>
-                <div class="sold-spec"><span>Weight</span><strong>{{ sale.weight or '—' }}</strong></div>
-                <div class="sold-spec"><span>Purity</span><strong>{{ sale.purity or '—' }}</strong></div>
-                <div class="sold-spec"><span>Year</span><strong>{{ sale.year or '—' }}</strong></div>
-                <div class="sold-spec"><span>Type</span><strong>{{ sale.product_type or '—' }}</strong></div>
-                <div class="sold-spec"><span>Mint</span><strong>{{ sale.mint or '—' }}</strong></div>
-                <div class="sold-spec"><span>Grade</span><strong>{{ sale.grade or '—' }}</strong></div>
-                <div class="sold-spec">
-                  <span>Graded</span>
-                  <strong>{% if sale.graded %}Yes ({{ sale.grading_service }}){% else %}No{% endif %}</strong>
-                </div>
-              </div>
-              <!-- Proceeds summary -->
-              <div class="sold-proceeds-row">
-                <span class="sold-proceeds-label">You Received:</span>
-                <span class="sold-proceeds-value">${{ '%.2f'|format(sale.seller_net) }}</span>
-                {% if sale.fee_percent %}
-                  <span class="sold-fee-note">({{ '%.1f'|format(sale.fee_percent) }}% fee)</span>
-                {% endif %}
-              </div>
-            </div>
-
-            <!-- Buyer Info -->
             <div class="sold-buyer-section">
               <div class="sold-section-label">BUYER</div>
               {% set buyer_initials = sale.buyer_username[:2].upper() if sale.buyer_username else '??' %}
@@ -180,6 +153,9 @@
               {{ sale.order_date }}
             </span>
             <div class="sold-footer-actions">
+              <button class="sold-footer-btn" onclick="openOrderItemsPopup({{ sale.order_id }})">
+                <i class="fa-solid fa-list"></i> Item Specs
+              </button>
               {% if sale.third_party_grading_requested %}
                 {% set item_desc = [sale.weight, sale.year, sale.metal, sale.product_line, sale.product_type] | select | join(' ') %}
                 {% set grading_service = sale.grading_service_requested or 'PCGS' %}
@@ -204,7 +180,7 @@
                 </button>
               {% endif %}
 
-              <button class="sold-footer-btn" onclick="typeof openReportUserModal !== 'undefined' && openReportUserModal({{ sale.order_id }})">
+              <button class="sold-footer-btn" onclick="openReportUserModalForSale({{ sale.order_id }})">
                 <i class="fa-regular fa-flag"></i> Report
               </button>
               <button class="sold-footer-btn" onclick="openMessageModal({{ sale.order_id }}, 'buyer')">
@@ -315,4 +291,24 @@ function filterSold(filter) {
   });
 }
 window.filterSold = filterSold;
+
+function openReportUserModalForSale(orderId) {
+  fetch('/orders/api/' + orderId + '/message_buyers')
+    .then(function(res) { return res.json(); })
+    .then(function(buyers) {
+      if (!buyers || buyers.length === 0) {
+        alert('No buyer found for this order.');
+        return;
+      }
+      var buyer = buyers[0];
+      if (typeof openReportUserModal === 'function') {
+        openReportUserModal(buyer.buyer_id, buyer.username, orderId);
+      }
+    })
+    .catch(function(err) {
+      console.error('[Report] Error fetching buyer:', err);
+      alert('Failed to load buyer information. Please try again.');
+    });
+}
+window.openReportUserModalForSale = openReportUserModalForSale;
 </script>

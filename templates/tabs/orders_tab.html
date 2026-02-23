@@ -17,7 +17,8 @@
     <div class="orders-list">
       {% for order in all_orders %}
         {% set order_filter = order.status | lower | replace(' ', '-') %}
-        <div class="order-card" id="order-{{ order.id }}" data-order-filter="{{ order_filter }}">
+        {% set is_canceled = order_filter in ('canceled', 'cancelled') %}
+        <div class="order-card{% if is_canceled %} order-card--canceled{% endif %}" id="order-{{ order.id }}" data-order-filter="{{ order_filter }}">
           <!-- Left: Image -->
           <div class="order-card-image">
             <img src="{{ order.image_url or url_for('static', filename='img/placeholder.png') }}" alt="Order">
@@ -50,6 +51,11 @@
             </div>
 
             <!-- Progress Bar -->
+            {% if is_canceled %}
+            <div class="order-canceled-bar">
+              <i class="fa-solid fa-circle-xmark"></i> This order was canceled
+            </div>
+            {% else %}
             <div class="order-progress">
               <div class="order-progress-label">Progress</div>
               <div class="order-progress-track">
@@ -63,6 +69,7 @@
                 <div class="order-progress-step {% if 4 <= step_idx %}order-progress-step--done{% endif %}">Delivered</div>
               </div>
             </div>
+            {% endif %}
 
             <!-- Meta Row -->
             <div class="order-card-meta">
@@ -113,25 +120,40 @@
               <button class="order-quick-action" onclick="openMessageModal({{ order.id }}, 'seller')">
                 <i class="fa-regular fa-message"></i> Message
               </button>
+              {% if not is_canceled %}
               <button class="order-action-track" onclick="addTrackingNumber({{ order.id }})">
                 <i class="fa-solid fa-truck"></i> Track
               </button>
+              {% endif %}
             </div>
-            {% if order.cancel_status == 'pending' %}
-              <div class="order-cancel-status order-cancel-status--pending">
-                <i class="fa-regular fa-clock"></i> Cancellation Pending
-              </div>
-            {% elif order.cancel_status == 'denied' %}
-              <div class="order-cancel-status order-cancel-status--denied">
-                <i class="fa-solid fa-xmark"></i> Request Denied
-              </div>
-            {% else %}
-              <button class="order-action-cancel" onclick="openCancelOrderModal ? openCancelOrderModal({{ order.id }}) : null">
-                <i class="fa-solid fa-circle-xmark"></i> Cancel Order
-              </button>
+            {% if not is_canceled %}
+              {% if order.cancel_status == 'pending' %}
+                <div class="order-cancel-status order-cancel-status--pending">
+                  <i class="fa-regular fa-clock"></i> Cancellation Pending
+                </div>
+              {% elif order.cancel_status == 'denied' %}
+                <div class="order-cancel-status order-cancel-status--denied">
+                  <i class="fa-solid fa-xmark"></i> Request Denied
+                </div>
+              {% elif order.cancel_status != 'approved' %}
+                {% if order.tracking_number %}
+                  <button class="order-action-cancel order-action-cancel--shipped"
+                          onclick="alert('This order has already been shipped and can no longer be cancelled.')">
+                    <i class="fa-solid fa-circle-xmark"></i> Cancel Order
+                  </button>
+                {% else %}
+                  <button class="order-action-cancel" onclick="openCancelOrderModal ? openCancelOrderModal({{ order.id }}) : null">
+                    <i class="fa-solid fa-circle-xmark"></i> Cancel Order
+                  </button>
+                {% endif %}
+              {% endif %}
             {% endif %}
-            <button class="order-action-report" onclick="openReportUserModalForOrder({{ order.id }})">
-              <i class="fa-regular fa-flag"></i> Report User
+            <button
+              class="order-action-report{% if order.report_status %} order-action-report--reported{% endif %}"
+              {% if not order.report_status %}onclick="openReportUserModalForOrder({{ order.id }})"{% endif %}
+              {% if order.report_status %}disabled{% endif %}>
+              <i class="fa-{% if order.report_status %}solid{% else %}regular{% endif %} fa-flag"></i>
+              {% if order.report_status %}Reported{% else %}Report User{% endif %}
             </button>
           </div>
         </div>

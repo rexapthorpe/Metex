@@ -8,7 +8,7 @@
 
 let portfolioValueChart = null;
 let portfolioAllocationChart = null;
-let currentTimeRange = '1d';
+let currentTimeRange = '1m';
 let portfolioData = null;
 
 /**
@@ -480,6 +480,14 @@ function renderHoldingsList(holdings) {
         tileDiv.setAttribute('data-seller-username', holding.seller_username || '');
         tileDiv.setAttribute('data-purchase-date', holding.purchase_date || '');
 
+        // Set item name and sub-title
+        const nameParts = [holding.weight, holding.year, holding.metal, holding.product_line, holding.product_type].filter(Boolean);
+        const nameEl = tile.querySelector('.holding-item-name');
+        if (nameEl) nameEl.textContent = nameParts.join(' ');
+        const subParts = [holding.mint, holding.purity].filter(Boolean);
+        const subEl = tile.querySelector('.holding-item-sub');
+        if (subEl) subEl.textContent = subParts.join(' · ');
+
         // Set image
         const img = tile.querySelector('.holding-image img');
         img.src = holding.image_url || '/static/img/placeholder.png';
@@ -515,7 +523,6 @@ function renderHoldingsList(holdings) {
 
         const currentPrice = holding.current_market_price || holding.purchase_price;
         tile.querySelector('.current-price-value').textContent = formatPrice(currentPrice);
-        tile.querySelector('.current-value-amount').textContent = formatPrice(holding.current_value);
 
         // Set gain/loss
         const gainLossEl = tile.querySelector('.gain-loss-value');

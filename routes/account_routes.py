@@ -183,6 +183,7 @@ def account():
                 """, (order['id'],)
             ).fetchall()
             order['sellers'] = [r['username'] for r in seller_rows]
+            order['seller_username'] = order['sellers'][0] if order['sellers'] else None
 
             # Set year to "Random" if order has items from multiple years
             if order.get('year_count', 1) > 1:
@@ -227,8 +228,10 @@ def account():
                WHERE oi2.order_id = o.id
                  AND pe.user_id = ?
              ) AS excluded_count,
+             o.tracking_number,
              (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_status,
-             (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_reason
+             (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_reason,
+             (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status
            FROM orders o
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id
@@ -237,7 +240,7 @@ def account():
             AND o.status IN ('Pending','Pending Shipment','Awaiting Shipment','Awaiting Delivery')
           GROUP BY o.id, o.status, o.created_at, o.delivery_address, o.shipping_address
           ORDER BY o.created_at DESC
-        """, (user_id, user_id, user_id)
+        """, (user_id, user_id, user_id, user_id)
     ).fetchall()
     raw_completed = conn.execute(
         """SELECT
@@ -275,7 +278,9 @@ def account():
                 JOIN portfolio_exclusions pe ON pe.order_item_id = oi2.id
                WHERE oi2.order_id = o.id
                  AND pe.user_id = ?
-             ) AS excluded_count
+             ) AS excluded_count,
+             (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_status,
+             (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status
            FROM orders o
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id
@@ -285,7 +290,7 @@ def account():
             AND o.status IN ('Delivered','Complete','Refunded','Cancelled','Canceled')
           GROUP BY o.id, o.status, o.created_at, o.delivery_address, o.shipping_address
           ORDER BY o.created_at DESC
-        """, (user_id, user_id, user_id)
+        """, (user_id, user_id, user_id, user_id)
     ).fetchall()
 
     pending_orders   = attach_sellers(raw_pending)
@@ -831,7 +836,7 @@ def order_items(order_id):
     raw_rows = cur.execute(
         """
         SELECT
-          oi.order_item_id AS item_id,
+          oi.id AS item_id,
           oi.order_id,
           oi.listing_id,
           oi.quantity,
@@ -859,7 +864,7 @@ def order_items(order_id):
         LEFT JOIN listing_photos AS lp
                ON lp.listing_id = l.id
         WHERE oi.order_id = ?
-        ORDER BY oi.price_each DESC, oi.order_item_id
+        ORDER BY oi.price_each DESC, oi.id
         """,
         (order_id,)
     ).fetchall()

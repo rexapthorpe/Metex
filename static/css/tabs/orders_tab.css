@@ -11,10 +11,21 @@
 .order-card {
   display: flex;
   border: 1px solid #e2e8f0;
+  border-left-width: 4px;
+  border-left-color: #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
   background: #ffffff;
   gap: 0;
+}
+
+.order-card--canceled {
+  border-left-color: #ef4444;
+  opacity: 0.65;
+}
+.order-card--canceled .order-card-info,
+.order-card--canceled .order-card-actions {
+  filter: grayscale(50%);
 }
 
 /* ===== Image ===== */
@@ -99,6 +110,18 @@
   color: #0f172a;
   margin-bottom: 12px;
 }
+
+/* ===== Canceled Bar ===== */
+.order-canceled-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b91c1c;
+  margin-bottom: 12px;
+}
+.order-canceled-bar i { color: #ef4444; }
 
 /* ===== Progress ===== */
 .order-progress { margin-bottom: 12px; }
@@ -246,6 +269,13 @@
 .order-action-cancel:hover { background: #fef2f2; }
 .order-action-cancel i { width: 16px; text-align: center; }
 
+.order-action-cancel--shipped {
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.order-action-cancel--shipped:hover { background: transparent; }
+
 /* Cancellation status badges (replace button when request exists) */
 .order-cancel-status {
   display: flex;
@@ -259,9 +289,9 @@
   justify-content: center;
 }
 .order-cancel-status--pending {
-  background: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
+  background: #fff7ed;
+  color: #92400e;
+  border: 1px solid #fed7aa;
 }
 .order-cancel-status--denied {
   background: #fef2f2;
@@ -287,6 +317,15 @@
 
 .order-action-report:hover { background: #f8fafc; }
 .order-action-report i { width: 16px; text-align: center; }
+
+.order-action-report--reported {
+  color: #92400e;
+  background: #fff7ed;
+  cursor: default;
+  pointer-events: none;
+}
+.order-action-report--reported i { color: #f59e0b !important; }
+.order-action-report--reported:hover { background: #fff7ed; }
 
 /* ===================================
    RESPONSIVE — ORDERS TAB

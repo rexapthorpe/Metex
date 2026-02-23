@@ -51,6 +51,7 @@ def get_user_holdings(user_id):
         JOIN categories c ON l.category_id = c.id
         LEFT JOIN users u ON l.seller_id = u.id
         WHERE o.buyer_id = ?
+          AND o.status NOT IN ('Canceled', 'Cancelled', 'canceled', 'cancelled', 'Refunded')
           AND oi.id NOT IN (
               SELECT order_item_id
               FROM portfolio_exclusions
@@ -300,6 +301,7 @@ def _compute_dynamic_history(user_id, days=30):
         JOIN listings l ON oi.listing_id = l.id
         JOIN categories c ON l.category_id = c.id
         WHERE o.buyer_id = ?
+          AND o.status NOT IN ('Canceled', 'Cancelled', 'canceled', 'cancelled', 'Refunded')
           AND oi.id NOT IN (
               SELECT order_item_id
               FROM portfolio_exclusions

@@ -301,20 +301,18 @@
 .osm-contact-btn {
   width: 100%;
   padding: 15px;
-  border: 1px solid #e5e7eb;
+  border: none;
   border-radius: 10px;
-  background: #f9fafb;
-  color: #9ca3af;
+  background: #2563eb;
+  color: #ffffff;
   font-size: 1rem;
-  cursor: not-allowed;
+  font-weight: 600;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   margin-bottom: 8px;
+  transition: background 0.15s ease;
 }
-.osm-contact-note {
-  text-align: center;
-  font-size: 0.8rem;
-  color: #9ca3af;
-}
+.osm-contact-btn:hover { background: #1d4ed8; }

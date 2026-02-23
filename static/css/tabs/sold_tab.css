@@ -141,18 +141,9 @@
   color: #64748b;
 }
 
-/* ===== Body: Specs + Buyer ===== */
+/* ===== Body: Buyer ===== */
 .sold-card-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
   border-top: 1px solid #e2e8f0;
-  margin: 0 0 0 0;
-}
-
-.sold-specs-section {
-  padding: 14px 20px;
-  border-right: 1px solid #e2e8f0;
 }
 
 .sold-buyer-section {
@@ -353,16 +344,6 @@
    =================================== */
 
 @media (max-width: 768px) {
-  /* Body: 2 cols → 1 col */
-  .sold-card-body {
-    grid-template-columns: 1fr;
-  }
-
-  .sold-specs-section {
-    border-right: none;
-    border-bottom: 1px solid #e2e8f0;
-  }
-
   /* Action bar stacks */
   .sold-action-bar {
     flex-direction: column;
@@ -375,8 +356,6 @@
     justify-content: flex-end;
   }
 
-  /* Specs grid: 2 cols → 2 cols (keep) */
-  .sold-specs-grid { gap: 6px; }
 }
 
 @media (max-width: 480px) {
@@ -384,7 +363,6 @@
   .sold-card-total-value { font-size: 18px; }
   .sold-card-title { font-size: 14px; }
 
-  .sold-specs-section,
   .sold-buyer-section { padding: 12px 14px; }
 
   /* Confirm buttons stack on very small screens */

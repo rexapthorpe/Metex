@@ -1,5 +1,6 @@
 let orderSellerData = [];
 let orderSellerIndex = 0;
+let orderSellerOrderId = null;
 
 function _osmEsc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
@@ -8,6 +9,7 @@ function _osmEsc(s) {
 }
 
 function openOrderSellerPopup(orderId) {
+  orderSellerOrderId = orderId;
   fetch(`/orders/api/${orderId}/order_sellers`)
     .then(res => {
       if (!res.ok) throw new Error('Could not load sellers');
@@ -84,13 +86,7 @@ function renderOrderSeller() {
   const fulfillmentPct = (s.fulfillment_pct != null) ? `${s.fulfillment_pct}%` : '--';
   const repeatBuyersPct = (s.repeat_buyers_pct != null) ? `${s.repeat_buyers_pct}%` : '--';
   const memberSince = s.member_since || '--';
-  const responseTime = s.response_time || '--';
-  const shipsFrom = s.ships_from || '--';
   const avgShipTime = s.avg_ship_time || '--';
-
-  const specsHtml = (Array.isArray(s.specializations) && s.specializations.length > 0)
-    ? s.specializations.map(t => `<span class="osm-tag">${esc(t)}</span>`).join('')
-    : '<span class="osm-tag">&mdash;</span>';
 
   document.getElementById('orderSellersModalContent').innerHTML = `
     ${navHtml}
@@ -147,20 +143,6 @@ function renderOrderSeller() {
         </div>
       </div>
       <div class="osm-info-item">
-        <div class="osm-info-icon"><i class="fa-regular fa-clock"></i></div>
-        <div>
-          <span class="osm-info-label">Response</span>
-          <span class="osm-info-value">${responseTime}</span>
-        </div>
-      </div>
-      <div class="osm-info-item">
-        <div class="osm-info-icon"><i class="fa-solid fa-location-dot"></i></div>
-        <div>
-          <span class="osm-info-label">Ships from</span>
-          <span class="osm-info-value">${shipsFrom}</span>
-        </div>
-      </div>
-      <div class="osm-info-item">
         <div class="osm-info-icon"><i class="fa-solid fa-truck"></i></div>
         <div>
           <span class="osm-info-label">Avg. ship time</span>
@@ -169,13 +151,9 @@ function renderOrderSeller() {
       </div>
     </div>
 
-    <div class="osm-specializes-label">Specializes in</div>
-    <div class="osm-tags">${specsHtml}</div>
-
-    <button class="osm-contact-btn" disabled>
-      <i class="fa-solid fa-lock"></i> Contact Seller
+    <button class="osm-contact-btn" onclick="openMessageModal(${orderSellerOrderId}, 'seller'); closeOrderSellerPopup();">
+      <i class="fa-regular fa-comment"></i> Contact Seller
     </button>
-    <div class="osm-contact-note">Purchase this item to contact seller</div>
   `;
 }
 
