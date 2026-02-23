@@ -1,0 +1,109 @@
+      <!-- Ledger Stats -->
+      <div class="stats-grid stats-grid-4">
+        <div class="stat-card stat-card-colored stat-card-blue">
+          <div class="stat-card-header">
+            <span class="stat-label">Total Orders</span>
+            <div class="stat-icon-inline">
+              <i class="fa-solid fa-file-invoice"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="ledger-stat-total-orders">-</div>
+        </div>
+        <div class="stat-card stat-card-colored stat-card-dark">
+          <div class="stat-card-header">
+            <span class="stat-label">Gross Volume</span>
+            <div class="stat-icon-inline">
+              <i class="fa-solid fa-dollar-sign"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="ledger-stat-gross-volume">-</div>
+        </div>
+        <div class="stat-card stat-card-colored stat-card-dark">
+          <div class="stat-card-header">
+            <span class="stat-label">Platform Fees</span>
+            <div class="stat-icon-inline">
+              <i class="fa-solid fa-percent"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="ledger-stat-platform-fees">-</div>
+        </div>
+        <div class="stat-card stat-card-colored stat-card-dark">
+          <div class="stat-card-header">
+            <span class="stat-label">Pending Payouts</span>
+            <div class="stat-icon-inline">
+              <i class="fa-solid fa-clock"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="ledger-stat-pending-payouts">-</div>
+        </div>
+      </div>
+
+      <!-- Ledger Filters -->
+      <div class="panel-toolbar ledger-toolbar">
+        <div class="search-filter-group">
+          <select class="filter-select" id="ledgerStatusFilter">
+            <option value="">All Statuses</option>
+            <option value="CHECKOUT_INITIATED">Checkout Initiated</option>
+            <option value="PAYMENT_PENDING">Payment Pending</option>
+            <option value="PAID_IN_ESCROW">Paid In Escrow</option>
+            <option value="UNDER_REVIEW">Under Review</option>
+            <option value="AWAITING_SHIPMENT">Awaiting Shipment</option>
+            <option value="PARTIALLY_SHIPPED">Partially Shipped</option>
+            <option value="SHIPPED">Shipped</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+            <option value="REFUNDED">Refunded</option>
+          </select>
+          <input type="number" class="filter-input-sm" id="ledgerBuyerIdFilter" placeholder="Buyer ID">
+          <input type="date" class="filter-input-sm" id="ledgerStartDate" placeholder="Start Date">
+          <input type="date" class="filter-input-sm" id="ledgerEndDate" placeholder="End Date">
+          <input type="number" class="filter-input-sm" id="ledgerMinGross" placeholder="Min $" step="0.01">
+          <input type="number" class="filter-input-sm" id="ledgerMaxGross" placeholder="Max $" step="0.01">
+        </div>
+        <div class="toolbar-actions">
+          <button class="toolbar-btn" onclick="applyLedgerFilters()"><i class="fa-solid fa-filter"></i> Apply</button>
+          <button class="toolbar-btn" onclick="clearLedgerFilters()"><i class="fa-solid fa-xmark"></i> Clear</button>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <h3>Transaction Ledger</h3>
+      </div>
+
+      <div class="data-table-container">
+        <table class="data-table" id="ledgerTable">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Buyer</th>
+              <th>Status</th>
+              <th>Items</th>
+              <th>Sellers</th>
+              <th>Gross</th>
+              <th>Fee</th>
+              <th>Payment</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ledgerTableBody">
+            <tr>
+              <td colspan="10" style="text-align: center; color: #6b7280; padding: 40px;">
+                <i class="fa-solid fa-spinner fa-spin"></i> Loading ledger...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Ledger Pagination -->
+      <div class="ledger-pagination">
+        <button class="toolbar-btn" id="ledgerPrevBtn" onclick="ledgerPrevPage()" disabled>
+          <i class="fa-solid fa-chevron-left"></i> Previous
+        </button>
+        <span class="pagination-info" id="ledgerPageInfo">Page 1</span>
+        <button class="toolbar-btn" id="ledgerNextBtn" onclick="ledgerNextPage()">
+          Next <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+    </div>

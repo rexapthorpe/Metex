@@ -1,32 +1,25 @@
 <!-- Cart Items (individual listings) modal -->
 <div id="priceBreakdownModal" class="cart-items-modal-overlay" style="display: none;">
-  <div class="cart-items-modal-content" role="dialog" aria-modal="true" aria-labelledby="pb-username">
-    <!-- Unified close button - positioned relative to modal card -->
+  <div class="cart-items-modal-content" role="dialog" aria-modal="true" aria-labelledby="pb-title">
     <button type="button" class="modal-close" onclick="closePriceBreakdown()" aria-label="Close modal">&times;</button>
-    <div class="cart-items-modal-header">
-      <button
-        id="pb-prev"
-        class="cart-items-nav-arrow"
-        onclick="event.stopPropagation(); prevPriceListing()"
-        aria-label="Previous item"
-        type="button"
-      >←</button>
 
-      <!-- Kept id for compatibility; serves as centered title -->
-      <span id="pb-username" class="cart-items-modal-title">Item</span>
-
-      <button
-        id="pb-next"
-        class="cart-items-nav-arrow"
-        onclick="event.stopPropagation(); nextPriceListing()"
-        aria-label="Next item"
-        type="button"
-      >→</button>
+    <!-- Header: icon + title + subtitle -->
+    <div class="oim-header">
+      <div class="oim-header-icon"><i class="fa-solid fa-cube"></i></div>
+      <div class="oim-header-text">
+        <h3 id="pb-title" class="oim-header-title">Cart Items</h3>
+        <p id="pb-subtitle" class="oim-header-subtitle"></p>
+      </div>
     </div>
 
-    <div id="pb-modal-content" class="cart-items-modal-body">
-      <!-- Filled by JS: loading | error | two-column details with image -->
+    <!-- Nav row: only shown when multiple listings -->
+    <div class="oim-nav" id="pb-nav-row" style="display: none;">
+      <button id="pb-prev" class="oim-nav-arrow" onclick="event.stopPropagation(); prevPriceListing()" type="button" aria-label="Previous item">&#8592;</button>
+      <span id="pb-counter" class="oim-nav-counter"></span>
+      <button id="pb-next" class="oim-nav-arrow" onclick="event.stopPropagation(); nextPriceListing()" type="button" aria-label="Next item">&#8594;</button>
     </div>
-    <!-- No footer and no Close/X buttons (outside click + Esc to close) -->
+
+    <!-- Content filled by JS -->
+    <div id="pb-modal-content" class="order-items-modal-body"></div>
   </div>
 </div>

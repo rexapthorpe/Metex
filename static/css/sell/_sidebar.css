@@ -1,0 +1,324 @@
+/* ========== STICKY SIDEBAR LAYOUT ========== */
+.sell-page-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  align-items: start;
+}
+
+.sell-main-form {
+  min-width: 0; /* Prevent grid blowout */
+}
+
+.sell-sticky-sidebar {
+  position: sticky;
+  top: 80px; /* Account for fixed header */
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+/* Sidebar content container (single card) */
+.sidebar-container {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sidebar-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.sidebar-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.sidebar-section {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.sidebar-section:last-child {
+  border-bottom: none;
+}
+
+.sidebar-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 0.75rem 0;
+}
+
+/* Listing Summary Styles */
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.summary-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.summary-value {
+  color: #111827;
+  font-weight: 600;
+  text-align: right;
+}
+
+.summary-value.empty {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Completion Checklist Styles */
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.checklist-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+}
+
+.checklist-icon.incomplete {
+  border: 2px solid #d1d5db;
+  color: #9ca3af;
+}
+
+.checklist-icon.complete {
+  background: #10b981;
+  color: white;
+}
+
+.checklist-icon.complete::before {
+  content: "✓";
+}
+
+.checklist-label {
+  color: #374151;
+}
+
+.checklist-item.complete .checklist-label {
+  color: #6b7280;
+}
+
+/* Set Items in Sidebar */
+.sidebar-set-items {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 0.75rem;
+}
+
+.sidebar-set-tile {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-set-tile-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+.sidebar-set-tile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-set-tile-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1976d2;
+  margin: 0 0 0.25rem 0;
+}
+
+.sidebar-set-tile-summary {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-set-tile-controls {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.sidebar-set-tile-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+  transition: all 0.2s;
+}
+
+.sidebar-set-tile-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.sidebar-set-tile-btn.remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Sidebar CTA Button */
+.sidebar-cta-wrapper {
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.sidebar-cta-btn {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-cta-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.sidebar-cta-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Add Another Item button in sidebar */
+.sidebar-add-item-btn {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: #3da6ff;  /* Blue when enabled */
+  color: white;
+  border: 2px solid #3da6ff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 0.75rem;
+}
+
+.sidebar-add-item-btn:hover:not(:disabled) {
+  background: #2890e8;
+  border-color: #2890e8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(61, 166, 255, 0.3);
+}
+
+.sidebar-add-item-btn:disabled {
+  background: #f3f4f6;  /* Gray when disabled */
+  color: #9ca3af;
+  border: 2px dashed #d1d5db;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Mobile Responsive */
+@media (max-width: 1024px) {
+  .sell-page-wrapper {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .sell-sticky-sidebar {
+    position: relative;
+    top: 0;
+    max-height: none;
+    order: 2; /* Place sidebar after form on mobile */
+  }
+  
+  .sell-main-form {
+    order: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .sell-page-wrapper {
+    padding: 1rem;
+  }
+  
+  .sidebar-container {
+    padding: 1rem;
+  }
+}
+
+/* Scrollbar styling for set items list */
+.sidebar-set-items::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-set-items::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+
+.sidebar-set-items::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.sidebar-set-items::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+

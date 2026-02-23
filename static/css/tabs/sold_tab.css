@@ -1,444 +1,322 @@
-/* ==========================================================================
-   Sold Items Tab - Professional Design with Boxed Sections
-   ========================================================================== */
+/* sold_tab.css */
 
-.sold-tab {
-  padding: 0;
-}
-
-.order-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(700px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-}
-
-/* Compact Sold Tile */
-.sold-tile-compact {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.sold-tile-compact:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-}
-
-/* Header Section */
-.sold-tile-header {
-  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-  padding: 16px 20px;
-  border-bottom: 2px solid #e5e7eb;
-}
-
-.item-title-section {
+.sold-list {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   gap: 16px;
 }
 
-.item-title {
-  font-size: 17px;
-  font-weight: 700;
-  color: #111827;
-  margin: 0;
-  flex: 1;
+/* ===== Sold Card ===== */
+.sold-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  border-left-width: 4px;
 }
 
-/* Status Badge */
-.status-badge {
+/* Left border color by status */
+.sold-card--awaiting-confirmation,
+.sold-card--awaiting\.confirmation,
+.sold-card--pending { border-left-color: #f59e0b; }
+.sold-card--shipped { border-left-color: #3b82f6; }
+.sold-card--delivered,
+.sold-card--completed { border-left-color: #22c55e; }
+.sold-card--cancelled { border-left-color: #ef4444; }
+
+/* ===== Card Header ===== */
+.sold-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sold-card-header-left {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 13px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ===== Status Badge ===== */
+.sold-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 600;
-  white-space: nowrap;
-  background: #f3f4f6;
-  color: #6b7280;
+  padding: 3px 10px;
+  border-radius: 9999px;
 }
 
-.status-badge.status-delivered {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.status-badge.status-pending,
-.status-badge.status-pending-shipment {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-badge.status-awaiting-delivery {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
+.sold-status-dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: currentColor;
   display: inline-block;
 }
 
-/* Content Area - Two Column Grid */
-.sold-tile-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
-  gap: 16px;
-  padding: 20px;
-}
+.sold-status-badge--awaiting-confirmation,
+.sold-status-badge--pending { background: #fef3c7; color: #92400e; }
+.sold-status-badge--awaiting-confirmation .sold-status-dot,
+.sold-status-badge--pending .sold-status-dot { background: #f59e0b; }
 
-/* Section Common Styles */
-.sold-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.sold-status-badge--shipped { background: #dbeafe; color: #1e40af; }
+.sold-status-badge--shipped .sold-status-dot { background: #3b82f6; }
 
-.section-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #374151;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0 0 8px 0;
-  padding-bottom: 6px;
-  border-bottom: 2px solid #e5e7eb;
-}
+.sold-status-badge--delivered,
+.sold-status-badge--completed { background: #dcfce7; color: #166534; }
+.sold-status-badge--delivered .sold-status-dot,
+.sold-status-badge--completed .sold-status-dot { background: #22c55e; }
 
-/* Price Details Section (Top Left) */
-.price-details-section {
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-}
+.sold-status-badge--cancelled { background: #fee2e2; color: #991b1b; }
+.sold-status-badge--cancelled .sold-status-dot { background: #ef4444; }
 
-.price-details-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.price-line {
-  display: flex;
-  justify-content: space-between;
+/* ===== Type Badge ===== */
+.sold-type-badge {
+  display: inline-flex;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.price-line:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.price-line:first-child {
-  padding-top: 0;
-}
-
-.price-line.total-line {
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 2px solid #d1d5db;
-  font-weight: 700;
-}
-
-.price-label {
+  gap: 4px;
+  font-size: 11px;
   font-weight: 600;
-  color: #6b7280;
-  font-size: 14px;
+  padding: 3px 10px;
+  border-radius: 6px;
 }
 
-.price-value {
+.sold-type-badge--standard { background: #f1f5f9; color: #475569; }
+.sold-type-badge--ooak { background: #ede9fe; color: #6d28d9; }
+.sold-type-badge--set { background: #d1fae5; color: #065f46; }
+.sold-type-badge--edition { background: #ddd6fe; color: #4c1d95; }
+.sold-type-badge--tpg { background: #dbeafe; color: #1e40af; }
+
+/* ===== Total Block ===== */
+.sold-card-total { text-align: right; }
+.sold-card-total-label { font-size: 10px; font-weight: 600; color: #94a3b8; letter-spacing: 0.08em; display: block; }
+.sold-card-total-value { font-size: 22px; font-weight: 700; color: #0f172a; display: block; }
+.sold-card-total-breakdown { font-size: 12px; color: #64748b; display: block; }
+
+/* ===== Title Row ===== */
+.sold-card-title-row {
+  padding: 12px 20px 8px;
+}
+
+.sold-card-title {
+  font-size: 16px;
   font-weight: 600;
-  color: #111827;
-  font-size: 15px;
+  color: #0f172a;
+  margin: 0 0 2px 0;
 }
 
-.total-line .price-value {
-  color: #059669;
-  font-size: 18px;
+.sold-card-order-date {
+  font-size: 12px;
+  color: #64748b;
 }
 
-/* Item Details Section (Bottom Left) */
-.item-description-section {
-  grid-column: 1 / 2;
-  grid-row: 2 / 3;
-}
-
-.item-details-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
+/* ===== Body: Specs + Buyer ===== */
+.sold-card-body {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px 16px;
-  position: relative;
+  gap: 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 0 0 0 0;
 }
 
-/* Vertical divider between columns */
-.item-details-box::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 5px;
-  bottom: 5px;
-  width: 1px;
-  background: #e5e7eb;
-  transform: translateX(-50%);
+.sold-specs-section {
+  padding: 14px 20px;
+  border-right: 1px solid #e2e8f0;
 }
 
-.detail-line {
-  display: flex;
-  align-items: flex-start;
+.sold-buyer-section {
+  padding: 14px 20px;
+}
+
+.sold-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+/* ===== Specs Grid ===== */
+.sold-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  padding: 4px 0;
-  font-size: 13px;
-  color: #1f2937;
-  line-height: 1.5;
+  margin-bottom: 12px;
 }
 
-.detail-line strong {
-  color: #6b7280;
-  font-weight: 600;
-  min-width: 70px;
-  flex-shrink: 0;
-}
-
-.detail-line span {
-  color: #111827;
-  flex: 1;
-}
-
-/* Buyer Info Section (Top Right) */
-.buyer-info-section {
-  grid-column: 2 / 3;
-  grid-row: 1 / 2;
-}
-
-.buyer-details-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
+.sold-spec {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 1px;
 }
 
-.buyer-line {
+.sold-spec span { font-size: 11px; color: #64748b; }
+.sold-spec strong { font-size: 13px; color: #0f172a; font-weight: 500; }
+
+/* ===== Proceeds ===== */
+.sold-proceeds-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.sold-proceeds-label { font-size: 12px; color: #64748b; }
+.sold-proceeds-value { font-size: 16px; font-weight: 700; color: #0f172a; }
+.sold-fee-note { font-size: 11px; color: #94a3b8; }
+
+/* ===== Buyer Card ===== */
+.sold-buyer-card {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 0;
+  margin-bottom: 8px;
+}
+
+.sold-buyer-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #334155;
+  color: #ffffff;
   font-size: 14px;
-  color: #1f2937;
-}
-
-.buyer-line i {
-  color: #6b7280;
-  width: 18px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.buyer-line strong {
-  color: #6b7280;
-  font-weight: 600;
-  margin-right: 4px;
-}
-
-/* Shipping Address Section (Bottom Right - directly under Buyer Info) */
-.shipping-address-section {
-  grid-column: 2 / 3;
-  grid-row: 2 / 3;
-}
-
-.address-details-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.address-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 10px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.address-line:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.address-line:first-child {
-  padding-top: 0;
-}
-
-/* ✅ Label/value styling matching Congrats modal */
-.address-label {
-  font-weight: 600;
-  color: #6b7280;
-  font-size: 14px;
-  min-width: 130px;
-}
-
-.address-value {
-  font-weight: 600;
-  color: #111827;
-  font-size: 15px;
-  text-align: right;
-  flex: 1;
-}
-
-/* Legacy support for old strong/span structure (if any exist) */
-.address-line strong {
-  color: #6b7280;
-  font-weight: 600;
-  min-width: 120px;
-  flex-shrink: 0;
-}
-
-.address-line span:not(.address-label):not(.address-value) {
-  color: #111827;
-  flex: 1;
-}
-
-.address-not-collected {
-  color: #9ca3af;
-  font-style: italic;
-  text-align: center;
-  padding: 8px 0;
-  display: block;
-}
-
-/* Actions Row */
-.sold-actions-row {
-  display: flex;
-  gap: 10px;
-  padding: 16px 20px;
-  background: #f9fafb;
-  border-top: 1px solid #e5e7eb;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.sold-action-btn {
-  flex: 0 0 auto; /* shrink to content width */
-
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px 14px; /* slightly tighter, still readable */
-  font-size: 14px;
-  font-weight: 600;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #374151;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.sold-action-btn:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
-  transform: translateY(-1px);
+.sold-buyer-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+.sold-buyer-username { font-size: 12px; color: #64748b; }
+
+.sold-buyer-address {
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
 }
 
-/* Make all action buttons share the same neutral style */
-.sold-action-btn--message,
-.sold-action-btn--rate,
-.sold-action-btn--tracking {
-  border-radius: 9999px;
-  border: none;
-  border-color: none;
-  color: #000000;
-  background-color: #f9fafb;
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
+.sold-buyer-address i { color: #94a3b8; margin-top: 1px; flex-shrink: 0; }
+.sold-buyer-address--default { color: #94a3b8; }
+
+/* ===== Action Bar (Confirm/Decline) ===== */
+.sold-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid #e2e8f0;
 }
 
-.sold-action-btn--message:hover,
-.sold-action-btn--rate:hover,
-.sold-action-btn--tracking:hover {
-  border-radius: 9999px;
-  background: #3da6ff;
-  border-color: none;
-  color: #ffffff;
+.sold-action-bar--confirm {
+  background: #fff7ed;
+  border-top-color: #fed7aa;
 }
 
-
-.sold-action-btn i {
-  font-size: 14px;
+.sold-action-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-/* Empty State */
-.empty-message {
-  text-align: center;
-  padding: 60px 20px;
-  color: #9ca3af;
+.sold-action-bar-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 16px;
+}
+
+.sold-action-bar-icon--warning { background: #fde68a; color: #92400e; }
+
+.sold-action-bar-title { font-size: 14px; font-weight: 600; color: #0f172a; }
+.sold-action-bar-subtitle { font-size: 12px; color: #64748b; }
+
+.sold-action-bar-right {
+  display: flex;
+  gap: 8px;
+}
+
+.sold-confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid;
+  transition: background 0.15s ease;
+}
+
+.sold-confirm-btn--decline { background: #ffffff; color: #ef4444; border-color: #fca5a5; }
+.sold-confirm-btn--decline:hover { background: #fef2f2; }
+.sold-confirm-btn--accept { background: #16a34a; color: #ffffff; border-color: #16a34a; }
+.sold-confirm-btn--accept:hover { background: #15803d; }
+
+/* ===== Card Footer ===== */
+.sold-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.sold-footer-date {
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sold-footer-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.sold-footer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
   font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .order-grid {
-    grid-template-columns: 1fr;
-  }
+.sold-footer-btn:hover { background: #f1f5f9; color: #374151; }
+
+.sold-footer-btn--track {
+  background: #1e293b;
+  color: #ffffff;
+  padding: 5px 12px;
 }
 
-@media (max-width: 768px) {
-  .sold-tile-content {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-  }
+.sold-footer-btn--track:hover { background: #334155; color: #ffffff; }
 
-  .price-details-section,
-  .item-description-section,
-  .buyer-info-section,
-  .shipping-address-section {
-    grid-column: 1 / 2 !important;
-    grid-row: auto !important;
-  }
-
-  /* Item details back to single column on mobile */
-  .item-details-box {
-    grid-template-columns: 1fr;
-  }
-
-  /* Hide divider on single column layout */
-  .item-details-box::before {
-    display: none;
-  }
-
-  .sold-actions-row {
-    flex-direction: column;
-  }
-
-  .item-title {
-    font-size: 15px;
-  }
-
-  .detail-line strong,
-  .address-line strong {
-    min-width: 100px;
-  }
-
-  .detail-line strong {
-    min-width: 90px;
-  }
+.sold-footer-btn--rated {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #16a34a;
+  cursor: default;
+  pointer-events: none;
 }
+.sold-footer-btn--rated i { color: #22c55e !important; }

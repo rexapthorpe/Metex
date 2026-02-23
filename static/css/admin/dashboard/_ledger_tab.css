@@ -1,0 +1,87 @@
+/* ============================================
+   LEDGER TAB STYLES
+   ============================================ */
+
+.ledger-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.ledger-toolbar .filter-input-sm {
+  width: 100px;
+}
+
+.ledger-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 16px 0;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.order-link {
+  color: #4f46e5;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.order-link:hover {
+  text-decoration: underline;
+}
+
+/* Status badge for processing */
+.status-processing {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+/* Filter inputs */
+.filter-input-sm {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  width: 100px;
+  background: #ffffff;
+  transition: border-color 0.2s;
+}
+
+.filter-input-sm:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.filter-input-sm::placeholder {
+  color: #9ca3af;
+}
+
+/* XL Modal for Ledger Details */
+.admin-modal-xl {
+  max-width: 900px;
+  width: 90%;
+}
+
+/* Modal loading state */
+.modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 16px;
+  color: #6b7280;
+}
+
+.modal-loading i {
+  font-size: 32px;
+}
+
+

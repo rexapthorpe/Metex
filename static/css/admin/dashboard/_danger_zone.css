@@ -1,0 +1,72 @@
+/* ============================================
+   DANGER ZONE
+   ============================================ */
+
+.danger-zone-card {
+  background: #fef2f2;
+  border: 2px solid #fecaca;
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 16px;
+}
+
+.danger-zone-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.danger-zone-icon {
+  width: 56px;
+  height: 56px;
+  background: #fee2e2;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.danger-zone-icon i {
+  font-size: 24px;
+  color: #dc2626;
+}
+
+.danger-zone-info {
+  flex: 1;
+}
+
+.danger-zone-info h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #991b1b;
+  margin: 0 0 6px;
+}
+
+.danger-zone-info p {
+  font-size: 14px;
+  color: #7f1d1d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.btn-danger-lg {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-danger-lg:hover {
+  background: #b91c1c;
+}
+

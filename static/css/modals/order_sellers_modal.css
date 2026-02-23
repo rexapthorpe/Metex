@@ -3,130 +3,318 @@
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.55);
   z-index: 1000;
   justify-content: center;
   align-items: center;
 }
 
-/* Modal box */
+/* Modal card */
 .order-sellers-modal-content {
   background: #fff;
   border-radius: 20px;
   width: 90%;
-  max-width: 350px;            /* match cart modal width */
-  max-height: 500px;           /* optional cap like cart */
-  position: relative;          /* for any positioned children */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  overflow: visible; /* Changed from hidden to allow close button to extend outside */
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  padding: 24px;
 }
 
-/* Header: nav arrows + centered title (username) */
-.order-sellers-modal-content .modal-header {
+/* Close button — outlined circle style */
+.order-sellers-modal-content .modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border: 2px solid #1a2b4a;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: #ffffff;
-  border-radius: 20px 20px 0 0; /* Match parent's top corners */
+  justify-content: center;
+  color: #1a2b4a;
+  transition: background 0.2s;
+  z-index: 10;
+}
+.order-sellers-modal-content .modal-close:hover {
+  background: #f0f4f8;
+  transform: none;
 }
 
-.order-sellers-modal-content .nav-arrow {
+/* Page title */
+.osm-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 20px 0;
+  padding-right: 52px;
+}
+
+/* Nav arrows (multiple sellers) */
+.osm-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.osm-nav-arrow {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #374151;
+  transition: background 0.2s;
+}
+.osm-nav-arrow:disabled { visibility: hidden; }
+.osm-nav-arrow:hover:not(:disabled) { background: #f3f4f6; }
+.osm-nav-counter {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+/* Identity row */
+.osm-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Avatar circle */
+.osm-avatar {
+  width: 72px;
+  height: 72px;
+  min-width: 72px;
+  border-radius: 50%;
+  background: #b0bec5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #546e7a;
+  text-transform: uppercase;
+}
+
+.osm-identity-info {
+  flex: 1;
+  padding-top: 4px;
+}
+.osm-display-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 2px 0;
+}
+.osm-username {
+  font-size: 0.88rem;
+  color: #6b7280;
+  margin: 0 0 8px 0;
+}
+.osm-verified-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  margin: 5px;
-  font-size: 1.4rem;
-  line-height: 1;
-  border: transparent;
-  background: transparent;
-  border-radius: 17px;
-  cursor: pointer;
-  color: #000000;
-}
-.order-sellers-modal-content .nav-arrow:disabled {
-  visibility: hidden;
-}
-.order-sellers-modal-content .nav-arrow:hover:not(:disabled) {
-  background-color: #3da6ff;
-  color: #ffffff;
-}
-
-/* Title styling (same feel as cart's username-section) */
-.order-sellers-modal-content .modal-title {
-  flex: 1;
-  text-align: center;
-  line-height: 1;
-  font-size: 1.7rem;
-  font-weight: bold;
-  margin: 0;
-}
-
-/* Body — key change: horizontal padding to create side margins,
-   left-aligned text, extra breathing room like cart */
-.order-sellers-modal-content .modal-body {
-  padding: 8px 50px 24px;  /* side margins match cart (24px) */
-  text-align: left;
-}
-
-/* Placeholder image */
-.order-sellers-modal-content .seller-photo {
-  width: 250px;
-  height: 250px;
-  margin: 0 auto 16px;
-  background: #eee;
+  gap: 5px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
   border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  color: #16a34a;
+  font-weight: 500;
+}
+
+/* Divider between identity and stats */
+.osm-divider {
+  border: none;
+  border-top: 1px solid #f0f0f0;
+  margin: 0 0 16px 0;
+}
+
+/* Stats card */
+.osm-stats-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.osm-stats-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+.osm-rating-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.osm-rating-number {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1;
+}
+.osm-stars-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.osm-stars {
+  display: flex;
+  gap: 1px;
+}
+.osm-stars .star {
+  font-size: 1.2rem;
+  color: #f5a623;
+}
+.osm-stars .star.empty {
+  color: #d1d5db;
+}
+.osm-reviews-count {
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+.osm-transactions-block {
+  text-align: right;
+}
+.osm-transactions-num {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1;
+}
+.osm-transactions-label {
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+.osm-stats-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.osm-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.osm-stat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #e8edf5;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #777;
   font-size: 0.9rem;
+  color: #4a5568;
+  flex-shrink: 0;
+}
+.osm-stat-icon.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+.osm-stat-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+.osm-stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1;
 }
 
-/* Rows under the image */
-.order-sellers-modal-content .stats-row {
+/* Info grid */
+.osm-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 8px;
+  margin-bottom: 16px;
+}
+.osm-info-item {
   display: flex;
-  flex-wrap: nowrap;
-  justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
+}
+.osm-info-icon {
+  font-size: 0.88rem;
+  color: #9ca3af;
+  margin-top: 1px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+.osm-info-label {
+  font-size: 0.76rem;
+  color: #9ca3af;
+  display: block;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+.osm-info-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+/* Specializations */
+.osm-specializes-label {
+  font-size: 0.82rem;
+  color: #6b7280;
   margin-bottom: 8px;
 }
-
-/* Rating number + stars */
-.order-sellers-modal-content .avg-rating {
-  font-size: 1.7rem;
-  color: #000000;
-  margin-right: 8px;
+.osm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.osm-tag {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  color: #374151;
 }
 
-.order-sellers-modal-content .stars .star {
-  font-size: 1.9rem;
-  margin-right: 2px;
-  color: #ccc;
+/* Contact button */
+.osm-contact-btn {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+  color: #9ca3af;
+  font-size: 1rem;
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
-.order-sellers-modal-content .stars .star.filled {
-  color: #000000;
-}
-
-/* Review count */
-.order-sellers-modal-content .review-count {
-  font-style: italic;
-  font-size: 0.85rem;
-  color: #666;
-}
-
-/* Optional unit count line (if present via JS) */
-.order-sellers-modal-content .unit-count {
-  font-weight: bold;
-  color: #000000;
-}
-
-/* Footer exists for structure but has no action button here */
-.order-sellers-modal-content .modal-footer {
-  padding: 12px 16px;
-  background: #ffffff;
-  border-radius: 0 0 20px 20px; /* Match parent's bottom corners */
+.osm-contact-note {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #9ca3af;
 }

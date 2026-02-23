@@ -1,0 +1,138 @@
+/* listing_specs_modal.css */
+
+/* Overlay */
+.lsm-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+/* White card */
+.lsm-content {
+  background: #fff;
+  border-radius: 16px;
+  width: 92%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  position: relative;
+  padding: 24px;
+}
+
+/* Close button */
+.lsm-content .modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border: 2px solid #1a2b4a;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a2b4a;
+  transition: background 0.2s;
+  z-index: 10;
+}
+.lsm-content .modal-close:hover { background: #f0f4f8; }
+
+/* Specs button in footer */
+.listing-footer-btn--specs { color: #1a2b4a; }
+.listing-footer-btn--specs:hover { background: #f0f4f8; }
+
+/* ---- oim-* design tokens (shared with other item modals) ---- */
+
+.oim-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-right: 54px;
+  margin-bottom: 16px;
+}
+.oim-header-icon { font-size: 1.4rem; color: #1a2b4a; margin-top: 3px; flex-shrink: 0; }
+.oim-header-title { font-size: 1.3rem; font-weight: 700; color: #1a1a1a; margin: 0 0 3px 0; }
+.oim-header-subtitle { font-size: 0.84rem; color: #6b7280; margin: 0; }
+
+.oim-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.oim-item-image {
+  width: 88px;
+  height: 88px;
+  min-width: 88px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f0f0f0;
+  display: block;
+}
+.oim-item-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+}
+.oim-item-details { flex: 1; min-width: 0; }
+.oim-item-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.oim-item-title { font-size: 1.05rem; font-weight: 700; color: #1a1a1a; line-height: 1.3; }
+.oim-item-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: #6b7280;
+}
+.oim-qty-badge {
+  background: #f3f4f6;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.oim-specs-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+}
+.oim-specs-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #6b7280;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.oim-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 20px;
+}
+.oim-spec-item { display: flex; align-items: center; gap: 8px; font-size: 0.87rem; }
+.oim-spec-icon { font-size: 0.82rem; color: #9ca3af; width: 16px; text-align: center; flex-shrink: 0; }
+.oim-spec-label { color: #6b7280; flex-shrink: 0; }
+.oim-spec-value { font-weight: 700; color: #1a1a1a; }
+
+@media (max-width: 480px) {
+  .oim-specs-grid { grid-template-columns: 1fr; }
+  .oim-item-title-row { flex-direction: column; gap: 4px; }
+}

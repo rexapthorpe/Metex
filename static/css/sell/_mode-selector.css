@@ -1,0 +1,126 @@
+/* ========== LISTING MODE SELECTOR STYLES ========== */
+.listing-mode-selector {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+  max-width: 900px;
+}
+
+.mode-option {
+  cursor: pointer;
+  display: block;
+}
+
+.mode-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mode-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fff;
+  transition: all 0.2s ease;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-option:hover .mode-card {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.mode-option input[type="radio"]:checked ~ .mode-card {
+  border-color: #1976d2;
+  background: #f0f7ff;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+}
+
+.mode-option input[type="radio"]:checked ~ .mode-card .listing-mode-icon {
+  color: #1976d2;
+}
+
+/* Standard mode (emphasized) */
+.mode-standard input[type="radio"]:checked ~ .mode-card {
+  border-color: #059669;
+  background: #f0fdf4;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);
+}
+
+.mode-standard input[type="radio"]:checked ~ .mode-card .listing-mode-icon {
+  color: #059669;
+}
+
+.listing-mode-icon {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 0.75rem;
+  color: #6b7280;
+  transition: color 0.2s ease;
+}
+
+.listing-mode-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2;
+}
+
+.mode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.mode-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #1f2937;
+}
+
+.mode-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.mode-badge.recommended {
+  background: #059669;
+  color: white;
+}
+
+.mode-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Warning message styling */
+.warning-message {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  color: #92400e;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Mobile responsiveness for mode selector */
+@media (max-width: 768px) {
+  .listing-mode-selector {
+    grid-template-columns: 1fr;
+  }
+  
+  .mode-card {
+    min-height: auto;
+  }
+}
+

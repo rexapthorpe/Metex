@@ -1,0 +1,98 @@
+
+/* === Global Dark Mode Overrides === */
+
+/* Flash messages */
+body.dark-mode .flash-container {
+    background-color: var(--flash-bg);
+}
+
+body.dark-mode .flash-message {
+    background-color: var(--flash-bg);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
+}
+
+/* Inputs, textareas, and selects */
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select {
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+    color: var(--text-muted);
+}
+
+body.dark-mode input:focus,
+body.dark-mode textarea:focus,
+body.dark-mode select:focus {
+    border-color: var(--accent-primary);
+    outline-color: var(--accent-primary);
+}
+
+/* Links */
+body.dark-mode a {
+    color: var(--accent-primary);
+}
+
+body.dark-mode a:hover {
+    color: var(--accent-hover);
+}
+
+/* Cards and panels */
+body.dark-mode .card,
+body.dark-mode .panel,
+body.dark-mode .box {
+    background-color: var(--bg-card);
+    border-color: var(--border-primary);
+}
+
+/* Tables */
+body.dark-mode table {
+    border-color: var(--border-primary);
+}
+
+body.dark-mode th {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
+}
+
+body.dark-mode td {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
+}
+
+body.dark-mode tr:hover td {
+    background-color: var(--bg-hover);
+}
+
+/* Scrollbars for dark mode */
+body.dark-mode ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 4px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* Smooth transitions for theme changes */
+body, .header-bar, .category-subheader, .account-sidebar,
+.account-content, .site-footer, .product-tile, .image-box,
+.btn-pill, input, textarea, select, .modal-overlay, .modal-content {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

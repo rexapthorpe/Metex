@@ -12,7 +12,7 @@ function showTab(tabName) {
   }
 
   // Highlight active sidebar tab
-  document.querySelectorAll('.account-sidebar li').forEach(item => {
+  document.querySelectorAll('.account-sidebar .sidebar-item').forEach(item => {
     item.classList.remove('active');
     const clickAttr = item.getAttribute('onclick') || '';
     if (clickAttr.includes(`'${tabName}'`)) {
@@ -43,6 +43,11 @@ function showTab(tabName) {
   if (tabName === 'portfolio' && typeof initPortfolioTab === 'function') {
     initPortfolioTab();
   }
+
+  // Initialize reports tab on first open
+  if (tabName === 'reports' && typeof initReportsTab === 'function') {
+    initReportsTab();
+  }
 }
 
 // Automatically open tab based on URL hash (e.g. #bids), or default to cart
@@ -59,7 +64,7 @@ window.addEventListener('hashchange', () => {
 
 // Handle hash-based navigation with support for compound hashes (e.g., #details-personal)
 function handleHashNavigation(hash) {
-  const validTabs = ['cart','bids','listings','sold','orders','portfolio','ratings','messages','details'];
+  const validTabs = ['cart','bids','listings','sold','orders','portfolio','ratings','messages','reports','details'];
 
   // Check for compound hash (e.g., "details-personal")
   let tab = hash;

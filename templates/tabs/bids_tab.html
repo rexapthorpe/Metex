@@ -1,123 +1,247 @@
-{# templates/tabs/bids_tab.html — My Bids + Edit‐Bid Modal container #}
+{# templates/tabs/bids_tab.html — My Bids #}
 
-<div class="bids-container bids-tab">
-  <h2 class="tab-heading">My Bids</h2>
+<div class="bids-tab">
+  <!-- Header Row -->
+  <div class="tab-page-header">
+    <div>
+      <h1 class="tab-page-title">My Bids</h1>
+      <p class="tab-page-subtitle">Manage your active bid contracts</p>
+    </div>
+    <a href="{{ url_for('buy.buy') }}#bids" class="tab-cta-btn tab-cta-btn--navy">
+      <i class="fa-solid fa-plus"></i> Create Bid
+    </a>
+  </div>
 
-  {# Group by status. Note: backend uses 'Partially Filled' (not 'Partial'). #}
-  {% set groups = {
-    'Open Bids': bids | selectattr('status','equalto','Open') | list,
-    'Partially Filled Bids': bids | selectattr('status','equalto','Partially Filled') | list,
-    'Filled Bids': bids | selectattr('status','equalto','Filled') | list
-  } %}
+  <!-- Stats Row -->
+  {% set open_bids = bids | selectattr('status','equalto','Open') | list %}
+  {% set partial_bids = bids | selectattr('status','equalto','Partially Filled') | list %}
+  {% set filled_bids = bids | selectattr('status','equalto','Filled') | list %}
+  {% set total_filled_units = namespace(val=0) %}
+  {% set total_requested_units = namespace(val=0) %}
+  {% set total_value = namespace(val=0.0) %}
+  {% for bid in bids %}
+    {% set total_requested_units.val = total_requested_units.val + (bid.quantity_requested or 0) %}
+    {% set remaining = (bid.remaining_quantity if bid.remaining_quantity is not none else bid.quantity_requested) %}
+    {% set filled = (bid.quantity_requested or 0) - (remaining or 0) %}
+    {% if filled > 0 %}
+      {% set total_filled_units.val = total_filled_units.val + filled %}
+    {% endif %}
+    {% set total_value.val = total_value.val + ((bid.price_per_coin or 0) * (bid.quantity_requested or 0)) %}
+  {% endfor %}
+  {% set fill_rate_pct = ((total_filled_units.val / total_requested_units.val * 100) | int) if total_requested_units.val > 0 else 0 %}
 
-  {% for heading, items in groups.items() %}
-    {% if items %}
-      <section class="bids-group">
-        <h3 class="bids-group-title">{{ heading }}</h3>
-        <div class="bids-grid">
-          {% for bid in items %}
-            {% set remaining = (bid.remaining_quantity if bid.remaining_quantity is not none else bid.quantity_requested) %}
-            {% set filled_units_calc = (bid.quantity_requested or 0) - (remaining or 0) %}
-            {% set filled_units = 0 if filled_units_calc < 0 else filled_units_calc %}
+  <div class="bids-stats-row">
+    <div class="bid-stat-card">
+      <div class="bid-stat-label">Active Bids</div>
+      <div class="bid-stat-value">{{ open_bids|length + partial_bids|length }}</div>
+    </div>
+    <div class="bid-stat-card">
+      <div class="bid-stat-label">Total Value</div>
+      <div class="bid-stat-value">${{ '{:,.0f}'.format(total_value.val) }}</div>
+    </div>
+    <div class="bid-stat-card">
+      <div class="bid-stat-label">Fill Rate</div>
+      <div class="bid-stat-value">
+        {{ fill_rate_pct }}%
+        <span class="bid-stat-fraction">{{ total_filled_units.val }}/{{ total_requested_units.val }}</span>
+      </div>
+    </div>
+    <div class="bid-stat-card">
+      <div class="bid-stat-label">Units Filled</div>
+      <div class="bid-stat-value bid-stat-value--green">{{ total_filled_units.val }}<span class="bid-stat-total">/{{ total_requested_units.val }}</span></div>
+    </div>
+  </div>
 
-            <div class="bid-card">
-              <div class="bid-card-header">
-                <span class="bid-title">{{ bid.weight }} {{ bid.product_line or bid.product_type }} {{ bid.year }}</span>
+  <!-- Filter Tabs -->
+  <div class="tab-filter-bar">
+    <button class="filter-pill active" data-filter="all" onclick="filterBids('all')">All</button>
+    <button class="filter-pill" data-filter="active" onclick="filterBids('active')">Active</button>
+    <button class="filter-pill" data-filter="filled" onclick="filterBids('filled')">Filled</button>
+    <button class="filter-pill" data-filter="expired" onclick="filterBids('expired')">Expired</button>
+  </div>
 
-                {# Show remaining units; avoid "or" fallback because 0 is falsy in Jinja. #}
-                {% if bid.status == 'Filled' %}
-                  <span class="bid-quantity">0 Open</span>
-                {% else %}
-                  <span class="bid-quantity">{{ remaining }} Open</span>
-                {% endif %}
-              </div>
+  <!-- Bids List -->
+  {% if bids %}
+    <div class="bids-list" id="bidsList">
+      {% for bid in bids %}
+        {% set remaining = (bid.remaining_quantity if bid.remaining_quantity is not none else bid.quantity_requested) %}
+        {% set filled_units = [0, (bid.quantity_requested or 0) - (remaining or 0)] | max %}
+        {% set fill_pct = ((filled_units / bid.quantity_requested * 100) | int) if bid.quantity_requested and bid.quantity_requested > 0 else 0 %}
+        {% set bid_filter = 'filled' if bid.status == 'Filled' else ('active' if bid.status in ['Open','Partially Filled'] else 'expired') %}
 
-              <div class="bid-card-price-row">
+        <div class="bid-card" data-bid-filter="{{ bid_filter }}" data-bid-id="{{ bid.id }}">
+          <!-- Main Row -->
+          <div class="bid-card-main">
+            <!-- Image -->
+            <div class="bid-card-image">
+              <img src="{{ url_for('static', filename='img/placeholder.png') }}" alt="Item">
+              {% if bid.status == 'Filled' %}
+                <div class="bid-image-badge bid-image-badge--filled"><i class="fa-solid fa-circle-check"></i></div>
+              {% elif bid.status == 'Partially Filled' %}
+                <div class="bid-image-badge bid-image-badge--partial"><i class="fa-solid fa-arrows-rotate"></i></div>
+              {% endif %}
+            </div>
+
+            <!-- Info -->
+            <div class="bid-card-info">
+              <div class="bid-card-title">{{ bid.year or '' }} {{ bid.product_line or bid.product_type or '' }}</div>
+              <div class="bid-card-specs">{{ bid.weight or '' }}{% if bid.purity %} · {{ bid.purity }}{% endif %}{% if bid.metal %} · {{ bid.metal }}{% endif %}</div>
+              <div class="bid-card-price-line">
                 {% if bid.pricing_mode == 'premium_to_spot' %}
-                  {# Variable (Premium-to-Spot) Bid #}
-                  <span class="bid-price bid-price-variable">
-                    <span style="font-size: 11px; color: #1976d2; font-weight: 600; display: block; margin-bottom: 2px;">VARIABLE</span>
-                    Spot + ${{ '%.2f'|format(bid.spot_premium or 0) }}
-                    <span style="font-size: 11px; color: #666; display: block; margin-top: 2px;">
-                      (Max: ${{ '{:,.2f}'.format(bid.bid_ceiling_price_display or 0) }})
-                    </span>
+                  <span class="bid-price">${{ '{:,.2f}'.format(bid.bid_effective_price or 0) }}/unit</span>
+                  <span class="bid-vs-spot bid-vs-spot--down">
+                    <i class="fa-solid fa-arrow-trend-down"></i>
+                    -${{ '%.2f'|format(bid.spot_premium or 0) }} vs spot
                   </span>
                 {% else %}
-                  {# Fixed Price Bid #}
-                  <span class="bid-price">${{ '%.2f'|format(bid.price_per_coin) }} Bid</span>
-                {% endif %}
-
-                {# Show filled/total quantity #}
-                {% if bid.status == 'Filled' %}
-                  <span class="bid-filled">{{ bid.quantity_requested or 0 }}/{{ bid.quantity_requested or 0 }} Filled</span>
-                {% else %}
-                  <span class="bid-filled">{{ filled_units }}/{{ bid.quantity_requested or 0 }} Filled</span>
-                {% endif %}
-              </div>
-
-              <div class="bid-card-subheader">
-                {# Show listing effective price (max of spot+premium and floor for variable listings) #}
-                <span class="bid-current" style="display: block; margin-bottom: 4px;">
-                  Current listing effective price:
-                  {% if bid.listing_effective_price is not none %}
-                    ${{ '{:,.2f}'.format(bid.listing_effective_price) }}
-                  {% else %}
-                    No current listings
-                  {% endif %}
-                </span>
-
-                {# Show bid effective price (min of spot+premium and ceiling for variable bids) #}
-                {% if bid.pricing_mode == 'premium_to_spot' %}
-                  <span class="bid-current" style="display: block; color: #1976d2;">
-                    Current bid effective price: ${{ '{:,.2f}'.format(bid.bid_effective_price) }}
-                  </span>
-                {% endif %}
-              </div>
-
-              <div class="bid-card-timestamp">{{ bid.created_at }}</div>
-
-              <div class="bid-card-actions">
-                {% if bid.status == 'Open' %}
-                  <button
-                    type="button"
-                    onclick="openBidModal({{ bid.category_id }}, {{ bid.id }})"
-                    class="icon-text-btn btn-edit"
-                  >
-                    <i class="fas fa-pencil-alt"></i> Edit
-                  </button>
-                  <a
-                    href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}"
-                    class="icon-text-btn btn-view"
-                  >
-                    <i class="fas fa-binoculars"></i> View
-                  </a>
-                  <button
-                    type="button"
-                    onclick="closeBid({{ bid.id }})"
-                    class="icon-text-btn btn-close"
-                  >
-                    <i class="fas fa-trash"></i> Close
-                  </button>
-                {% else %}
-                  <a
-                    href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}"
-                    class="icon-text-btn btn-view"
-                  >
-                    <i class="fas fa-binoculars"></i> View
-                  </a>
+                  <span class="bid-price">${{ '%.2f'|format(bid.price_per_coin or 0) }}/unit</span>
                 {% endif %}
               </div>
             </div>
-          {% endfor %}
-        </div>
-      </section>
-    {% endif %}
-  {% endfor %}
 
-  {% if not bids %}
-    <p class="no-bids">You have no bids yet!</p>
+            <!-- Right: status badge · donut · controls -->
+            <div class="bid-card-right">
+              {% if bid.status == 'Filled' %}
+                <span class="bid-status-badge bid-status-badge--filled">Filled</span>
+              {% elif bid.status == 'Partially Filled' %}
+                <span class="bid-status-badge bid-status-badge--partial">Partial</span>
+              {% elif bid.status == 'Open' %}
+                <span class="bid-status-badge bid-status-badge--open">Open</span>
+              {% else %}
+                <span class="bid-status-badge bid-status-badge--expired">Expired</span>
+              {% endif %}
+
+              <div class="bid-right-middle">
+                <!-- Donut -->
+                <div class="bid-donut-wrapper">
+                  <svg class="bid-donut" viewBox="0 0 36 36">
+                    <circle class="bid-donut-bg" cx="18" cy="18" r="15.9"/>
+                    <circle class="bid-donut-fill {% if bid.status == 'Filled' %}bid-donut-fill--green{% endif %}"
+                      cx="18" cy="18" r="15.9"
+                      stroke-dasharray="{{ fill_pct }},100"
+                      transform="rotate(-90 18 18)"/>
+                  </svg>
+                  <div class="bid-donut-label">
+                    <span class="bid-donut-num">{{ filled_units }}</span>
+                    <span class="bid-donut-den">/{{ bid.quantity_requested or 0 }}</span>
+                  </div>
+                </div>
+
+                <!-- Expand + More -->
+                <div class="bid-card-controls">
+                  <button class="bid-expand-btn" onclick="toggleBidDetails(this)" aria-label="Expand">
+                    <i class="fa-solid fa-chevron-down"></i>
+                  </button>
+                  <button class="bid-more-btn" aria-label="More options">
+                    <i class="fa-solid fa-ellipsis"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="bid-donut-text">FILLED</div>
+            </div>
+          </div>
+
+          <!-- Expandable Details -->
+          <div class="bid-card-details" style="display:none;">
+            <div class="bid-details-grid">
+              <div class="bid-detail-item">
+                <span class="bid-detail-label">Created</span>
+                <span class="bid-detail-value">{{ bid.created_at }}</span>
+              </div>
+              <div class="bid-detail-item">
+                <span class="bid-detail-label">Expires</span>
+                <span class="bid-detail-value {% if bid.expires_at %}bid-detail-value--red{% endif %}">{{ bid.expires_at or '—' }}</span>
+              </div>
+              <div class="bid-detail-item">
+                <span class="bid-detail-label">Current Spot</span>
+                <span class="bid-detail-value">
+                  {% if bid.listing_effective_price is not none %}${{ '{:,.2f}'.format(bid.listing_effective_price) }}{% else %}—{% endif %}
+                </span>
+              </div>
+              <div class="bid-detail-item">
+                <span class="bid-detail-label">Total Value</span>
+                <span class="bid-detail-value">${{ '{:,.2f}'.format((bid.price_per_coin or 0) * (bid.quantity_requested or 0)) }}</span>
+              </div>
+            </div>
+
+            {% if bid.accepted_graders %}
+            <div class="bid-detail-graders">
+              <span class="bid-detail-label">Accepted Graders</span>
+              <div class="bid-grader-tags">
+                {% for g in bid.accepted_graders.split(',') if bid.accepted_graders %}
+                  <span class="bid-grader-tag">{{ g.strip() }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- Fill Progress Bar -->
+            <div class="bid-progress-section">
+              <div class="bid-progress-header">
+                <span class="bid-progress-title">Fill Progress</span>
+                <span class="bid-progress-label">{{ filled_units }} of {{ bid.quantity_requested or 0 }} units ({{ fill_pct }}%)</span>
+              </div>
+              <div class="bid-progress-bar-wrap">
+                <div class="bid-progress-bar-fill" style="width: {{ fill_pct }}%"></div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="bid-detail-actions">
+              {% if bid.status == 'Open' %}
+                <button type="button" onclick="openBidModal({{ bid.category_id }}, {{ bid.id }})" class="bid-action-btn bid-action-btn--edit">
+                  <i class="fas fa-pencil-alt"></i> Edit
+                </button>
+                <a href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}" class="bid-action-btn bid-action-btn--view">
+                  <i class="fas fa-binoculars"></i> View
+                </a>
+                <button type="button" onclick="closeBid({{ bid.id }})" class="bid-action-btn bid-action-btn--close">
+                  <i class="fas fa-trash"></i> Close
+                </button>
+              {% else %}
+                <a href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}" class="bid-action-btn bid-action-btn--view">
+                  <i class="fas fa-binoculars"></i> View
+                </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="tab-empty-state">
+      <i class="fa-solid fa-bullseye tab-empty-icon"></i>
+      <h3>No bids yet</h3>
+      <p>Create a bid to automatically buy when a listing meets your price.</p>
+      <a href="{{ url_for('buy.buy') }}" class="tab-cta-btn tab-cta-btn--navy">Browse Listings</a>
+    </div>
   {% endif %}
 </div>
 
-{# include the unified bid modal container; bid_modal.js will load the form into #bidModalContent #}
+{# include the unified bid modal container #}
 {% include 'modals/bid_modal.html' %}
+
+<script>
+function filterBids(filter) {
+  document.querySelectorAll('.filter-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  document.querySelectorAll('.bid-card').forEach(card => {
+    const cardFilter = card.dataset.bidFilter;
+    card.style.display = (filter === 'all' || cardFilter === filter) ? '' : 'none';
+  });
+}
+
+function toggleBidDetails(btn) {
+  const card = btn.closest('.bid-card');
+  const details = card.querySelector('.bid-card-details');
+  const icon = btn.querySelector('i');
+  const isOpen = details.style.display !== 'none';
+  details.style.display = isOpen ? 'none' : 'block';
+  icon.className = isOpen ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up';
+  btn.classList.toggle('bid-expand-btn--active', !isOpen);
+}
+window.filterBids = filterBids;
+window.toggleBidDetails = toggleBidDetails;
+</script>

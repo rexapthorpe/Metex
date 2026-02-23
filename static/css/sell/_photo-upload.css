@@ -1,0 +1,149 @@
+/* ========== Listing Specifications Two-Column Layout ========== */
+
+.listing-specs-container {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.listing-specs-left,
+.listing-specs-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Photo Upload Box */
+.photo-upload-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.photo-upload-group label {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+/* Base photo upload box styling is defined later in file */
+
+.photo-upload-plus {
+    font-size: 2.5rem;
+    color: #9ca3af;
+    user-select: none;
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    line-height: 1;
+}
+
+.photo-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 8px;
+}
+
+.photo-upload-box.has-image {
+    border: none;
+    background-color: transparent;
+    cursor: default;
+}
+
+.photo-upload-box.has-image:hover {
+    border: none;
+    background-color: transparent;
+}
+
+.photo-upload-box.has-image .photo-upload-plus {
+    display: none;
+}
+
+/* Photo clear button - white circle overlapping top right corner */
+.photo-upload-box .photo-clear-btn,
+.photo-upload-box .close-button,
+#coverPhotoUploadBox .close-button {
+    position: absolute !important;
+    top: -10px !important;
+    right: -10px !important;
+    width: 25px !important;
+    height: 25px !important;
+    min-width: 25px !important;
+    min-height: 25px !important;
+    border-radius: 50% !important;
+    border: 1px solid #e5e7eb !important;
+    background: #fff !important;
+    color: #9ca3af !important;
+    font-size: 16px !important;
+    font-weight: 400 !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 10 !important;
+    padding: 0 0 3px 0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.15s ease !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+.photo-upload-box.has-image .photo-clear-btn,
+.photo-upload-box.has-image .close-button {
+    display: flex !important;
+}
+
+.photo-upload-box .photo-clear-btn:hover,
+.photo-upload-box .close-button:hover,
+#coverPhotoUploadBox .close-button:hover {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+.photo-upload-box .photo-clear-btn:active,
+.photo-upload-box .close-button:active,
+#coverPhotoUploadBox .close-button:active {
+    background: #e5e7eb !important;
+    transform: scale(0.95) !important;
+}
+
+/* Note: Close button styling now uses unified modal-close-button.css */
+
+/* Price Input with $ prefix */
+.price-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.price-currency {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-90%);
+    font-size: 1.15rem;
+    color: #333;
+    font-weight: bold;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.price-input-wrapper input {
+    padding-left: 28px !important;
+    font-weight: bold;
+}
+
+/* Required asterisk */
+.required {
+    color: #ef4444;
+    font-weight: 700;
+}
+

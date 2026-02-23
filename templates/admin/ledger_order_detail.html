@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Ledger Order #{{ order.order_id }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/ledger.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ledger-order-detail">
+    <div class="detail-header">
+        <a href="/admin/ledger" class="back-link">Back to Ledger</a>
+        <h1>Order #{{ order.order_id }}</h1>
+    </div>
+
+    <!-- Order Header -->
+    <div class="order-header-card">
+        <div class="header-grid">
+            <div class="header-item">
+                <span class="label">Status</span>
+                <span class="value status-badge {{ 'status-' + order.order_status.lower().replace('_', '-') }}">
+                    {{ order.order_status.replace('_', ' ').title() }}
+                </span>
+            </div>
+            <div class="header-item">
+                <span class="label">Buyer</span>
+                <span class="value">@{{ order.buyer_username }} (ID: {{ order.buyer_id }})</span>
+            </div>
+            <div class="header-item">
+                <span class="label">Payment Method</span>
+                <span class="value">{{ order.payment_method or 'Not Set' }}</span>
+            </div>
+            <div class="header-item">
+                <span class="label">Created</span>
+                <span class="value">{{ order.created_at }}</span>
+            </div>
+        </div>
+        <div class="header-amounts">
+            <div class="amount-item">
+                <span class="amount-label">Gross Amount</span>
+                <span class="amount-value">${{ "%.2f"|format(order.gross_amount) }}</span>
+            </div>
+            <div class="amount-item fee">
+                <span class="amount-label">Platform Fee</span>
+                <span class="amount-value">${{ "%.2f"|format(order.platform_fee_amount) }}</span>
+            </div>
+            <div class="amount-item net">
+                <span class="amount-label">Net to Sellers</span>
+                <span class="amount-value">${{ "%.2f"|format(order.gross_amount - order.platform_fee_amount) }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items Section -->
+    <div class="section-card">
+        <h2>Order Items</h2>
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th>Item ID</th>
+                    <th>Listing</th>
+                    <th>Seller</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Gross</th>
+                    <th>Fee Type</th>
+                    <th>Fee Value</th>
+                    <th>Fee Amount</th>
+                    <th>Seller Net</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.id }}</td>
+                    <td>#{{ item.listing_id }}</td>
+                    <td>@{{ item.seller_username }} ({{ item.seller_id }})</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>${{ "%.2f"|format(item.unit_price) }}</td>
+                    <td>${{ "%.2f"|format(item.gross_amount) }}</td>
+                    <td><span class="fee-type">{{ item.fee_type }}</span></td>
+                    <td>{{ "%.2f"|format(item.fee_value) }}{{ '%' if item.fee_type == 'percent' else '' }}</td>
+                    <td class="fee-amount">${{ "%.2f"|format(item.fee_amount) }}</td>
+                    <td class="seller-net">${{ "%.2f"|format(item.seller_net_amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5"><strong>Total</strong></td>
+                    <td><strong>${{ "%.2f"|format(order.gross_amount) }}</strong></td>
+                    <td colspan="2"></td>
+                    <td class="fee-amount"><strong>${{ "%.2f"|format(order.platform_fee_amount) }}</strong></td>
+                    <td class="seller-net"><strong>${{ "%.2f"|format(order.gross_amount - order.platform_fee_amount) }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Payouts Section -->
+    <div class="section-card">
+        <h2>Seller Payouts</h2>
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th>Payout ID</th>
+                    <th>Seller</th>
+                    <th>Status</th>
+                    <th>Seller Gross</th>
+                    <th>Fee Amount</th>
+                    <th>Seller Net</th>
+                    <th>Scheduled For</th>
+                    <th>Transfer ID</th>
+                    <th>Payout ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payout in payouts %}
+                <tr>
+                    <td>{{ payout.id }}</td>
+                    <td>@{{ payout.seller_username }} ({{ payout.seller_id }})</td>
+                    <td>
+                        <span class="payout-status payout-{{ payout.payout_status.lower().replace('_', '-') }}">
+                            {{ payout.payout_status.replace('_', ' ').title() }}
+                        </span>
+                    </td>
+                    <td>${{ "%.2f"|format(payout.seller_gross_amount) }}</td>
+                    <td class="fee-amount">${{ "%.2f"|format(payout.fee_amount) }}</td>
+                    <td class="seller-net">${{ "%.2f"|format(payout.seller_net_amount) }}</td>
+                    <td>{{ payout.scheduled_for or '-' }}</td>
+                    <td class="provider-id">{{ payout.provider_transfer_id or '-' }}</td>
+                    <td class="provider-id">{{ payout.provider_payout_id or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Events Section -->
+    <div class="section-card">
+        <h2>Event Timeline</h2>
+        <div class="events-timeline">
+            {% for event in events %}
+            <div class="event-item">
+                <div class="event-dot"></div>
+                <div class="event-content">
+                    <div class="event-header">
+                        <span class="event-type">{{ event.event_type.replace('_', ' ').title() }}</span>
+                        <span class="event-time">{{ event.created_at }}</span>
+                    </div>
+                    <div class="event-meta">
+                        <span class="actor-type">{{ event.actor_type }}</span>
+                        {% if event.actor_id %}
+                        <span class="actor-id">(ID: {{ event.actor_id }})</span>
+                        {% endif %}
+                    </div>
+                    {% if event.payload %}
+                    <div class="event-payload">
+                        <pre>{{ event.payload | tojson(indent=2) }}</pre>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

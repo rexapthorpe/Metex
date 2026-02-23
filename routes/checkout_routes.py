@@ -460,53 +460,70 @@ def checkout():
                 item_dict['price_per_coin'] = effective_price
                 listings_info.append(item_dict)
 
+        # Fetch user info for form pre-population
+        user_info = conn.execute(
+            'SELECT first_name, last_name, email, phone FROM users WHERE id = ?',
+            (user_id,)
+        ).fetchone()
+        user_info = dict(user_info) if user_info else {}
+
         conn.close()
 
-        buckets = {}
-        cart_total = 0
-
+        # Build cart_items list for checkout_page.html
+        subtotal = 0
+        cart_items = []
         for item in listings_info:
-            bucket_key = f"{item['metal']}-{item['product_type']}-{item['weight']}-{item['mint']}-{item['year']}-{item['finish']}-{item['grade']}"
+            effective_price = item.get('price_per_coin', 0)
+            quantity = item.get('quantity', 1)
+            total_price = effective_price * quantity
+            subtotal += total_price
+            cart_item = dict(item)
+            # get_cart_items returns 'file_path'; session branch may not have it
+            cart_item['photo_path'] = item.get('file_path') or item.get('photo_path')
+            cart_item['total_price'] = total_price
+            cart_items.append(cart_item)
 
-            if bucket_key not in buckets:
-                buckets[bucket_key] = {
-                    'category': {
-                        'metal': item['metal'],
-                        'product_type': item['product_type'],
-                        'weight': item['weight'],
-                        'mint': item['mint'],
-                        'year': item['year'],
-                        'finish': item['finish'],
-                        'grade': item['grade']
-                    },
-                    'quantity': 0,
-                    'total_qty': 0,
-                    'total_price': 0,
-                    'avg_price': 0
-                }
-
-                # Attach grading_preference when present
-                if 'grading_preference' in item and item['grading_preference']:
-                    buckets[bucket_key]['grading_preference'] = item['grading_preference']
-
-            subtotal = item['price_per_coin'] * item['quantity']
-            buckets[bucket_key]['quantity'] += item['quantity']
-            buckets[bucket_key]['total_qty'] += item['quantity']
-            buckets[bucket_key]['total_price'] += subtotal
-            cart_total += subtotal
-
-        for bucket in buckets.values():
-            if bucket['quantity'] > 0:
-                bucket['avg_price'] = round(bucket['total_price'] / bucket['quantity'], 2)
+        item_count = sum(i['quantity'] for i in cart_items)
+        insurance = round(subtotal * 0.01, 2)
+        cart_total = round(subtotal + insurance, 2)
 
         return render_template(
-            'checkout_new.html',
-            buckets=buckets,
-            cart_total=round(cart_total, 2),
-            grading_preference=session.get('grading_preference')
+            'checkout_page.html',
+            cart_items=cart_items,
+            item_count=item_count,
+            subtotal=round(subtotal, 2),
+            insurance=insurance,
+            cart_total=cart_total,
+            user_info=user_info
         )
 
 
 @checkout_bp.route('/checkout/confirm/<int:order_id>')
 def order_confirmation(order_id):
-    return render_template('order_confirmation.html', order_id=order_id)
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    conn = get_db_connection()
+
+    order = conn.execute('''
+        SELECT o.id, o.total_price, o.created_at,
+               SUM(oi.quantity) AS total_quantity
+        FROM orders o
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        WHERE o.id = ? AND o.buyer_id = ?
+        GROUP BY o.id
+    ''', (order_id, user_id)).fetchone()
+
+    conn.close()
+
+    if not order:
+        flash("Order not found.", "error")
+        return redirect(url_for('account.account'))
+
+    return render_template(
+        'order_confirmation.html',
+        order_id=order_id,
+        order_total=order['total_price'],
+        item_count=order['total_quantity'] or 1
+    )

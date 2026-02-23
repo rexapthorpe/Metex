@@ -1,0 +1,128 @@
+/* ========== PRICING MODE CARDS ========== */
+.pricing-mode-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pricing-card {
+  cursor: pointer;
+  display: block;
+}
+
+.pricing-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pricing-card-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.pricing-card:hover .pricing-card-content {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.pricing-card input[type="radio"]:checked ~ .pricing-card-content {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.pricing-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pricing-icon-fixed {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.pricing-card input[type="radio"]:checked ~ .pricing-card-content .pricing-icon-fixed {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.pricing-icon-premium {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.pricing-card input[type="radio"]:checked ~ .pricing-card-content .pricing-icon-premium {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.pricing-text {
+  flex: 1;
+}
+
+.pricing-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.pricing-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.pricing-fields-container {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-top: 1rem;
+}
+
+.premium-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+/* Premium fields grid is already single column, no media query needed */
+
+/* Update example text color to lighter gray */
+.example-text {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+/* Price input wrapper enhancements */
+.price-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.price-currency {
+  position: absolute;
+  left: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.price-input-wrapper input {
+  padding-left: 2rem !important;
+}
+

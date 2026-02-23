@@ -1,0 +1,224 @@
+<!-- Cancel Order Modal - Buyer initiates cancellation request -->
+<div id="cancelOrderModal" class="cancel-order-overlay" style="display: none;" onclick="closeCancelOrderModalOnOverlay(event)">
+  <div class="cancel-order-dialog" id="cancelOrderDialog">
+    <!-- Success State (shown after submission) -->
+    <div class="cancel-success-content" id="cancelSuccessContent" style="display: none;">
+      <div class="cancel-success-checkmark">
+        <svg class="cancel-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="cancel-checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+          <!-- Checkmark -->
+          <path class="cancel-checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+      </div>
+      <h3 class="cancel-success-title">Cancellation Requested</h3>
+      <p class="cancel-success-message">
+        Your cancellation request has been submitted.<br>
+        All sellers must approve for the order to be canceled.
+      </p>
+      <button type="button" class="cancel-success-btn" onclick="closeCancelOrderModalAndRefresh()">
+        Done
+      </button>
+    </div>
+
+    <!-- Header -->
+    <div class="cancel-order-header">
+      <div class="cancel-order-title-row">
+        <div class="cancel-order-icon">
+          <i class="fa-regular fa-circle-xmark"></i>
+        </div>
+        <h2>Cancel Order</h2>
+      </div>
+      <button type="button" class="modal-close" onclick="closeCancelOrderModal()" aria-label="Close">&times;</button>
+    </div>
+
+    <!-- Subtitle -->
+    <p class="cancel-order-subtitle">
+      You're about to cancel order <strong id="cancelOrderNumber">#ORD-2026-000000</strong>. This action cannot be undone.
+    </p>
+
+    <!-- Warning Box -->
+    <div class="cancel-order-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span>Cancelling an order may affect your buyer rating. Please ensure you have a valid reason.</span>
+    </div>
+
+    <!-- Reason Selection -->
+    <div class="cancel-order-body">
+      <label class="cancel-order-label">
+        Why are you cancelling this order? <span class="required">*</span>
+      </label>
+
+      <div class="cancel-reason-options" id="cancelReasonOptions">
+        <label class="cancel-reason-option">
+          <input type="radio" name="cancelReason" value="Changed my mind">
+          <div class="reason-content">
+            <i class="fa-regular fa-circle-question"></i>
+            <span>Changed my mind</span>
+          </div>
+        </label>
+
+        <label class="cancel-reason-option">
+          <input type="radio" name="cancelReason" value="Found a better deal elsewhere">
+          <div class="reason-content">
+            <i class="fa-solid fa-dollar-sign"></i>
+            <span>Found a better deal elsewhere</span>
+          </div>
+        </label>
+
+        <label class="cancel-reason-option">
+          <input type="radio" name="cancelReason" value="Ordered by mistake">
+          <div class="reason-content">
+            <i class="fa-solid fa-ban"></i>
+            <span>Ordered by mistake</span>
+          </div>
+        </label>
+
+        <label class="cancel-reason-option">
+          <input type="radio" name="cancelReason" value="Order is taking too long">
+          <div class="reason-content">
+            <i class="fa-regular fa-clock"></i>
+            <span>Order is taking too long</span>
+          </div>
+        </label>
+
+        <label class="cancel-reason-option">
+          <input type="radio" name="cancelReason" value="Seller is unresponsive">
+          <div class="reason-content">
+            <i class="fa-solid fa-user-group"></i>
+            <span>Seller is unresponsive</span>
+          </div>
+        </label>
+
+        <label class="cancel-reason-option">
+          <input type="radio" name="cancelReason" value="Item no longer needed">
+          <div class="reason-content">
+            <i class="fa-solid fa-box-archive"></i>
+            <span>Item no longer needed</span>
+          </div>
+        </label>
+
+        <label class="cancel-reason-option">
+          <input type="radio" name="cancelReason" value="Other reason">
+          <div class="reason-content">
+            <i class="fa-regular fa-file-lines"></i>
+            <span>Other reason</span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Additional Details -->
+      <label class="cancel-order-label additional-details-label">
+        Additional details <span class="optional">(optional)</span>
+      </label>
+      <div class="additional-details-wrapper">
+        <textarea
+          id="cancelAdditionalDetails"
+          class="cancel-additional-details"
+          placeholder="Please provide any additional information that might help us improve..."
+          maxlength="500"
+          oninput="updateCancelCharCount()"
+        ></textarea>
+        <div class="char-counter">
+          <span id="cancelCharCount">0</span>/500
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="cancel-order-footer">
+      <button type="button" class="btn-keep-order" onclick="closeCancelOrderModal()">
+        Keep Order
+      </button>
+      <button type="button" class="btn-cancel-order" onclick="submitCancelOrder()" id="submitCancelBtn">
+        <i class="fa-regular fa-circle-xmark"></i>
+        Cancel Order
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Seller Cancel Response Modal - Seller confirms their approval/denial -->
+<div id="sellerCancelResponseModal" class="cancel-order-overlay" style="display: none;" onclick="closeSellerCancelResponseModalOnOverlay(event)">
+  <div class="cancel-order-dialog seller-response-dialog" id="sellerResponseDialog">
+    <!-- Success State - Approved (Green) -->
+    <div class="seller-response-success-content green" id="sellerApproveSuccessContent" style="display: none;">
+      <div class="seller-response-checkmark-container">
+        <svg class="seller-response-checkmark green" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="seller-checkmark-circle green" cx="26" cy="26" r="25" fill="none"/>
+          <path class="seller-checkmark-check green" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+      </div>
+      <h3 class="seller-response-success-title">Cancellation Approved</h3>
+      <p class="seller-response-success-message">
+        You have approved the cancellation request.<br>
+        The order will be canceled once all sellers approve.
+      </p>
+      <button type="button" class="seller-response-success-btn green" onclick="closeSellerCancelResponseModalAndRefresh()">
+        Done
+      </button>
+    </div>
+
+    <!-- Success State - Denied (Red) -->
+    <div class="seller-response-success-content red" id="sellerDenySuccessContent" style="display: none;">
+      <div class="seller-response-checkmark-container">
+        <svg class="seller-response-checkmark red" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="seller-checkmark-circle red" cx="26" cy="26" r="25" fill="none"/>
+          <path class="seller-checkmark-check red" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+      </div>
+      <h3 class="seller-response-success-title">Cancellation Denied</h3>
+      <p class="seller-response-success-message">
+        You have denied the cancellation request.<br>
+        The buyer has been notified.
+      </p>
+      <button type="button" class="seller-response-success-btn red" onclick="closeSellerCancelResponseModalAndRefresh()">
+        Done
+      </button>
+    </div>
+
+    <!-- Header -->
+    <div class="cancel-order-header seller-response-form-content">
+      <div class="cancel-order-title-row">
+        <div class="cancel-order-icon" id="sellerResponseIcon">
+          <i class="fa-solid fa-circle-question"></i>
+        </div>
+        <h2 id="sellerResponseTitle">Confirm Response</h2>
+      </div>
+      <button type="button" class="modal-close" onclick="closeSellerCancelResponseModal()" aria-label="Close">&times;</button>
+    </div>
+
+    <!-- Content -->
+    <div class="seller-response-body seller-response-form-content">
+      <p id="sellerResponseMessage">Are you sure you want to approve this cancellation request?</p>
+
+      <div class="seller-response-info" id="sellerResponseInfo">
+        <div class="info-row">
+          <span class="info-label">Order:</span>
+          <span class="info-value" id="sellerResponseOrderNum">#ORD-2026-000000</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Buyer's Reason:</span>
+          <span class="info-value" id="sellerResponseReason">Changed my mind</span>
+        </div>
+      </div>
+
+      <div class="seller-response-warning" id="sellerResponseWarning">
+        <!-- Dynamic warning based on approve/deny -->
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="cancel-order-footer seller-response-form-content">
+      <button type="button" class="btn-keep-order" onclick="closeSellerCancelResponseModal()">
+        Go Back
+      </button>
+      <button type="button" class="btn-confirm-response" id="confirmSellerResponseBtn" onclick="confirmSellerResponse()">
+        Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+<input type="hidden" id="cancelOrderId" value="">
+<input type="hidden" id="sellerResponseOrderId" value="">
+<input type="hidden" id="sellerResponseType" value="">

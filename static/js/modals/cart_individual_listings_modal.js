@@ -204,25 +204,24 @@ function renderPriceEntry() {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])
   );
-  const DASH = '--';
+  const DASH = '\u2014';
   const show = v => {
     if (v === null || v === undefined) return DASH;
     if (typeof v === 'string' && v.trim() === '') return DASH;
     return esc(v);
   };
-  const showNum = v =>
-    (v === null || v === undefined || v === '' || Number.isNaN(Number(v)))
-      ? DASH
-      : String(Number(v));
   const showMoney = v =>
     (v === null || v === undefined || v === '' || Number.isNaN(Number(v)))
       ? DASH
       : '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  /* NOTE: Metadata placeholders remain until API enrichment (deferred). */
-  const metal        = entry.metal ?? entry.metal_type ?? null;
-  const productLine  = entry.product_line ?? entry.series ?? entry.program ?? null;
-  const productType  = entry.product_type ?? entry.type ?? entry.form ?? null;
+  const metal       = entry.metal ?? entry.metal_type ?? null;
+  const productType = entry.product_type ?? entry.type ?? entry.form ?? null;
+  const mint        = entry.mint ?? entry.mint_name ?? null;
+  const entryYear   = entry.year ?? null;
+  const finish      = entry.finish ?? entry.condition ?? null;
+  const grade       = entry.grading ?? entry.grade ?? null;
+  const purityRaw   = entry.purity ?? entry.fineness ?? entry.purity_pct ?? null;
 
   let weightDisplay = null;
   if (entry.weight != null) {
@@ -233,52 +232,47 @@ function renderPriceEntry() {
     weightDisplay = `${entry.weight_g} g`;
   }
 
-  const year         = entry.year ?? null;
-  const mint         = entry.mint ?? entry.mint_name ?? null;
-  const purityRaw    = entry.purity ?? entry.fineness ?? entry.purity_pct ?? null;
-  const finish       = entry.finish ?? entry.condition ?? null;
-  const grading = entry.grading ?? entry.grade ?? null;
-
-  let gradingSvc;
-  const gradedFlag = entry.graded;
-  if (gradedFlag === 1 || gradedFlag === "1" || gradedFlag === true) {
-    gradingSvc = entry.grading_service ?? entry.grader ?? null;
-  } else {
-    gradingSvc = "No 3rd Party Grading Verification";
-  }
-
-  const seller       = entry.seller_username ?? entry.seller_name ?? entry.seller ?? entry.username ?? null;
-
   const purity = (() => {
     if (purityRaw == null || purityRaw === '') return null;
     const n = Number(purityRaw);
     if (Number.isNaN(n)) return purityRaw;
-    return n.toFixed(4);
+    return n < 1 ? n.toFixed(4).replace(/\.?0+$/, '') : n.toFixed(3);
   })();
 
-  const qtyRaw   = (entry.quantity ?? entry.total_quantity ?? null);
-  const priceRaw = (entry.price_per_coin ?? entry.price_each ?? entry.unit_price ?? null);
-  const totalVal = (qtyRaw != null && priceRaw != null &&
-                   !Number.isNaN(Number(qtyRaw)) && !Number.isNaN(Number(priceRaw)))
+  // Certification: only show if actually graded
+  const gradedFlag = entry.graded;
+  const certDisplay = (gradedFlag === 1 || gradedFlag === '1' || gradedFlag === true)
+    ? (entry.grading_service ?? entry.grader ?? null)
+    : null;
+
+  const qtyRaw   = entry.quantity ?? entry.total_quantity ?? null;
+  const priceRaw = entry.price_per_coin ?? entry.price_each ?? entry.unit_price ?? null;
+  const itemTotal = (qtyRaw != null && priceRaw != null)
     ? Number(qtyRaw) * Number(priceRaw)
     : null;
 
-  // Title
-  const title =
-    entry.title
+  // Overall subtotal and total qty across all listings in this bucket
+  const overallSubtotal = priceData.reduce((sum, e) => {
+    const q = Number(e.quantity ?? e.total_quantity ?? 0);
+    const p = Number(e.price_per_coin ?? e.price_each ?? e.unit_price ?? 0);
+    return sum + (q * p);
+  }, 0);
+  const totalQty = priceData.reduce((sum, e) =>
+    sum + Number(e.quantity ?? e.total_quantity ?? 0), 0);
+
+  // Update subtitle
+  const subtitleEl = document.getElementById('pb-subtitle');
+  if (subtitleEl) {
+    subtitleEl.textContent = `${totalQty} listing${totalQty === 1 ? '' : 's'} in cart`;
+  }
+
+  // Item title
+  const title = entry.title
     ?? entry.category_name
-    ?? [
-         (weightDisplay ? `${weightDisplay}` : ''),
-         (metal ? `${metal}` : '')
-       ].join(' ').trim() +
-       (mint || year ? ` (${[mint, year].filter(Boolean).join(', ')})` : '');
+    ?? ([entryYear, metal, entry.product_line, productType].filter(Boolean).join(' ') || 'Item');
 
-  const titleEl = document.getElementById('pb-username');
-  if (titleEl) titleEl.textContent = title || 'Item';
-
-  // Image source or placeholder (prioritize image_url from listing_photos table)
+  // Image
   const imgSrc = (() => {
-    // 1) New system: image_url from listing_photos (normalized by backend)
     const candidates = [
       entry.image_url, entry.photo_url, entry.photo, entry.image,
       entry.listing_image_url, entry.image_src, entry.img_src
@@ -286,76 +280,110 @@ function renderPriceEntry() {
     for (const c of candidates) {
       if (typeof c === 'string' && c.trim() !== '') return c;
     }
-
-    // 2) Legacy fallback: old photo_filename field (for backward compatibility)
     if (entry.photo_filename) {
       return `/static/uploads/listings/${encodeURIComponent(entry.photo_filename)}`;
     }
-
-    // 3) Fallback placeholder
-    const svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f3f4f6'/><text x='200' y='205' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-size='28' fill='%239ca3af'>No Image</text></svg>";
-    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    return null;
   })();
+  const imgHtml = imgSrc
+    ? `<img class="oim-item-image" src="${imgSrc}" alt="Product image" onerror="this.style.display='none'">`
+    : `<div class="oim-item-image oim-item-image-placeholder"></div>`;
 
+  // Nav show/hide
+  const navRow = document.getElementById('pb-nav-row');
+  if (navRow) navRow.style.display = priceData.length <= 1 ? 'none' : 'flex';
+  const counterEl = document.getElementById('pb-counter');
+  if (counterEl) counterEl.textContent = `${priceIndex + 1} of ${priceData.length}`;
 
+  // Spec helper
+  const specItem = (iconHtml, label, value) => {
+    const displayed = show(value);
+    if (displayed === DASH) return '';
+    return `
+      <div class="oim-spec-item">
+        <span class="oim-spec-icon">${iconHtml}</span>
+        <span class="oim-spec-label">${label}:</span>
+        <span class="oim-spec-value">${displayed}</span>
+      </div>
+    `;
+  };
 
+  const productLine  = entry.product_line ?? entry.series ?? entry.coin_series ?? null;
+  const seriesVariant = entry.series_variant ?? null;
+  const seller       = entry.seller_username ?? entry.seller_name ?? null;
 
-  // Left column (11 rows, always shown)
-  const leftHTML = `
-    <div><dt>Metal</dt><dd>${show(metal)}</dd></div>
-    <div><dt>Product line</dt><dd>${show(productLine)}</dd></div>
-    <div><dt>Product type</dt><dd>${show(productType)}</dd></div>
-    <div><dt>Weight</dt><dd>${show(weightDisplay)}</dd></div>
-    <div><dt>Year</dt><dd>${show(year)}</dd></div>
-    <div><dt>Mint</dt><dd>${show(mint)}</dd></div>
-    <div><dt>Purity</dt><dd>${show(purity)}</dd></div>
-    <div><dt>Finish</dt><dd>${show(finish)}</dd></div>
-    <div><dt>Grading</dt><dd>${show(grading)}</dd></div>
-    <div><dt>Grading service</dt><dd>${show(gradingSvc)}</dd></div>
-    <div><dt>Seller</dt><dd>${show(seller)}</dd></div>
-  `;
+  const specsGrid = [
+    specItem('<i class="fa-solid fa-tag"></i>',              'Category',      productType),
+    specItem('<i class="fa-solid fa-gem"></i>',              'Metal Type',    metal),
+    specItem('<i class="fa-solid fa-coins"></i>',            'Product Line',  productLine),
+    specItem('<i class="fa-solid fa-scale-balanced"></i>',   'Weight',        weightDisplay),
+    specItem('<i class="fa-solid fa-layer-group"></i>',      'Purity',        purity),
+    specItem('<i class="fa-solid fa-building-columns"></i>', 'Mint',          mint),
+    specItem('<i class="fa-regular fa-calendar"></i>',       'Year',          entryYear),
+    specItem('<i class="fa-solid fa-certificate"></i>',      'Finish',        finish),
+    specItem('<i class="fa-solid fa-medal"></i>',            'Grade',         grade),
+    specItem('<i class="fa-solid fa-shield-halved"></i>',    'Certification', certDisplay),
+    specItem('<i class="fa-solid fa-star"></i>',             'Series',        seriesVariant),
+    specItem('<i class="fa-regular fa-user"></i>',           'Seller',        seller),
+  ].filter(Boolean).join('');
 
   const body = document.getElementById('pb-modal-content');
   if (!body) return;
+
   body.innerHTML = `
-    <div class="cart-items-two-col">
-      <div class="cart-items-col-left">
-        <dl class="kv-list">${leftHTML}</dl>
-      </div>
-
-      <div class="cart-items-col-right">
-        <div class="cart-items-image-wrap">
-          <img class="cart-items-image" src="${imgSrc}" alt="Product image">
+    <div class="oim-item-row">
+      ${imgHtml}
+      <div class="oim-item-details">
+        <div class="oim-item-title-row">
+          <div class="oim-item-title">${esc(title)}</div>
+          <div class="oim-item-price">${showMoney(itemTotal)}</div>
         </div>
-
-        <div class="kv"><span>Quantity</span><span class="value">${showNum(qtyRaw)}</span></div>
-        <div class="kv"><span>Price / item</span><span class="value">${showMoney(priceRaw)}</span></div>
-        <div class="kv total"><span>Total</span><span class="value">${showMoney(totalVal)}</span></div>
-
-        <button id="pb-remove-btn" class="cart-items-remove-btn" type="button">
-           <i class="fas fa-trash"></i> Remove Item
-        </button>
+        <div class="oim-item-qty-row">
+          <span class="oim-qty-badge">Qty: ${qtyRaw ?? '\u2014'}</span>
+          <span>@ ${showMoney(priceRaw)} each</span>
+        </div>
       </div>
     </div>
+
+    <div class="oim-specs-section">
+      <div class="oim-specs-title">Specifications</div>
+      <div class="oim-specs-grid">
+        ${specsGrid || `<span style="color:#9ca3af;font-size:0.85rem">No specifications available</span>`}
+      </div>
+    </div>
+
+    <hr class="oim-summary-divider">
+
+    <div class="oim-summary">
+      <div class="oim-summary-row">
+        <span>Subtotal (${totalQty} listing${totalQty === 1 ? '' : 's'})</span>
+        <span>${showMoney(overallSubtotal)}</span>
+      </div>
+      <div class="oim-summary-row">
+        <span>Shipping</span>
+        <span class="oim-shipping-free">Free</span>
+      </div>
+      <div class="oim-summary-row total">
+        <span>Total</span>
+        <span class="oim-summary-value">${showMoney(overallSubtotal)}</span>
+      </div>
+    </div>
+
+    <button id="pb-remove-btn" class="cart-items-remove-btn" type="button">
+      <i class="fa-solid fa-trash"></i> Remove Item
+    </button>
   `;
 
   // Hook remove button
   const removeBtn = document.getElementById('pb-remove-btn');
-  if (removeBtn) {
-    removeBtn.onclick = removePriceListing;
-  }
+  if (removeBtn) removeBtn.onclick = removePriceListing;
 
   // Nav enable/disable
   const prevBtn = document.getElementById('pb-prev');
   const nextBtn = document.getElementById('pb-next');
   if (prevBtn && nextBtn) {
-    if (priceData.length <= 1) {
-      prevBtn.disabled = true;
-      nextBtn.disabled = true;
-    } else {
-      prevBtn.disabled = (priceIndex === 0);
-      nextBtn.disabled = (priceIndex === priceData.length - 1);
-    }
+    prevBtn.disabled = (priceIndex === 0);
+    nextBtn.disabled = (priceIndex === priceData.length - 1);
   }
 }
 

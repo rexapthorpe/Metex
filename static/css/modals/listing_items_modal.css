@@ -1,0 +1,401 @@
+/* ==========================================================================
+   Listing Items Modal - Shows item details for listings
+   ========================================================================== */
+
+/* Overlay */
+#listingItemsModal.listing-items-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Modal Container */
+#listingItemsModal .listing-items-modal-content {
+  background: #fff;
+  border-radius: 16px;
+  width: 92%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Close Button - uses unified .modal-close style from modal-close-button.css */
+
+/* Header */
+#listingItemsModal .lim-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px 24px 16px;
+  padding-right: 70px; /* Space for close button */
+}
+
+#listingItemsModal .lim-header-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a2b4a;
+  font-size: 1.4rem;
+}
+
+#listingItemsModal .lim-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#listingItemsModal .lim-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a2b4a;
+  margin: 0;
+}
+
+#listingItemsModal .lim-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Body */
+#listingItemsModal .lim-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 24px;
+}
+
+/* Loading */
+#listingItemsModal .lim-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 24px;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+/* Error */
+#listingItemsModal .lim-error {
+  text-align: center;
+  padding: 32px;
+}
+
+#listingItemsModal .lim-error-icon {
+  font-size: 2.5rem;
+  color: #ef4444;
+  margin-bottom: 12px;
+}
+
+#listingItemsModal .lim-error-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a2b4a;
+  margin-bottom: 4px;
+}
+
+#listingItemsModal .lim-error-msg {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+/* Item Card */
+#listingItemsModal .lim-item-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+#listingItemsModal .lim-item-image {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #e5e7eb;
+}
+
+#listingItemsModal .lim-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#listingItemsModal .lim-item-details {
+  flex: 1;
+  min-width: 0;
+}
+
+#listingItemsModal .lim-item-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a2b4a;
+  margin: 0 0 6px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#listingItemsModal .lim-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#listingItemsModal .lim-qty-badge {
+  background: #1a2b4a;
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+#listingItemsModal .lim-price-each {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+#listingItemsModal .lim-item-total {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+#listingItemsModal .lim-item-total-price {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a2b4a;
+}
+
+/* Specifications Section */
+#listingItemsModal .lim-specs-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+#listingItemsModal .lim-specs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1a2b4a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+/* Listing Type Badges */
+#listingItemsModal .lim-listing-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+#listingItemsModal .lim-badge-standard {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+#listingItemsModal .lim-badge-oneofakind {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+#listingItemsModal .lim-badge-set {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+#listingItemsModal .lim-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+}
+
+#listingItemsModal .lim-spec-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+#listingItemsModal .lim-spec-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+#listingItemsModal .lim-spec-label {
+  color: #6b7280;
+}
+
+#listingItemsModal .lim-spec-value {
+  font-weight: 600;
+  color: #1a2b4a;
+  margin-left: auto;
+}
+
+/* Footer */
+#listingItemsModal .lim-footer {
+  padding: 16px 24px 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+#listingItemsModal .lim-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+#listingItemsModal .lim-footer-label {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+#listingItemsModal .lim-footer-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a2b4a;
+}
+
+#listingItemsModal .lim-footer-row.total {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 8px;
+  padding-top: 12px;
+}
+
+#listingItemsModal .lim-footer-row.total .lim-footer-label {
+  font-weight: 600;
+  color: #1a2b4a;
+}
+
+#listingItemsModal .lim-footer-row.total .lim-footer-value {
+  font-size: 1.25rem;
+  color: #059669;
+}
+
+/* ==========================================================================
+   Set Navigation - Tab bar for switching between set items
+   ========================================================================== */
+
+#listingItemsModal .lim-set-nav {
+  margin-bottom: 16px;
+}
+
+#listingItemsModal .lim-set-nav-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  background: #f3f4f6;
+  border-radius: 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+#listingItemsModal .lim-set-nav-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+#listingItemsModal .lim-set-nav-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#listingItemsModal .lim-set-nav-tabs::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+#listingItemsModal .lim-set-nav-tab {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+#listingItemsModal .lim-set-nav-tab:hover {
+  background: #e5e7eb;
+  color: #1a2b4a;
+}
+
+#listingItemsModal .lim-set-nav-tab.active {
+  background: #fff;
+  color: #1a2b4a;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  #listingItemsModal .listing-items-modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  #listingItemsModal .lim-item-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #listingItemsModal .lim-item-image {
+    width: 100%;
+    height: 120px;
+  }
+
+  #listingItemsModal .lim-item-total {
+    text-align: left;
+    margin-top: 8px;
+  }
+
+  #listingItemsModal .lim-specs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #listingItemsModal .lim-set-nav-tab {
+    min-width: 70px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+}

@@ -1,0 +1,461 @@
+/* ============================================
+   CLEAR DATA MODAL
+   ============================================ */
+
+.admin-modal-danger {
+  border: 2px solid #fecaca;
+}
+
+/* Clear data modal form content - enable proper flex scrolling */
+.clear-data-form-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.clear-data-form-content .admin-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.admin-modal-header-danger {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+}
+
+.admin-modal-header-danger h2 {
+  color: white;
+}
+
+.admin-modal-header-danger .admin-modal-close {
+  color: white;
+}
+
+.admin-modal-header-danger .admin-modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Warning Banner */
+.clear-data-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: #991b1b;
+}
+
+.clear-data-warning-banner i {
+  font-size: 18px;
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+.clear-data-warning-banner strong {
+  color: #7f1d1d;
+}
+
+/* Quick Actions */
+.clear-data-quick-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.quick-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-action-btn:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.quick-action-btn i {
+  font-size: 12px;
+}
+
+/* Data Options Container */
+.clear-data-options {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  padding-right: 8px;
+}
+
+/* Data Section */
+.clear-data-section {
+  margin-bottom: 20px;
+}
+
+.clear-data-section:last-child {
+  margin-bottom: 0;
+}
+
+.clear-data-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.clear-data-section-title i {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.clear-data-section-danger .clear-data-section-title {
+  color: #991b1b;
+  border-bottom-color: #fecaca;
+}
+
+.clear-data-section-danger .clear-data-section-title i {
+  color: #dc2626;
+}
+
+.danger-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #dc2626;
+  background: #fee2e2;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Data Grid */
+.clear-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+/* Data Option */
+.clear-data-option {
+  display: block;
+  cursor: pointer;
+}
+
+.clear-data-option input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.clear-data-option .option-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.clear-data-option .option-content > i {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.clear-data-option .option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clear-data-option .option-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.clear-data-option .option-desc {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Hover state */
+.clear-data-option:hover .option-content {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+/* Selected state */
+.clear-data-option input[type="checkbox"]:checked + .option-content {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.clear-data-option input[type="checkbox"]:checked + .option-content > i {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+/* Danger option styles */
+.clear-data-option.danger .option-content {
+  border-color: #fecaca;
+  background: #fffbfb;
+}
+
+.clear-data-option.danger .option-content > i {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.clear-data-option.danger:hover .option-content {
+  background: #fef2f2;
+}
+
+.clear-data-option.danger input[type="checkbox"]:checked + .option-content {
+  border-color: #b91c1c;
+  background: #fee2e2;
+}
+
+.clear-data-option.danger input[type="checkbox"]:checked + .option-content > i {
+  background: #b91c1c;
+}
+
+/* Selected Count */
+.clear-data-selected-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 20px;
+}
+
+.clear-data-selected-count i {
+  font-size: 14px;
+}
+
+.clear-data-selected-count.has-selection {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.clear-data-selected-count.has-selection i {
+  color: #dc2626;
+}
+
+.clear-data-confirm {
+  margin-bottom: 24px;
+}
+
+.clear-data-confirm label {
+  display: block;
+  font-size: 14px;
+  color: #4b5563;
+  margin-bottom: 8px;
+}
+
+.clear-data-confirm label strong {
+  color: #dc2626;
+  font-family: monospace;
+  background: #fef2f2;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.confirm-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: monospace;
+  color: #1a1a2e;
+  transition: border-color 0.2s;
+}
+
+.confirm-input:focus {
+  outline: none;
+  border-color: #dc2626;
+}
+
+.confirm-input::placeholder {
+  color: #9ca3af;
+}
+
+/* ============================================
+   CLEAR DATA SUCCESS ANIMATION
+   ============================================ */
+
+.clear-data-success-content {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.clear-data-success-content.show {
+  display: flex;
+}
+
+/* Hide form content when showing success */
+#clearDataDialog.success .clear-data-form-content {
+  display: none;
+}
+
+#clearDataDialog.success {
+  border-color: #fca5a5;
+}
+
+.clear-data-checkmark-container {
+  margin: 0 auto 24px;
+  width: 80px;
+  height: 80px;
+}
+
+.clear-data-checkmark {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 3;
+  stroke: #dc2626;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #dc2626;
+  animation: clearDataFill 0.4s ease-in-out 0.4s forwards, clearDataScale 0.3s ease-in-out 0.9s both;
+}
+
+.clear-data-checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 3;
+  stroke-miterlimit: 10;
+  stroke: #dc2626;
+  fill: none;
+  animation: clearDataStroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.clear-data-checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  animation: clearDataStroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+
+@keyframes clearDataStroke {
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes clearDataScale {
+  0%, 100% {
+    transform: none;
+  }
+  50% {
+    transform: scale3d(1.1, 1.1, 1);
+  }
+}
+
+@keyframes clearDataFill {
+  100% {
+    box-shadow: inset 0px 0px 0px 40px #dc2626;
+  }
+}
+
+.clear-data-success-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.clear-data-success-message {
+  font-size: 15px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.clear-data-success-btn {
+  padding: 12px 32px;
+  border: none;
+  border-radius: 10px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clear-data-success-btn:hover {
+  background: #b91c1c;
+}
+
+/* Responsive danger zone */
+@media (max-width: 768px) {
+  .danger-zone-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .danger-zone-info {
+    text-align: center;
+  }
+
+  .clear-data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clear-data-quick-actions {
+    justify-content: center;
+  }
+
+  .clear-data-options {
+    max-height: 300px;
+  }
+}
+

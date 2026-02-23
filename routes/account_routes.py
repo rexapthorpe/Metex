@@ -5,6 +5,8 @@ from database import get_db_connection
 from utils.cart_utils import get_cart_data
 from services.pricing_service import get_effective_price, get_effective_bid_price
 from services.spot_price_service import get_current_spot_prices
+from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
+from core.services.ledger.fee_config import calculate_fee
 from collections import defaultdict
 import os
 
@@ -107,13 +109,65 @@ def account():
         (user_id,)
     ).fetchone()
     received_ratings = conn.execute(
-        """SELECT r.rating, r.comment, r.timestamp, u.username AS rater_name
+        """SELECT r.rating, r.comment, r.timestamp, u.username AS rater_name, r.order_id
            FROM ratings r
            JOIN users u ON r.rater_id = u.id
           WHERE r.ratee_id = ?
           ORDER BY r.timestamp DESC
         """, (user_id,)
     ).fetchall()
+
+    given_ratings = conn.execute(
+        """SELECT r.rating, r.comment, r.timestamp, u.username AS ratee_name, r.order_id
+           FROM ratings r
+           JOIN users u ON r.ratee_id = u.id
+          WHERE r.rater_id = ?
+          ORDER BY r.timestamp DESC
+        """, (user_id,)
+    ).fetchall()
+
+    # Pending ratings: completed orders the user participated in but hasn't rated
+    completed_statuses = "('Delivered','Complete','Completed','delivered','complete','completed')"
+    pending_ratings_buyer = conn.execute(
+        f"""SELECT o.id AS order_id, o.created_at AS order_date,
+               'buyer' AS user_role,
+               MIN(su.username) AS other_username, MIN(su.id) AS other_user_id,
+               MIN(c.metal) AS metal, MIN(c.product_type) AS product_type,
+               MIN(c.weight) AS weight,
+               SUM(oi.quantity * oi.price_each) AS total_amount
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            JOIN listings l ON oi.listing_id = l.id
+            JOIN categories c ON l.category_id = c.id
+            JOIN users su ON l.seller_id = su.id
+           WHERE o.buyer_id = ?
+             AND o.status IN {completed_statuses}
+             AND o.id NOT IN (SELECT order_id FROM ratings WHERE rater_id = ?)
+           GROUP BY o.id ORDER BY o.created_at DESC
+        """, (user_id, user_id)
+    ).fetchall()
+
+    pending_ratings_seller = conn.execute(
+        f"""SELECT o.id AS order_id, o.created_at AS order_date,
+               'seller' AS user_role,
+               bu.username AS other_username, bu.id AS other_user_id,
+               MIN(c.metal) AS metal, MIN(c.product_type) AS product_type,
+               MIN(c.weight) AS weight,
+               SUM(oi.quantity * oi.price_each) AS total_amount
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            JOIN listings l ON oi.listing_id = l.id
+            JOIN categories c ON l.category_id = c.id
+            JOIN users bu ON o.buyer_id = bu.id
+           WHERE l.seller_id = ?
+             AND o.status IN {completed_statuses}
+             AND o.id NOT IN (SELECT order_id FROM ratings WHERE rater_id = ?)
+           GROUP BY o.id ORDER BY o.created_at DESC
+        """, (user_id, user_id)
+    ).fetchall()
+
+    pending_ratings = [dict(r) for r in pending_ratings_buyer] + [dict(r) for r in pending_ratings_seller]
+    pending_ratings.sort(key=lambda x: x.get('order_date', ''), reverse=True)
 
     # 4) Orders (pending & completed) + helper to attach sellers
     def attach_sellers(order_rows):
@@ -169,10 +223,12 @@ def account():
                   AND r.rater_id = ?
              ) AS already_rated,
              (SELECT COUNT(*) FROM order_items oi2
-                JOIN portfolio_exclusions pe ON pe.order_item_id = oi2.order_item_id
+                JOIN portfolio_exclusions pe ON pe.order_item_id = oi2.id
                WHERE oi2.order_id = o.id
                  AND pe.user_id = ?
-             ) AS excluded_count
+             ) AS excluded_count,
+             (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_status,
+             (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_reason
            FROM orders o
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id
@@ -216,7 +272,7 @@ def account():
                   AND r.rater_id = ?
              ) AS already_rated,
              (SELECT COUNT(*) FROM order_items oi2
-                JOIN portfolio_exclusions pe ON pe.order_item_id = oi2.order_item_id
+                JOIN portfolio_exclusions pe ON pe.order_item_id = oi2.id
                WHERE oi2.order_id = o.id
                  AND pe.user_id = ?
              ) AS excluded_count
@@ -360,12 +416,27 @@ def account():
                   (SELECT 1 FROM ratings r
                      WHERE r.order_id = o.id
                        AND r.rater_id = ?
-                  ) AS already_rated
+                  ) AS already_rated,
+                  oil.fee_type AS ledger_fee_type,
+                  oil.fee_value AS ledger_fee_value,
+                  oil.fee_amount AS ledger_fee_amount,
+                  oil.seller_net_amount AS ledger_seller_net,
+                  oil.gross_amount AS ledger_gross_amount,
+                  op.payout_status,
+                  (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_status,
+                  (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_reason,
+                  (SELECT csr.response
+                     FROM cancellation_seller_responses csr
+                     JOIN cancellation_requests cr2 ON csr.request_id = cr2.id
+                    WHERE cr2.order_id = o.id AND csr.seller_id = l.seller_id
+                    LIMIT 1) AS seller_cancel_response
            FROM orders o
            JOIN order_items oi ON o.id = oi.order_id
            JOIN listings l     ON oi.listing_id = l.id
            JOIN categories c   ON l.category_id = c.id
            JOIN users u        ON o.buyer_id = u.id
+           LEFT JOIN order_items_ledger oil ON oil.order_id = o.id AND oil.listing_id = l.id
+           LEFT JOIN order_payouts op ON op.order_id = o.id AND op.seller_id = l.seller_id
           WHERE l.seller_id = ?
           ORDER BY o.created_at DESC
         """, (user_id, user_id)
@@ -401,6 +472,52 @@ def account():
 
         # Add shipping_name to sale dict
         sale['shipping_name'] = shipping_name
+
+        # ✅ Compute fee breakdown for seller net proceeds display
+        # Use ledger data if available, otherwise compute from default fee
+        gross_amount = sale['quantity'] * sale['price_each']
+
+        if sale.get('ledger_fee_type') is not None and sale.get('ledger_fee_value') is not None:
+            # Use stored ledger values (fee locked at purchase time)
+            sale['fee_type'] = sale['ledger_fee_type']
+            sale['fee_percent'] = sale['ledger_fee_value'] if sale['ledger_fee_type'] == 'percent' else None
+            sale['fee_amount'] = sale.get('ledger_fee_amount', 0)
+            sale['seller_net'] = sale.get('ledger_seller_net', gross_amount - sale['fee_amount'])
+            sale['gross_amount'] = sale.get('ledger_gross_amount', gross_amount)
+        else:
+            # Fallback for older orders: calculate using default fee
+            sale['fee_type'] = 'percent'
+            sale['fee_percent'] = DEFAULT_PLATFORM_FEE_VALUE
+            sale['fee_amount'] = calculate_fee(gross_amount, 'percent', DEFAULT_PLATFORM_FEE_VALUE)
+            sale['seller_net'] = gross_amount - sale['fee_amount']
+            sale['gross_amount'] = gross_amount
+
+        # Determine if fee is non-default (for display badge)
+        if sale['fee_type'] == 'percent' and sale['fee_percent'] is not None:
+            if sale['fee_percent'] < DEFAULT_PLATFORM_FEE_VALUE:
+                sale['fee_indicator'] = 'reduced'
+            elif sale['fee_percent'] > DEFAULT_PLATFORM_FEE_VALUE:
+                sale['fee_indicator'] = 'elevated'
+            else:
+                sale['fee_indicator'] = None
+        elif sale['fee_type'] == 'flat':
+            sale['fee_indicator'] = 'custom'
+        else:
+            sale['fee_indicator'] = None
+
+        # Payout status for display (pending vs settled)
+        payout_status = sale.get('payout_status')
+        if payout_status in ('PAID_OUT',):
+            sale['payout_display'] = 'Paid'
+        elif payout_status in ('PAYOUT_READY', 'PAYOUT_SCHEDULED', 'PAYOUT_IN_PROGRESS'):
+            sale['payout_display'] = 'Pending'
+        elif payout_status == 'PAYOUT_ON_HOLD':
+            sale['payout_display'] = 'On Hold'
+        elif payout_status == 'PAYOUT_CANCELLED':
+            sale['payout_display'] = 'Cancelled'
+        else:
+            sale['payout_display'] = 'Processing'
+
         sales.append(sale)
 
     # 6) Cart
@@ -488,6 +605,8 @@ def account():
         bids=bids,
         avg_rating=(avg_rating['average'] if avg_rating else None),
         received_ratings=received_ratings,
+        given_ratings=given_ratings,
+        pending_ratings=pending_ratings,
         pending_orders=pending_orders,
         completed_orders=completed_orders,
         listings=active_listings,

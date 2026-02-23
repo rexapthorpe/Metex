@@ -1,0 +1,761 @@
+/* ============================================
+   DISPUTES / REPORTS STYLES
+   ============================================ */
+
+.dispute-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dispute-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.dispute-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.dispute-empty .empty-state-icon {
+  font-size: 48px;
+  color: #10b981;
+  margin-bottom: 16px;
+}
+
+.dispute-empty h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.dispute-empty p {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* Dispute Card - Updated Design */
+.dispute-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  transition: box-shadow 0.15s ease;
+}
+
+.dispute-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Header Row */
+.dispute-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.dispute-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dispute-type-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dispute-type-icon i {
+  font-size: 20px;
+  color: #6b7280;
+}
+
+.dispute-id {
+  font-size: 13px;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.dispute-reason-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dispute-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.dispute-date {
+  font-size: 13px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dispute-date i {
+  font-size: 12px;
+}
+
+.dispute-amount {
+  font-size: 22px;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+/* Parties Row */
+.dispute-parties-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-top: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 16px;
+}
+
+.dispute-party-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dispute-party-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.party-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.party-avatar-blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.party-avatar-red {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.party-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.party-label {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.party-username {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2937;
+  cursor: pointer;
+}
+
+.party-username:hover {
+  color: #3b82f6;
+}
+
+.party-stats-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.party-stats-btn:hover {
+  background: #f3f4f6;
+  color: #3b82f6;
+}
+
+.dispute-arrow {
+  color: #d1d5db;
+  font-size: 16px;
+}
+
+/* Description */
+.dispute-description {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0 0 12px 0;
+}
+
+/* Photos Badge */
+.dispute-photos-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: #1f2937;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+/* Actions Row */
+.dispute-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.dispute-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dispute-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Dispute Buttons */
+.dispute-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.dispute-btn-primary {
+  background: #1f2937;
+  color: #ffffff;
+}
+
+.dispute-btn-primary:hover {
+  background: #374151;
+}
+
+.dispute-btn-warning-outline {
+  background: transparent;
+  border: 1px solid #f59e0b;
+  color: #f59e0b;
+}
+
+.dispute-btn-warning-outline:hover {
+  background: #fffbeb;
+}
+
+.dispute-btn-success-outline {
+  background: transparent;
+  border: 1px solid #10b981;
+  color: #10b981;
+}
+
+.dispute-btn-success-outline:hover {
+  background: #ecfdf5;
+}
+
+/* Icon Buttons */
+.dispute-icon-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  font-size: 16px;
+}
+
+.dispute-icon-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.dispute-icon-btn-blue:hover {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.dispute-icon-btn-red:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Keep old button styles for other parts */
+.btn-warning {
+  padding: 8px 14px;
+  background: #f59e0b;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease;
+}
+
+.btn-warning:hover {
+  background: #d97706;
+}
+
+.btn-success-outline {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid #10b981;
+  border-radius: 8px;
+  color: #10b981;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-success-outline:hover {
+  background: #10b981;
+  color: #ffffff;
+}
+
+/* Admin Modals (Dispute/Report modals that act as overlays)
+   These modals use .admin-modal as the overlay container, not as inner content box.
+   We use specific IDs to avoid affecting user modals that use .admin-modal-overlay > .admin-modal structure.
+*/
+#adminReportDetailsModal,
+#adminUserStatsModal,
+#adminResolveReportModal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.admin-modal-content {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.admin-modal-lg {
+  max-width: 600px;
+}
+
+.admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.admin-modal-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.admin-modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #6b7280;
+  transition: all 0.15s ease;
+}
+
+.admin-modal-close:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.admin-modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.admin-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+/* Report Details Modal */
+.report-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.report-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.report-detail-section.full-width {
+  grid-column: 1 / -1;
+}
+
+.report-detail-section label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.report-detail-section span {
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.report-comment-full {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+  margin: 0;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.report-photos-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.report-photo-thumb {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.report-photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-link {
+  color: #3b82f6;
+  cursor: pointer;
+}
+
+.user-link:hover {
+  text-decoration: underline;
+}
+
+/* User Stats Modal */
+.user-stats-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 16px;
+}
+
+.user-stats-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: #3b82f6;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.user-stats-info h4 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+}
+
+.user-stats-email {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.user-stats-badges {
+  margin-top: 8px;
+}
+
+.user-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat-box {
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.stat-box-warning {
+  background: #fef3c7;
+}
+
+.stat-box-label {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.stat-box-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.stat-box-value small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.user-stats-meta {
+  font-size: 12px;
+  color: #6b7280;
+  padding: 12px 0;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 16px;
+}
+
+.user-stats-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.user-stats-actions button {
+  flex: 1;
+}
+
+/* Status badges */
+.status-investigating {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-resolved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-dismissed {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.status-admin {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.status-banned {
+  background: #fecaca;
+  color: #b91c1c;
+}
+
+.status-frozen {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Form elements in modals */
+.admin-modal-body .form-group {
+  margin-bottom: 16px;
+}
+
+.admin-modal-body .form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.admin-modal-body .form-select,
+.admin-modal-body textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1f2937;
+  background: #ffffff;
+  transition: border-color 0.15s ease;
+}
+
+.admin-modal-body .form-select:focus,
+.admin-modal-body textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.admin-modal-body textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dispute-header-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .dispute-header-right {
+    align-items: flex-start;
+  }
+
+  .dispute-parties-row {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .dispute-party-right {
+    flex-direction: row-reverse;
+  }
+
+  .dispute-arrow {
+    transform: rotate(90deg);
+    align-self: center;
+    display: none;
+  }
+
+  .dispute-actions-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .dispute-actions-left {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .dispute-actions-left .dispute-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .dispute-actions-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .user-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .report-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

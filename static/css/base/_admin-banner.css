@@ -1,0 +1,116 @@
+
+/* ==========================================================================
+   Admin Message Banner (Global)
+   ========================================================================== */
+
+.admin-message-banner {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-bottom: 2px solid #f59e0b;
+    padding: 12px 20px;
+    position: fixed;
+    top: 123px; /* Below header (73px) + subheader (50px) */
+    left: 0;
+    right: 0;
+    z-index: 900;
+    animation: adminBannerSlideDown 0.3s ease-out;
+}
+
+@keyframes adminBannerSlideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.admin-banner-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.admin-banner-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+.admin-banner-icon i {
+    font-size: 20px;
+    color: #ffffff;
+}
+
+.admin-banner-text {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-banner-text strong {
+    font-size: 15px;
+    font-weight: 700;
+    color: #92400e;
+}
+
+.admin-banner-text span {
+    font-size: 13px;
+    color: #b45309;
+}
+
+.admin-banner-actions {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.admin-banner-btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+}
+
+.admin-banner-btn-primary {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+}
+
+.admin-banner-btn-primary:hover {
+    background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
+}
+
+.admin-banner-btn-dismiss {
+    background: rgba(255, 255, 255, 0.6);
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+.admin-banner-btn-dismiss:hover {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: #d97706;
+}
+

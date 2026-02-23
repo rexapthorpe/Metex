@@ -1,0 +1,137 @@
+/* ============================================
+   FROZEN USER STYLES
+   ============================================ */
+
+/* Frozen user row styling */
+.user-row-frozen {
+  background: linear-gradient(90deg, #eff6ff 0%, #dbeafe 100%) !important;
+  border-left: 3px solid #3b82f6;
+}
+
+.user-row-frozen:hover {
+  background: linear-gradient(90deg, #dbeafe 0%, #bfdbfe 100%) !important;
+}
+
+/* Frozen badge next to username */
+.user-frozen-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 10px;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.user-frozen-badge i {
+  font-size: 9px;
+}
+
+/* Freeze button when user is frozen (active state) */
+.action-icon.action-frozen {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.action-icon.action-frozen:hover {
+  background: #1d4ed8;
+  color: #ffffff;
+  border-color: #1e40af;
+}
+
+.action-icon.action-frozen i {
+  animation: frozenPulse 2s ease-in-out infinite;
+}
+
+@keyframes frozenPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Message Modal Styles */
+.message-recipient {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.message-recipient-label {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.message-recipient-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.message-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message-form label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.message-input {
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1a1a2e;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.message-input:focus {
+  border-color: #3b82f6;
+}
+
+.message-input::placeholder {
+  color: #9ca3af;
+}
+
+.message-textarea {
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1a1a2e;
+  outline: none;
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.message-textarea:focus {
+  border-color: #3b82f6;
+}
+
+.message-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.btn-primary i {
+  margin-right: 4px;
+}
+

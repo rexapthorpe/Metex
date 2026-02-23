@@ -9,6 +9,18 @@ from datetime import datetime
 import json
 
 
+def notify_cancel_request_submitted(requester_id, order_id, item_description):
+    """Re-export wrapper to avoid circular import with notification_types"""
+    from services.notification_types import notify_cancel_request_submitted as _impl
+    return _impl(requester_id, order_id, item_description)
+
+
+def notify_report_submitted(reporter_id, reported_username, report_id):
+    """Re-export wrapper to avoid circular import with notification_types"""
+    from services.notification_types import notify_report_submitted as _impl
+    return _impl(reporter_id, reported_username, report_id)
+
+
 def create_notification(user_id, notification_type, title, message, related_order_id=None,
                        related_bid_id=None, related_listing_id=None, metadata=None):
     """

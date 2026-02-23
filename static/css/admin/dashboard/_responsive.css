@@ -1,0 +1,626 @@
+/* ============================================
+   ENHANCED MOBILE RESPONSIVE STYLES
+   Professional admin dashboard on mobile
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* Dashboard container */
+  .admin-dashboard {
+    padding: 16px 12px; /* Top padding handled by base.css .container */
+  }
+
+  /* Header - compact mobile layout */
+  .admin-header {
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .admin-header-left {
+    gap: 12px;
+  }
+
+  .admin-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+
+  .admin-title {
+    font-size: 22px;
+  }
+
+  .admin-subtitle {
+    font-size: 13px;
+    display: none; /* Hide subtitle on mobile for cleaner look */
+  }
+
+  .admin-header-actions {
+    width: 100%;
+  }
+
+  .admin-action-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* Tab Navigation - horizontal scroll with compact tabs */
+  .admin-tabs {
+    gap: 4px;
+    margin-bottom: 20px;
+    padding-bottom: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .admin-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-tab {
+    padding: 10px 14px;
+    font-size: 13px;
+    gap: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .admin-tab i {
+    font-size: 14px;
+  }
+
+  /* Hide tab text on small screens, show only icons */
+  .admin-tab span {
+    display: none;
+  }
+
+  /* Stats Grid - stack on mobile */
+  .stats-grid {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stats-grid-4,
+  .stats-grid-3,
+  .stats-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Stat Cards - compact */
+  .stat-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .stat-card-header {
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+  }
+
+  .stat-change {
+    font-size: 11px;
+    margin-top: 6px;
+  }
+
+  /* Compact stat cards */
+  .stat-card-compact {
+    padding: 12px;
+  }
+
+  .stat-card-row {
+    gap: 10px;
+  }
+
+  .stat-icon-small {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .stat-label-small {
+    font-size: 11px;
+  }
+
+  .stat-value-small {
+    font-size: 16px;
+  }
+
+  .stat-arrow {
+    font-size: 12px;
+  }
+
+  /* Activity Grid */
+  .activity-grid {
+    gap: 16px;
+  }
+
+  /* Activity Cards */
+  .activity-card {
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .activity-header {
+    margin-bottom: 12px;
+  }
+
+  .activity-header h3 {
+    font-size: 16px;
+  }
+
+  .view-all-link {
+    font-size: 12px;
+  }
+
+  /* Activity Items - stack info */
+  .activity-item {
+    padding: 10px 0;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .activity-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .activity-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .activity-title {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 150px;
+  }
+
+  .activity-meta {
+    font-size: 11px;
+  }
+
+  .activity-amount {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .status-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  /* Panel Toolbar */
+  .panel-toolbar {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .search-filter-group {
+    gap: 8px;
+  }
+
+  .search-box {
+    min-width: auto;
+  }
+
+  .search-box input {
+    font-size: 14px;
+    padding: 10px 12px 10px 36px;
+  }
+
+  .search-box i {
+    left: 12px;
+    font-size: 14px;
+  }
+
+  .filter-select {
+    padding: 10px 12px;
+    font-size: 13px;
+    min-width: 100px;
+  }
+
+  .toolbar-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* Data Tables - horizontal scroll with fixed column widths */
+  .data-table-container {
+    margin: 0 -12px;
+    padding: 0 12px;
+    border-radius: 0;
+  }
+
+  .data-table {
+    font-size: 12px;
+    min-width: 600px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 10px 8px;
+  }
+
+  .data-table th {
+    font-size: 11px;
+  }
+
+  /* User cell in table */
+  .user-cell {
+    gap: 8px;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  .user-name {
+    font-size: 12px;
+  }
+
+  /* Actions cell */
+  .actions-cell {
+    gap: 4px;
+  }
+
+  .action-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  /* Section Headers */
+  .section-header {
+    margin-bottom: 12px;
+  }
+
+  .section-header h3 {
+    font-size: 16px;
+  }
+
+  /* Settings Grid */
+  .settings-grid {
+    gap: 12px;
+  }
+
+  .settings-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .settings-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+
+  .settings-info h4 {
+    font-size: 14px;
+  }
+
+  .settings-info p {
+    font-size: 12px;
+  }
+
+  /* Progress bars */
+  .progress-bar {
+    height: 6px;
+    margin-top: 8px;
+  }
+
+  /* Danger Zone */
+  .danger-zone-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .danger-zone-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .danger-zone-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+
+  .danger-zone-info h4 {
+    font-size: 16px;
+  }
+
+  .danger-zone-info p {
+    font-size: 13px;
+  }
+
+  .btn-danger-lg {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  /* Ledger toolbar */
+  .ledger-toolbar .search-filter-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .ledger-toolbar .filter-select,
+  .ledger-toolbar .filter-input-sm {
+    width: 100%;
+    min-width: auto;
+  }
+
+  /* Pagination */
+  .ledger-pagination {
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .pagination-info {
+    width: 100%;
+    text-align: center;
+    order: -1;
+    font-size: 13px;
+  }
+
+  /* Under Construction */
+  .under-construction-container {
+    padding: 30px 20px;
+  }
+
+  .under-construction-icon {
+    font-size: 36px;
+  }
+
+  .under-construction-title {
+    font-size: 16px;
+  }
+
+  .under-construction-text {
+    font-size: 13px;
+  }
+
+  /* Modals - nearly full screen on mobile */
+  .admin-modal-overlay {
+    padding: 12px;
+  }
+
+  .admin-modal-overlay .admin-modal {
+    border-radius: 16px;
+    max-width: 100%;
+    max-height: 85vh;
+  }
+
+  .admin-modal-overlay .admin-modal.admin-modal-lg,
+  .admin-modal-overlay .admin-modal.admin-modal-xl {
+    max-width: 100%;
+  }
+
+  .admin-modal-header {
+    padding: 16px;
+  }
+
+  .admin-modal-header h2 {
+    font-size: 18px;
+  }
+
+  .admin-modal-body {
+    padding: 16px;
+  }
+
+  .admin-modal-footer {
+    padding: 12px 16px;
+  }
+
+  /* Modal actions */
+  .modal-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modal-actions button {
+    width: 100%;
+  }
+
+  /* Dispute cards */
+  .dispute-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .dispute-header-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .dispute-user-info h4 {
+    font-size: 15px;
+  }
+
+  .dispute-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Messages */
+  .admin-conversation-messages {
+    padding: 12px;
+  }
+
+  .admin-message-bubble {
+    max-width: 90%;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .admin-conversation-reply {
+    padding: 12px;
+  }
+
+  .admin-reply-input {
+    font-size: 14px;
+  }
+
+  /* Clear data modal */
+  .clear-data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clear-data-option {
+    padding: 12px;
+  }
+
+  .clear-data-quick-actions {
+    flex-wrap: wrap;
+  }
+
+  .quick-action-btn {
+    flex: 1;
+    min-width: 100px;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}
+
+/* Very small mobile - 480px and below */
+@media (max-width: 480px) {
+  .admin-dashboard {
+    padding: 12px 10px;
+  }
+
+  .admin-title {
+    font-size: 20px;
+  }
+
+  .admin-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+
+  /* Single column stats on very small screens */
+  .stats-grid-4,
+  .stats-grid-3,
+  .stats-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .admin-tab {
+    padding: 8px 12px;
+  }
+
+  /* Activity items - vertical layout */
+  .activity-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .activity-item > * {
+    width: auto;
+  }
+
+  .activity-title {
+    max-width: 100%;
+  }
+
+  /* Stack badges */
+  .activity-item .status-badge,
+  .activity-item .metal-badge {
+    align-self: flex-start;
+  }
+
+  /* Filters stack vertically */
+  .ledger-toolbar .search-filter-group {
+    grid-template-columns: 1fr;
+  }
+
+  /* Full width buttons */
+  .toolbar-actions {
+    width: 100%;
+  }
+
+  .toolbar-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Modals */
+  .admin-modal-overlay {
+    padding: 8px;
+  }
+
+  .admin-modal-overlay .admin-modal {
+    border-radius: 12px;
+    max-height: 90vh;
+  }
+}
+
+/* Very small screens - 360px and below */
+@media (max-width: 360px) {
+  .admin-dashboard {
+    padding: 10px 8px;
+  }
+
+  .admin-title {
+    font-size: 18px;
+  }
+
+  .admin-tab {
+    padding: 8px 10px;
+  }
+
+  .admin-tab i {
+    font-size: 12px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .activity-card {
+    padding: 12px;
+  }
+
+  .activity-header h3 {
+    font-size: 14px;
+  }
+}

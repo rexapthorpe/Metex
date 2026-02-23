@@ -1,0 +1,244 @@
+/* ========== SECTION HEADERS AND DIVIDERS ========== */
+.section-header {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+  grid-column: 1 / -1;
+}
+
+.row-divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  background: #e5e7eb;
+  margin: 1.5rem 0;
+}
+
+/* ========== CONSTRAIN FULL-WIDTH SECTIONS ========== */
+.input-grid > div[style*="grid-column: 1 / -1"] {
+  max-width: 900px;
+  justify-self: center;
+  width: 100%;
+}
+
+/* Better warning message styling */
+.warning-message {
+  max-width: 900px;
+  justify-self: center;
+  width: 100%;
+}
+
+/* Section spacing improvements */
+h3.section-header {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* Listing specs container improvements */
+.listing-specs-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  grid-column: 1 / -1 !important;
+  max-width: 900px;
+  justify-self: center;
+  width: 100%;
+}
+
+.listing-specs-left,
+.listing-specs-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .listing-specs-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Photo upload improvements */
+.photo-upload-group {
+  width: 100%;
+}
+
+.photo-upload-box {
+  width: 120px;
+  height: 120px;
+  aspect-ratio: 1;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: visible;
+}
+
+.photo-upload-box:hover {
+  border-color: #9ca3af;
+  background: #f3f4f6;
+}
+
+/* ========== PHOTO COUNT LABEL ========== */
+.photo-count-label {
+  font-weight: 400;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* ========== MULTI-PHOTO GRID (Standard & Set Items) ========== */
+/* Note: Multi-photo grid now uses same .photo-upload-box styling as Set Cover Photo */
+
+.multi-photo-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+/* Photo preview styling */
+.photo-upload-box .photo-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* Disabled state for "Add Photo" tile when max photos reached */
+.multi-photo-grid .photo-upload-box.disabled {
+  pointer-events: none;
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.multi-photo-grid .photo-upload-box.disabled:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+/* ========== TABLET BREAKPOINT ========== */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .listing-mode-selector {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Better alignment for centered content */
+.sell-form {
+  width: 100%;
+}
+
+/* Ensure submit button looks good */
+.submit-btn {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.submit-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.submit-btn:active {
+  transform: translateY(0);
+}
+
+.full-width-button {
+  grid-column: 1 / -1;
+  max-width: 300px;
+  justify-self: center;
+}
+
+/* ========== CONTENT CONTAINERS (CARD SECTIONS) ========== */
+.content-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  grid-column: 1 / -1;
+  max-width: 900px;
+  justify-self: center;
+  width: 100%;
+}
+
+.section-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #3da6ff;
+  color: white;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.section-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.content-section .input-group {
+  margin-bottom: 1.25rem;
+}
+
+.content-section .input-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Ensure all labels in content sections have consistent spacing */
+.content-section label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+/* Two-column grid within content sections */
+.content-section .fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .content-section {
+    padding: 1.5rem;
+  }
+
+  .content-section .fields-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/* Remove default row dividers when using content sections */
+.content-section + .row-divider {
+  display: none;
+}
+

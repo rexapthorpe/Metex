@@ -1,0 +1,124 @@
+/* ============================================
+   FREEZE MODAL SUCCESS ANIMATION
+   ============================================ */
+
+.freeze-modal-form-content {
+  display: block;
+}
+
+.freeze-modal-success-content {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.freeze-modal-success-content.show {
+  display: flex;
+}
+
+/* Hide form content when showing success */
+#freezeModalDialog.success .freeze-modal-form-content {
+  display: none;
+}
+
+#freezeModalDialog.success {
+  border: 2px solid #3b82f6;
+}
+
+/* Checkmark Animation - Blue theme for freeze */
+.freeze-checkmark-container {
+  margin: 0 auto 24px;
+  width: 80px;
+  height: 80px;
+}
+
+.freeze-checkmark {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 3;
+  stroke: #3b82f6;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #3b82f6;
+  animation: freezeFill 0.4s ease-in-out 0.4s forwards, freezeScale 0.3s ease-in-out 0.9s both;
+}
+
+.freeze-checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 3;
+  stroke-miterlimit: 10;
+  stroke: #3b82f6;
+  fill: none;
+  animation: freezeStroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.freeze-checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  animation: freezeStroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+
+@keyframes freezeStroke {
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes freezeScale {
+  0%, 100% {
+    transform: none;
+  }
+  50% {
+    transform: scale3d(1.1, 1.1, 1);
+  }
+}
+
+@keyframes freezeFill {
+  100% {
+    box-shadow: inset 0px 0px 0px 40px #3b82f6;
+  }
+}
+
+.freeze-success-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.freeze-success-message {
+  font-size: 15px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.freeze-success-btn {
+  padding: 12px 32px;
+  border: none;
+  border-radius: 10px;
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.freeze-success-btn:hover {
+  background: #2563eb;
+}
+

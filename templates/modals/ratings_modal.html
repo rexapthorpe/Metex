@@ -3,31 +3,88 @@
   window.PLACEHOLDER_IMAGE = "{{ url_for('static', filename='img/placeholder.png') }}";
 </script>
 
-<!-- Rating Modal Overlay (initially hidden to prevent flicker) -->
-<div id="ratingsModal" class="modal ratings-modal" style="display: none;">
-  <div class="modal-content">
-    <!-- Unified close button - positioned relative to modal card -->
-    <button type="button" class="modal-close" aria-label="Close modal">&times;</button>
+<!-- Rating Modal -->
+<div id="ratingsModal" class="rm-overlay" style="display: none;">
+  <div class="rm-content">
+
+    <!-- Close -->
+    <button type="button" class="rm-close" aria-label="Close modal">&times;</button>
+
+    <!-- Nav arrows (multi-user) -->
     <button class="nav-arrow left" aria-label="Previous">&#10094;</button>
-    <div class="rating-card">
-      <img id="ratingProfileImage" class="profile-img" src="" alt="User Profile">
-      <h3 id="ratingUsername"></h3>
-      <form id="ratingForm" method="POST" action="">
-        <div class="stars" id="starContainer">
-          <i class="fa-regular fa-star" data-value="1"></i>
-          <i class="fa-regular fa-star" data-value="2"></i>
-          <i class="fa-regular fa-star" data-value="3"></i>
-          <i class="fa-regular fa-star" data-value="4"></i>
-          <i class="fa-regular fa-star" data-value="5"></i>
-        </div>
-        <input type="hidden" name="rating" id="ratingInput" value="0">
-        <textarea name="comment" placeholder="Optional comments..." rows="3"></textarea>
-        <div class="buttons">
-          <button type="button" class="cancel-btn">Cancel</button>
-          <button type="submit" class="submit-btn">Submit</button>
-        </div>
-      </form>
-    </div>
     <button class="nav-arrow right" aria-label="Next">&#10095;</button>
+
+    <!-- Header -->
+    <div class="rm-header">
+      <h2 class="rm-title">Leave a Rating</h2>
+      <p class="rm-subtitle">Share your experience with this transaction.</p>
+    </div>
+
+    <!-- User card -->
+    <div class="rm-user-card">
+      <div class="rm-avatar" id="rmAvatar"></div>
+      <div class="rm-user-info">
+        <div class="rm-username" id="ratingUsername"></div>
+        <div class="rm-handle" id="rmHandle"></div>
+      </div>
+    </div>
+
+    <!-- Item card -->
+    <div class="rm-item-card" id="rmItemCard" style="display:none;">
+      <div class="rm-item-icon">
+        <i class="fa-regular fa-cube"></i>
+      </div>
+      <div class="rm-item-info">
+        <div class="rm-item-title" id="rmItemTitle"></div>
+        <div class="rm-item-meta">
+          <span class="rm-item-meta-field">
+            <i class="fa-solid fa-dollar-sign rm-meta-icon"></i>
+            <span id="rmItemPrice"></span>
+          </span>
+          <span class="rm-item-meta-field" id="rmItemDateField" style="display:none;">
+            <i class="fa-regular fa-calendar rm-meta-icon"></i>
+            <span id="rmItemDate"></span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success confirmation (shown after submit) -->
+    <div class="rm-confirm" id="rmConfirm">
+      <div class="rm-confirm-circle">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <div class="rm-confirm-title">Rating Submitted!</div>
+      <div class="rm-confirm-sub">Thank you for your feedback.</div>
+    </div>
+
+    <hr class="rm-divider">
+
+    <!-- Star form -->
+    <form id="ratingForm" method="POST" action="">
+      <input type="hidden" name="rating" id="ratingInput" value="0">
+
+      <div class="rm-stars-section">
+        <div class="rm-stars-title">Rate your experience</div>
+        <div class="rm-stars" id="starContainer">
+          <span class="rm-star-wrap"><i class="fa-regular fa-star" data-value="1"></i></span>
+          <span class="rm-star-wrap"><i class="fa-regular fa-star" data-value="2"></i></span>
+          <span class="rm-star-wrap"><i class="fa-regular fa-star" data-value="3"></i></span>
+          <span class="rm-star-wrap"><i class="fa-regular fa-star" data-value="4"></i></span>
+          <span class="rm-star-wrap"><i class="fa-regular fa-star" data-value="5"></i></span>
+        </div>
+        <div class="rm-stars-hint" id="rmStarsHint">Click a star to rate</div>
+      </div>
+
+      <textarea name="comment" id="rmComment" class="rm-comment" placeholder="Add a comment (optional)..." rows="2"></textarea>
+
+      <div class="rm-footer">
+        <button type="button" class="rm-cancel-btn cancel-btn">Cancel</button>
+        <button type="submit" class="rm-submit-btn submit-btn" disabled>
+          <i class="fa-regular fa-star"></i> Submit Rating
+        </button>
+      </div>
+    </form>
+
   </div>
 </div>

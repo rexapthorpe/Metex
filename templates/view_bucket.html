@@ -198,6 +198,14 @@
       {% if specs['Mint'] %}
         <p class="title-soft">Minted from the {{ specs['Mint'] }}</p>
       {% endif %}
+
+      <!-- Fee Indicator (shown for non-default fees) -->
+      {% if fee_indicator %}
+      <div class="bucket-fee-indicator fee-{{ fee_indicator }}">
+        <i class="fa-solid fa-tag"></i> {{ fee_display }}
+      </div>
+      {% endif %}
+
       <hr class="divider">
 
       <!-- Sellers header/button/link -->

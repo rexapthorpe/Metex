@@ -408,6 +408,156 @@
   margin: 0 0 20px 0;
 }
 
+/* ============================================================
+   EDIT LISTING - SELLER PROCEEDS PREVIEW
+   ============================================================ */
+
+.edit-proceeds-box {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-top: 12px;
+}
+
+.edit-proceeds-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+/* Primary net proceeds row */
+.edit-proceeds-net-row {
+  padding-bottom: 10px;
+}
+
+.edit-proceeds-net-row .edit-proceeds-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.edit-proceeds-net-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #059669;
+}
+
+/* Fee indicator badge row */
+.edit-fee-indicator-row {
+  justify-content: flex-end;
+  padding: 4px 0 6px 0;
+}
+
+.edit-proceeds-fee-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.edit-proceeds-fee-badge.fee-reduced {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.edit-proceeds-fee-badge.fee-elevated,
+.edit-proceeds-fee-badge.fee-custom {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Divider */
+.edit-proceeds-divider {
+  height: 1px;
+  background: #d1d5db;
+  margin: 6px 0;
+}
+
+/* Breakdown rows */
+.edit-proceeds-breakdown-row {
+  padding: 4px 0;
+}
+
+.edit-proceeds-breakdown-row .edit-proceeds-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.edit-proceeds-breakdown-row .edit-proceeds-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+/* Fee deduction */
+.edit-proceeds-fee-deduction {
+  color: #dc2626 !important;
+}
+
+/* Note below proceeds */
+.edit-proceeds-note {
+  margin: 10px 0 0 0;
+  font-size: 11px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.edit-proceeds-note i {
+  color: #9ca3af;
+  font-size: 10px;
+}
+
+/* Dark mode */
+body.dark-mode .edit-proceeds-box {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+  border-color: #10b981;
+}
+
+body.dark-mode .edit-proceeds-net-row .edit-proceeds-label {
+  color: var(--text-primary);
+}
+
+body.dark-mode .edit-proceeds-net-value {
+  color: #34d399;
+}
+
+body.dark-mode .edit-proceeds-divider {
+  background: var(--border-primary);
+}
+
+body.dark-mode .edit-proceeds-breakdown-row .edit-proceeds-label {
+  color: var(--text-secondary);
+}
+
+body.dark-mode .edit-proceeds-breakdown-row .edit-proceeds-value {
+  color: var(--text-primary);
+}
+
+body.dark-mode .edit-proceeds-fee-deduction {
+  color: #f87171 !important;
+}
+
+body.dark-mode .edit-proceeds-fee-badge.fee-reduced {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+body.dark-mode .edit-proceeds-fee-badge.fee-elevated,
+body.dark-mode .edit-proceeds-fee-badge.fee-custom {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+body.dark-mode .edit-proceeds-note {
+  color: var(--text-muted);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .edit-confirm-dialog,

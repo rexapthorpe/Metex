@@ -1,0 +1,97 @@
+      <!-- Bucket Stats -->
+      <div class="stats-grid stats-grid-4">
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Total Buckets</span>
+            <div class="stat-icon stat-icon-purple">
+              <i class="fa-solid fa-layer-group"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="bucketStatTotal">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Custom Fees</span>
+            <div class="stat-icon stat-icon-blue">
+              <i class="fa-solid fa-percent"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="bucketStatCustomFees">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Active Listings</span>
+            <div class="stat-icon stat-icon-green">
+              <i class="fa-solid fa-tags"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="bucketStatListings">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Active Bids</span>
+            <div class="stat-icon stat-icon-gold">
+              <i class="fa-solid fa-gavel"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="bucketStatBids">-</div>
+        </div>
+      </div>
+
+      <!-- Bucket Filters -->
+      <div class="panel-toolbar">
+        <div class="search-filter-group">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search buckets..." id="bucketSearch">
+          </div>
+          <select class="filter-select" id="bucketMetalFilter">
+            <option value="">All Metals</option>
+          </select>
+        </div>
+        <div class="toolbar-actions">
+          <button class="toolbar-btn" onclick="loadBuckets()">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <h3>Product Buckets</h3>
+        <span class="section-subtitle" id="bucketCountDisplay">Loading...</span>
+      </div>
+
+      <div class="data-table-container">
+        <table class="data-table" id="bucketsTable">
+          <thead>
+            <tr>
+              <th>Bucket ID</th>
+              <th>Name / Spec</th>
+              <th>Metal</th>
+              <th>Active Listings</th>
+              <th>Active Bids</th>
+              <th>Platform Fee</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="bucketsTableBody">
+            <tr>
+              <td colspan="7" style="text-align: center; color: #6b7280; padding: 40px;">
+                <i class="fa-solid fa-spinner fa-spin"></i> Loading buckets...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Bucket Pagination -->
+      <div class="ledger-pagination" id="bucketPagination">
+        <button class="toolbar-btn" id="bucketPrevBtn" onclick="bucketPrevPage()" disabled>
+          <i class="fa-solid fa-chevron-left"></i> Previous
+        </button>
+        <span class="pagination-info" id="bucketPageInfo">Page 1</span>
+        <button class="toolbar-btn" id="bucketNextBtn" onclick="bucketNextPage()">
+          Next <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+    </div>

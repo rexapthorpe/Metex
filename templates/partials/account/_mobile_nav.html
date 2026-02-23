@@ -1,0 +1,112 @@
+  <!-- Mobile Navigation Header (visible only on mobile) -->
+  <div class="mobile-nav-header">
+    <h2 class="mobile-nav-tab-title" id="mobileNavTabTitle">My Cart</h2>
+    <button class="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Open navigation menu">
+      <i class="fa-solid fa-bars"></i>
+      <span>Menu</span>
+    </button>
+  </div>
+
+  <!-- Mobile Slide-out Navigation Overlay -->
+  <div class="mobile-nav-overlay" id="mobileNavOverlay" onclick="closeMobileNav()"></div>
+  <div class="mobile-nav-sidebar" id="mobileNavSidebar">
+    <!-- Main Nav Panel -->
+    <div class="mobile-nav-panel mobile-nav-main-panel" id="mobileNavMainPanel">
+      <div class="mobile-nav-sidebar-header">
+        <span class="mobile-nav-sidebar-title">My Account</span>
+        <button class="mobile-nav-close" onclick="closeMobileNav()">&times;</button>
+      </div>
+      <ul class="mobile-nav-list">
+        <li data-tab="cart" onclick="showTabMobile('cart')">
+          <i class="fa-solid fa-cart-shopping"></i>
+          <span>Cart Items</span>
+          <span class="mobile-nav-badge" id="mobileNavBadgeCart"></span>
+        </li>
+        <li data-tab="bids" onclick="showTabMobile('bids')">
+          <i class="fa-solid fa-gavel"></i>
+          <span>My Bids</span>
+          <span class="mobile-nav-badge" id="mobileNavBadgeBids"></span>
+        </li>
+        <li data-tab="listings" onclick="showTabMobile('listings')">
+          <i class="fa-solid fa-box"></i>
+          <span>Listings</span>
+          <span class="mobile-nav-badge" id="mobileNavBadgeListings"></span>
+        </li>
+        <li data-tab="sold" onclick="showTabMobile('sold')">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Sold Items</span>
+          <span class="mobile-nav-badge" id="mobileNavBadgeSold"></span>
+        </li>
+        <li data-tab="orders" onclick="showTabMobile('orders')">
+          <i class="fa-solid fa-clipboard-list"></i>
+          <span>Orders</span>
+          <span class="mobile-nav-badge" id="mobileNavBadgeOrders"></span>
+        </li>
+        <li data-tab="portfolio" onclick="showTabMobile('portfolio')">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Portfolio</span>
+          <span class="mobile-nav-badge" id="mobileNavBadgePortfolio"></span>
+        </li>
+        <li data-tab="ratings" onclick="showTabMobile('ratings')">
+          <i class="fa-solid fa-star"></i>
+          <span>Ratings</span>
+          <span class="mobile-nav-badge" id="mobileNavBadgeRatings"></span>
+        </li>
+        <li data-tab="messages" onclick="showTabMobile('messages')">
+          <i class="fa-solid fa-message"></i>
+          <span>Messages</span>
+          <span class="mobile-nav-badge" id="mobileNavBadgeMessages"></span>
+        </li>
+        <li data-tab="details" class="mobile-nav-has-subnav" onclick="showMobileDetailsNav()">
+          <i class="fa-solid fa-gear"></i>
+          <span>Account Details</span>
+          <i class="fa-solid fa-chevron-right mobile-nav-arrow"></i>
+        </li>
+        <li class="mobile-nav-logout" onclick="openLogoutConfirmModal(); closeMobileNav();">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Logout</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Account Details Sub-Nav Panel -->
+    <div class="mobile-nav-panel mobile-nav-details-panel" id="mobileNavDetailsPanel">
+      <div class="mobile-nav-sidebar-header">
+        <button class="mobile-nav-back" onclick="hideMobileDetailsNav()">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <span class="mobile-nav-sidebar-title">Account Details</span>
+        <button class="mobile-nav-close" onclick="closeMobileNav()">&times;</button>
+      </div>
+      <ul class="mobile-nav-list">
+        <li data-section="overview" onclick="showDetailsSectionMobile('overview')">
+          <i class="fa-solid fa-user"></i>
+          <span>Account Overview</span>
+        </li>
+        <li data-section="personal" onclick="showDetailsSectionMobile('personal')">
+          <i class="fa-solid fa-pen"></i>
+          <span>Personal Info</span>
+        </li>
+        <li data-section="payment" onclick="showDetailsSectionMobile('payment')">
+          <i class="fa-solid fa-credit-card"></i>
+          <span>Payment Methods</span>
+        </li>
+        <li data-section="shipping" onclick="showDetailsSectionMobile('shipping')">
+          <i class="fa-solid fa-location-dot"></i>
+          <span>Shipping Addresses</span>
+        </li>
+        <li data-section="security" onclick="showDetailsSectionMobile('security')">
+          <i class="fa-solid fa-shield"></i>
+          <span>Security & Login</span>
+        </li>
+        <li data-section="notifications" onclick="showDetailsSectionMobile('notifications')">
+          <i class="fa-solid fa-bell"></i>
+          <span>Notification Settings</span>
+        </li>
+        <li data-section="reports" onclick="showDetailsSectionMobile('reports')">
+          <i class="fa-solid fa-flag"></i>
+          <span>My Reports</span>
+        </li>
+      </ul>
+    </div>
+  </div>

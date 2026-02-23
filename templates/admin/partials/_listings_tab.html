@@ -1,0 +1,59 @@
+      <div class="panel-toolbar">
+        <div class="search-filter-group">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search listings..." id="listingSearch">
+          </div>
+          <select class="filter-select" id="listingStatusFilter">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="flagged">Flagged</option>
+          </select>
+          <select class="filter-select" id="listingMetalFilter">
+            <option value="">All Metals</option>
+            <option value="gold">Gold</option>
+            <option value="silver">Silver</option>
+            <option value="platinum">Platinum</option>
+          </select>
+        </div>
+        <div class="toolbar-actions">
+          <button class="toolbar-btn"><i class="fa-solid fa-filter"></i> Filters</button>
+        </div>
+      </div>
+
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Listing</th>
+              <th>Seller</th>
+              <th>Metal</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for listing in listings %}
+            <tr>
+              <td class="listing-title">{{ listing.title }}</td>
+              <td>@{{ listing.seller }}</td>
+              <td><span class="metal-badge metal-{{ listing.metal | lower }}">{{ listing.metal }}</span></td>
+              <td>${{ '{:,.2f}'.format(listing.price) }}</td>
+              <td><span class="status-badge status-{{ listing.status | lower }}">{{ listing.status }}</span></td>
+              <td>{{ listing.created }}</td>
+              <td class="actions-cell">
+                <a href="{{ url_for('buy.view_bucket', bucket_id=listing.bucket_id) }}" class="action-icon" title="View Bucket"><i class="fa-solid fa-eye"></i></a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" style="text-align: center; color: #6b7280; padding: 40px;">No listings found</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>

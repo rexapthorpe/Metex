@@ -1,0 +1,187 @@
+<!-- Report User Modal -->
+<div id="reportUserModal" class="report-user-modal" aria-hidden="true">
+  <div class="report-user-modal-content" id="reportUserDialog">
+    <!-- Success State (shown after submission) -->
+    <div class="report-success-content" id="reportSuccessContent" style="display: none;">
+      <div class="report-success-checkmark">
+        <svg class="report-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="report-checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="report-checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+      </div>
+      <h3 class="report-success-title">Report Submitted</h3>
+      <p class="report-success-message">
+        Thank you for your report.<br>
+        Our team will review it and take appropriate action.
+      </p>
+      <button type="button" class="report-success-btn" onclick="closeReportUserModalAndRefresh()">
+        Done
+      </button>
+    </div>
+
+    <!-- Header -->
+    <div class="report-user-modal-header report-form-content">
+      <div class="report-user-header-left">
+        <div class="report-user-icon">
+          <i class="fa-solid fa-flag"></i>
+        </div>
+        <div class="report-user-header-info">
+          <h2 class="report-user-title">Report User</h2>
+          <div class="report-user-subtitle">
+            <span class="report-user-target">Reporting <span id="reportUserUsername">@username</span></span>
+            <span class="report-user-order-badge" id="reportOrderBadge">Order #ORD-2026-000000</span>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="report-user-close report-form-content" onclick="closeReportUserModal()" aria-label="Close modal">&times;</button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="report-user-modal-body report-form-content">
+      <!-- Warning Banner -->
+      <div class="report-user-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div class="report-user-warning-text">
+          <strong>Please only submit genuine reports</strong>
+          <span>False reports may result in action against your account.</span>
+        </div>
+      </div>
+
+      <!-- Reason Selection -->
+      <div class="report-user-section">
+        <label class="report-section-label">What is the reason for your report?</label>
+
+        <div class="report-reasons-list">
+          <label class="report-reason-option">
+            <input type="radio" name="report_reason" value="counterfeit_fake">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-gem"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Counterfeit/Fake Items</span>
+                <span class="report-reason-desc">Item received is not authentic</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="report-reason-option">
+            <input type="radio" name="report_reason" value="not_as_described">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Item Not as Described</span>
+                <span class="report-reason-desc">Item differs significantly from listing</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="report-reason-option">
+            <input type="radio" name="report_reason" value="scam_fraud">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-circle-dollar-to-slot"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Scam/Fraud</span>
+                <span class="report-reason-desc">Suspected fraudulent activity</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="report-reason-option">
+            <input type="radio" name="report_reason" value="harassment_abuse">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-user-slash"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Harassment/Abuse</span>
+                <span class="report-reason-desc">Inappropriate or abusive communication</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="report-reason-option">
+            <input type="radio" name="report_reason" value="payment_issues">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-credit-card"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Payment Issues</span>
+                <span class="report-reason-desc">Problems with payment or refunds</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="report-reason-option">
+            <input type="radio" name="report_reason" value="other">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-ellipsis"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Other</span>
+                <span class="report-reason-desc">Other issues not listed above</span>
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Comment Section -->
+      <div class="report-user-section">
+        <label class="report-section-label" for="reportComment">Describe the issue in detail</label>
+        <textarea
+          id="reportComment"
+          class="report-user-textarea"
+          placeholder="Please provide as much detail as possible about what happened..."
+          maxlength="1000"
+          rows="4"
+          oninput="updateReportCharCount()"
+        ></textarea>
+        <div class="report-textarea-footer">
+          <span class="report-helper-text">Be specific to help us investigate</span>
+          <span class="report-char-count"><span id="reportCharCount">0</span>/1000</span>
+        </div>
+      </div>
+
+      <!-- Photo Attachments -->
+      <div class="report-user-section">
+        <label class="report-section-label">Attach Photos (Optional)</label>
+        <p class="report-attachments-help">Add screenshots or photos as evidence to support your report</p>
+
+        <div class="report-attachments-preview" id="reportAttachmentsPreview">
+          <!-- Preview images will be inserted here -->
+        </div>
+
+        <label class="report-add-photos-btn">
+          <i class="fa-solid fa-image"></i>
+          Add Photos
+          <input
+            type="file"
+            id="reportPhotoInput"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            multiple
+            style="display: none"
+            onchange="handleReportPhotoSelect(event)"
+          >
+        </label>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="report-user-modal-footer report-form-content">
+      <button type="button" class="report-user-btn report-user-btn-cancel" onclick="closeReportUserModal()">
+        Cancel
+      </button>
+      <button type="button" class="report-user-btn report-user-btn-submit" onclick="submitReport()">
+        <i class="fa-solid fa-flag"></i>
+        Submit Report
+      </button>
+    </div>
+  </div>
+</div>

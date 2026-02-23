@@ -1,0 +1,95 @@
+/* ==========================================================================
+   GLOBAL MODAL SLIDE-UP ANIMATION
+   Applies to all modal content containers for consistent UX
+   ========================================================================== */
+
+/* Define the slide-up animation */
+@keyframes modalSlideUp {
+    0% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Define the slide-down animation for closing (optional use) */
+@keyframes modalSlideDown {
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+}
+
+/* Apply slide-up animation to all modal content containers */
+/* Matches common modal content class patterns across the app */
+.modal-content,
+.modal-dialog,
+.confirmation-modal-content,
+.bid-modal-content,
+.edit-bid-modal-content,
+.edit-listing-modal-content,
+.field-validation-modal-content,
+.address-modal-content,
+.buy-item-modal-content,
+.ratings-modal-content,
+.cart-sellers-modal-content,
+.cart-individual-listings-modal-content,
+.order-seller-info-modal-content,
+.order-items-modal-content,
+.message-seller-modal-content,
+.legal-modal-dialog,
+.cancel-order-modal-content,
+.report-user-modal-content,
+.listing-items-modal-content,
+[class*="-modal-content"],
+[class*="-modal-dialog"] {
+    animation: modalSlideUp 0.3s ease-out;
+}
+
+/* Overlay fade-in animation */
+@keyframes overlayFadeIn {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Apply fade-in to modal overlays */
+.modal-overlay,
+.confirmation-overlay,
+.bid-modal-overlay,
+.edit-bid-modal-overlay,
+.edit-listing-modal-overlay,
+.field-validation-modal-overlay,
+.address-modal-overlay,
+.buy-item-modal-overlay,
+.ratings-modal-overlay,
+.legal-modal-overlay,
+.cancel-order-modal-overlay,
+.report-user-modal-overlay,
+[class*="-modal-overlay"] {
+    animation: overlayFadeIn 0.25s ease-out;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    .modal-content,
+    .modal-dialog,
+    .confirmation-modal-content,
+    [class*="-modal-content"],
+    [class*="-modal-dialog"],
+    .modal-overlay,
+    .confirmation-overlay,
+    [class*="-modal-overlay"] {
+        animation: none;
+    }
+}

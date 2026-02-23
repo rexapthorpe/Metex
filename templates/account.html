@@ -34,6 +34,7 @@
   {% include 'modals/logout_confirmation_modal.html' %}
   {% include 'modals/error_notification_modal.html' %}
   {% include 'modals/field_validation_modal.html' %}
+  {% include 'modals/cancel_order_modal.html' %}
 
   <!-- Account Page Layout -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
@@ -46,6 +47,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/portfolio_tab.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/ratings_tab.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/messages_tab.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/reports_tab.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs/account_details_tab.css') }}">
 
   <!-- Modals CSS -->
@@ -68,24 +70,70 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/ratings_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/address_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/buy_item_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cancel_order_modal.css') }}">
 
   <div class="account-layout">
     <!-- Main Sidebar -->
     <div class="account-sidebar">
-      <ul>
-        <h2>My Account</h2>
-        <div class="sidebar-divider"></div>
-        <li onclick="showTab('cart')">Cart Items</li>
-        <li onclick="showTab('bids')">My Bids</li>
-        <li onclick="showTab('listings')">Listings</li>
-        <li onclick="showTab('sold')">Sold Items</li>
-        <li onclick="showTab('orders')">Orders</li>
-        <li onclick="showTab('portfolio')">Portfolio</li>
-        <li onclick="showTab('ratings')">Ratings</li>
-        <li onclick="showTab('messages')">Messages</li>
-        <li onclick="showTab('details')">Account Details</li>
-        <li onclick="openLogoutConfirmModal()">Logout</li>
-      </ul>
+      <h2 class="sidebar-title">My Account</h2>
+      <div class="sidebar-divider"></div>
+      <nav class="sidebar-nav">
+        <li class="sidebar-item" onclick="showTab('cart')">
+          <i class="fa-solid fa-cart-shopping sidebar-icon"></i>
+          <span class="sidebar-label">Cart Items</span>
+          {% if buckets %}<span class="sidebar-badge">{{ buckets|length }}</span>{% endif %}
+        </li>
+        <li class="sidebar-item" onclick="showTab('bids')">
+          <i class="fa-solid fa-bullseye sidebar-icon"></i>
+          <span class="sidebar-label">My Bids</span>
+          {% if bids %}<span class="sidebar-badge">{{ bids|length }}</span>{% endif %}
+        </li>
+        <li class="sidebar-item" onclick="showTab('listings')">
+          <i class="fa-solid fa-store sidebar-icon"></i>
+          <span class="sidebar-label">Listings</span>
+          {% if listings %}<span class="sidebar-badge">{{ listings|length }}</span>{% endif %}
+        </li>
+        <li class="sidebar-item" onclick="showTab('sold')">
+          <i class="fa-solid fa-circle-check sidebar-icon"></i>
+          <span class="sidebar-label">Sold Items</span>
+          {% if sales %}<span class="sidebar-badge">{{ sales|length }}</span>{% endif %}
+        </li>
+        <li class="sidebar-item" onclick="showTab('orders')">
+          <i class="fa-solid fa-clipboard-list sidebar-icon"></i>
+          <span class="sidebar-label">Orders</span>
+          {% set order_count = (pending_orders|length) + (completed_orders|length) %}
+          {% if order_count > 0 %}<span class="sidebar-badge">{{ order_count }}</span>{% endif %}
+        </li>
+        <li class="sidebar-item" onclick="showTab('portfolio')">
+          <i class="fa-solid fa-clock-rotate-left sidebar-icon"></i>
+          <span class="sidebar-label">Portfolio</span>
+        </li>
+        <li class="sidebar-item" onclick="showTab('ratings')">
+          <i class="fa-regular fa-star sidebar-icon"></i>
+          <span class="sidebar-label">Ratings</span>
+          {% if received_ratings %}<span class="sidebar-badge">{{ received_ratings|length }}</span>{% endif %}
+        </li>
+        <li class="sidebar-item" onclick="showTab('messages')">
+          <i class="fa-regular fa-message sidebar-icon"></i>
+          <span class="sidebar-label">Messages</span>
+          {% set unread_count = conversations|selectattr('unread_count')|list|length %}
+          {% if unread_count > 0 %}<span class="sidebar-badge">{{ unread_count }}</span>{% endif %}
+        </li>
+        <li class="sidebar-item" onclick="showTab('reports')">
+          <i class="fa-regular fa-flag sidebar-icon"></i>
+          <span class="sidebar-label">My Reports</span>
+          <span class="sidebar-badge sidebar-badge--reports" id="sidebarReportsBadge" style="display:none"></span>
+        </li>
+        <li class="sidebar-item" onclick="showTab('details')">
+          <i class="fa-solid fa-gear sidebar-icon"></i>
+          <span class="sidebar-label">Account Details</span>
+        </li>
+      </nav>
+      <div class="sidebar-divider sidebar-divider--bottom"></div>
+      <div class="sidebar-logout" onclick="openLogoutConfirmModal()">
+        <i class="fa-solid fa-arrow-right-from-bracket sidebar-icon"></i>
+        <span class="sidebar-label">Logout</span>
+      </div>
     </div>
 
     <!-- Secondary Sidebar for Account Details -->
@@ -112,6 +160,7 @@
       <div id="portfolio-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/portfolio_tab.html' %}</div></div>
       <div id="ratings-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/ratings_tab.html' %}</div></div>
       <div id="messages-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/messages_tab.html' %}</div></div>
+      <div id="reports-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/reports_tab.html' %}</div></div>
       <div id="details-tab" class="tab-content"><div class="tab-inner-wrapper">{% include 'tabs/account_details_tab.html' %}</div></div>
     </div>
   </div>
@@ -141,6 +190,7 @@
   <script src="{{ url_for('static', filename='js/tabs/portfolio_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/ratings_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/messages_tab.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tabs/reports_tab.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tabs/account_details_tab.js') }}"></script>
 
   <!-- listings modals -->
@@ -151,9 +201,10 @@
   <!-- orders modals -->
   <script src="{{ url_for('static', filename='js/modals/order_sellers_modal.js') }}"></script>
   <script src="{{ url_for('static', filename='js/modals/order_items_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/cancel_order_modal.js') }}"></script>
 
   <!-- ratings modal -->
-  <script src="{{ url_for('static', filename='js/modals/ratings_modal_v2.js') }}?cb=12345"></script>
+  <script src="{{ url_for('static', filename='js/modals/ratings_modal_v2.js') }}?v=2"></script>
 
   <!-- message modal -->
   <script src="{{ url_for('static', filename='js/modals/message_sellers_modal.js') }}?v={{ config.VERSION }}"></script>
@@ -177,6 +228,101 @@
   <script src="{{ url_for('static', filename='js/modals/change_password_confirmation_modal.js') }}"></script>
   <script src="{{ url_for('static', filename='js/modals/logout_confirmation_modal.js') }}"></script>
   <script src="{{ url_for('static', filename='js/modals/error_notification_modal.js') }}"></script>
+
+  <!-- Tracking Number Modal -->
+  <div id="trackingModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:12px; padding:28px 32px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); position:relative;">
+      <button type="button" onclick="closeTrackingModal()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;">&times;</button>
+      <h2 style="margin:0 0 6px;font-size:1.1rem;font-weight:700;color:#0f172a;">Add Tracking Number</h2>
+      <p style="margin:0 0 20px;font-size:13px;color:#64748b;">Order #<span id="tracking-order-id-display">—</span></p>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;">Carrier</label>
+          <select id="tracking-carrier" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;color:#0f172a;background:#fff;">
+            <option value="">Select carrier…</option>
+            <option value="USPS">USPS</option>
+            <option value="UPS">UPS</option>
+            <option value="FedEx">FedEx</option>
+            <option value="DHL">DHL</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;">Tracking Number</label>
+          <input type="text" id="tracking-number-input" placeholder="e.g. 9400111899223397607908"
+                 style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;color:#0f172a;box-sizing:border-box;">
+        </div>
+        <p id="tracking-modal-error" style="display:none;margin:0;font-size:13px;color:#ef4444;"></p>
+        <button onclick="submitTrackingNumber()"
+                style="padding:10px;background:#1e293b;color:#fff;border:none;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s;"
+                onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#1e293b'">
+          Save Tracking Number
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var _trackingOrderId = null;
+
+    function addTrackingNumber(orderId) {
+      _trackingOrderId = orderId;
+      document.getElementById('tracking-order-id-display').textContent = '#ORD-' + String(orderId).padStart(4, '0');
+      document.getElementById('tracking-carrier').value = '';
+      document.getElementById('tracking-number-input').value = '';
+      document.getElementById('tracking-modal-error').style.display = 'none';
+      var modal = document.getElementById('trackingModal');
+      modal.style.display = 'flex';
+    }
+
+    function closeTrackingModal() {
+      document.getElementById('trackingModal').style.display = 'none';
+      _trackingOrderId = null;
+    }
+
+    function submitTrackingNumber() {
+      var carrier = document.getElementById('tracking-carrier').value.trim();
+      var number = document.getElementById('tracking-number-input').value.trim();
+      var errEl = document.getElementById('tracking-modal-error');
+
+      if (!carrier || !number) {
+        errEl.textContent = 'Please select a carrier and enter a tracking number.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      var formData = new FormData();
+      formData.append('carrier', carrier);
+      formData.append('tracking_number', number);
+
+      fetch('/upload_tracking/' + _trackingOrderId, { method: 'POST', body: formData })
+        .then(function(res) {
+          if (res.ok) {
+            closeTrackingModal();
+            // Show brief success toast
+            var toast = document.createElement('div');
+            toast.textContent = 'Tracking number saved!';
+            toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#16a34a;color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:600;z-index:2000;box-shadow:0 4px 16px rgba(0,0,0,.2);';
+            document.body.appendChild(toast);
+            setTimeout(function() { toast.remove(); }, 3000);
+          } else {
+            errEl.textContent = 'Failed to save tracking number. Please try again.';
+            errEl.style.display = 'block';
+          }
+        })
+        .catch(function() {
+          errEl.textContent = 'Network error. Please try again.';
+          errEl.style.display = 'block';
+        });
+    }
+
+    // Close modal when clicking overlay background
+    document.getElementById('trackingModal').addEventListener('click', function(e) {
+      if (e.target === this) closeTrackingModal();
+    });
+
+    window.addTrackingNumber = addTrackingNumber;
+  </script>
 
   <!-- Safety: ensure no overlays are visible on initial load -->
   <script>

@@ -124,6 +124,29 @@ def validate_and_refill_cart(conn, user_id):
     conn.commit()
     return refill_log
 
+def validate_guest_cart(conn):
+    """
+    Validate and clean up session-based guest cart.
+    Removes any cart items referencing listings that are no longer available.
+    Guest carts are stored in session['guest_cart'] as list of listing_ids.
+    """
+    guest_cart = session.get('guest_cart', [])
+    if not guest_cart:
+        return
+
+    # Filter to only available listings
+    placeholders = ','.join('?' * len(guest_cart))
+    available = conn.execute(
+        f"SELECT id FROM listings WHERE id IN ({placeholders}) AND status = 'active'",
+        guest_cart
+    ).fetchall()
+    available_ids = {row['id'] for row in available}
+
+    cleaned = [lid for lid in guest_cart if lid in available_ids]
+    if len(cleaned) != len(guest_cart):
+        session['guest_cart'] = cleaned
+
+
 def get_cart_items(conn):
     """Flat list of all cart entries — used for legacy or simplified views."""
     user_id = session.get('user_id')

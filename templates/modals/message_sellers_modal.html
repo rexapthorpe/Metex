@@ -1,26 +1,62 @@
 
-
 <div id="messageModal" class="modal" style="display: none;">
   <div class="modal-content message-modal">
-    <!-- Unified close button - positioned relative to modal card -->
-    <button type="button" class="modal-close" onclick="closeMessageModal()" aria-label="Close modal">&times;</button>
-    <div class="message-header">
-      <button class="nav-arrow" id="prevSeller">&larr;</button>
-      <span id="currentSellerLabel">Seller</span>
-      <button class="nav-arrow" id="nextSeller">&rarr;</button>
-    </div>
-    <div id="conversationIndicator" class="seller-indicator"></div>
 
-    <div class="message-body" id="messageBody">
-      <!-- Messages will be injected here -->
+    <!-- Header: Avatar + Name/Handle + Actions -->
+    <div class="msg-header">
+      <div class="msg-avatar" id="msgAvatar">??</div>
+      <div class="msg-header-center">
+        <div class="msg-header-nav">
+          <button class="nav-arrow" id="prevSeller" style="display:none">&#8249;</button>
+          <div class="msg-header-identity">
+            <div class="msg-name" id="msgHeaderName">Seller</div>
+            <div class="msg-handle" id="msgHeaderHandle">@seller</div>
+          </div>
+          <button class="nav-arrow" id="nextSeller" style="display:none">&#8250;</button>
+        </div>
+      </div>
+      <div class="msg-header-right">
+        <button class="msg-menu-btn" aria-label="More options">
+          <i class="fa-solid fa-ellipsis-vertical"></i>
+        </button>
+        <button class="msg-close-btn" onclick="closeMessageModal()" aria-label="Close">&times;</button>
+      </div>
     </div>
 
+    <!-- Order context bar -->
+    <div class="msg-order-bar" id="msgOrderBar">
+      <div class="msg-order-img">
+        <img src="/static/img/placeholder.png" alt="Order item">
+      </div>
+      <div class="msg-order-details">
+        <div class="msg-order-title" id="msgOrderTitle">Order Item</div>
+        <div class="msg-order-id" id="msgOrderId">Order #ORD-0000</div>
+      </div>
+      <button class="msg-view-order-btn" id="msgViewOrderBtn" type="button">View Order</button>
+    </div>
+
+    <!-- Conversation indicator (multi-seller) -->
+    <div id="conversationIndicator" class="seller-indicator" style="display:none"></div>
+
+    <!-- Message body -->
+    <div class="message-body" id="messageBody"></div>
+
+    <!-- Input area -->
     <div class="message-input">
-      <input type="text" id="messageInput" placeholder="Type your message here…" />
-      <button id="sendMessageBtn" class="message-send-btn">
-        <i class="fas fa-arrow-up"></i>
+      <div class="msg-tool-btns">
+        <button class="msg-tool-btn" type="button" aria-label="Image">
+          <i class="fa-regular fa-image"></i>
+        </button>
+        <button class="msg-tool-btn" type="button" aria-label="Attach">
+          <i class="fa-solid fa-paperclip"></i>
+        </button>
+      </div>
+      <textarea id="messageInput" class="msg-textarea" placeholder="Type a message..." rows="1"></textarea>
+      <button id="sendMessageBtn" class="message-send-btn" type="button">
+        <i class="fa-solid fa-paper-plane"></i>
       </button>
     </div>
+    <div class="msg-hint">Press Enter to send &bull; Shift+Enter for new line</div>
 
   </div>
 </div>

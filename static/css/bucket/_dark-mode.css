@@ -1,0 +1,300 @@
+/* ===================================
+   DARK MODE - BUCKET PAGE
+   =================================== */
+
+body.dark-mode .bucket-card {
+    background-color: var(--bg-card);
+    box-shadow:
+        0 24px 60px rgba(0,0,0,0.3),
+        0 12px 28px rgba(0,0,0,0.25),
+        0 2px 6px rgba(0,0,0,0.15);
+}
+
+body.dark-mode .content-tile {
+    background: var(--bg-card);
+    border-color: var(--border-primary);
+    box-shadow:
+        0 20px 50px rgba(0,0,0,0.25),
+        0 8px 20px rgba(0,0,0,0.2),
+        0 1px 3px rgba(0,0,0,0.1);
+}
+
+body.dark-mode .gallery-main {
+    background: var(--bg-tertiary);
+    box-shadow:
+        0 20px 50px rgba(0,0,0,0.2),
+        0 8px 20px rgba(0,0,0,0.15),
+        0 1px 3px rgba(0,0,0,0.1);
+}
+
+body.dark-mode .gallery-main img {
+    background: var(--bg-card);
+}
+
+body.dark-mode .gal-arrow {
+    color: var(--text-muted);
+}
+
+body.dark-mode .gal-arrow:hover {
+    color: var(--text-primary);
+}
+
+body.dark-mode .gal-dots .dot {
+    background: rgba(255,255,255,0.3);
+}
+
+body.dark-mode .gal-dots .dot.active {
+    background: rgba(255,255,255,0.7);
+}
+
+body.dark-mode .gallery-ph,
+body.dark-mode .thumbs .thumb.ph {
+    background: var(--bg-tertiary);
+}
+
+body.dark-mode .thumbs .thumb {
+    border-color: var(--border-primary);
+    background: var(--bg-card);
+}
+
+body.dark-mode .section-heading {
+    color: var(--text-primary);
+}
+
+body.dark-mode .spec-row {
+    border-bottom-color: var(--border-primary);
+}
+
+body.dark-mode .spec-label {
+    color: var(--text-primary);
+}
+
+body.dark-mode .spec-value {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .detail-label {
+    color: var(--text-muted);
+}
+
+body.dark-mode .detail-value {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .sub-heading {
+    color: var(--text-primary);
+}
+
+body.dark-mode .item-description,
+body.dark-mode .item-history {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .right-title {
+    color: var(--text-primary);
+}
+
+body.dark-mode .title-soft,
+body.dark-mode .soft {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .divider {
+    border-top-color: var(--border-primary);
+}
+
+body.dark-mode .sellers-btn {
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+body.dark-mode .sellers-btn:hover {
+    background: var(--bg-hover);
+    border: none;
+}
+
+body.dark-mode .sellers-kicker {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .sellers-foot-link {
+    color: var(--text-primary);
+}
+
+body.dark-mode .best-bid-price #bestBidPrice {
+    color: var(--text-primary);
+}
+
+body.dark-mode .bb-close {
+    border-color: var(--border-light);
+    background: var(--bg-card);
+    color: var(--text-muted);
+}
+
+body.dark-mode .bb-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+body.dark-mode .buy-price {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .buy-price-amount {
+    color: var(--text-primary);
+}
+
+body.dark-mode .details-grid dt {
+    color: var(--text-primary);
+}
+
+body.dark-mode .details-grid dd,
+body.dark-mode .insured-by-UPS {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .bid-card-visual {
+    border-color: var(--border-primary);
+    background: var(--bg-secondary);
+}
+
+body.dark-mode .bid-price-strong {
+    color: var(--text-primary);
+}
+
+body.dark-mode .bid-units,
+body.dark-mode .bid-seller {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .bid-meta {
+    color: var(--text-muted);
+}
+
+body.dark-mode .bid-tile-footer {
+    border-top-color: var(--border-primary);
+}
+
+body.dark-mode .bid-actions .icon-button {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+}
+
+body.dark-mode .bid-actions .icon-button:hover {
+    color: var(--text-primary);
+}
+
+body.dark-mode .bid-actions .icon-button i {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .bid-actions .icon-button:hover i {
+    color: var(--text-primary);
+}
+
+/* Dark mode close button - red hover */
+body.dark-mode .bid-actions .icon-button:has(i.fa-xmark):hover,
+body.dark-mode .bid-actions .icon-button:has(i.fa-trash):hover,
+body.dark-mode .bid-actions form .icon-button:hover {
+    color: #f87171;
+}
+
+body.dark-mode .bid-actions .icon-button:has(i.fa-xmark):hover i,
+body.dark-mode .bid-actions .icon-button:has(i.fa-trash):hover i,
+body.dark-mode .bid-actions form .icon-button:hover i {
+    color: #f87171;
+}
+
+body.dark-mode .bids-panel {
+    background: var(--bg-card);
+    border-color: var(--border-primary);
+    box-shadow:
+        0 20px 50px rgba(0,0,0,0.25),
+        0 8px 20px rgba(0,0,0,0.2),
+        0 1px 3px rgba(0,0,0,0.1);
+}
+
+body.dark-mode .account-bid-tile {
+    border-color: var(--border-primary);
+    background: var(--bg-secondary);
+}
+
+body.dark-mode .abt-price,
+body.dark-mode .abt-price-suffix {
+    color: var(--text-primary);
+}
+
+body.dark-mode .abt-units,
+body.dark-mode .abt-row,
+body.dark-mode .abt-date {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .abt-action {
+    color: var(--text-primary);
+}
+
+body.dark-mode .abt-action:hover {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+}
+
+body.dark-mode .popup-alert {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+body.dark-mode .grading-toggle-btn {
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+body.dark-mode .grading-toggle-btn:hover {
+    background: var(--bg-hover);
+    border: none;
+}
+
+body.dark-mode .grading-row {
+    border-bottom-color: var(--border-primary);
+}
+
+body.dark-mode .glabel {
+    color: var(--text-primary);
+}
+
+body.dark-mode .toggle .slider {
+    background: var(--bg-tertiary);
+}
+
+body.dark-mode .packaging-toggle-row {
+    background: var(--bg-secondary);
+    border-color: var(--border-primary);
+}
+
+body.dark-mode .packaging-toggle-row:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-secondary);
+}
+
+body.dark-mode .packaging-toggle-label {
+    color: var(--text-secondary);
+}
+
+/* Dark mode - Bucket Fee Indicator */
+body.dark-mode .bucket-fee-indicator.fee-reduced {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+body.dark-mode .bucket-fee-indicator.fee-elevated,
+body.dark-mode .bucket-fee-indicator.fee-custom {
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+/* ===================================
+   ENHANCED MOBILE RESPONSIVE - BUCKET PAGE
+   =================================== */
+

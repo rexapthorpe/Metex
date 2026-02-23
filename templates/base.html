@@ -36,6 +36,9 @@
 
     <!-- Footer -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
+
+    <!-- Page-specific CSS -->
+    {% block page_css %}{% endblock %}
 </head>
 <body>
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -47,6 +50,16 @@
             </div>
         {% endif %}
     {% endwith %}
+
+    <!-- Frozen Account Banner -->
+    {% if is_user_frozen %}
+    <div class="frozen-banner" style="background-color: #dc3545; color: white; padding: 12px 20px; text-align: center; position: fixed; top: 0; left: 0; right: 0; z-index: 1001; font-weight: bold;">
+        Your account has been frozen. Reason: {{ freeze_reason }}
+        {% if frozen_admin_id %}
+        | <a href="{{ url_for('messages.messages') }}?to={{ frozen_admin_id }}" style="color: white; text-decoration: underline;">Contact Admin</a>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- === Fixed Header === -->
     <div class="header-bar">
@@ -63,7 +76,7 @@
             <a href="{{ url_for('sell.sell') }}" class="btn-pill {% if request.endpoint == 'sell.sell' %}active{% endif %}">Sell</a>
             {% if session.get('user_id') %}
                 {% if is_user_admin %}
-                <a href="{{ url_for('admin.analytics') }}" class="btn-pill admin-pill {% if request.endpoint == 'admin.analytics' %}active{% endif %}" title="Admin Analytics">📊 Analytics</a>
+                <a href="{{ url_for('admin.dashboard') }}" class="btn-pill admin-pill {% if request.endpoint == 'admin.dashboard' %}active{% endif %}" title="Admin Dashboard">Dashboard</a>
                 {% endif %}
                 <a href="{{ url_for('account.account') }}#cart" class="btn-pill">My Account</a>
             {% else %}
@@ -162,7 +175,7 @@
                     <li><a href="#privacy">Privacy Policy</a></li>
                 </ul>
                 <p class="footer-copyright">
-                    &copy; 2025 MetEx. All rights reserved.
+                    &copy; 2026 MetEx. All rights reserved.
                 </p>
             </div>
         </div>

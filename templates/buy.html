@@ -32,6 +32,13 @@
                     {% endif %}
                 </div>
 
+                <!-- Fee Indicator Badge -->
+                {% if bucket.get('fee_indicator') %}
+                <div class="fee-indicator-badge fee-{{ bucket.fee_indicator }}">
+                    {{ bucket.fee_display }}
+                </div>
+                {% endif %}
+
                 <div class="image-box">
                     <span>Item image</span>  <!-- Placeholder text; image can go here later -->
                 </div>
@@ -72,6 +79,13 @@
                     <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">SET</span>
                 </div>
 
+                <!-- Fee Indicator Badge -->
+                {% if bucket.get('fee_indicator') %}
+                <div class="fee-indicator-badge fee-{{ bucket.fee_indicator }}">
+                    {{ bucket.fee_display }}
+                </div>
+                {% endif %}
+
                 <div class="image-box">
                     <span>Item image</span>  <!-- Placeholder text; image can go here later -->
                 </div>
@@ -107,6 +121,13 @@
         <div class="grid">
             {% for bucket in standard_buckets %}
             <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
+                <!-- Fee Indicator Badge -->
+                {% if bucket.get('fee_indicator') %}
+                <div class="fee-indicator-badge fee-{{ bucket.fee_indicator }}">
+                    {{ bucket.fee_display }}
+                </div>
+                {% endif %}
+
                 <div class="image-box">
                     <span>Item image</span>  <!-- Placeholder text; image can go here later -->
                 </div>

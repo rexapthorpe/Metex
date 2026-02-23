@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Order Not Found{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/ledger.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ledger-order-detail">
+    <div class="detail-header">
+        <a href="/admin/ledger" class="back-link">Back to Ledger</a>
+        <h1>Order Not Found</h1>
+    </div>
+
+    <div class="not-found-card">
+        <div class="not-found-icon">?</div>
+        <h2>Order #{{ order_id }} Not Found in Ledger</h2>
+        <p>This order either does not exist or has not been recorded in the transaction ledger yet.</p>
+        <p>The ledger only contains orders that were created after the ledger system was implemented.</p>
+        <a href="/admin/ledger" class="btn-back">Return to Ledger Dashboard</a>
+    </div>
+</div>
+{% endblock %}

@@ -160,11 +160,93 @@ function openSellConfirmModal(formData) {
     document.getElementById('confirm-total-value').textContent = `$${totalValue.toFixed(2)} USD`;
   }
 
+  // Calculate and display seller proceeds preview
+  // Get effective price for calculation
+  let grossPrice;
+  if (isPremiumToSpot) {
+    const effectivePrice = parseFloat(document.getElementById('price_preview')?.querySelector('.preview-amount')?.textContent.replace(/[$,]/g, '')) || parseFloat(formData.get('floor_price')) || 0;
+    grossPrice = effectivePrice * parseInt(quantity);
+  } else {
+    const pricePerCoin = parseFloat(formData.get('price_per_coin')) || 0;
+    grossPrice = pricePerCoin * parseInt(quantity);
+  }
+
+  // Fetch fee preview from API and populate proceeds section
+  fetchAndDisplayProceeds('confirm', grossPrice, parseInt(quantity));
+
   // Show modal with animation
   modal.style.display = 'flex';
   requestAnimationFrame(() => {
     modal.classList.add('active');
   });
+}
+
+/**
+ * Fetch fee preview from API and display proceeds
+ * @param {string} prefix - 'confirm' or 'success' for element IDs
+ * @param {number} grossPrice - Total gross price
+ * @param {number} quantity - Quantity of items
+ */
+async function fetchAndDisplayProceeds(prefix, grossPrice, quantity) {
+  const netEl = document.getElementById(`${prefix}-net-proceeds`);
+  const grossEl = document.getElementById(`${prefix}-gross-price`);
+  const feePercentEl = document.getElementById(`${prefix}-fee-percent`);
+  const feeAmountEl = document.getElementById(`${prefix}-fee-amount`);
+  const feeIndicatorRow = document.getElementById(`${prefix}-fee-indicator-row`);
+  const feeBadge = document.getElementById(`${prefix}-fee-badge`);
+
+  try {
+    // Fetch fee preview from API
+    const unitPrice = quantity > 0 ? grossPrice / quantity : grossPrice;
+    const response = await fetch(`/api/fee-preview?gross_price=${unitPrice}&quantity=${quantity}`);
+    const data = await response.json();
+
+    if (data.success) {
+      // Populate proceeds display
+      if (netEl) netEl.textContent = `$${data.net_amount.toFixed(2)}`;
+      if (grossEl) grossEl.textContent = `$${data.gross_price.toFixed(2)}`;
+      if (feePercentEl) feePercentEl.textContent = data.fee_percent ? data.fee_percent.toFixed(1) : '—';
+      if (feeAmountEl) feeAmountEl.textContent = `−$${data.fee_amount.toFixed(2)}`;
+
+      // Show fee indicator if non-default
+      if (data.fee_indicator && feeIndicatorRow && feeBadge) {
+        feeIndicatorRow.style.display = 'flex';
+        feeBadge.className = `proceeds-fee-badge fee-${data.fee_indicator}`;
+        if (data.fee_indicator === 'reduced') {
+          feeBadge.textContent = 'Reduced Fee';
+        } else if (data.fee_indicator === 'elevated') {
+          feeBadge.textContent = 'Higher Fee';
+        } else if (data.fee_indicator === 'custom') {
+          feeBadge.textContent = 'Custom Fee';
+        }
+      } else if (feeIndicatorRow) {
+        feeIndicatorRow.style.display = 'none';
+      }
+    } else {
+      // Fallback: calculate with default 2.5% fee
+      const defaultFeePercent = 2.5;
+      const feeAmount = Math.round(grossPrice * (defaultFeePercent / 100) * 100) / 100;
+      const netAmount = grossPrice - feeAmount;
+
+      if (netEl) netEl.textContent = `$${netAmount.toFixed(2)}`;
+      if (grossEl) grossEl.textContent = `$${grossPrice.toFixed(2)}`;
+      if (feePercentEl) feePercentEl.textContent = defaultFeePercent.toFixed(1);
+      if (feeAmountEl) feeAmountEl.textContent = `−$${feeAmount.toFixed(2)}`;
+      if (feeIndicatorRow) feeIndicatorRow.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Error fetching fee preview:', error);
+    // Fallback: calculate with default 2.5% fee
+    const defaultFeePercent = 2.5;
+    const feeAmount = Math.round(grossPrice * (defaultFeePercent / 100) * 100) / 100;
+    const netAmount = grossPrice - feeAmount;
+
+    if (netEl) netEl.textContent = `$${netAmount.toFixed(2)}`;
+    if (grossEl) grossEl.textContent = `$${grossPrice.toFixed(2)}`;
+    if (feePercentEl) feePercentEl.textContent = defaultFeePercent.toFixed(1);
+    if (feeAmountEl) feeAmountEl.textContent = `−$${feeAmount.toFixed(2)}`;
+    if (feeIndicatorRow) feeIndicatorRow.style.display = 'none';
+  }
 }
 
 /**
@@ -376,6 +458,19 @@ function openSellSuccessModal(data) {
     if (effectivePriceRow) effectivePriceRow.style.display = 'none';
     if (effectiveTotalRow) effectiveTotalRow.style.display = 'none';
   }
+
+  // Calculate and display seller proceeds preview
+  let grossPrice;
+  if (isPremiumToSpot) {
+    const effectivePrice = parseFloat(listing.effective_price || listing.price_per_coin) || parseFloat(listing.floor_price) || 0;
+    grossPrice = effectivePrice * quantity;
+  } else {
+    const pricePerCoin = parseFloat(listing.price_per_coin) || 0;
+    grossPrice = pricePerCoin * quantity;
+  }
+
+  // Fetch and display proceeds for success modal
+  fetchAndDisplayProceeds('success', grossPrice, quantity);
 
   // Show modal with animation
   modal.style.display = 'flex';

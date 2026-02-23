@@ -1,0 +1,191 @@
+/* ==========================================================================
+   Empty State Component - Standardized across all tabs
+   ========================================================================== */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  text-align: center;
+  min-height: 400px;
+}
+
+.empty-state-icon {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-radius: 50%;
+  position: relative;
+}
+
+.empty-state-icon i {
+  font-size: 56px;
+  color: #9ca3af;
+  position: relative;
+  top: 7px;
+}
+
+/* Optional decorative circle */
+.empty-state-icon::before {
+  content: '';
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  border: 2px dashed #e5e7eb;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.empty-state-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 12px 0;
+}
+
+.empty-state-description {
+  font-size: 15px;
+  color: #6b7280;
+  margin: 0 0 32px 0;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+.empty-state-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state-cta:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state-cta:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state-cta i {
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  top: 7px;
+}
+
+/* Cart page specific - icon aligned with text */
+.cart-page-empty .empty-state-cta i {
+  top: 0;
+}
+
+/* Secondary action link (optional) */
+.empty-state-secondary {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.empty-state-secondary a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.empty-state-secondary a:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* Variant: Compact (for smaller spaces) */
+.empty-state--compact {
+  padding: 48px 24px;
+  min-height: 300px;
+}
+
+.empty-state--compact .empty-state-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 24px;
+}
+
+.empty-state--compact .empty-state-icon i {
+  font-size: 40px;
+  top: 5px; /* Slightly less offset for smaller icon */
+}
+
+.empty-state--compact .empty-state-icon::before {
+  width: 100px;
+  height: 100px;
+}
+
+.empty-state--compact .empty-state-title {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.empty-state--compact .empty-state-description {
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .empty-state {
+    padding: 60px 20px;
+    min-height: 350px;
+  }
+
+  .empty-state-icon {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 24px;
+  }
+
+  .empty-state-icon i {
+    font-size: 48px;
+    top: 6px; /* Slightly less offset for smaller icon */
+  }
+
+  .empty-state-icon::before {
+    width: 120px;
+    height: 120px;
+  }
+
+  .empty-state-title {
+    font-size: 20px;
+  }
+
+  .empty-state-description {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .empty-state-cta {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+}

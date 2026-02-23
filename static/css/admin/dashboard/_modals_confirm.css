@@ -1,0 +1,124 @@
+/* ============================================
+   CONFIRMATION MODAL SUCCESS ANIMATION
+   ============================================ */
+
+.confirm-modal-form-content {
+  display: block;
+}
+
+.confirm-modal-success-content {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.confirm-modal-success-content.show {
+  display: flex;
+}
+
+/* Hide form content when showing success */
+#confirmModalDialog.success .confirm-modal-form-content {
+  display: none;
+}
+
+#confirmModalDialog.success {
+  border-color: #fca5a5;
+}
+
+/* Checkmark Animation */
+.confirm-checkmark-container {
+  margin: 0 auto 24px;
+  width: 80px;
+  height: 80px;
+}
+
+.confirm-checkmark {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 3;
+  stroke: #dc2626;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #dc2626;
+  animation: confirmFill 0.4s ease-in-out 0.4s forwards, confirmScale 0.3s ease-in-out 0.9s both;
+}
+
+.confirm-checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 3;
+  stroke-miterlimit: 10;
+  stroke: #dc2626;
+  fill: none;
+  animation: confirmStroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.confirm-checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  animation: confirmStroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+
+@keyframes confirmStroke {
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes confirmScale {
+  0%, 100% {
+    transform: none;
+  }
+  50% {
+    transform: scale3d(1.1, 1.1, 1);
+  }
+}
+
+@keyframes confirmFill {
+  100% {
+    box-shadow: inset 0px 0px 0px 40px #dc2626;
+  }
+}
+
+.confirm-success-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.confirm-success-message {
+  font-size: 15px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.confirm-success-btn {
+  padding: 12px 32px;
+  border: none;
+  border-radius: 10px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirm-success-btn:hover {
+  background: #b91c1c;
+}
+

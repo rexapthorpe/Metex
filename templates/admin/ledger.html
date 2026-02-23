@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Admin Ledger Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/ledger.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ledger-dashboard">
+    <div class="ledger-header">
+        <h1>Transaction Ledger</h1>
+        <p class="ledger-subtitle">View order ledger, fees, and payout status</p>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="ledger-stats" id="ledger-stats">
+        <div class="stat-card">
+            <div class="stat-label">Total Orders</div>
+            <div class="stat-value" id="stat-total-orders">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Gross Volume</div>
+            <div class="stat-value" id="stat-gross-volume">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Platform Fees</div>
+            <div class="stat-value" id="stat-platform-fees">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Pending Payouts</div>
+            <div class="stat-value" id="stat-pending-payouts">-</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="ledger-filters">
+        <div class="filter-group">
+            <label for="status-filter">Status</label>
+            <select id="status-filter" class="filter-select">
+                <option value="">All Statuses</option>
+                {% for status in order_statuses %}
+                <option value="{{ status }}">{{ status.replace('_', ' ').title() }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="buyer-filter">Buyer ID</label>
+            <input type="number" id="buyer-filter" class="filter-input" placeholder="Enter buyer ID">
+        </div>
+        <div class="filter-group">
+            <label for="start-date-filter">Start Date</label>
+            <input type="date" id="start-date-filter" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <label for="end-date-filter">End Date</label>
+            <input type="date" id="end-date-filter" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <label for="min-gross-filter">Min Gross</label>
+            <input type="number" id="min-gross-filter" class="filter-input" placeholder="$0.00" step="0.01">
+        </div>
+        <div class="filter-group">
+            <label for="max-gross-filter">Max Gross</label>
+            <input type="number" id="max-gross-filter" class="filter-input" placeholder="$10000.00" step="0.01">
+        </div>
+        <div class="filter-actions">
+            <button class="btn-filter" onclick="applyFilters()">Apply Filters</button>
+            <button class="btn-filter-clear" onclick="clearFilters()">Clear</button>
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="ledger-table-container">
+        <table class="ledger-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Buyer</th>
+                    <th>Status</th>
+                    <th>Items</th>
+                    <th>Sellers</th>
+                    <th>Gross Amount</th>
+                    <th>Platform Fee</th>
+                    <th>Payment</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="ledger-orders-tbody">
+                <tr>
+                    <td colspan="10" class="loading-row">Loading orders...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="ledger-pagination">
+        <button class="btn-page" id="btn-prev" onclick="prevPage()" disabled>Previous</button>
+        <span class="page-info" id="page-info">Page 1</span>
+        <button class="btn-page" id="btn-next" onclick="nextPage()">Next</button>
+    </div>
+</div>
+
+<script>
+let currentPage = 0;
+const pageSize = 50;
+let totalLoaded = 0;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+    loadOrders();
+});
+
+function loadStats() {
+    fetch('/admin/api/ledger/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const stats = data.stats;
+                document.getElementById('stat-total-orders').textContent = stats.total_orders.toLocaleString();
+                document.getElementById('stat-gross-volume').textContent = '$' + stats.total_gross_volume.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('stat-platform-fees').textContent = '$' + stats.total_platform_fees.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('stat-pending-payouts').textContent = '$' + stats.pending_payout_total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+        })
+        .catch(error => console.error('Error loading stats:', error));
+}
+
+function loadOrders() {
+    const tbody = document.getElementById('ledger-orders-tbody');
+    tbody.innerHTML = '<tr><td colspan="10" class="loading-row">Loading orders...</td></tr>';
+
+    // Build query params
+    const params = new URLSearchParams();
+    params.append('limit', pageSize);
+    params.append('offset', currentPage * pageSize);
+
+    const status = document.getElementById('status-filter').value;
+    const buyerId = document.getElementById('buyer-filter').value;
+    const startDate = document.getElementById('start-date-filter').value;
+    const endDate = document.getElementById('end-date-filter').value;
+    const minGross = document.getElementById('min-gross-filter').value;
+    const maxGross = document.getElementById('max-gross-filter').value;
+
+    if (status) params.append('status', status);
+    if (buyerId) params.append('buyer_id', buyerId);
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (minGross) params.append('min_gross', minGross);
+    if (maxGross) params.append('max_gross', maxGross);
+
+    fetch('/admin/api/ledger/orders?' + params.toString())
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderOrders(data.orders);
+                totalLoaded = data.count;
+                updatePagination();
+            } else {
+                tbody.innerHTML = '<tr><td colspan="10" class="error-row">Error loading orders</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading orders:', error);
+            tbody.innerHTML = '<tr><td colspan="10" class="error-row">Error loading orders</td></tr>';
+        });
+}
+
+function renderOrders(orders) {
+    const tbody = document.getElementById('ledger-orders-tbody');
+
+    if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-row">No orders found</td></tr>';
+        return;
+    }
+
+    let html = '';
+    orders.forEach(order => {
+        const statusClass = getStatusClass(order.order_status);
+        html += `
+            <tr>
+                <td><a href="/admin/ledger/order/${order.order_id}" class="order-link">#${order.order_id}</a></td>
+                <td>
+                    <span class="buyer-name">@${order.buyer_username}</span>
+                    <span class="buyer-id">(ID: ${order.buyer_id})</span>
+                </td>
+                <td><span class="status-badge ${statusClass}">${formatStatus(order.order_status)}</span></td>
+                <td>${order.item_count}</td>
+                <td>${order.seller_count}</td>
+                <td class="amount">$${order.gross_amount.toFixed(2)}</td>
+                <td class="amount fee">$${order.platform_fee_amount.toFixed(2)}</td>
+                <td>${order.payment_method || '-'}</td>
+                <td class="timestamp">${order.created_at_display}</td>
+                <td>
+                    <a href="/admin/ledger/order/${order.order_id}" class="btn-view">View</a>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+function getStatusClass(status) {
+    const statusClasses = {
+        'CHECKOUT_INITIATED': 'status-pending',
+        'PAYMENT_PENDING': 'status-pending',
+        'PAID_IN_ESCROW': 'status-escrow',
+        'UNDER_REVIEW': 'status-review',
+        'AWAITING_SHIPMENT': 'status-awaiting',
+        'PARTIALLY_SHIPPED': 'status-shipped',
+        'SHIPPED': 'status-shipped',
+        'COMPLETED': 'status-completed',
+        'CANCELLED': 'status-cancelled',
+        'REFUNDED': 'status-refunded'
+    };
+    return statusClasses[status] || 'status-default';
+}
+
+function formatStatus(status) {
+    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function applyFilters() {
+    currentPage = 0;
+    loadOrders();
+}
+
+function clearFilters() {
+    document.getElementById('status-filter').value = '';
+    document.getElementById('buyer-filter').value = '';
+    document.getElementById('start-date-filter').value = '';
+    document.getElementById('end-date-filter').value = '';
+    document.getElementById('min-gross-filter').value = '';
+    document.getElementById('max-gross-filter').value = '';
+    currentPage = 0;
+    loadOrders();
+}
+
+function updatePagination() {
+    const pageInfo = document.getElementById('page-info');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+
+    pageInfo.textContent = `Page ${currentPage + 1}`;
+    btnPrev.disabled = currentPage === 0;
+    btnNext.disabled = totalLoaded < pageSize;
+}
+
+function prevPage() {
+    if (currentPage > 0) {
+        currentPage--;
+        loadOrders();
+    }
+}
+
+function nextPage() {
+    currentPage++;
+    loadOrders();
+}
+</script>
+{% endblock %}

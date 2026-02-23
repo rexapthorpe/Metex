@@ -1,180 +1,162 @@
 <div class="orders-tab">
-  <h2 class="tab-heading">Your Orders</h2>
+  <!-- Header -->
+  <div class="tab-page-header">
+    <h1 class="tab-page-title">Your Orders</h1>
+  </div>
 
-  {% if pending_orders %}
-    <h3 class="group-heading">Pending Orders</h3>
-    {% for order in pending_orders %}
-      <div class="order-tile" id="order-{{ order.id }}">
-        <div class="order-image">
-          <img
-            src="{{ order.image_url or url_for('static', filename='img/placeholder.png') }}"
-            alt="Product"
-          >
-          <!-- Isolated/Set Badge -->
-          {% if order.is_isolated %}
-            <div style="position: absolute; top: 8px; left: 8px; z-index: 10;">
-              {% if order.isolated_type == 'set' %}
-                <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">SET</span>
-              {% elif order.issue_number and order.issue_total %}
-                <span style="background-color: #8b5cf6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">#{{ order.issue_number }}/{{ order.issue_total }}</span>
-              {% else %}
-                <span style="background-color: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">1-OF-A-KIND</span>
+  <!-- Filter Tabs -->
+  <div class="tab-filter-bar">
+    <button class="filter-pill active" data-filter="all" onclick="filterOrders('all')">All</button>
+    <button class="filter-pill" data-filter="pending" onclick="filterOrders('pending')">Pending</button>
+    <button class="filter-pill" data-filter="shipped" onclick="filterOrders('shipped')">Shipped</button>
+    <button class="filter-pill" data-filter="delivered" onclick="filterOrders('delivered')">Delivered</button>
+  </div>
+
+  {% set all_orders = pending_orders + completed_orders %}
+  {% if all_orders %}
+    <div class="orders-list">
+      {% for order in all_orders %}
+        {% set order_filter = order.status | lower | replace(' ', '-') %}
+        <div class="order-card" id="order-{{ order.id }}" data-order-filter="{{ order_filter }}">
+          <!-- Left: Image -->
+          <div class="order-card-image">
+            <img src="{{ order.image_url or url_for('static', filename='img/placeholder.png') }}" alt="Order">
+          </div>
+
+          <!-- Center: Info -->
+          <div class="order-card-info">
+            <!-- Status + Order Number + Price -->
+            <div class="order-card-top">
+              <div class="order-card-badges">
+                <span class="order-status-badge order-status-badge--{{ order_filter }}">
+                  <span class="order-status-dot"></span>
+                  {{ order.status }}
+                </span>
+                <span class="order-number">#ORD-{{ '%04d' % order.id }}</span>
+              </div>
+              <div class="order-card-price-block">
+                <div class="order-card-price">${{ order.price_each | commas }}</div>
+                {% if order.quantity %}<div class="order-card-qty">{{ order.quantity }} items</div>{% endif %}
+              </div>
+            </div>
+
+            <!-- Title -->
+            <div class="order-card-title">
+              {{ order.weight or '' }}
+              {% if order.year %}{{ order.year }}{% endif %}
+              {{ order.metal or '' }}
+              {{ order.product_line or '' }}
+              {{ order.product_type or '' }}
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="order-progress">
+              <div class="order-progress-label">Progress</div>
+              <div class="order-progress-track">
+                {% set step_idx = {'pending': 1, 'processing': 2, 'shipped': 3, 'delivered': 4, 'awaiting-confirmation': 1}.get(order_filter, 1) %}
+                <div class="order-progress-step {% if 1 <= step_idx %}order-progress-step--done{% endif %}">Placed</div>
+                <div class="order-progress-connector {% if 1 < step_idx %}order-progress-connector--done{% endif %}"></div>
+                <div class="order-progress-step {% if 2 <= step_idx %}order-progress-step--done{% endif %}">Processing</div>
+                <div class="order-progress-connector {% if 2 < step_idx %}order-progress-connector--done{% endif %}"></div>
+                <div class="order-progress-step {% if 3 <= step_idx %}order-progress-step--done{% endif %}">Shipped</div>
+                <div class="order-progress-connector {% if 3 < step_idx %}order-progress-connector--done{% endif %}"></div>
+                <div class="order-progress-step {% if 4 <= step_idx %}order-progress-step--done{% endif %}">Delivered</div>
+              </div>
+            </div>
+
+            <!-- Meta Row -->
+            <div class="order-card-meta">
+              <span class="order-meta-item">
+                <i class="fa-regular fa-clock"></i>
+                {{ order.formatted_order_date }}
+              </span>
+              <span class="order-meta-item">
+                <i class="fa-regular fa-user"></i>
+                @{{ order.seller_username if order.seller_username else '—' }}
+              </span>
+              {% if order.tracking_number %}
+              <span class="order-meta-item">
+                <i class="fa-solid fa-box"></i>
+                {{ order.tracking_number }}
+              </span>
               {% endif %}
             </div>
-          {% endif %}
-        </div>
+          </div>
 
-        <div class="order-meta">
-          <div class="price">${{ order.price_each|commas }}</div>
-          <div class="status">{{ order.status }}</div>
-          <div class="qty">Qty: {{ order.quantity }}</div>
-        </div>
-
-        <div class="order-footer">
-          <div class="order-date-display">{{ order.formatted_order_date }}</div>
-
-          <!-- All action buttons in a single right-aligned row -->
-          <div class="order-tile-actions">
-            <button
-              class="order-btn"
-              onclick="openOrderSellerPopup({{ order.id }})">
-              <i class="fa-solid fa-user"></i>
-              <span>Sellers</span>
+          <!-- Right: Quick Actions -->
+          <div class="order-card-actions">
+            <div class="order-actions-label">QUICK ACTIONS</div>
+            <button class="order-quick-action" onclick="openOrderSellerPopup({{ order.id }})">
+              <i class="fa-regular fa-user"></i> Seller
             </button>
-
-            <button
-              class="order-btn"
-              onclick="openOrderItemsPopup({{ order.id }})">
-              <i class="fa-solid fa-list"></i>
-              <span>Items</span>
+            <button class="order-quick-action" onclick="openOrderItemsPopup({{ order.id }})">
+              <i class="fa-solid fa-list"></i> Items
             </button>
-
+            {% set order_title = [order.weight or '', order.year or '', order.metal or '', order.product_line or '', order.product_type or ''] | select | join(' ') | trim %}
             <button
-              class="order-btn"
-              onclick="openRateModal({{ order.id }}, 'seller')">
-              <i class="fas fa-star"></i>
-              <span>Rate</span>
+              class="order-quick-action order-quick-action--muted{% if order.already_rated %} order-quick-action--rated{% endif %}"
+              {% if not order.already_rated %}
+              onclick="openRateModal({{ order.id }}, 'seller', {{ {'title': order_title, 'price': '$%d' | format(order.price_each or 0), 'date': order.formatted_order_date or ''} | tojson }})"
+              {% endif %}
+              {% if order.already_rated %}disabled{% endif %}>
+              <i class="{% if order.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
+              {% if order.already_rated %}Rated{% else %}Rate{% endif %}
             </button>
-
             <button
-              class="order-btn {% if order.excluded_count == 0 %}portfolio-btn-disabled{% endif %}"
+              class="order-quick-action order-quick-action--muted {% if order.excluded_count == 0 %}order-quick-action--disabled{% endif %}"
               onclick="toggleOrderPortfolio({{ order.id }}, {{ order.excluded_count }})"
               {% if order.excluded_count == 0 %}disabled{% endif %}>
-              <i class="fas fa-chart-pie"></i>
-              <span>Add to portfolio</span>
+              <i class="fa-regular fa-clock"></i> Portfolio
             </button>
-
-            <button class="order-btn" onclick="openMessageModal({{ order.id }}, 'seller')">
-              <i class="fas fa-envelope"></i>
-              <span>Message</span>
-            </button>
-
-            <button
-              class="order-btn"
-              onclick="addTrackingNumber({{ order.id }})">
-              <i class="fas fa-box"></i>
-              <span>Track</span>
+            <div class="order-actions-divider"></div>
+            <div class="order-actions-bottom">
+              <button class="order-quick-action" onclick="openMessageModal({{ order.id }}, 'seller')">
+                <i class="fa-regular fa-message"></i> Message
+              </button>
+              <button class="order-action-track" onclick="addTrackingNumber({{ order.id }})">
+                <i class="fa-solid fa-truck"></i> Track
+              </button>
+            </div>
+            {% if order.cancel_status == 'pending' %}
+              <div class="order-cancel-status order-cancel-status--pending">
+                <i class="fa-regular fa-clock"></i> Cancellation Pending
+              </div>
+            {% elif order.cancel_status == 'denied' %}
+              <div class="order-cancel-status order-cancel-status--denied">
+                <i class="fa-solid fa-xmark"></i> Request Denied
+              </div>
+            {% else %}
+              <button class="order-action-cancel" onclick="openCancelOrderModal ? openCancelOrderModal({{ order.id }}) : null">
+                <i class="fa-solid fa-circle-xmark"></i> Cancel Order
+              </button>
+            {% endif %}
+            <button class="order-action-report" onclick="openReportUserModal ? openReportUserModal({{ order.id }}) : null">
+              <i class="fa-regular fa-flag"></i> Report User
             </button>
           </div>
         </div>
-      </div>
-    {% endfor %}
-  {% else %}
-    <div class="empty-orders-container">
-      <p class="empty-orders-message">You have no pending orders yet!</p>
-      <a href="{{ url_for('buy.buy') }}">
-        <button class="find-items-btn">
-          Find Items
-        </button>
-      </a>
+      {% endfor %}
     </div>
-  {% endif %}
-
-  {% if completed_orders %}
-    <h3 class="group-heading">Completed Orders</h3>
-    {% for order in completed_orders %}
-      <div class="order-tile" id="order-{{ order.id }}">
-        <div class="order-image">
-          <img
-            src="{{ order.image_url or url_for('static', filename='img/placeholder.png') }}"
-            alt="Product"
-          >
-          <!-- Isolated/Set Badge -->
-          {% if order.is_isolated %}
-            <div style="position: absolute; top: 8px; left: 8px; z-index: 10;">
-              {% if order.isolated_type == 'set' %}
-                <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">SET</span>
-              {% elif order.issue_number and order.issue_total %}
-                <span style="background-color: #8b5cf6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">#{{ order.issue_number }}/{{ order.issue_total }}</span>
-              {% else %}
-                <span style="background-color: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">1-OF-A-KIND</span>
-              {% endif %}
-            </div>
-          {% endif %}
-        </div>
-        <div class="order-meta">
-          <div class="price">${{ order.price_each|commas }}</div>
-          <div class="status">{{ order.status }}</div>
-          <div class="qty">Qty: {{ order.quantity }}</div>
-        </div>
-        <div class="order-footer">
-          <div class="order-date-display">{{ order.formatted_order_date }}</div>
-
-          <!-- All action buttons in a single right-aligned row -->
-          <div class="order-tile-actions">
-            <button
-              class="order-btn"
-              onclick="openOrderSellerPopup({{ order.id }})">
-              <i class="fa-solid fa-user"></i>
-              <span>Sellers</span>
-            </button>
-
-            <button
-              class="order-btn"
-              onclick="openOrderItemsPopup({{ order.id }})">
-              <i class="fa-solid fa-list"></i>
-              <span>Items</span>
-            </button>
-
-            <button
-              class="order-btn"
-              onclick="openRateModal({{ order.id }}, 'seller')">
-              <i class="fas fa-star"></i>
-              <span>Rate</span>
-            </button>
-
-            <button
-              class="order-btn {% if order.excluded_count == 0 %}portfolio-btn-disabled{% endif %}"
-              onclick="toggleOrderPortfolio({{ order.id }}, {{ order.excluded_count }})"
-              {% if order.excluded_count == 0 %}disabled{% endif %}>
-              <i class="fas fa-chart-pie"></i>
-              <span>Add to portfolio</span>
-            </button>
-
-            <button class="order-btn" onclick="openMessageModal({{ order.id }}, 'seller')">
-              <i class="fas fa-envelope"></i>
-              <span>Message</span>
-            </button>
-
-            <button
-              class="order-btn"
-              onclick="addTrackingNumber({{ order.id }})">
-              <i class="fas fa-box"></i>
-              <span>Track</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    {% endfor %}
   {% else %}
-    <div class="empty-orders-container">
-      <p class="empty-orders-message">You have no completed purchases yet!</p>
-      <a href="{{ url_for('buy.buy') }}">
-        <button class="find-items-btn">
-          Find Items
-        </button>
-      </a>
+    <div class="tab-empty-state">
+      <i class="fa-solid fa-clipboard-list tab-empty-icon"></i>
+      <h3>No orders yet</h3>
+      <p>Browse listings to make your first purchase.</p>
+      <a href="{{ url_for('buy.buy') }}" class="tab-cta-btn tab-cta-btn--navy">Find Items</a>
     </div>
   {% endif %}
 </div>
 
+<script>
+function filterOrders(filter) {
+  document.querySelectorAll('.orders-tab .filter-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  document.querySelectorAll('.order-card').forEach(card => {
+    const f = card.dataset.orderFilter;
+    const show = filter === 'all' || f === filter || (filter === 'pending' && ['pending','processing','awaiting-confirmation'].includes(f));
+    card.style.display = show ? '' : 'none';
+  });
+}
+window.filterOrders = filterOrders;
+</script>

@@ -458,7 +458,7 @@ function renderHoldingsList(holdings) {
 
     holdings.forEach(holding => {
         const tile = template.content.cloneNode(true);
-        const tileDiv = tile.querySelector('.holding-tile');
+        const tileDiv = tile.querySelector('.holding-row');
 
         // Set data attributes - store all order_item_ids for this consolidated holding
         const orderItemIds = holding.order_item_ids ? holding.order_item_ids.join(',') : '';
@@ -662,7 +662,7 @@ function setupTimeRangeSelector() {
 let pendingExclusion = null;
 
 function excludeHolding(button) {
-    const tile = button.closest('.holding-tile');
+    const tile = button.closest('.holding-row');
     const orderItemIdsStr = tile.getAttribute('data-order-item-ids');
     const orderItemIds = orderItemIdsStr ? orderItemIdsStr.split(',') : [];
 
@@ -734,7 +734,7 @@ function confirmExcludeHolding() {
  * Redirects to /sell with item details as query parameters
  */
 function openListingModalFromHolding(button) {
-    const tile = button.closest('.holding-tile');
+    const tile = button.closest('.holding-row');
     const bucketId = tile.getAttribute('data-bucket-id');
 
     if (!bucketId) {
@@ -799,7 +799,7 @@ window.addEventListener('hashchange', () => {
  * View holding item details in the existing order items modal
  */
 function viewHoldingDetails(button) {
-    const tile = button.closest('.holding-tile');
+    const tile = button.closest('.holding-row');
     if (!tile) return;
 
     // Extract all the holding data from the tile's data attributes
@@ -869,7 +869,39 @@ function viewHoldingDetails(button) {
     }
 }
 
+/**
+ * Sort holdings list by selected criterion
+ */
+function sortHoldings(criterion) {
+    const list = document.getElementById('holdings-list');
+    if (!list) return;
+
+    const rows = Array.from(list.querySelectorAll('.holding-row'));
+    if (rows.length === 0) return;
+
+    rows.sort((a, b) => {
+        const parseNum = el => parseFloat((el.textContent || '0').replace(/[$,+%()]/g, '')) || 0;
+
+        if (criterion === 'qty') {
+            return parseNum(b.querySelector('.quantity-value')) - parseNum(a.querySelector('.quantity-value'));
+        } else if (criterion === 'gain') {
+            // Gain/loss value may be negative — sort descending (most positive first)
+            const aEl = a.querySelector('.gain-loss-value');
+            const bEl = b.querySelector('.gain-loss-value');
+            const aSign = aEl && aEl.textContent.trim().startsWith('-') ? -1 : 1;
+            const bSign = bEl && bEl.textContent.trim().startsWith('-') ? -1 : 1;
+            return (bSign * parseNum(bEl)) - (aSign * parseNum(aEl));
+        } else {
+            // Default: sort by current value descending
+            return parseNum(b.querySelector('.current-price-value')) - parseNum(a.querySelector('.current-price-value'));
+        }
+    });
+
+    rows.forEach(row => list.appendChild(row));
+}
+
 // Expose functions globally
 window.excludeHolding = excludeHolding;
 window.openListingModalFromHolding = openListingModalFromHolding;
 window.viewHoldingDetails = viewHoldingDetails;
+window.sortHoldings = sortHoldings;

@@ -1,0 +1,107 @@
+      <div class="stats-grid stats-grid-4">
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Server Status</span>
+            <span class="status-dot status-dot-online"></span>
+          </div>
+          <div class="stat-value stat-value-green">Online</div>
+          <div class="stat-subtext">99.9% uptime</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">CPU Usage</span>
+            <div class="stat-icon-inline">
+              <i class="fa-solid fa-microchip"></i>
+            </div>
+          </div>
+          <div class="stat-value">34%</div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 34%;"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Memory</span>
+            <div class="stat-icon-inline">
+              <i class="fa-solid fa-memory"></i>
+            </div>
+          </div>
+          <div class="stat-value">67%</div>
+          <div class="progress-bar">
+            <div class="progress-fill progress-warning" style="width: 67%;"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Database</span>
+            <div class="stat-icon-inline">
+              <i class="fa-solid fa-database"></i>
+            </div>
+          </div>
+          <div class="stat-value">2.4TB</div>
+          <div class="stat-subtext">of 5TB used</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <h3>Quick Settings</h3>
+      </div>
+
+      <div class="settings-grid">
+        <div class="settings-card" onclick="openEmailTemplates()">
+          <div class="settings-icon">
+            <i class="fa-solid fa-envelope"></i>
+          </div>
+          <div class="settings-info">
+            <h4>Email Templates</h4>
+            <p>Manage notification emails</p>
+          </div>
+        </div>
+        <div class="settings-card" onclick="openSecuritySettings()">
+          <div class="settings-icon">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div class="settings-info">
+            <h4>Security Settings</h4>
+            <p>Configure security rules</p>
+          </div>
+        </div>
+        <div class="settings-card" onclick="openFeeConfig()">
+          <div class="settings-icon">
+            <i class="fa-solid fa-dollar-sign"></i>
+          </div>
+          <div class="settings-info">
+            <h4>Fee Configuration</h4>
+            <p>Adjust platform fees</p>
+          </div>
+        </div>
+        <div class="settings-card" onclick="openApiManagement()">
+          <div class="settings-icon">
+            <i class="fa-solid fa-code"></i>
+          </div>
+          <div class="settings-info">
+            <h4>API Management</h4>
+            <p>Manage API keys and limits</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="section-header" style="margin-top: 40px;">
+        <h3 style="color: #dc2626;"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone</h3>
+      </div>
+
+      <div class="danger-zone-card">
+        <div class="danger-zone-content">
+          <div class="danger-zone-icon">
+            <i class="fa-solid fa-trash-can"></i>
+          </div>
+          <div class="danger-zone-info">
+            <h4>Clear All Marketplace Data</h4>
+            <p>Delete all listings, orders, bids, cart items, notifications, and messages. User accounts and addresses will be preserved. This action cannot be undone.</p>
+          </div>
+          <button class="btn-danger-lg" onclick="openClearDataModal()">
+            <i class="fa-solid fa-trash-can"></i> Clear Data
+          </button>
+        </div>
+      </div>

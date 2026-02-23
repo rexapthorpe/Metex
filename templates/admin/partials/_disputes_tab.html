@@ -1,0 +1,112 @@
+      <div class="stats-grid stats-grid-3">
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Open Disputes</span>
+            <div class="stat-icon stat-icon-red">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="disputeStatsOpen">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Resolved Today</span>
+            <div class="stat-icon stat-icon-green">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="disputeStatsResolvedToday">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Avg. Resolution Time</span>
+            <div class="stat-icon stat-icon-blue">
+              <i class="fa-solid fa-clock"></i>
+            </div>
+          </div>
+          <div class="stat-value">2.4 days</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <h3>Active Disputes</h3>
+      </div>
+
+      <div class="dispute-list" id="disputesList">
+        <div class="dispute-loading">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <span>Loading disputes...</span>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="dispute-empty" id="disputeEmpty" style="display: none;">
+        <div class="empty-state-icon">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <h3>No Open Disputes</h3>
+        <p>There are no active disputes to review at this time.</p>
+      </div>
+    </div>
+
+    <!-- Report Details Modal -->
+    <div id="adminReportDetailsModal" class="admin-modal">
+      <div class="admin-modal-content admin-modal-lg">
+        <div class="admin-modal-header">
+          <h3>Report Details</h3>
+          <button class="admin-modal-close" onclick="closeAdminReportModal()">&times;</button>
+        </div>
+        <div class="admin-modal-body" id="adminReportDetailsBody">
+          <!-- Content populated by JS -->
+        </div>
+        <div class="admin-modal-footer" id="adminReportDetailsFooter">
+          <!-- Actions populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- User Stats Modal -->
+    <div id="adminUserStatsModal" class="admin-modal">
+      <div class="admin-modal-content">
+        <div class="admin-modal-header">
+          <h3>User Statistics</h3>
+          <button class="admin-modal-close" onclick="closeUserStatsModal()">&times;</button>
+        </div>
+        <div class="admin-modal-body" id="adminUserStatsBody">
+          <!-- Content populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Resolve Report Modal -->
+    <div id="adminResolveReportModal" class="admin-modal">
+      <div class="admin-modal-content">
+        <div class="admin-modal-header">
+          <h3>Resolve Report</h3>
+          <button class="admin-modal-close" onclick="closeResolveReportModal()">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+          <div class="form-group">
+            <label>Resolution Status</label>
+            <select id="resolveReportStatus" class="form-select">
+              <option value="resolved">Resolved</option>
+              <option value="dismissed">Dismissed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Resolution Note (visible to user)</label>
+            <textarea id="resolveReportNote" rows="3" placeholder="Explain the resolution..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Admin Notes (internal only)</label>
+            <textarea id="resolveReportAdminNotes" rows="2" placeholder="Internal notes..."></textarea>
+          </div>
+        </div>
+        <div class="admin-modal-footer">
+          <button class="btn-outline" onclick="closeResolveReportModal()">Cancel</button>
+          <button class="btn-primary" onclick="submitResolveReport()">
+            <i class="fa-solid fa-check"></i> Confirm Resolution
+          </button>
+        </div>
+      </div>
+    </div>

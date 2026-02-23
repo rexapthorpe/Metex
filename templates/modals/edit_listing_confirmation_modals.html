@@ -109,6 +109,39 @@
           </div>
         </div>
 
+        <!-- Seller Proceeds Preview Section -->
+        <div class="edit-summary-section seller-proceeds-section">
+          <h4 class="edit-summary-section-title">Your Estimated Proceeds</h4>
+          <div class="edit-proceeds-box">
+            <!-- Primary: Net Proceeds -->
+            <div class="edit-proceeds-row edit-proceeds-net-row">
+              <span class="edit-proceeds-label">You Will Receive:</span>
+              <span class="edit-proceeds-value edit-proceeds-net-value" id="edit-confirm-net-proceeds">—</span>
+            </div>
+
+            <!-- Fee indicator badge (if non-default) -->
+            <div class="edit-proceeds-row edit-fee-indicator-row" id="edit-confirm-fee-indicator-row" style="display: none;">
+              <span class="edit-proceeds-fee-badge" id="edit-confirm-fee-badge">—</span>
+            </div>
+
+            <div class="edit-proceeds-divider"></div>
+
+            <!-- Breakdown -->
+            <div class="edit-proceeds-row edit-proceeds-breakdown-row">
+              <span class="edit-proceeds-label">Listed Price:</span>
+              <span class="edit-proceeds-value" id="edit-confirm-gross-price">—</span>
+            </div>
+            <div class="edit-proceeds-row edit-proceeds-breakdown-row">
+              <span class="edit-proceeds-label">Platform Fee (<span id="edit-confirm-fee-percent">—</span>%):</span>
+              <span class="edit-proceeds-value edit-proceeds-fee-deduction" id="edit-confirm-fee-amount">—</span>
+            </div>
+          </div>
+          <p class="edit-proceeds-note">
+            <i class="fas fa-info-circle"></i>
+            Final proceeds are calculated when your item sells.
+          </p>
+        </div>
+
         <p class="edit-confirm-question">Do you want to save these changes?</p>
         <hr class="edit-confirm-divider">
       </div>
@@ -223,6 +256,39 @@
               <span class="detail-label">Price per Item:</span>
               <span class="detail-value price-highlight" id="edit-success-static-price">—</span>
             </div>
+          </div>
+
+          <!-- Seller Proceeds Preview Section -->
+          <div class="detail-section seller-proceeds-section">
+            <h4>Your Estimated Proceeds</h4>
+            <div class="edit-proceeds-box">
+              <!-- Primary: Net Proceeds -->
+              <div class="edit-proceeds-row edit-proceeds-net-row">
+                <span class="edit-proceeds-label">You Will Receive:</span>
+                <span class="edit-proceeds-value edit-proceeds-net-value" id="edit-success-net-proceeds">—</span>
+              </div>
+
+              <!-- Fee indicator badge (if non-default) -->
+              <div class="edit-proceeds-row edit-fee-indicator-row" id="edit-success-fee-indicator-row" style="display: none;">
+                <span class="edit-proceeds-fee-badge" id="edit-success-fee-badge">—</span>
+              </div>
+
+              <div class="edit-proceeds-divider"></div>
+
+              <!-- Breakdown -->
+              <div class="edit-proceeds-row edit-proceeds-breakdown-row">
+                <span class="edit-proceeds-label">Listed Price:</span>
+                <span class="edit-proceeds-value" id="edit-success-gross-price">—</span>
+              </div>
+              <div class="edit-proceeds-row edit-proceeds-breakdown-row">
+                <span class="edit-proceeds-label">Platform Fee (<span id="edit-success-fee-percent">—</span>%):</span>
+                <span class="edit-proceeds-value edit-proceeds-fee-deduction" id="edit-success-fee-amount">—</span>
+              </div>
+            </div>
+            <p class="edit-proceeds-note">
+              <i class="fas fa-info-circle"></i>
+              Final proceeds are calculated when your item sells.
+            </p>
           </div>
 
           <div class="shipping-notice">

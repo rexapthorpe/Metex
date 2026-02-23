@@ -1,0 +1,120 @@
+/* ==============================
+   GALLERY (square)
+   ============================== */
+.gallery { display: flex; flex-direction: column; gap: 12px; }
+.gallery-main {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;  /* perfect square */
+  border-radius: 16px;
+  overflow: hidden;
+  background: #f7f7f8;
+  box-shadow:
+    0 20px 50px rgba(24,119,255,0.08),
+    0 8px 20px rgba(0,0,0,0.06),
+    0 1px 3px rgba(0,0,0,0.04);
+}
+.gallery-main img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #fff;
+}
+.gal-arrow {
+  position: absolute;
+  top: 45%; /*placement up the side of the image */
+  width: 36px; height: 36px;
+  border-radius: 9999px;
+  border: none;
+  background: none;
+  color: #949494; font-size: 50px;
+  display: grid; place-items: center;
+  cursor: pointer;
+}
+.gal-arrow:hover {
+  background: none;
+  color: #2c2c2c;
+  transform: scale(1.05);
+}
+.gal-arrow:disabled { opacity: 0.45; cursor: not-allowed; }
+.gal-arrow.left { left: 10px; }
+.gal-arrow.right { right: 10px; }
+.gal-dots {
+  position: absolute; left: 0; right: 0; bottom: 10px;
+  display: flex; justify-content: center; gap: 6px;
+}
+.gal-dots .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+.gal-dots .dot.active { background: rgba(0,0,0,0.6); }
+
+/* Placeholder for gallery when no images exist */
+.gallery-ph {
+  width: 100%;
+  height: 100%;
+  background: #e5e7eb;  /* grey */
+  display: block;
+  border-radius: 16px;
+}
+
+/* Grey square thumbs when no images */
+.thumbs .thumb.ph {
+  width: 150px;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  background: #e5e7eb;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 18px rgba(197, 197, 197, 0.32);
+}
+
+.thumbs { display: flex; gap: 10px; }
+.thumbs .thumb {
+  width: 88px; aspect-ratio: 1 / 1;
+  border-radius: 12px; overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #fff; cursor: pointer;
+  padding: 0;
+}
+.thumbs .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Sell CTA under thumbs */
+/* Row under main image: thumbnails on the left, Sell stack on the right */
+.thumbs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;   /* top-align with thumbnails */
+  gap: 12px;
+}
+
+/* Right-side vertical stack: label above the circular button */
+.sell-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;      /* hug the right edge */
+}
+.sell-kicker { margin: 0 0 4px 0; }
+
+/* Circular Sell button */
+.sell-circle-btn {
+  width: 100px; height: 44px; border-radius: 9999px;
+  display: grid; place-items: center;
+  background: #1877ff; color: #fff; text-decoration: none;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(0,110,255,0.25);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+  will-change: background-color, transform, box-shadow;
+}
+.sell-circle-btn:hover {
+  background: #1560ca;
+  color: #fff;
+  text-decoration: none;
+  transform: scale(1.05);
+  box-shadow: 0 8px 18px rgba(0,110,255,0.32);
+}
+

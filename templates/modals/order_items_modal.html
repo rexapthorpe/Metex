@@ -1,28 +1,17 @@
 <div id="orderItemsModal" class="order-items-modal-overlay" style="display: none;">
-  <div class="order-items-modal-content" role="dialog" aria-modal="true" aria-labelledby="orderItemsModalTitle">
-    <!-- Unified close button - positioned relative to modal card -->
+  <div class="order-items-modal-content" role="dialog" aria-modal="true" aria-labelledby="oimTitle">
     <button type="button" class="modal-close" onclick="closeOrderItemsPopup()" aria-label="Close modal">&times;</button>
-    <div class="order-items-modal-header">
-      <button
-        id="oi-prev"
-        class="order-items-nav-arrow"
-        onclick="prevOrderItem()"
-        aria-label="Previous item"
-      >←</button>
 
-    <span id="orderItemsModalTitle" class="order-items-modal-title">Item</span>
-
-      <button
-        id="oi-next"
-        class="order-items-nav-arrow"
-        onclick="nextOrderItem()"
-        aria-label="Next item"
-      >→</button>
+    <!-- Header: icon + title + order subtitle -->
+    <div class="oim-header">
+      <div class="oim-header-icon"><i class="fa-solid fa-cube"></i></div>
+      <div class="oim-header-text">
+        <h3 id="oimTitle" class="oim-header-title">Order Items</h3>
+        <p id="orderItemsModalSubtitle" class="oim-header-subtitle"></p>
+      </div>
     </div>
 
-    <div id="orderItemsModalContent" class="order-items-modal-body">
-      <!-- Filled by JS: loading | error | two-column details -->
-    </div>
-    <!-- Intentionally no footer and no Close/X buttons -->
+    <!-- Content: filled by JS -->
+    <div id="orderItemsModalContent" class="order-items-modal-body"></div>
   </div>
 </div>

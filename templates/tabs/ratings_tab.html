@@ -1,60 +1,205 @@
 <div class="ratings-tab">
 
-  <div class="ratings-content">
-    <div class="rating-average-container">
-      <div class="rating-average-text" id="average-rating-text">
-        {% if avg_rating %}
-          {{ '%.1f'|format(avg_rating) }}
-        {% else %}
-          --
-        {% endif %}
-      </div>
-      <div class="rating-count-text">
-        Average rating from {{ received_ratings|length }}
-        transaction{{ 's' if received_ratings|length != 1 else '' }}
-      </div>
+  <!-- Top bar: heading + summary stats -->
+  <div class="rt-topbar">
+    <div class="rt-heading-block">
+      <h2 class="rt-heading">Ratings &amp; Reviews</h2>
+      <p class="rt-subtitle">
+        <span class="rt-stat">{{ received_ratings|length }} received</span>
+        <span class="rt-stat-sep">&bull;</span>
+        <span class="rt-stat">{{ given_ratings|length }} given</span>
+        <span class="rt-stat-sep">&bull;</span>
+        <span class="rt-stat">{{ pending_ratings|length }} pending</span>
+      </p>
     </div>
 
-    <hr class="rating-divider">
-
-    {% if received_ratings %}
-      <div class="rating-tiles-container">
-        {% for r in received_ratings %}
-          <div class="rating-tile">
-            <!-- Header: rater image, name, stars, timestamp -->
-            <div class="rating-header">
-              <img
-                src="{{ r['rater_image_url'] or url_for('static', filename='img/placeholder.png') }}"
-                alt="{{ r['rater_name'] }}"
-                class="profile-img"
-              >
-              <div class="rating-stars-date">
-                <div class="stars">
-                  {% for i in range(1,6) %}
-                    {% if r['rating'] >= i %}
-                      <i class="fa-solid fa-star filled"></i>
-                    {% else %}
-                      <i class="fa-regular fa-star"></i>
-                    {% endif %}
-                  {% endfor %}
-                </div>
-                <div class="rating-meta">
-                  {{ r['timestamp'] }} | From: <strong>{{ r['rater_name'] }}</strong>
-                </div>
-              </div>
-            </div>
-
-            <!-- Comment section -->
-            <div class="rating-comment">
-              {{ r['comment'] or '— No comment provided' }}
-            </div>
-          </div>
-        {% endfor %}
+    <!-- Average rating card -->
+    <div class="rt-avg-card">
+      <div class="rt-avg-stars">
+        {% if avg_rating %}
+          {% set full  = avg_rating | int %}
+          {% set half  = 1 if (avg_rating - full) >= 0.5 else 0 %}
+          {% set empty = 5 - full - half %}
+          {% for _ in range(full)  %}<i class="fa-solid fa-star rt-star-filled"></i>{% endfor %}
+          {% for _ in range(half)  %}<i class="fa-solid fa-star-half-stroke rt-star-filled"></i>{% endfor %}
+          {% for _ in range(empty) %}<i class="fa-regular fa-star rt-star-empty"></i>{% endfor %}
+        {% else %}
+          {% for _ in range(5) %}<i class="fa-regular fa-star rt-star-empty"></i>{% endfor %}
+        {% endif %}
       </div>
-    {% else %}
-      <p class="empty-message">You have not received any ratings yet.</p>
-    {% endif %}
+      <div class="rt-avg-label">
+        <span id="average-rating-text" class="rt-avg-number">
+          {% if avg_rating %}{{ "%.1f"|format(avg_rating) }}{% else %}&mdash;{% endif %}
+        </span>
+        <span class="rt-avg-text">Average Rating</span>
+      </div>
+    </div>
   </div>
 
-  <script src="{{ url_for('static', filename='js/tabs/ratings_tab.js') }}"></script>
+  <!-- Filter tabs -->
+  <div class="rt-filter-bar">
+    <button class="rt-filter-btn rt-filter-active" data-filter="all">All</button>
+    <button class="rt-filter-btn" data-filter="received">Received</button>
+    <button class="rt-filter-btn" data-filter="given">Given</button>
+    <button class="rt-filter-btn" data-filter="pending">Pending</button>
+  </div>
+
+  <!-- Rating rows -->
+  <div class="rt-list">
+
+    {% if received_ratings %}
+      {% for r in received_ratings %}
+        <div class="rt-row" data-type="received">
+
+          <!-- Left: avatar + identity + stars -->
+          <div class="rt-left">
+            <div class="rt-avatar">
+              {% if r["rater_image_url"] %}
+                <img src="{{ r["rater_image_url"] }}" alt="{{ r["rater_name"] }}" class="rt-avatar-img">
+              {% else %}
+                <span class="rt-avatar-initials">
+                  {{- (r["rater_name"][:2] | upper) if r["rater_name"] else "??" -}}
+                </span>
+              {% endif %}
+            </div>
+
+            <div class="rt-identity">
+              <div class="rt-name-row">
+                <span class="rt-name">{{ r["rater_name"] }}</span>
+                <span class="rt-badge rt-badge-received">Received</span>
+              </div>
+              <div class="rt-stars-row">
+                {% for i in range(1, 6) %}
+                  {% if r["rating"] >= i %}
+                    <i class="fa-solid fa-star rt-star-filled rt-star-sm"></i>
+                  {% else %}
+                    <i class="fa-regular fa-star rt-star-empty rt-star-sm"></i>
+                  {% endif %}
+                {% endfor %}
+                <span class="rt-date">{{ r["timestamp"] }}</span>
+              </div>
+              {% if r["comment"] %}
+                <p class="rt-comment">{{ r["comment"] }}</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Right: item thumbnail placeholder (no item data attached to rating yet) -->
+          <div class="rt-right">
+            <div class="rt-item-thumb rt-item-thumb-placeholder">
+              <i class="fa-regular fa-image"></i>
+            </div>
+          </div>
+
+        </div>
+      {% endfor %}
+
+    {% else %}
+      <!-- Empty state shown only when all sections empty -->
+    {% endif %}
+
+    <!-- Given Ratings -->
+    {% for r in given_ratings %}
+      <div class="rt-row" data-type="given">
+        <div class="rt-left">
+          <div class="rt-avatar">
+            <span class="rt-avatar-initials">{{ (r["ratee_name"][:2] | upper) if r["ratee_name"] else "??" }}</span>
+          </div>
+          <div class="rt-identity">
+            <div class="rt-name-row">
+              <span class="rt-name">{{ r["ratee_name"] }}</span>
+              <span class="rt-username">@{{ r["ratee_name"] }}</span>
+              <span class="rt-badge rt-badge-given">Given</span>
+            </div>
+            <div class="rt-stars-row">
+              {% for i in range(1, 6) %}
+                {% if r["rating"] >= i %}
+                  <i class="fa-solid fa-star rt-star-filled rt-star-sm"></i>
+                {% else %}
+                  <i class="fa-regular fa-star rt-star-empty rt-star-sm"></i>
+                {% endif %}
+              {% endfor %}
+              <span class="rt-date">{{ r["timestamp"] }}</span>
+            </div>
+            {% if r["comment"] %}<p class="rt-comment">{{ r["comment"] }}</p>{% endif %}
+          </div>
+        </div>
+        <div class="rt-right">
+          <div class="rt-item-thumb rt-item-thumb-placeholder">
+            <i class="fa-regular fa-image"></i>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    <!-- Pending Ratings -->
+    {% for p in pending_ratings %}
+      <div class="rt-row rt-row--pending" data-type="pending">
+        <div class="rt-left">
+          <div class="rt-avatar rt-avatar--pending">
+            <span class="rt-avatar-initials">{{ (p["other_username"][:2] | upper) if p["other_username"] else "??" }}</span>
+          </div>
+          <div class="rt-identity">
+            <div class="rt-name-row">
+              <span class="rt-name">{{ p["other_username"] }}</span>
+              <span class="rt-username">@{{ p["other_username"] }}</span>
+              <span class="rt-badge rt-badge-pending">Pending</span>
+            </div>
+            <div class="rt-pending-prompt">
+              <i class="fa-regular fa-clock"></i> Awaiting your rating
+            </div>
+          </div>
+        </div>
+        <div class="rt-right rt-right--pending">
+          <div class="rt-pending-item">
+            <div class="rt-item-thumb rt-item-thumb-placeholder">
+              <i class="fa-regular fa-circle-dot"></i>
+            </div>
+            <div class="rt-pending-item-info">
+              <div class="rt-pending-item-name">{{ p["metal"] or '' }} {{ p["product_type"] or '' }}</div>
+              <div class="rt-pending-item-price">${{ '%.0f'|format(p["total_amount"] or 0) }}</div>
+            </div>
+          </div>
+          {% set item_title = [p['metal'] or '', p['product_type'] or ''] | join(' ') | trim %}
+          {% set item_price = '$%d' | format(p['total_amount'] or 0) %}
+          {% set item_date = p['completed_at'] if p.get('completed_at') else (p['created_at'] if p.get('created_at') else '') %}
+          <button class="rt-rate-btn" onclick="openRateModal({{ p['order_id'] }}, {{ p['user_role'] | tojson }}, {{ {'title': item_title, 'price': item_price, 'date': item_date} | tojson }})">
+            <i class="fa-regular fa-star"></i> Rate
+          </button>
+        </div>
+      </div>
+    {% endfor %}
+
+    {% if not received_ratings and not given_ratings and not pending_ratings %}
+      <div class="rt-empty">
+        <i class="fa-regular fa-star rt-empty-icon"></i>
+        <p class="rt-empty-title">No ratings yet</p>
+        <p class="rt-empty-sub">Ratings from completed transactions will appear here.</p>
+      </div>
+    {% endif %}
+
+  </div>
+
+  <script src="{{ url_for("static", filename="js/tabs/ratings_tab.js") }}"></script>
+
+  <!-- Filter tab interaction -->
+  <script>
+    (function () {
+      var btns = document.querySelectorAll(".ratings-tab .rt-filter-btn");
+      var rows = document.querySelectorAll(".ratings-tab .rt-row");
+
+      btns.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          btns.forEach(function (b) { b.classList.remove("rt-filter-active"); });
+          this.classList.add("rt-filter-active");
+
+          var filter = this.dataset.filter;
+          rows.forEach(function (row) {
+            row.style.display = (filter === "all" || row.dataset.type === filter) ? "" : "none";
+          });
+        });
+      });
+    })();
+  </script>
+
 </div>

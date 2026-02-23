@@ -1,0 +1,363 @@
+/* ============================================
+   BIDDER INFORMATION MODAL - REDESIGNED
+   Clean, professional bidder profile display
+   ============================================ */
+
+/* Modal Overlay */
+.bidder-info-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.bidder-info-modal.show {
+  display: flex;
+}
+
+/* Modal Content Box */
+.bidder-info-modal-content {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 420px;
+  max-height: 90vh;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.bidder-info-header {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.bidder-info-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+  flex: 1;
+}
+
+/* Note: Close button styling now uses unified modal-close-button.css */
+
+/* Modal Body */
+.bidder-info-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Profile Section */
+.bidder-profile {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.bidder-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bidder-avatar-letter {
+  font-size: 32px;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.bidder-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bidder-display-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.bidder-username {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.bidder-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #ecfdf5;
+  border: 1px solid #10b981;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #10b981;
+}
+
+.bidder-verified-badge i {
+  font-size: 12px;
+}
+
+/* Stats Card */
+.bidder-stats-card {
+  background: #f9fafb;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.bidder-stats-row {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.bidder-stat-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.bidder-stat-main:last-child {
+  align-items: flex-end;
+}
+
+.bidder-stat-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1;
+}
+
+.bidder-stat-rating-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bidder-stat-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.bidder-stat-stars i {
+  font-size: 16px;
+}
+
+.bidder-stat-stars .star-filled {
+  color: #fbbf24;
+}
+
+.bidder-stat-stars .star-empty {
+  color: #d1d5db;
+}
+
+.bidder-stat-count {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.bidder-stat-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Secondary Stats */
+.bidder-stats-secondary {
+  display: flex;
+  gap: 24px;
+}
+
+.bidder-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bidder-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bidder-stat-icon-repeat {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.bidder-stat-icon i {
+  font-size: 16px;
+}
+
+.bidder-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.bidder-stat-info-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.bidder-stat-info-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+/* Info Grid */
+.bidder-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.bidder-info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bidder-info-item i {
+  font-size: 16px;
+  color: #9ca3af;
+  width: 20px;
+  text-align: center;
+}
+
+.bidder-info-label {
+  font-size: 13px;
+  color: #6b7280;
+  margin-right: 4px;
+}
+
+.bidder-info-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+/* Purchase Interests (Specializations) */
+.bidder-interests {
+  margin-bottom: 24px;
+}
+
+.bidder-interests-label {
+  font-size: 13px;
+  color: #6b7280;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.bidder-interests-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bidder-interest-badge {
+  padding: 8px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+/* Bid Quantity Badge */
+.bidder-bid-info {
+  background: #eff6ff;
+  border: 1px solid #3b82f6;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bidder-bid-icon {
+  width: 44px;
+  height: 44px;
+  background: #3b82f6;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.bidder-bid-icon i {
+  font-size: 18px;
+}
+
+.bidder-bid-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.bidder-bid-label {
+  font-size: 13px;
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.bidder-bid-quantity {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e40af;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .bidder-info-modal-content {
+    width: 95%;
+    max-height: 85vh;
+    border-radius: 16px;
+  }
+
+  .bidder-info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .bidder-stats-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .bidder-stat-main:last-child {
+    align-items: flex-start;
+  }
+}

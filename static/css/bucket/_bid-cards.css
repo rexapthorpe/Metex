@@ -1,0 +1,499 @@
+/* ==============================
+   BIDS PANEL (shared card styles)
+   New clean design matching screenshot
+   ============================== */
+.bids-list { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
+.bid-row { display: flex; align-items: stretch; gap: 16px; }
+
+/* Bid Card - Clean white card design */
+.bid-card-visual {
+  position: relative;
+  box-sizing: border-box;
+  text-align: left;
+  border: 1px solid #e5e7eb;
+  padding: 20px;
+  border-radius: 16px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 500px;
+  min-width: 320px;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.bid-card-visual:hover {
+  border-color: #3da6ff;
+  box-shadow: 0 4px 12px rgba(61, 166, 255, 0.15);
+}
+
+.bid-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+/* Top row: Price + Status/Checkbox */
+.bid-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bid-price-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bid-price-strong {
+  font-weight: 700;
+  font-size: 1.75rem;
+  color: #1a1a2e;
+  line-height: 1.1;
+}
+
+.bid-price-suffix {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.bid-status-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bid-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #374151;
+  background: #ffffff;
+}
+
+.bid-checkbox-visual {
+  width: 28px;
+  height: 28px;
+  border: 2px solid #1a1a2e;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.bid-checkbox-visual i {
+  display: none;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+/* Username row */
+.bid-username-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.bid-username-row i {
+  color: #9ca3af;
+  font-size: 1rem;
+}
+
+/* Fill progress section */
+.bid-progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bid-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.bid-progress-label {
+  font-weight: 500;
+}
+
+.bid-progress-units {
+  font-weight: 600;
+  color: #374151;
+}
+
+.bid-progress-bar {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bid-progress-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Grading info */
+.bid-grading-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.bid-grading-row .grading-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+.bid-grading-row .grading-icon.required {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.bid-grading-row .grading-icon.not-required {
+  background: #d1d5db;
+}
+
+/* Date row */
+.bid-date-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.bid-date-row i {
+  font-size: 0.8rem;
+}
+
+/* Legacy support */
+.bid-units { display: none; }
+.bid-seller { display: none; }
+.bid-meta { display: none; }
+.bid-curr { display: none; }
+.bid-time { display: none; }
+.grading-dot { display: none; }
+
+/* Bid tile footer - date left, actions right */
+.bid-tile-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+  gap: 12px;
+}
+
+.bid-tile-footer .bid-date-row {
+  margin: 0;
+}
+
+/* Bid actions */
+.bid-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bid-actions .icon-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.bid-actions .icon-button:hover {
+  color: #111827;
+}
+
+.bid-actions .icon-button i {
+  font-size: 14px;
+  color: #374151;
+  transition: color 0.15s ease;
+}
+
+.bid-actions .icon-button:hover i {
+  color: #111827;
+}
+
+.bid-actions .icon-label {
+  font-weight: 500;
+}
+
+/* Close/Cancel button - red on hover */
+.bid-actions .icon-button:has(i.fa-xmark):hover,
+.bid-actions .icon-button:has(i.fa-trash):hover,
+.bid-actions form .icon-button:hover {
+  color: #dc2626;
+}
+
+.bid-actions .icon-button:has(i.fa-xmark):hover i,
+.bid-actions .icon-button:has(i.fa-trash):hover i,
+.bid-actions form .icon-button:hover i {
+  color: #dc2626;
+}
+
+/* Selected state */
+.bid-card-visual.selected {
+  border-color: #3da6ff;
+  background: #f0f9ff;
+  box-shadow: 0 4px 12px rgba(61, 166, 255, 0.2);
+}
+
+.bid-card-visual.selected .bid-checkbox-visual {
+  background: #1a1a2e;
+  border-color: #1a1a2e;
+}
+
+.bid-card-visual.selected .bid-checkbox-visual i {
+  display: block;
+}
+
+/* Bottom section: Grading/Date left, Quantity dial right */
+.bid-bottom-section {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bid-bottom-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+/* When inside bottom section, remove extra margins */
+.bid-bottom-section .bid-grading-row,
+.bid-bottom-section .bid-date-row {
+  margin: 0;
+}
+
+.bid-row.selected { gap: 26px; }
+
+/* Dial assembly - hidden by default, shown when selected */
+.dial-assembly {
+  display: none;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.bid-card-visual.selected .dial-assembly {
+  display: flex;
+}
+
+/* Bid tile dial - square buttons style, compact size */
+.bid-card-visual .dial-pill {
+  background: transparent;
+  border: none;
+  height: auto;
+  width: auto;
+  padding: 0;
+  gap: 6px;
+}
+
+.bid-card-visual .dial-pill .dial-btn {
+  background: #f1f5f9;
+  color: #94a3b8;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: none;
+}
+
+.bid-card-visual .dial-pill .dial-btn:hover {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.bid-card-visual .dial-pill .dial-value {
+  color: #1a1a2e;
+  font-weight: 600;
+  font-size: 14px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.bids-panel {
+  margin: 28px auto 60px auto;
+  max-width: 1200px;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid rgba(13,42,82,0.06);
+  box-shadow:
+    0 20px 50px rgba(24,119,255,0.10),
+    0 8px 20px rgba(0,0,0,0.08),
+    0 1px 3px rgba(0,0,0,0.04);
+}
+.bids-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.bids-actions { display: flex; align-items: center; gap: 12px; }
+.accept-bids-btn {
+  width: 350px;
+  height: 40px;
+  position: static;
+  border: none;
+  border-radius: 9999px;
+  padding: 0 24px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  background: #3da6ff;
+  color: #ffffff;
+  box-sizing: border-box;
+  transition: transform .15s ease, opacity .15s ease, box-shadow .15s ease;
+}
+.accept-bids-btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 6px 16px rgba(0,110,255,0.25); }
+.accept-bids-btn:disabled { background: #cbd5e1; }
+.header-bid-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 350px;
+  height: 40px;
+  padding: 0 16px;
+  margin-top: 0;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+/* === MY ACTIVE BIDS (account section) ===
+   Styles for: .account-bid-tiles / .account-bid-tile
+   Uses same clean design as bid-card-visual
+*/
+.account-bid-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.account-bid-tile {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 500px;
+  min-width: 320px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.account-bid-tile:hover {
+  border-color: #3da6ff;
+  box-shadow: 0 4px 12px rgba(61, 166, 255, 0.15);
+}
+
+/* Legacy class support - hidden */
+.abt-top { display: none; }
+.abt-price { display: none; }
+.abt-price-suffix { display: none; }
+.pricing-mode-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  margin-left: 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+}
+.pricing-mode-badge.variable {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+.pricing-mode-badge.fixed {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #1976d2;
+}
+/* Legacy abt-* classes - hidden */
+.abt-units { display: none; }
+.abt-row { display: none; }
+.abt-curr { display: none; }
+.abt-filled { display: none; }
+.abt-date { display: none; }
+.abt-actions { display: none; }
+.abt-action { display: none; }
+
+/* Account bid tile footer */
+.account-bid-tile .bid-tile-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+  padding-top: 0;
+  border-top: none;
+  gap: 12px;
+}
+
+.account-bid-tile .bid-actions {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.account-bid-tile .bid-actions form {
+  display: inline-flex;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+  .bucket-card.two-col-6535 { grid-template-columns: 1fr; }
+  .bucket-page { flex-direction: column; align-items: center; padding: 0 5%; }
+  .thumbs .thumb { width: 70px; }
+  .bid-row { flex-direction: column; }
+  .qty-row { flex-wrap: wrap; }
+  .qty-available { margin-left: 0; }
+  .price-box.moved { transform: translateY(calc(var(--price-shift, 52px) + 6px)); }
+}

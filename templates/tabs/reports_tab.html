@@ -1,0 +1,204 @@
+<div class="reports-tab">
+  <div class="tab-page-header reports-header">
+    <div>
+      <h1 class="tab-page-title">My Reports</h1>
+      <p class="tab-page-subtitle reports-stats" id="reportsStats">Loading...</p>
+    </div>
+  </div>
+
+  <!-- Filter Navigation Bar -->
+  <div class="tab-filter-bar">
+    <button class="filter-pill active" data-filter="all" onclick="filterReports('all')">All</button>
+    <button class="filter-pill" data-filter="active" onclick="filterReports('active')">Active</button>
+    <button class="filter-pill" data-filter="resolved" onclick="filterReports('resolved')">Resolved</button>
+    <button class="filter-pill" data-filter="dismissed" onclick="filterReports('dismissed')">Dismissed</button>
+  </div>
+
+  <!-- Reports List Container -->
+  <div class="reports-list" id="reportsList">
+    <!-- Reports will be populated by JavaScript -->
+    <div class="reports-loading">
+      <i class="fa-solid fa-spinner fa-spin"></i>
+      <span>Loading reports...</span>
+    </div>
+  </div>
+
+  <!-- Empty State (shown when no reports) -->
+  <div class="reports-empty-state" id="reportsEmptyState" style="display: none;">
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <i class="fa-solid fa-flag"></i>
+      </div>
+      <h3 class="empty-state-title">No Reports</h3>
+      <p class="empty-state-description">
+        You haven't filed any reports yet. If you encounter any issues with a transaction, you can report the user from the Order Details page.
+      </p>
+    </div>
+  </div>
+
+  <!-- Filtered Empty State -->
+  <div class="reports-filtered-empty" id="reportsFilteredEmpty" style="display: none;">
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <i class="fa-solid fa-filter-circle-xmark"></i>
+      </div>
+      <h3 class="empty-state-title">No <span class="filter-type-name">Matching</span> Reports</h3>
+      <p class="empty-state-description">
+        You don't have any reports matching this filter.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Report Details Modal (Read-Only) -->
+<div id="reportDetailsModal" class="report-user-modal" aria-hidden="true">
+  <div class="report-user-modal-content" id="reportDetailsDialog">
+    <!-- Header -->
+    <div class="report-user-modal-header">
+      <div class="report-user-header-left">
+        <div class="report-user-icon">
+          <i class="fa-solid fa-flag"></i>
+        </div>
+        <div class="report-user-header-info">
+          <h2 class="report-user-title">Report Details</h2>
+          <div class="report-user-subtitle">
+            <span class="report-user-target">Reported <span id="viewReportUsername">@username</span></span>
+            <span class="report-user-order-badge" id="viewReportOrderBadge">Order #ORD-2026-000000</span>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="modal-close" onclick="closeReportDetailsModal()" aria-label="Close modal">&times;</button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="report-user-modal-body">
+      <!-- Status Banner (replaces warning banner) -->
+      <div class="report-view-status-banner" id="viewReportStatusBanner">
+        <i class="fa-solid fa-circle-info"></i>
+        <div class="report-view-status-text">
+          <strong id="viewReportStatusTitle">Under Review</strong>
+          <span id="viewReportStatusDesc">Our team is reviewing your report.</span>
+        </div>
+      </div>
+
+      <!-- Reason Selection (read-only) -->
+      <div class="report-user-section">
+        <label class="report-section-label">Report Reason</label>
+
+        <div class="report-reasons-list report-reasons-readonly" id="viewReportReasonsList">
+          <div class="report-reason-option report-reason-readonly">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-gem"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Counterfeit/Fake Items</span>
+                <span class="report-reason-desc">Item received is not authentic</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-reason-option report-reason-readonly">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Item Not as Described</span>
+                <span class="report-reason-desc">Item differs significantly from listing</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-reason-option report-reason-readonly">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-circle-dollar-to-slot"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Scam/Fraud</span>
+                <span class="report-reason-desc">Suspected fraudulent activity</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-reason-option report-reason-readonly">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-user-slash"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Harassment/Abuse</span>
+                <span class="report-reason-desc">Inappropriate or abusive communication</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-reason-option report-reason-readonly">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-credit-card"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Payment Issues</span>
+                <span class="report-reason-desc">Problems with payment or refunds</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-reason-option report-reason-readonly">
+            <div class="report-reason-content">
+              <div class="report-reason-icon">
+                <i class="fa-solid fa-ellipsis"></i>
+              </div>
+              <div class="report-reason-text">
+                <span class="report-reason-title">Other</span>
+                <span class="report-reason-desc">Other issues not listed above</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comment Section (read-only) -->
+      <div class="report-user-section">
+        <label class="report-section-label">Description</label>
+        <div class="report-view-description" id="viewReportDescription">
+          No additional details provided.
+        </div>
+      </div>
+
+      <!-- Photo Attachments (read-only) -->
+      <div class="report-user-section" id="viewReportPhotosSection" style="display: none;">
+        <label class="report-section-label">Attached Photos</label>
+        <div class="report-attachments-preview report-attachments-readonly" id="viewReportPhotos">
+          <!-- Photos will be inserted here -->
+        </div>
+      </div>
+
+      <!-- Submission Info -->
+      <div class="report-user-section">
+        <label class="report-section-label">Submitted On</label>
+        <div class="report-view-date" id="viewReportDate">
+          <i class="fa-regular fa-clock"></i>
+          <span>January 1, 2026 at 12:00 PM</span>
+        </div>
+      </div>
+
+      <!-- Resolution Section (shown only if resolved/dismissed) -->
+      <div class="report-user-section" id="viewReportResolutionSection" style="display: none;">
+        <label class="report-section-label">Resolution</label>
+        <div class="report-view-resolution" id="viewReportResolution">
+          Resolution note here.
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="report-user-modal-footer">
+      <button type="button" class="report-user-btn report-user-btn-cancel" onclick="closeReportDetailsModal()" style="flex: 1;">
+        Close
+      </button>
+    </div>
+  </div>
+</div>

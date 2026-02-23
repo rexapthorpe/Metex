@@ -2,11 +2,11 @@
 
 let orderItemsData = [];
 let currentItemIndex = 0;
+let currentOrderId = null;
 
-// controls whether "Remove Item" shows, and lets you hook a remover
 let orderItemsOptions = {
-  context: 'orders',          // 'orders' | 'cart'
-  onRemove: null              // function(item, index) { ... }
+  context: 'orders',   // 'orders' | 'cart'
+  onRemove: null
 };
 
 function showOrderItemsModal() {
@@ -26,15 +26,13 @@ function closeOrderItemsPopup() {
 }
 
 function outsideClickItems(e) {
-  if (e.target && e.target.id === 'orderItemsModal') {
-    closeOrderItemsPopup();
-  }
+  if (e.target && e.target.id === 'orderItemsModal') closeOrderItemsPopup();
 }
 
 function keyNavHandler(e) {
   if (e.key === 'ArrowLeft') prevOrderItem();
   else if (e.key === 'ArrowRight') nextOrderItem();
-  else if (e.key === 'Escape') closeOrderItemsPopup(); // keep keyboard accessibility
+  else if (e.key === 'Escape') closeOrderItemsPopup();
 }
 
 function showOrderItemsError(message) {
@@ -42,19 +40,22 @@ function showOrderItemsError(message) {
   if (!body) return;
   body.innerHTML = `
     <div class="order-items-error">
-      <div class="order-items-error-title">Couldn’t load items</div>
+      <div class="order-items-error-title">Couldn't load items</div>
       <div class="order-items-error-msg">${message ? String(message) : 'Please try again.'}</div>
     </div>
   `;
 }
 
 function openOrderItemsPopup(orderId, options = {}) {
+  currentOrderId = orderId;
   orderItemsOptions = { context: 'orders', onRemove: null, ...options };
 
-  // Open with loading state (no alerts)
   showOrderItemsModal();
   const body = document.getElementById('orderItemsModalContent');
-  if (body) body.innerHTML = '<div class="order-items-loading">Loading…</div>';
+  if (body) body.innerHTML = '<div class="order-items-loading">Loading&hellip;</div>';
+
+  const subtitleEl = document.getElementById('orderItemsModalSubtitle');
+  if (subtitleEl) subtitleEl.textContent = 'Loading\u2026';
 
   fetch(`/orders/api/${orderId}/order_items`)
     .then(res => {
@@ -76,8 +77,8 @@ function openOrderItemsPopup(orderId, options = {}) {
     });
 }
 
-// Use this for the Cart context (you provide the items array)
 function openCartItemsPopup(items, options = {}) {
+  currentOrderId = null;
   orderItemsOptions = { context: 'cart', onRemove: null, ...options };
   orderItemsData = Array.isArray(items) ? items : [];
   currentItemIndex = 0;
@@ -91,17 +92,11 @@ function openCartItemsPopup(items, options = {}) {
 }
 
 function prevOrderItem() {
-  if (currentItemIndex > 0) {
-    currentItemIndex--;
-    renderOrderItem();
-  }
+  if (currentItemIndex > 0) { currentItemIndex--; renderOrderItem(); }
 }
 
 function nextOrderItem() {
-  if (currentItemIndex < orderItemsData.length - 1) {
-    currentItemIndex++;
-    renderOrderItem();
-  }
+  if (currentItemIndex < orderItemsData.length - 1) { currentItemIndex++; renderOrderItem(); }
 }
 
 function renderOrderItem() {
@@ -111,172 +106,202 @@ function renderOrderItem() {
   }
 
   const item = orderItemsData[currentItemIndex];
+  const total = orderItemsData.length;
 
   // Helpers
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
   );
-  const DASH = '--';
+  const DASH = '\u2014';
   const show = v => {
     if (v === null || v === undefined) return DASH;
     if (typeof v === 'string' && v.trim() === '') return DASH;
     return esc(v);
   };
-  const showNum = v =>
-    (v === null || v === undefined || v === '' || Number.isNaN(Number(v)))
-      ? DASH
-      : String(Number(v));
   const showMoney = v =>
     (v === null || v === undefined || v === '' || Number.isNaN(Number(v)))
       ? DASH
       : '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // Normalize/alias fields (tolerate name drift from backend)
-  const metal        = item.metal ?? item.metal_type ?? null;
-  const productLine  = item.product_line ?? item.series ?? item.program ?? null;
-  const productType  = item.product_type ?? item.type ?? item.form ?? null;
+  // Normalize fields
+  const metal       = item.metal ?? item.metal_type ?? null;
+  const productType = item.product_type ?? item.type ?? item.form ?? null;
+  const mint        = item.mint ?? item.mint_name ?? null;
+  const year        = item.year ?? null;
+  const finish      = item.finish ?? null;
+  const grade       = item.grade ?? null;
+  const purityRaw   = item.purity ?? item.fineness ?? null;
+  const certSvc     = item.grading_service ?? null;
 
-  // Weight: prefer explicit unit if provided
+  // Weight
   let weightDisplay = null;
   if (item.weight != null) {
     weightDisplay = String(item.weight) + (item.weight_unit ? ` ${item.weight_unit}` : '');
   } else if (item.weight_oz != null) {
     weightDisplay = `${item.weight_oz} oz`;
-  } else if (item.weight_g != null) {
-    weightDisplay = `${item.weight_g} g`;
   }
 
-  const year         = item.year ?? null;
-  const mint         = item.mint ?? item.mint_name ?? null;
-  const purityRaw    = item.purity ?? item.fineness ?? item.purity_pct ?? null;
-  const finish       = item.finish ?? item.condition ?? null;
-  const grading      = item.grading ?? item.grade ?? null;
-  const gradingSvc   = item.grading_service ?? item.grader ?? null;
-  const seller       = item.seller_username ?? item.seller_name ?? item.seller ?? null;
-
-  // Purity formatting: show provided text as-is; if numeric, render as 0.999
+  // Purity formatting
   const purity = (() => {
     if (purityRaw == null || purityRaw === '') return null;
     const n = Number(purityRaw);
     if (Number.isNaN(n)) return purityRaw;
-    return n.toFixed(3); // e.g., 0.999
+    return n < 1 ? n.toFixed(4).replace(/\.?0+$/, '') : n.toFixed(3);
   })();
 
-  // Combined grading field: "Requires 3rd Party Grading"
-  // Check item.graded flag (1 = yes, 0 = no)
-  const requiresGrading = (() => {
-    const gradedFlag = item.graded ?? item.is_graded ?? null;
-    if (gradedFlag === 1 || gradedFlag === '1' || gradedFlag === true) {
-      // Graded = Yes, show "Yes (SERVICE)" if service is available
-      if (gradingSvc) {
-        return `Yes (${gradingSvc})`;
-      }
-      return 'Yes';
-    } else if (gradedFlag === 0 || gradedFlag === '0' || gradedFlag === false) {
-      return 'No';
-    }
-    return null;
-  })();
+  // Certification: skip generic "No 3rd Party..." string
+  const certDisplay = (certSvc && !certSvc.startsWith('No 3rd')) ? certSvc : null;
 
-  // Numbers: do not default to 0; show "--" if missing
-  const qtyRaw   = (item.total_quantity ?? item.quantity ?? null);
-  const priceRaw = (item.price_each ?? item.unit_price ?? item.price_per_coin ?? null);
-  const totalVal = (qtyRaw != null && priceRaw != null &&
-                    !Number.isNaN(Number(qtyRaw)) && !Number.isNaN(Number(priceRaw)))
+  // Qty and price
+  const qtyRaw   = item.total_quantity ?? item.quantity ?? null;
+  const priceRaw = item.price_each ?? item.unit_price ?? null;
+  const itemTotal = (qtyRaw != null && priceRaw != null)
     ? Number(qtyRaw) * Number(priceRaw)
     : null;
 
-  // Title
-  const title =
-    item.title
-    ?? item.category_name
-    ?? [
-         (weightDisplay ? `${weightDisplay}` : ''),
-         (metal ? `${metal}` : '')
-       ].join(' ').trim() +
-       (mint || year ? ` (${[mint, year].filter(Boolean).join(', ')})` : '');
+  // Overall subtotal across all groups
+  const overallSubtotal = orderItemsData.reduce((sum, g) => {
+    const qty   = g.total_quantity ?? g.quantity ?? 0;
+    const price = g.price_each ?? g.unit_price ?? 0;
+    return sum + (Number(qty) * Number(price));
+  }, 0);
 
-  const titleEl = document.getElementById('orderItemsModalTitle');
-  if (titleEl) titleEl.textContent = title || 'Item';
+  // Total quantity across all groups (for subtitle and summary label)
+  const totalQty = orderItemsData.reduce((sum, g) =>
+    sum + Number(g.total_quantity ?? g.quantity ?? 0), 0);
 
-  // Determine image source (fallback to built-in SVG placeholder)
+  // Update subtitle in static header
+  const subtitleEl = document.getElementById('orderItemsModalSubtitle');
+  if (subtitleEl) {
+    const currentYear = new Date().getFullYear();
+    const orderLabel = currentOrderId
+      ? `Order #ORD-${currentYear}-${String(currentOrderId).padStart(6, '0')} \u2022 `
+      : '';
+    subtitleEl.textContent = `${orderLabel}${totalQty} item${totalQty === 1 ? '' : 's'}`;
+  }
+
+  // Item title
+  const title = item.title
+    ?? ([year, metal, item.product_line, productType].filter(Boolean).join(' ') || 'Item');
+
+  // Image
   const imgSrc = (() => {
     const candidates = [
-      item.image_url, item.photo_url, item.photo, item.image,
-      item.listing_image_url, item.image_src, item.img_src
+      item.image_url, item.photo_url, item.photo,
+      item.image, item.listing_image_url
     ];
     for (const c of candidates) {
       if (typeof c === 'string' && c.trim() !== '') return c;
     }
-    const svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f3f4f6'/><text x='200' y='205' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-size='28' fill='%239ca3af'>No Image</text></svg>";
-    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    return null;
   })();
+  const imgHtml = imgSrc
+    ? `<img class="oim-item-image" src="${imgSrc}" alt="Product image" onerror="this.style.display='none'">`
+    : `<div class="oim-item-image oim-item-image-placeholder"></div>`;
 
-  // Right column: show Remove only in cart context
+  // Nav arrows (only if multiple item groups)
+  const navHtml = total > 1 ? `
+    <div class="oim-nav">
+      <button class="oim-nav-arrow" ${currentItemIndex === 0 ? 'disabled' : ''} onclick="prevOrderItem()">&#8592;</button>
+      <span class="oim-nav-counter">${currentItemIndex + 1} of ${total}</span>
+      <button class="oim-nav-arrow" ${currentItemIndex === total - 1 ? 'disabled' : ''} onclick="nextOrderItem()">&#8594;</button>
+    </div>
+  ` : '';
+
+  // Spec helper: returns empty string if value is null/DASH
+  const specItem = (iconHtml, label, value) => {
+    const displayed = show(value);
+    if (displayed === DASH) return '';
+    return `
+      <div class="oim-spec-item">
+        <span class="oim-spec-icon">${iconHtml}</span>
+        <span class="oim-spec-label">${label}:</span>
+        <span class="oim-spec-value">${displayed}</span>
+      </div>
+    `;
+  };
+
+  const productLine = item.product_line ?? item.series ?? null;
+  const seller      = item.seller_username ?? item.seller_name ?? null;
+
+  const specsGrid = [
+    specItem('<i class="fa-solid fa-tag"></i>',               'Category',     productType),
+    specItem('<i class="fa-solid fa-gem"></i>',               'Metal Type',   metal),
+    specItem('<i class="fa-solid fa-coins"></i>',             'Product Line', productLine),
+    specItem('<i class="fa-solid fa-scale-balanced"></i>',    'Weight',       weightDisplay),
+    specItem('<i class="fa-solid fa-layer-group"></i>',       'Purity',       purity),
+    specItem('<i class="fa-solid fa-building-columns"></i>',  'Mint',         mint),
+    specItem('<i class="fa-regular fa-calendar"></i>',        'Year',         year),
+    specItem('<i class="fa-solid fa-certificate"></i>',       'Finish',       finish),
+    specItem('<i class="fa-solid fa-medal"></i>',             'Grade',        grade),
+    specItem('<i class="fa-solid fa-shield-halved"></i>',     'Certification', certDisplay),
+    specItem('<i class="fa-regular fa-user"></i>',            'Seller',       seller),
+  ].filter(Boolean).join('');
+
+  // Remove button (cart context only)
   const removeBtnHTML = (orderItemsOptions.context === 'cart')
     ? `<button class="order-items-remove-btn" type="button">Remove Item</button>`
     : '';
 
-  // Left column: ALWAYS render these 10 rows (label left, value right)
-  const leftHTML = `
-    <div><dt>Metal</dt><dd>${show(metal)}</dd></div>
-    <div><dt>Product line</dt><dd>${show(productLine)}</dd></div>
-    <div><dt>Product type</dt><dd>${show(productType)}</dd></div>
-    <div><dt>Weight</dt><dd>${show(weightDisplay)}</dd></div>
-    <div><dt>Year</dt><dd>${show(year)}</dd></div>
-    <div><dt>Mint</dt><dd>${show(mint)}</dd></div>
-    <div><dt>Purity</dt><dd>${show(purity)}</dd></div>
-    <div><dt>Finish</dt><dd>${show(finish)}</dd></div>
-    <div><dt>Requires 3rd Party Grading</dt><dd>${show(requiresGrading)}</dd></div>
-    <div><dt>Seller</dt><dd>${show(seller)}</dd></div>
-  `;
-
   const body = document.getElementById('orderItemsModalContent');
   if (!body) return;
+
   body.innerHTML = `
-    <div class="order-items-two-col">
-      <div class="order-items-col-left">
-        <dl class="kv-list">${leftHTML}</dl>
-      </div>
+    ${navHtml}
 
-      <div class="order-items-col-right">
-        <div class="order-items-image-wrap">
-          <img class="order-items-image" src="${imgSrc}" alt="Product image">
+    <div class="oim-item-row">
+      ${imgHtml}
+      <div class="oim-item-details">
+        <div class="oim-item-title-row">
+          <div class="oim-item-title">${esc(title)}</div>
+          <div class="oim-item-price">${showMoney(itemTotal)}</div>
         </div>
-
-        <div class="kv"><span>Quantity</span><span class="value">${showNum(qtyRaw)}</span></div>
-        <div class="kv"><span>Price / item</span><span class="value">${showMoney(priceRaw)}</span></div>
-        <div class="kv total"><span>Total</span><span class="value">${showMoney(totalVal)}</span></div>
-        ${removeBtnHTML}
+        <div class="oim-item-qty-row">
+          <span class="oim-qty-badge">Qty: ${qtyRaw ?? '\u2014'}</span>
+          <span>@ ${showMoney(priceRaw)} each</span>
+        </div>
       </div>
     </div>
+
+    <div class="oim-specs-section">
+      <div class="oim-specs-title">Specifications</div>
+      <div class="oim-specs-grid">
+        ${specsGrid || `<span style="color:#9ca3af;font-size:0.85rem">No specifications available</span>`}
+      </div>
+    </div>
+
+    <hr class="oim-summary-divider">
+
+    <div class="oim-summary">
+      <div class="oim-summary-row">
+        <span>Subtotal (${totalQty} item${totalQty === 1 ? '' : 's'})</span>
+        <span>${showMoney(overallSubtotal)}</span>
+      </div>
+      <div class="oim-summary-row">
+        <span>Shipping</span>
+        <span class="oim-shipping-free">Free</span>
+      </div>
+      <div class="oim-summary-row total">
+        <span>Total</span>
+        <span class="oim-summary-value">${showMoney(overallSubtotal)}</span>
+      </div>
+    </div>
+
+    ${removeBtnHTML}
   `;
 
-  // Hook remove action if present
+  // Hook remove action if in cart context
   if (orderItemsOptions.context === 'cart') {
     const btn = document.querySelector('.order-items-remove-btn');
     if (btn && typeof orderItemsOptions.onRemove === 'function') {
       btn.addEventListener('click', () => orderItemsOptions.onRemove(item, currentItemIndex));
     }
   }
-
-  // Nav enable/disable
-  const prevBtn = document.getElementById('oi-prev');
-  const nextBtn = document.getElementById('oi-next');
-  if (prevBtn && nextBtn) {
-    if (orderItemsData.length <= 1) {
-      prevBtn.disabled = true;
-      nextBtn.disabled = true;
-    } else {
-      prevBtn.disabled = (currentItemIndex === 0);
-      nextBtn.disabled = (currentItemIndex === orderItemsData.length - 1);
-    }
-  }
 }
 
 // Expose globals
-window.openOrderItemsPopup   = openOrderItemsPopup;
-window.openCartItemsPopup    = openCartItemsPopup;
-window.prevOrderItem         = prevOrderItem;
-window.nextOrderItem         = nextOrderItem;
-window.closeOrderItemsPopup  = closeOrderItemsPopup;
+window.openOrderItemsPopup  = openOrderItemsPopup;
+window.openCartItemsPopup   = openCartItemsPopup;
+window.prevOrderItem        = prevOrderItem;
+window.nextOrderItem        = nextOrderItem;
+window.closeOrderItemsPopup = closeOrderItemsPopup;

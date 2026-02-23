@@ -1,0 +1,1065 @@
+/* Tablet breakpoint */
+@media (max-width: 960px) {
+    .bucket-card.two-col-6535 {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .bucket-page {
+        padding: 0 16px;
+    }
+
+    .bucket-card {
+        min-width: auto;
+        margin: 20px auto;
+        padding: 20px;
+    }
+
+    .right-col {
+        order: -1; /* Move purchase controls above gallery on tablet */
+    }
+}
+
+/* Small tablets and large phones */
+@media (max-width: 768px) {
+    /* ===================================
+       MOBILE REORDERING - BUCKET PAGE
+       Order: 1. Photo, 2. Buy tile, 3. Specs, 4. Price History, 5. Bids
+       =================================== */
+    .bucket-card.two-col-6535 {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "gallery"
+            "buy"
+            "specs";
+        gap: 20px;
+    }
+
+    .bucket-card.two-col-6535 .left-col {
+        display: contents;
+    }
+
+    /* Maintain proper sizing for reordered elements */
+    .bucket-card.two-col-6535 .gallery {
+        grid-area: gallery;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .bucket-card.two-col-6535 .right-col {
+        grid-area: buy;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .bucket-card.two-col-6535 .description-tile {
+        grid-area: specs;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    /* End mobile reordering */
+
+    .bucket-page {
+        padding: 0 16px;
+    }
+
+    .bucket-card {
+        margin: 16px auto;
+        padding: 0;
+    }
+
+    .content-tile {
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow:
+            0 10px 30px rgba(24, 119, 255, 0.08),
+            0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Gallery - clean mobile presentation */
+    .gallery {
+        gap: 12px;
+    }
+
+    .gallery-main {
+        border-radius: 16px;
+        box-shadow:
+            0 8px 24px rgba(0, 0, 0, 0.08),
+            0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .gal-arrow {
+        width: 36px;
+        height: 36px;
+        font-size: 28px;
+        background: none;
+        border-radius: 0;
+        box-shadow: none;
+        color: #9ca3af;
+    }
+
+    .gal-arrow:hover {
+        background: none;
+        color: #6b7280;
+    }
+
+    .gal-dots {
+        bottom: 10px;
+    }
+
+    .gal-dots .dot {
+        width: 6px;
+        height: 6px;
+    }
+
+    /* Thumbnails - horizontal scroll on mobile */
+    .thumbs-row {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .thumbs {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 0;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        flex: 1;
+    }
+
+    .thumbs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .thumbs .thumb {
+        width: 60px;
+        flex-shrink: 0;
+        border-radius: 8px;
+    }
+
+    /* Sell button - small and discrete */
+    .sell-stack {
+        align-items: flex-end;
+        width: auto;
+        flex-shrink: 0;
+    }
+
+    .sell-kicker {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-bottom: 2px;
+    }
+
+    .sell-circle-btn {
+        width: auto;
+        padding: 6px 16px;
+        height: 32px;
+        font-size: 13px;
+        background: #1877ff;
+        color: #fff;
+        box-shadow: none;
+    }
+
+    .sell-circle-btn:hover {
+        background: #1560ca;
+        box-shadow: none;
+        transform: none;
+    }
+
+    /* Right column - buy tile */
+    .right-col.content-tile {
+        padding: 20px 16px;
+    }
+
+    .right-title {
+        font-size: 20px;
+        line-height: 1.3;
+    }
+
+    .title-soft {
+        font-size: 13px;
+    }
+
+    .divider {
+        margin: 12px 0;
+    }
+
+    /* Sellers CTA */
+    .sellers-cta {
+        gap: 8px;
+    }
+
+    .sellers-kicker {
+        font-size: 13px;
+    }
+
+    .sellers-btn {
+        padding: 12px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 9999px;
+    }
+
+    .sellers-foot {
+        margin-top: 6px;
+    }
+
+    /* Buy block - price display */
+    .buy-block {
+        text-align: left;
+    }
+
+    .best-ask-text {
+        font-size: 12px;
+    }
+
+    .buy-price {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .buy-price-amount {
+        font-size: 28px;
+    }
+
+    /* Dynamic pricing notice */
+    .dynamic-pricing-info {
+        padding: 10px 12px;
+        margin: 10px 0;
+        border-radius: 8px;
+    }
+
+    /* Quantity row */
+    .qty-row {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .dial-pill {
+        height: 42px;
+        width: 130px;
+    }
+
+    .dial-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 18px;
+    }
+
+    .dial-value {
+        font-size: 16px;
+    }
+
+    .qty-available {
+        margin-left: auto;
+        font-size: 13px;
+        color: #6b7280;
+    }
+
+    /* Action buttons */
+    .buy-btn,
+    .bid-btn,
+    .add-cart-btn {
+        padding: 14px 16px;
+        font-size: 15px;
+        font-weight: 700;
+        border-radius: 9999px;
+        min-height: 48px;
+    }
+
+    /* TPG addon */
+    .tpg-addon-row {
+        flex-direction: row;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 8px;
+    }
+
+    .tpg-addon-row > div:first-child {
+        flex: 1;
+    }
+
+    .tpg-addon-row > div:first-child div:first-child {
+        font-size: 13px;
+    }
+
+    .tpg-addon-row > div:first-child div:last-child {
+        font-size: 12px;
+    }
+
+    /* ========== MOBILE BEST BID SECTION - Redesigned Layout ========== */
+    /* Layout: Row 1 = Accept Bid (left) + Price (right), Row 2 = See all bids */
+    .bb-grid {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0;
+    }
+
+    /* Accept Bid button container - left side of row 1 */
+    .bb-colL {
+        display: contents; /* Let children participate in parent flex */
+    }
+
+    .bb-row1 {
+        order: 1;
+        flex: 0 0 auto;
+    }
+
+    /* Price box container - right side of row 1 */
+    .bb-colR {
+        order: 2;
+        flex: 1;
+        min-height: 0;
+    }
+
+    .bb-row1r {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0;
+        min-height: 0;
+        position: relative;
+    }
+
+    /* Price box - aligned right on mobile */
+    .price-box {
+        position: static;
+        text-align: right;
+        transform: none !important;
+    }
+
+    .best-bid-price {
+        align-items: flex-end;
+    }
+
+    .best-bid-price #bestBidPrice {
+        font-size: 20px;
+    }
+
+    /* See all bids - full width row below */
+    .bb-row2 {
+        order: 3;
+        flex: 0 0 100%;
+        width: 100%;
+        text-align: left;
+        margin-top: 16px;
+    }
+
+    /* Mobile quantity controls - expand below */
+    .bb-r1-flex {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 200ms ease,
+                    margin 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                    padding 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        margin-top: 0;
+        padding: 0;
+        background: #f8fafc;
+        border-radius: 12px;
+    }
+
+    /* When expanded, show the controls */
+    .best-bid.expanded .bb-r1-flex {
+        max-height: 80px;
+        opacity: 1;
+        margin-top: 16px;
+        padding: 14px 16px;
+    }
+
+    /* Hide spacer on mobile */
+    .bb-spacer {
+        display: none !important;
+    }
+
+    /* Mobile Accept Bid button styling */
+    .best-bid-accept-btn {
+        padding: 14px 20px;
+        font-size: 14px;
+        font-weight: 700;
+        border-radius: 9999px;
+        transition: background-color 200ms ease,
+                    transform 150ms ease,
+                    box-shadow 200ms ease;
+        min-width: 130px;
+    }
+
+    .best-bid-accept-btn:active {
+        transform: scale(0.97);
+    }
+
+    /* Confirmed state - different color */
+    .best-bid.expanded .best-bid-accept-btn {
+        background: #10b981;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .best-bid.expanded .best-bid-accept-btn:hover {
+        background: #059669;
+    }
+
+    /* Mobile dial styling */
+    .best-bid.expanded #acceptQtyDial {
+        display: flex !important;
+    }
+
+    .best-bid.expanded #bbCloseBtn {
+        display: inline-flex !important;
+    }
+
+    /* Quantity dial on mobile */
+    #acceptQtyDial {
+        height: 44px;
+        min-width: 120px;
+        background: #fff;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 9999px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    /* Close button on mobile */
+    .bb-close {
+        width: 44px;
+        height: 44px;
+        border: 1.5px solid #e5e7eb;
+        background: #fff;
+        color: #6b7280;
+        font-size: 20px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    .bb-close:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+        color: #374151;
+    }
+
+    /* Packaging/Random Year filters */
+    .grading-tile {
+        margin-top: 10px;
+    }
+
+    .grading-kicker {
+        font-size: 12px;
+    }
+
+    .grading-toggle-btn {
+        padding: 12px 14px;
+        font-size: 14px;
+        border-radius: 9999px;
+    }
+
+    #randomYearTile > div {
+        flex-direction: row;
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .toggle {
+        width: 46px;
+        height: 26px;
+    }
+
+    .toggle .slider::after {
+        width: 20px;
+        height: 20px;
+        top: 3px;
+        left: 3px;
+    }
+
+    .toggle input:checked + .slider::after {
+        transform: translateX(20px);
+    }
+
+    /* Shipping/Payment details */
+    .details-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .details-grid dt {
+        margin-top: 0;
+        font-size: 13px;
+        color: #111827;
+    }
+
+    .details-grid dd {
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    /* Specifications tile */
+    .description-tile {
+        padding: 16px;
+    }
+
+    .section-heading {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+
+    .description-tile .specs-two-col {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .spec-row {
+        padding: 8px 0;
+        gap: 8px;
+    }
+
+    .spec-label {
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .spec-value {
+        font-size: 13px;
+        text-align: right;
+    }
+
+    .subsection {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .item-description {
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    /* Bids panel */
+    .bids-panel {
+        margin: 16px 16px 32px 16px;
+        padding: 16px;
+        border-radius: 14px;
+    }
+
+    .bids-panel-heading {
+        font-size: 1.1rem;
+    }
+
+    .bids-subtext {
+        font-size: 13px;
+        color: #6b7280;
+    }
+
+    .bids-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .bids-actions {
+        flex-direction: row;
+        gap: 10px;
+    }
+
+    .header-bid-btn,
+    .accept-bids-btn {
+        flex: 1;
+        height: 44px;
+        font-size: 14px;
+        border-radius: 9999px;
+    }
+
+    /* Bid cards - mobile optimized */
+    .bids-list {
+        gap: 10px;
+    }
+
+    .bid-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .bid-card-visual {
+        width: 100%;
+        min-width: auto;
+        max-width: none;
+        padding: 16px;
+        border-radius: 14px;
+        gap: 12px;
+    }
+
+    .bid-card-visual.selected {
+        transform: none;
+    }
+
+    .bid-card-content {
+        gap: 12px;
+    }
+
+    .bid-top-row {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .bid-price-strong {
+        font-size: 1.5rem;
+    }
+
+    .bid-price-suffix {
+        font-size: 0.8rem;
+    }
+
+    .bid-status-badge {
+        padding: 5px 12px;
+        font-size: 0.75rem;
+    }
+
+    .bid-checkbox-visual {
+        width: 24px;
+        height: 24px;
+    }
+
+    .bid-username-row {
+        font-size: 0.9rem;
+    }
+
+    .bid-progress-header {
+        font-size: 0.8rem;
+    }
+
+    .bid-grading-row {
+        font-size: 0.8rem;
+    }
+
+    .bid-date-row {
+        font-size: 0.8rem;
+    }
+
+    .bid-tile-footer {
+        margin-top: 8px;
+        padding-top: 10px;
+    }
+
+    .bid-actions .icon-button {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    /* Account bid tiles (Your Active Bids) */
+    .account-bid-tiles {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .account-bid-tile {
+        width: 100%;
+        min-width: auto;
+        max-width: none;
+        padding: 16px;
+        border-radius: 14px;
+        gap: 12px;
+    }
+
+    /* Legacy mobile - hidden */
+    .abt-top,
+    .abt-price {
+        display: none;
+    }
+
+    .abt-row {
+        flex-direction: row;
+        justify-content: space-between;
+        font-size: 13px;
+    }
+
+    .abt-actions {
+        flex-wrap: nowrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .abt-action {
+        padding: 10px 14px;
+        flex: 1;
+        justify-content: center;
+        font-size: 13px;
+        border-radius: 8px;
+        background: #f3f4f6;
+    }
+
+    .abt-action:hover {
+        background: #63c9f5;
+    }
+
+    /* Bid bottom section - stack on mobile when not selected */
+    .bid-bottom-section {
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 12px;
+    }
+
+    /* Dial assembly in bids - inside bottom section */
+    .dial-assembly {
+        margin-left: 0;
+        margin-top: 0;
+    }
+}
+
+/* Mobile phones */
+@media (max-width: 480px) {
+    .bucket-page {
+        padding: 0 10px;
+    }
+
+    .bucket-card.two-col-6535 {
+        gap: 14px;
+    }
+
+    .bucket-card {
+        margin: 10px auto;
+        padding: 0;
+    }
+
+    .content-tile {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    /* Right column - buy tile */
+    .right-col.content-tile {
+        padding: 16px 14px;
+    }
+
+    .right-title {
+        font-size: 18px;
+        line-height: 1.25;
+    }
+
+    .title-soft {
+        font-size: 12px;
+    }
+
+    .buy-price-amount {
+        font-size: 26px;
+    }
+
+    .best-bid-price #bestBidPrice {
+        font-size: 18px;
+    }
+
+    .divider {
+        margin: 10px 0;
+    }
+
+    /* Gallery */
+    .gallery-main {
+        border-radius: 12px;
+    }
+
+    .gal-arrow {
+        width: 32px;
+        height: 32px;
+        font-size: 24px;
+        background: none;
+        box-shadow: none;
+    }
+
+    .gal-dots .dot {
+        width: 5px;
+        height: 5px;
+    }
+
+    /* Thumbnails */
+    .thumbs .thumb {
+        width: 52px;
+    }
+
+    .sell-kicker {
+        font-size: 10px;
+    }
+
+    .sell-circle-btn {
+        padding: 5px 12px;
+        height: 28px;
+        font-size: 12px;
+    }
+
+    /* Section headings */
+    .section-heading {
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+    }
+
+    /* Buttons */
+    .buy-btn,
+    .bid-btn,
+    .add-cart-btn {
+        padding: 12px 14px;
+        font-size: 14px;
+        min-height: 46px;
+        border-radius: 9999px;
+    }
+
+    .sellers-btn {
+        padding: 10px 14px;
+        font-size: 13px;
+        min-height: 42px;
+    }
+
+    /* Quantity dial */
+    .dial-pill {
+        height: 38px;
+        width: 120px;
+    }
+
+    .dial-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+    }
+
+    .dial-value {
+        font-size: 15px;
+    }
+
+    /* TPG addon row */
+    .tpg-addon-row {
+        padding: 10px;
+    }
+
+    .tpg-addon-row > div:first-child div:first-child {
+        font-size: 12px;
+    }
+
+    .tpg-addon-row > div:first-child div:last-child {
+        font-size: 11px;
+    }
+
+    /* Packaging filter rows */
+    .packaging-toggle-row {
+        padding: 10px;
+    }
+
+    .packaging-toggle-label {
+        font-size: 12px;
+    }
+
+    /* Specifications */
+    .spec-row {
+        padding: 6px 0;
+    }
+
+    .spec-label,
+    .spec-value {
+        font-size: 12px;
+    }
+
+    .item-description {
+        font-size: 13px;
+    }
+
+    /* Details grid */
+    .details-grid {
+        gap: 8px;
+    }
+
+    .details-grid dt,
+    .details-grid dd {
+        font-size: 12px;
+    }
+
+    /* Bids panel */
+    .bids-panel {
+        padding: 14px;
+        margin: 14px 10px 28px 10px;
+        border-radius: 12px;
+    }
+
+    .bids-panel-heading {
+        font-size: 1rem;
+    }
+
+    .bids-subtext {
+        font-size: 12px;
+    }
+
+    .header-bid-btn,
+    .accept-bids-btn {
+        height: 42px;
+        font-size: 13px;
+    }
+
+    /* Bid card content */
+    .bid-card-visual {
+        padding: 12px;
+        border-radius: 10px;
+    }
+
+    .bid-card-content {
+        gap: 6px;
+    }
+
+    .bid-price-strong {
+        font-size: 1rem;
+    }
+
+    .bid-units,
+    .bid-seller {
+        font-size: 12px;
+    }
+
+    .bid-meta {
+        font-size: 11px;
+    }
+
+    .bid-actions .icon-button {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    .bid-actions .icon-button i {
+        font-size: 12px;
+    }
+
+    /* Account bid tiles */
+    .account-bid-tile {
+        padding: 12px;
+        border-radius: 10px;
+    }
+
+    .abt-price {
+        font-size: 1rem;
+    }
+
+    .abt-units {
+        font-size: 12px;
+    }
+
+    .abt-row {
+        font-size: 12px;
+    }
+
+    .abt-date {
+        font-size: 11px;
+    }
+
+    .abt-action {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    /* Bid bottom section - mobile layout */
+    .bid-bottom-section {
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 10px;
+    }
+
+    /* Dial assembly on selected bid */
+    .dial-assembly {
+        margin-left: 0;
+        margin-top: 0;
+    }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+    .bucket-page {
+        padding: 0 8px;
+    }
+
+    .bucket-card.two-col-6535 {
+        gap: 14px;
+    }
+
+    .content-tile {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    .right-col.content-tile {
+        padding: 16px 14px;
+    }
+
+    .right-title {
+        font-size: 16px;
+    }
+
+    .buy-price-amount {
+        font-size: 24px;
+    }
+
+    .best-bid-price #bestBidPrice {
+        font-size: 18px;
+    }
+
+    .dial-pill {
+        width: 130px;
+        height: 42px;
+    }
+
+    .dial-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 18px;
+    }
+
+    .dial-value {
+        font-size: 15px;
+    }
+
+    .thumbs .thumb {
+        width: 56px;
+    }
+
+    .gal-arrow {
+        width: 32px;
+        height: 32px;
+        font-size: 24px;
+    }
+
+    .buy-btn,
+    .bid-btn,
+    .add-cart-btn {
+        padding: 12px 14px;
+        font-size: 14px;
+        min-height: 48px;
+    }
+
+    .sellers-btn {
+        padding: 10px 14px;
+        font-size: 13px;
+        min-height: 44px;
+    }
+
+    .bids-panel {
+        padding: 14px;
+        margin: 14px 8px 28px 8px;
+    }
+
+    .header-bid-btn,
+    .accept-bids-btn {
+        height: 44px;
+        font-size: 13px;
+    }
+
+    .abt-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .abt-action {
+        width: 100%;
+        padding: 12px;
+    }
+}
+

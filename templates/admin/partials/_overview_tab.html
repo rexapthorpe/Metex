@@ -1,0 +1,295 @@
+      <!-- Primary Stats -->
+      <div class="stats-grid stats-grid-4">
+        <div class="stat-card stat-card-clickable stat-card-primary" data-metric="users" onclick="openMetricsModal('users')">
+          <div class="stat-card-header">
+            <span class="stat-label">Total Users</span>
+            <div class="stat-icon stat-icon-blue">
+              <i class="fa-solid fa-users"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="stat-total-users">{{ stats.total_users | default('0') }}</div>
+          <div class="stat-change positive" id="stat-users-change">
+            <i class="fa-solid fa-chart-line"></i>
+            Click for details
+          </div>
+        </div>
+        <div class="stat-card stat-card-clickable stat-card-primary" data-metric="listings" onclick="openMetricsModal('listings')">
+          <div class="stat-card-header">
+            <span class="stat-label">Active Listings</span>
+            <div class="stat-icon stat-icon-green">
+              <i class="fa-solid fa-tags"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="stat-active-listings">{{ stats.active_listings | default('0') }}</div>
+          <div class="stat-change positive" id="stat-listings-change">
+            <i class="fa-solid fa-chart-line"></i>
+            Click for details
+          </div>
+        </div>
+        <div class="stat-card stat-card-clickable stat-card-primary" data-metric="volume" onclick="openMetricsModal('volume')">
+          <div class="stat-card-header">
+            <span class="stat-label">Transaction Volume</span>
+            <div class="stat-icon stat-icon-purple">
+              <i class="fa-solid fa-chart-line"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="stat-transaction-volume">${{ stats.transaction_volume | default('0') }}</div>
+          <div class="stat-change positive" id="stat-volume-change">
+            <i class="fa-solid fa-chart-line"></i>
+            Click for details
+          </div>
+        </div>
+        <div class="stat-card stat-card-clickable stat-card-primary" data-metric="revenue" onclick="openMetricsModal('revenue')">
+          <div class="stat-card-header">
+            <span class="stat-label">Platform Revenue</span>
+            <div class="stat-icon stat-icon-gold">
+              <i class="fa-solid fa-dollar-sign"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="stat-platform-revenue">${{ stats.platform_revenue | default('0') }}</div>
+          <div class="stat-change positive" id="stat-revenue-change">
+            <i class="fa-solid fa-chart-line"></i>
+            Click for details
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary Stats -->
+      <div class="stats-grid stats-grid-2">
+        <div class="stat-card stat-card-compact stat-card-clickable" onclick="switchTab('transactions')">
+          <div class="stat-card-row">
+            <div class="stat-icon-small stat-icon-orange">
+              <i class="fa-solid fa-hourglass-half"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label-small">Pending Orders Volume</span>
+              <span class="stat-value-small">${{ stats.pending_orders_volume | default('0') }}</span>
+            </div>
+            <i class="fa-solid fa-chevron-right stat-arrow"></i>
+          </div>
+        </div>
+        <div class="stat-card stat-card-compact stat-card-clickable" onclick="switchTab('disputes')">
+          <div class="stat-card-row">
+            <div class="stat-icon-small stat-icon-red">
+              <i class="fa-solid fa-gavel"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label-small">Active Disputes</span>
+              <span class="stat-value-small">{{ stats.active_disputes | default('0') }}</span>
+            </div>
+            <i class="fa-solid fa-chevron-right stat-arrow"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity Grid -->
+      <div class="activity-grid">
+        <!-- Recent Transactions -->
+        <div class="activity-card">
+          <div class="activity-header">
+            <h3>Recent Transactions</h3>
+            <a href="#transactions" class="view-all-link" onclick="switchTab('transactions'); return false;">View All <i class="fa-solid fa-chevron-right"></i></a>
+          </div>
+          <div class="activity-list">
+            {% for tx in recent_transactions[:4] %}
+            <div class="activity-item">
+              <div class="activity-avatar">
+                <span>{{ tx.buyer_initial | default('I') }}</span>
+              </div>
+              <div class="activity-info">
+                <span class="activity-title">{{ tx.buyer }} → {{ tx.seller }}</span>
+                <span class="activity-meta">{{ tx.items }} items • {{ tx.time_ago }}</span>
+              </div>
+              <div class="activity-amount">${{ tx.amount }}</div>
+              <span class="status-badge status-{{ tx.status | lower }}">{{ tx.status }}</span>
+            </div>
+            {% else %}
+            <div class="activity-item">
+              <div class="activity-avatar"><span>I</span></div>
+              <div class="activity-info">
+                <span class="activity-title">investor_mike → goldtrader99</span>
+                <span class="activity-meta">2 items • 30 min ago</span>
+              </div>
+              <div class="activity-amount">$4,300</div>
+              <span class="status-badge status-completed">completed</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar"><span>S</span></div>
+              <div class="activity-info">
+                <span class="activity-title">silver_stacker → silverking</span>
+                <span class="activity-meta">3 items • 1 hour ago</span>
+              </div>
+              <div class="activity-amount">$855</div>
+              <span class="status-badge status-processing">processing</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar"><span>P</span></div>
+              <div class="activity-info">
+                <span class="activity-title">pm_collector → platinumpro</span>
+                <span class="activity-meta">2 items • 2 hours ago</span>
+              </div>
+              <div class="activity-amount">$2,100</div>
+              <span class="status-badge status-completed">completed</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar"><span>G</span></div>
+              <div class="activity-info">
+                <span class="activity-title">goldlover22 → bullionvault</span>
+                <span class="activity-meta">4 items • 3 hours ago</span>
+              </div>
+              <div class="activity-amount">$10,400</div>
+              <span class="status-badge status-disputed">disputed</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- System Alerts -->
+        <div class="activity-card">
+          <div class="activity-header">
+            <h3>System Alerts</h3>
+          </div>
+          <div class="under-construction-container">
+            <div class="under-construction-icon">
+              <i class="fa-solid fa-helmet-safety"></i>
+            </div>
+            <h4 class="under-construction-title">Under Construction</h4>
+            <p class="under-construction-text">This feature is currently being developed and will be available soon.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Grid -->
+      <div class="activity-grid">
+        <!-- Recent Users -->
+        <div class="activity-card">
+          <div class="activity-header">
+            <h3>Recent Users</h3>
+            <a href="#users" class="view-all-link" onclick="switchTab('users'); return false;">View All <i class="fa-solid fa-chevron-right"></i></a>
+          </div>
+          <div class="activity-list">
+            {% for user in recent_users[:5] %}
+            <div class="activity-item">
+              <div class="activity-avatar">
+                <span>{{ user.initial }}</span>
+              </div>
+              <div class="activity-info">
+                <span class="activity-title">@{{ user.username }}</span>
+                <span class="activity-meta">joined {{ user.joined_ago }}</span>
+              </div>
+              <span class="status-badge status-{{ user.status | lower }}">{{ user.status }}</span>
+            </div>
+            {% else %}
+            <div class="activity-item">
+              <div class="activity-avatar avatar-gold"><span>G</span></div>
+              <div class="activity-info">
+                <span class="activity-title">@goldtrader99 <i class="fa-solid fa-circle-check verified-icon"></i></span>
+                <span class="activity-meta">joined 2 hours ago</span>
+              </div>
+              <span class="status-badge status-active">active</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar avatar-silver"><span>S</span></div>
+              <div class="activity-info">
+                <span class="activity-title">@silverking</span>
+                <span class="activity-meta">joined 4 hours ago</span>
+              </div>
+              <span class="status-badge status-pending">pending</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar avatar-purple"><span>P</span></div>
+              <div class="activity-info">
+                <span class="activity-title">@platinumpro <i class="fa-solid fa-circle-check verified-icon"></i></span>
+                <span class="activity-meta">joined 5 hours ago</span>
+              </div>
+              <span class="status-badge status-active">active</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar avatar-orange"><span>B</span></div>
+              <div class="activity-info">
+                <span class="activity-title">@bullionvault <i class="fa-solid fa-circle-check verified-icon"></i></span>
+                <span class="activity-meta">joined 8 hours ago</span>
+              </div>
+              <span class="status-badge status-suspended">suspended</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar avatar-teal"><span>C</span></div>
+              <div class="activity-info">
+                <span class="activity-title">@coinmaster</span>
+                <span class="activity-meta">joined 12 hours ago</span>
+              </div>
+              <span class="status-badge status-active">active</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Recent Listings -->
+        <div class="activity-card">
+          <div class="activity-header">
+            <h3>Recent Listings</h3>
+            <a href="#listings" class="view-all-link" onclick="switchTab('listings'); return false;">View All <i class="fa-solid fa-chevron-right"></i></a>
+          </div>
+          <div class="activity-list">
+            {% for listing in recent_listings[:5] %}
+            <div class="activity-item">
+              <div class="activity-avatar">
+                <i class="fa-solid fa-coins"></i>
+              </div>
+              <div class="activity-info">
+                <span class="activity-title">{{ listing.title }}</span>
+                <span class="activity-meta">by @{{ listing.seller }} • {{ listing.time_ago }}</span>
+              </div>
+              <span class="metal-badge metal-{{ listing.metal | lower }}">{{ listing.metal }}</span>
+              <span class="status-badge status-{{ listing.status | lower }}">{{ listing.status }}</span>
+            </div>
+            {% else %}
+            <div class="activity-item">
+              <div class="activity-avatar avatar-gold"><i class="fa-solid fa-coins"></i></div>
+              <div class="activity-info">
+                <span class="activity-title">1oz Gold American Eagle 2024</span>
+                <span class="activity-meta">by @goldtrader99 • 1 hour ago</span>
+              </div>
+              <span class="metal-badge metal-gold">Gold</span>
+              <span class="status-badge status-pending">pending</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar avatar-silver"><i class="fa-solid fa-coins"></i></div>
+              <div class="activity-info">
+                <span class="activity-title">10oz Silver Bar PAMP</span>
+                <span class="activity-meta">by @silverking • 2 hours ago</span>
+              </div>
+              <span class="metal-badge metal-silver">Silver</span>
+              <span class="status-badge status-approved">approved</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar avatar-platinum"><i class="fa-solid fa-coins"></i></div>
+              <div class="activity-info">
+                <span class="activity-title">1oz Platinum Maple Leaf</span>
+                <span class="activity-meta">by @platinumpro • 3 hours ago</span>
+              </div>
+              <span class="metal-badge metal-platinum">Platinum</span>
+              <span class="status-badge status-pending">pending</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar avatar-silver"><i class="fa-solid fa-coins"></i></div>
+              <div class="activity-info">
+                <span class="activity-title">100oz Silver Bar RCM</span>
+                <span class="activity-meta">by @bullionvault • 4 hours ago</span>
+              </div>
+              <span class="metal-badge metal-silver">Silver</span>
+              <span class="status-badge status-flagged">flagged</span>
+            </div>
+            <div class="activity-item">
+              <div class="activity-avatar avatar-gold"><i class="fa-solid fa-coins"></i></div>
+              <div class="activity-info">
+                <span class="activity-title">1/2oz Gold Krugerrand</span>
+                <span class="activity-meta">by @coinmaster • 5 hours ago</span>
+              </div>
+              <span class="metal-badge metal-gold">Gold</span>
+              <span class="status-badge status-approved">approved</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>

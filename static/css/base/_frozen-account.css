@@ -1,0 +1,584 @@
+/* ==========================================================================
+   Frozen Account Banner
+   ========================================================================== */
+
+.frozen-account-banner {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-bottom: 3px solid #3b82f6;
+    padding: 16px 20px;
+    position: fixed;
+    top: 123px; /* Below header (73px) + subheader (50px) */
+    left: 0;
+    right: 0;
+    z-index: 950; /* Higher than admin banner */
+    animation: frozenBannerSlideDown 0.3s ease-out;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+@keyframes frozenBannerSlideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.frozen-banner-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.frozen-banner-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    animation: frozenIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes frozenIconPulse {
+    0%, 100% {
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
+    50% {
+        box-shadow: 0 2px 16px rgba(59, 130, 246, 0.6);
+    }
+}
+
+.frozen-banner-icon i {
+    font-size: 22px;
+    color: #ffffff;
+}
+
+.frozen-banner-text {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.frozen-banner-text strong {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e40af;
+}
+
+.frozen-banner-text span {
+    font-size: 14px;
+    color: #1d4ed8;
+    line-height: 1.4;
+}
+
+.frozen-banner-actions {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.frozen-banner-btn {
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+}
+
+.frozen-banner-btn-primary {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(29, 78, 216, 0.3);
+}
+
+.frozen-banner-btn-primary:hover {
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4);
+}
+
+/* ============================================
+   FROZEN RESTRICTION MODAL
+   ============================================ */
+
+.frozen-restriction-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    animation: frozenModalFadeIn 0.2s ease-out;
+}
+
+.frozen-restriction-modal-overlay.show {
+    display: flex;
+}
+
+@keyframes frozenModalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.frozen-restriction-modal {
+    background: #ffffff;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: frozenModalSlideUp 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes frozenModalSlideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.frozen-restriction-header {
+    padding: 24px 24px 20px;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-bottom: 3px solid #3b82f6;
+    position: relative;
+    text-align: center;
+}
+
+.frozen-restriction-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    animation: frozenIconPulse 2s ease-in-out infinite;
+}
+
+.frozen-restriction-icon i {
+    font-size: 28px;
+    color: #ffffff;
+}
+
+.frozen-restriction-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e40af;
+}
+
+.frozen-restriction-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    font-size: 20px;
+    color: #1e40af;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.frozen-restriction-close:hover {
+    background: #ffffff;
+    transform: scale(1.1);
+}
+
+.frozen-restriction-body {
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.frozen-restriction-message {
+    font-size: 15px;
+    color: #374151;
+    line-height: 1.6;
+    margin: 0 0 20px 0;
+}
+
+.frozen-restriction-message strong {
+    color: #1e40af;
+}
+
+.frozen-restriction-reason {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+}
+
+.frozen-reason-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0369a1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.frozen-reason-text {
+    font-size: 14px;
+    color: #0c4a6e;
+    line-height: 1.5;
+}
+
+.frozen-restriction-list {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.frozen-restriction-list h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #991b1b;
+}
+
+.frozen-restriction-list ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.frozen-restriction-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 14px;
+    color: #7f1d1d;
+    border-bottom: 1px solid #fecaca;
+}
+
+.frozen-restriction-list li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.frozen-restriction-list li i {
+    color: #dc2626;
+    font-size: 12px;
+    width: 16px;
+    text-align: center;
+}
+
+.frozen-restriction-help {
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.frozen-restriction-footer {
+    padding: 16px 24px 24px;
+    background: #f9fafb;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.frozen-restriction-btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+}
+
+.frozen-restriction-btn-secondary {
+    background: #ffffff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.frozen-restriction-btn-secondary:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.frozen-restriction-btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.frozen-restriction-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* Dark mode support for frozen restriction modal */
+body.dark-mode .frozen-restriction-modal {
+    background: #1f2937;
+}
+
+body.dark-mode .frozen-restriction-header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    border-bottom-color: #60a5fa;
+}
+
+body.dark-mode .frozen-restriction-header h2 {
+    color: #bfdbfe;
+}
+
+body.dark-mode .frozen-restriction-close {
+    background: rgba(255, 255, 255, 0.1);
+    color: #bfdbfe;
+}
+
+body.dark-mode .frozen-restriction-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+body.dark-mode .frozen-restriction-body {
+    background: #1f2937;
+}
+
+body.dark-mode .frozen-restriction-message {
+    color: #d1d5db;
+}
+
+body.dark-mode .frozen-restriction-message strong {
+    color: #93c5fd;
+}
+
+body.dark-mode .frozen-restriction-reason {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+}
+
+body.dark-mode .frozen-reason-label {
+    color: #7dd3fc;
+}
+
+body.dark-mode .frozen-reason-text {
+    color: #bae6fd;
+}
+
+body.dark-mode .frozen-restriction-list {
+    background: #450a0a;
+    border-color: #7f1d1d;
+}
+
+body.dark-mode .frozen-restriction-list h4 {
+    color: #fca5a5;
+}
+
+body.dark-mode .frozen-restriction-list li {
+    color: #fecaca;
+    border-bottom-color: #7f1d1d;
+}
+
+body.dark-mode .frozen-restriction-list li i {
+    color: #f87171;
+}
+
+body.dark-mode .frozen-restriction-help {
+    color: #9ca3af;
+}
+
+body.dark-mode .frozen-restriction-footer {
+    background: #111827;
+}
+
+body.dark-mode .frozen-restriction-btn-secondary {
+    background: #374151;
+    color: #d1d5db;
+    border-color: #4b5563;
+}
+
+body.dark-mode .frozen-restriction-btn-secondary:hover {
+    background: #4b5563;
+}
+
+/* Responsive frozen restriction modal */
+@media (max-width: 480px) {
+    .frozen-restriction-modal {
+        width: 95%;
+        max-height: 85vh;
+    }
+
+    .frozen-restriction-header {
+        padding: 20px 20px 16px;
+    }
+
+    .frozen-restriction-icon {
+        width: 56px;
+        height: 56px;
+    }
+
+    .frozen-restriction-icon i {
+        font-size: 24px;
+    }
+
+    .frozen-restriction-header h2 {
+        font-size: 18px;
+    }
+
+    .frozen-restriction-body {
+        padding: 20px;
+    }
+
+    .frozen-restriction-footer {
+        padding: 16px 20px 20px;
+        flex-direction: column;
+    }
+
+    .frozen-restriction-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Dark mode support for frozen banner */
+body.dark-mode .frozen-account-banner {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    border-bottom-color: #60a5fa;
+}
+
+body.dark-mode .frozen-banner-text strong {
+    color: #bfdbfe;
+}
+
+body.dark-mode .frozen-banner-text span {
+    color: #93c5fd;
+}
+
+/* Responsive frozen banner */
+@media (max-width: 768px) {
+    .frozen-account-banner {
+        padding: 12px 16px;
+        top: 115px;
+    }
+
+    .frozen-banner-content {
+        gap: 12px;
+    }
+
+    .frozen-banner-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .frozen-banner-icon i {
+        font-size: 18px;
+    }
+
+    .frozen-banner-text strong {
+        font-size: 14px;
+    }
+
+    .frozen-banner-text span {
+        font-size: 12px;
+    }
+
+    .frozen-banner-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+}
+
+/* Dark mode support */
+body.dark-mode .admin-message-banner {
+    background: linear-gradient(135deg, #451a03 0%, #78350f 100%);
+    border-bottom-color: #d97706;
+}
+
+body.dark-mode .admin-banner-text strong {
+    color: #fef3c7;
+}
+
+body.dark-mode .admin-banner-text span {
+    color: #fde68a;
+}
+
+body.dark-mode .admin-banner-btn-dismiss {
+    background: rgba(0, 0, 0, 0.3);
+    color: #fef3c7;
+    border-color: #f59e0b;
+}
+
+body.dark-mode .admin-banner-btn-dismiss:hover {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .admin-message-banner {
+        padding: 14px 16px;
+    }
+
+    .admin-banner-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .admin-banner-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .admin-banner-icon i {
+        font-size: 16px;
+    }
+
+    .admin-banner-actions {
+        width: 100%;
+    }
+
+    .admin-banner-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 12px 16px;
+    }
+}
+

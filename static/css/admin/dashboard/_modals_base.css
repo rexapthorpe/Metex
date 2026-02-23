@@ -1,0 +1,451 @@
+/* ============================================
+   ADMIN MODALS
+   ============================================ */
+
+.admin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Inner modal content box (used inside .admin-modal-overlay) */
+.admin-modal-overlay .admin-modal {
+  background: #ffffff !important;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 560px;
+  min-width: 320px;
+  min-height: 200px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex !important;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 1;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+/* Fallback for standalone .admin-modal */
+.admin-modal {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.admin-modal-lg {
+  max-width: 720px;
+}
+
+.admin-modal-sm {
+  max-width: 420px;
+}
+
+.admin-modal-md {
+  max-width: 520px;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-modal-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-modal-header h2 i {
+  color: #6b7280;
+}
+
+/* Note: Close button styling now uses unified modal-close-button.css */
+
+.admin-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #6b7280;
+  gap: 12px;
+}
+
+.modal-loading i {
+  font-size: 24px;
+}
+
+/* User Detail Modal Content */
+.user-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.user-detail-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.user-detail-info h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 4px 0;
+}
+
+.user-detail-info p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.user-detail-status {
+  margin-left: auto;
+}
+
+.user-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.user-stat-card {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.user-stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.user-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.user-detail-section {
+  margin-bottom: 20px;
+}
+
+.user-detail-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+}
+
+.user-info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.user-info-row:last-child {
+  border-bottom: none;
+}
+
+.user-info-label {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.user-info-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a2e;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.modal-actions-full {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modal-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.modal-action-btn.btn-message {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.modal-action-btn.btn-message:hover {
+  background: #2563eb;
+}
+
+.modal-action-btn.btn-freeze {
+  background: #f0f9ff;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+.modal-action-btn.btn-freeze:hover {
+  background: #e0f2fe;
+}
+
+.modal-action-btn.btn-freeze.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+.modal-action-btn.btn-ban {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.modal-action-btn.btn-ban:hover {
+  background: #fee2e2;
+}
+
+.modal-action-btn.btn-ban.active {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+.modal-action-btn.btn-delete {
+  background: #7f1d1d;
+  color: #ffffff;
+  border: 1px solid #7f1d1d;
+}
+
+.modal-action-btn.btn-delete:hover {
+  background: #450a0a;
+  border-color: #450a0a;
+}
+
+/* Order Detail Modal Content */
+.order-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.order-id {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.order-date {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.order-parties {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.order-party {
+  flex: 1;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.order-party-label {
+  font-size: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.order-party-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.order-items-section {
+  margin-bottom: 20px;
+}
+
+.order-items-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+}
+
+.order-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.order-item:last-child {
+  margin-bottom: 0;
+}
+
+.order-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.order-item-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a2e;
+}
+
+.order-item-meta {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.order-item-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.order-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px;
+  background: #1a1a2e;
+  border-radius: 12px;
+  color: #ffffff;
+  margin-top: 16px;
+}
+
+.order-total-label {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.order-total-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.order-shipping {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+
+.order-shipping h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0 0 8px 0;
+}
+
+.order-shipping p {
+  font-size: 14px;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+/* Action Icon Warning State */
+.action-icon.action-warning:hover {
+  background: #fef3c7;
+  color: #d97706;
+}
+

@@ -1,0 +1,91 @@
+/* ==============================
+   DESCRIPTION TILE
+   ============================== */
+.section-heading { margin: 0 0 10px 0; font-size: 1.125rem; font-weight: 800; color: #0b1222; }
+.description-tile .specs-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.spec-col { display: flex; flex-direction: column; }
+.spec-row {
+  display: flex; justify-content: space-between; gap: 16px; padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+/* Only remove border from last item in the LAST column */
+.spec-col:last-child .spec-row:last-child { border-bottom: none; }
+.spec-label { font-weight: 600; color: #0b1222; }
+.spec-value { color: #374151; }
+
+/* Detail block - label above value layout */
+.detail-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.detail-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+.detail-value {
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.5;
+}
+.subsection { margin-top: 16px; }
+.sub-heading { margin: 8px 0; font-weight: 700; color: #0b1222; }
+.item-description, .item-history { color: #374151; }
+
+/* ==============================
+   RIGHT COLUMN
+   ============================== */
+.right-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 800;
+  color: #000000;
+  letter-spacing: -0.01em;
+}
+.title-soft {
+  margin: 4px 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  font-weight: 500;
+}
+.divider {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin: 0px 0 0px 0;
+}
+
+.btn { cursor: pointer; border: none; }
+
+.sellers-btn {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 9999px;
+  background: none;
+  border: 2px solid #a4a5a8;
+  color: #000000;
+  font-weight: 700;
+  box-sizing: border-box;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+
+
+}
+.sellers-btn:hover {
+  background: #e5e7eb;
+  border: none;
+}
+
+/* Sellers CTA (above/below the button) */
+.sellers-cta { display: flex; flex-direction: column; gap: 6px; }
+.sellers-kicker {
+  color: #6b7280;
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin: 4px 0;
+}
+.sellers-foot-link { color: #000000; font-weight: 500; text-decoration: underline; }
+.sellers-foot-link:hover { text-decoration: none; }

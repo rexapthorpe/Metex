@@ -1,22 +1,69 @@
 <div class="messages-tab">
-  <h2 class="tab-heading">My Messages</h2>
+  <!-- Header -->
+  <div class="tab-page-header">
+    <div>
+      <h1 class="tab-page-title">Messages</h1>
+      {% set unread_total = conversations | selectattr('unread_count') | list | length %}
+      <p class="tab-page-subtitle">
+        {% if unread_total > 0 %}{{ unread_total }} unread conversation{{ 's' if unread_total != 1 else '' }}{% else %}All caught up{% endif %}
+      </p>
+    </div>
+  </div>
 
+  <!-- Filter Tabs -->
+  <div class="tab-filter-bar">
+    <button class="filter-pill active" data-filter="all" onclick="filterMessages('all')">All</button>
+    <button class="filter-pill" data-filter="unread" onclick="filterMessages('unread')">Unread</button>
+    <button class="filter-pill" data-filter="orders" onclick="filterMessages('orders')">Orders</button>
+  </div>
+
+  <!-- Conversation List -->
   <div class="conversation-list">
     {% for convo in conversations %}
+      {% set initials = convo.other_username[:2].upper() if convo.other_username else '??' %}
       <div class="conversation-tile collapsed"
            data-user-id="{{ convo.other_user_id }}"
            data-order-id="{{ convo.order_id }}"
-           data-type="{{ convo.type }}">
-        <!-- header -->
-        <div class="tile-header">
+           data-type="{{ convo.type }}"
+           data-has-unread="{{ '1' if convo.unread_count > 0 else '0' }}">
+
+        <!-- Row -->
+        <div class="convo-row" onclick="toggleConversation(this)">
+          <!-- Avatar -->
+          <div class="convo-avatar" data-initials="{{ initials }}">{{ initials }}</div>
+
+          <!-- Content -->
+          <div class="convo-content">
+            <div class="convo-header-row">
+              <span class="convo-name">{{ convo.other_display_name or convo.other_username }}</span>
+              <span class="convo-username">@{{ convo.other_username }}</span>
+              <span class="convo-time">{{ convo.last_message_time }}</span>
+              {% if convo.unread_count > 0 %}
+                <span class="convo-unread-badge">{{ convo.unread_count }}</span>
+              {% endif %}
+            </div>
+            <div class="convo-preview">{{ convo.last_message_content }}</div>
+            <!-- Linked item if available -->
+            {% if convo.order_id %}
+              <div class="convo-linked-item">
+                <i class="fa-solid fa-box convo-linked-icon"></i>
+                <span class="convo-linked-text">Re: Order #{{ '%04d' % convo.order_id }}</span>
+                <i class="fa-solid fa-chevron-right convo-linked-arrow"></i>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Unread dot (hidden element for JS compat) -->
           <div class="unread-dot {% if convo.unread_count == 0 %}hidden{% endif %}"></div>
-          <div class="username">{{ convo.other_username }}</div>
-          <div class="last-message">{{ convo.last_message_content }}</div>
-          <div class="timestamp">{{ convo.last_message_time }}</div>
+
+          <!-- Hidden compat fields for JS -->
+          <span class="last-message" style="display:none">{{ convo.last_message_content }}</span>
+          <span class="timestamp" style="display:none">{{ convo.last_message_time }}</span>
+          <span class="username" style="display:none">{{ convo.other_username }}</span>
         </div>
 
-        <!-- full history already in convo.messages -->
-        <div class="message-body">
+        <!-- Message Thread (collapsed by default) -->
+        <div class="message-body" style="display:none;">
           <div class="message-history">
             {% for message in convo.messages %}
               <div class="message {% if message.sender_id == current_user_id %}sent{% else %}received{% endif %}">
@@ -25,7 +72,6 @@
               </div>
             {% endfor %}
           </div>
-          <!-- inline form -->
           <form class="message-input-row"
                 data-user-id="{{ convo.other_user_id }}"
                 data-order-id="{{ convo.order_id }}">
@@ -34,6 +80,38 @@
           </form>
         </div>
       </div>
+    {% else %}
+      <div class="tab-empty-state">
+        <i class="fa-regular fa-message tab-empty-icon"></i>
+        <h3>No messages yet</h3>
+        <p>Messages with buyers and sellers will appear here.</p>
+      </div>
     {% endfor %}
   </div>
 </div>
+
+<script>
+function filterMessages(filter) {
+  document.querySelectorAll('.messages-tab .filter-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  document.querySelectorAll('.conversation-tile').forEach(tile => {
+    const isUnread = tile.dataset.hasUnread === '1';
+    const isOrder = !!tile.dataset.orderId && tile.dataset.orderId !== 'None';
+    let show = true;
+    if (filter === 'unread') show = isUnread;
+    if (filter === 'orders') show = isOrder;
+    tile.style.display = show ? '' : 'none';
+  });
+}
+
+function toggleConversation(row) {
+  const tile = row.closest('.conversation-tile');
+  const body = tile.querySelector('.message-body');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  tile.classList.toggle('expanded', !isOpen);
+}
+
+window.filterMessages = filterMessages;
+</script>

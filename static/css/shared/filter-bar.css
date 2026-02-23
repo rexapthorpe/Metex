@@ -1,0 +1,164 @@
+/* ==========================================================================
+   Shared Filter Bar - Small & Consistent Style
+   Used across: Sold Items, Orders, Listings, Messages tabs
+   ========================================================================== */
+
+.filter-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 3px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  width: fit-content;
+}
+
+.filter-btn {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  background: #ffffff;
+  color: #374151;
+}
+
+.filter-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+
+/* Listings-specific filter nav (if it uses different class name) */
+.listings-filter-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 3px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  width: fit-content;
+}
+
+.listings-filter-nav .filter-btn {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.listings-filter-nav .filter-btn:hover {
+  background: #ffffff;
+  color: #374151;
+}
+
+.listings-filter-nav .filter-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE FILTER BARS
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* Filter nav - scrollable on mobile */
+  .filter-nav,
+  .listings-filter-nav {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .filter-nav::-webkit-scrollbar,
+  .listings-filter-nav::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+
+  /* Filter buttons - compact on mobile */
+  .filter-btn,
+  .listings-filter-nav .filter-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-nav,
+  .listings-filter-nav {
+    margin-bottom: 16px;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 8px;
+  }
+
+  .filter-btn,
+  .listings-filter-nav .filter-btn {
+    padding: 7px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+}
+
+@media (max-width: 360px) {
+  .filter-nav,
+  .listings-filter-nav {
+    margin-bottom: 12px;
+  }
+
+  .filter-btn,
+  .listings-filter-nav .filter-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}
+
+/* ==========================================================================
+   DARK MODE
+   ========================================================================== */
+
+body.dark-mode .filter-nav,
+body.dark-mode .listings-filter-nav {
+  background: var(--bg-secondary, #1f2937);
+  border-color: var(--border-primary, #374151);
+}
+
+body.dark-mode .filter-btn,
+body.dark-mode .listings-filter-nav .filter-btn {
+  color: var(--text-secondary, #9ca3af);
+}
+
+body.dark-mode .filter-btn:hover,
+body.dark-mode .listings-filter-nav .filter-btn:hover {
+  background: var(--bg-tertiary, #374151);
+  color: var(--text-primary, #f3f4f6);
+}
+
+body.dark-mode .filter-btn.active,
+body.dark-mode .listings-filter-nav .filter-btn.active {
+  background: var(--accent-primary, #3b82f6);
+  color: #ffffff;
+}

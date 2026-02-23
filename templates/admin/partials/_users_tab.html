@@ -1,0 +1,127 @@
+      <div class="panel-toolbar">
+        <div class="search-filter-group">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search users..." id="userSearch">
+          </div>
+          <select class="filter-select" id="userStatusFilter">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="frozen">Frozen</option>
+            <option value="banned">Banned</option>
+          </select>
+        </div>
+        <div class="toolbar-actions">
+          <button class="toolbar-btn"><i class="fa-solid fa-filter"></i> Filters</button>
+        </div>
+      </div>
+
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Verified</th>
+              <th>Transactions</th>
+              <th>Joined</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr data-user-id="{{ user.id }}" class="{% if user.is_frozen %}user-row-frozen{% endif %}">
+              <td>
+                <div class="user-cell">
+                  <div class="user-avatar">{{ user.initial }}</div>
+                  <span class="user-name">@{{ user.username }}</span>
+                  {% if user.is_frozen %}
+                  <span class="user-frozen-badge"><i class="fa-solid fa-snowflake"></i> Frozen</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td>{{ user.email }}</td>
+              <td><span class="status-badge status-{{ user.status | lower }}">{{ user.status }}</span></td>
+              <td>
+                {% if user.verified %}
+                <i class="fa-solid fa-circle-check verified-check"></i>
+                {% else %}
+                <i class="fa-solid fa-circle-xmark unverified-x"></i>
+                {% endif %}
+              </td>
+              <td>{{ user.transactions }}</td>
+              <td>{{ user.joined }}</td>
+              <td class="actions-cell">
+                <button class="action-icon" title="View User" onclick="viewUser({{ user.id }})"><i class="fa-solid fa-eye"></i></button>
+                <button class="action-icon" title="Message User" onclick="messageUser({{ user.id }}, '{{ user.username }}')"><i class="fa-solid fa-message"></i></button>
+                <button class="action-icon {% if user.is_frozen %}action-frozen{% else %}action-warning{% endif %}" title="{{ 'Unfreeze Account' if user.is_frozen else 'Freeze Account' }}" onclick="freezeUser({{ user.id }}, {{ user.is_frozen }})"><i class="fa-solid fa-snowflake"></i></button>
+                <button class="action-icon action-danger-permanent" title="Delete User" onclick="deleteUser({{ user.id }}, '{{ user.username }}')"><i class="fa-solid fa-trash"></i></button>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td><div class="user-cell"><div class="user-avatar avatar-gold">G</div><span class="user-name">@goldtrader99</span></div></td>
+              <td>gold@example.com</td>
+              <td><span class="status-badge status-active">active</span></td>
+              <td><i class="fa-solid fa-circle-check verified-check"></i></td>
+              <td>0</td>
+              <td>2 hours ago</td>
+              <td class="actions-cell">
+                <button class="action-icon" title="View"><i class="fa-solid fa-eye"></i></button>
+                <button class="action-icon" title="Message"><i class="fa-solid fa-message"></i></button>
+              </td>
+            </tr>
+            <tr>
+              <td><div class="user-cell"><div class="user-avatar avatar-silver">S</div><span class="user-name">@silverking</span></div></td>
+              <td>silver@example.com</td>
+              <td><span class="status-badge status-pending">pending</span></td>
+              <td><i class="fa-solid fa-circle-xmark unverified-x"></i></td>
+              <td>0</td>
+              <td>4 hours ago</td>
+              <td class="actions-cell">
+                <button class="action-icon" title="View"><i class="fa-solid fa-eye"></i></button>
+                <button class="action-icon" title="Message"><i class="fa-solid fa-message"></i></button>
+              </td>
+            </tr>
+            <tr>
+              <td><div class="user-cell"><div class="user-avatar avatar-purple">P</div><span class="user-name">@platinumpro</span></div></td>
+              <td>plat@example.com</td>
+              <td><span class="status-badge status-active">active</span></td>
+              <td><i class="fa-solid fa-circle-check verified-check"></i></td>
+              <td>3</td>
+              <td>6 hours ago</td>
+              <td class="actions-cell">
+                <button class="action-icon" title="View"><i class="fa-solid fa-eye"></i></button>
+                <button class="action-icon" title="Message"><i class="fa-solid fa-message"></i></button>
+              </td>
+            </tr>
+            <tr>
+              <td><div class="user-cell"><div class="user-avatar avatar-orange">B</div><span class="user-name">@bullionvault</span></div></td>
+              <td>vault@example.com</td>
+              <td><span class="status-badge status-suspended">suspended</span></td>
+              <td><i class="fa-solid fa-circle-check verified-check"></i></td>
+              <td>156</td>
+              <td>8 hours ago</td>
+              <td class="actions-cell">
+                <button class="action-icon" title="View"><i class="fa-solid fa-eye"></i></button>
+                <button class="action-icon" title="Message"><i class="fa-solid fa-message"></i></button>
+              </td>
+            </tr>
+            <tr>
+              <td><div class="user-cell"><div class="user-avatar avatar-teal">C</div><span class="user-name">@coinmaster</span></div></td>
+              <td>coin@example.com</td>
+              <td><span class="status-badge status-active">active</span></td>
+              <td><i class="fa-solid fa-circle-xmark unverified-x"></i></td>
+              <td>12</td>
+              <td>12 hours ago</td>
+              <td class="actions-cell">
+                <button class="action-icon" title="View"><i class="fa-solid fa-eye"></i></button>
+                <button class="action-icon" title="Message"><i class="fa-solid fa-message"></i></button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>

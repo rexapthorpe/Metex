@@ -1,124 +1,470 @@
-/* Namespaced under .ratings-tab */
-.ratings-tab .tab-heading {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-  text-align: left;
+/* ==========================================================================
+   Ratings Tab  –  Modern row-based design
+   Design tokens:
+     Navy:        #1e293b
+     Border:      #e2e8f0
+     Bg light:    #f8fafc
+     Text 2nd:    #64748b
+     Amber star:  #f59e0b
+     Green badge: #dcfce7 / #166534
+     Blue badge:  #dbeafe / #1e40af
+     Amber badge: #fef3c7 / #92400e
+   ========================================================================== */
+
+/* ── Outer wrapper ──────────────────────────────────────────────────────── */
+.ratings-tab {
+  padding: 0;
+  font-family: inherit;
 }
 
-/* empty state */
-.ratings-tab .empty-message {
-  text-align: left;
-  font-size: 1rem;
-  color: #666;
-  margin-top: 1rem;
+/* ── Top bar ────────────────────────────────────────────────────────────── */
+.ratings-tab .rt-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
 }
 
-/* average */
-.ratings-tab .rating-average-container {
+.ratings-tab .rt-heading {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.ratings-tab .rt-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ratings-tab .rt-stat {
+  white-space: nowrap;
+}
+
+.ratings-tab .rt-stat-sep {
+  color: #cbd5e1;
+}
+
+/* ── Average rating card ────────────────────────────────────────────────── */
+.ratings-tab .rt-avg-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  padding: 14px 24px;
+  min-width: 180px;
   text-align: center;
-  margin-top: 2rem;
+  flex-shrink: 0;
 }
-.ratings-tab .rating-average-text {
-  font-size: 5rem;
-  font-weight: bold;
-  color: #333;
+
+.ratings-tab .rt-avg-stars {
+  display: flex;
+  gap: 3px;
+}
+
+.ratings-tab .rt-star-filled {
+  color: #f59e0b;
+}
+
+.ratings-tab .rt-star-empty {
+  color: #d1d5db;
+}
+
+.ratings-tab .rt-avg-stars .rt-star-filled,
+.ratings-tab .rt-avg-stars .rt-star-empty {
+  font-size: 1.25rem;
+}
+
+.ratings-tab .rt-avg-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ratings-tab .rt-avg-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
   opacity: 0;
   transition: opacity 1.5s ease;
 }
-.ratings-tab .rating-average-text.show {
+
+.ratings-tab .rt-avg-number.show {
   opacity: 1;
 }
-.ratings-tab .rating-count-text {
-  font-size: 0.95rem;
-  color: #777;
-  margin-top: 0.5rem;
+
+.ratings-tab .rt-avg-text {
+  font-size: 0.8rem;
+  color: #92400e;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-/* divider */
-.ratings-tab .rating-divider {
-  margin: 2rem auto 1rem;
-  width: 90%;
-  border: none;
-  border-top: 1px solid #ccc;
-}
-
-.ratings-tab .rating-tiles-container {
+/* ── Filter bar ─────────────────────────────────────────────────────────── */
+.ratings-tab .rt-filter-bar {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin: 1.5rem auto;
-  max-width: 90%;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
-.ratings-tab .rating-tile {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  padding: 1.25rem;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
-  font-size: 1rem;
-  animation: fadeSlideUp 0.6s ease both;
-  box-sizing: border-box;
-  width: 520px;
-  max-width: 520px;
-  flex: 0 0 520px;   /* when inside a flex .tile-grid */
-  flex-grow: 0;
-  flex-shrink: 0;
+.ratings-tab .rt-filter-btn {
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  line-height: 1.4;
+}
 
-  /* hard cap (we’ll reinforce below with !important for safety) */
-  height: 200px;
+.ratings-tab .rt-filter-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.ratings-tab .rt-filter-btn.rt-filter-active {
+  background: #1e293b;
+  color: #ffffff;
+  border-color: #1e293b;
+}
+
+/* ── Rating list ────────────────────────────────────────────────────────── */
+.ratings-tab .rt-list {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* ── Individual row ─────────────────────────────────────────────────────── */
+.ratings-tab .rt-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  transition: background 0.15s;
+}
+
+.ratings-tab .rt-row:last-child {
+  border-bottom: none;
+}
+
+.ratings-tab .rt-row:hover {
+  background: #f8fafc;
+}
+
+/* Pending row accent */
+.ratings-tab .rt-row[data-type="pending"] {
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+}
+
+.ratings-tab .rt-row[data-type="pending"]:hover {
+  background: #fef3c7;
+}
+
+/* ── Left column ────────────────────────────────────────────────────────── */
+.ratings-tab .rt-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Avatar ─────────────────────────────────────────────────────────────── */
+.ratings-tab .rt-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #1e293b;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  flex-shrink: 0;
   overflow: hidden;
 }
 
-/* header row */
-.ratings-tab .rating-stars-date {
+.ratings-tab .rt-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ratings-tab .rt-avatar-initials {
+  line-height: 1;
+  user-select: none;
+}
+
+/* ── Identity block ─────────────────────────────────────────────────────── */
+.ratings-tab .rt-identity {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ratings-tab .rt-name-row {
+  display: flex;
   align-items: center;
-  margin-bottom: 0.75rem;
-}
-.ratings-tab .stars {
-  font-size: 1.3rem;
-  color: #1b1b1b;
-}
-.ratings-tab .rating-meta {
-  font-size: 0.9rem;
-  color: #777;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* comment */
-.ratings-tab .rating-comment {
+.ratings-tab .rt-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* ── Badges ─────────────────────────────────────────────────────────────── */
+.ratings-tab .rt-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ratings-tab .rt-badge-received {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ratings-tab .rt-badge-given {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.ratings-tab .rt-badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* ── Stars row ──────────────────────────────────────────────────────────── */
+.ratings-tab .rt-stars-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ratings-tab .rt-star-sm {
+  font-size: 0.8125rem;
+}
+
+.ratings-tab .rt-date {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-left: 6px;
+}
+
+/* ── Comment ────────────────────────────────────────────────────────────── */
+.ratings-tab .rt-comment {
+  margin: 4px 0 0 0;
+  font-size: 0.875rem;
+  color: #475569;
   font-style: italic;
-  color: #333;
-  padding-left: 0.5rem;
-  border-left: 4px solid #eee;
+  line-height: 1.5;
+  /* clamp to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* animation */
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* ── Pending label + rate button ────────────────────────────────────────── */
+.ratings-tab .rt-pending-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
 }
 
-/* ===================== */
-/* Strong height overrides */
-/* ===================== */
-
-/* Ensure the grid doesn’t force equal heights */
-#ratings-tab .rating-tiles-container,
-.ratings-tab .rating-tiles-container,
-#ratings-tab .rating-tiles-container.tile-grid,
-.ratings-tab .rating-tiles-container.tile-grid {
-  align-items: flex-start !important;
+.ratings-tab .rt-pending-label {
+  font-size: 0.8125rem;
+  color: #92400e;
+  font-weight: 500;
 }
 
-/* Hard cap the tile height */
-#ratings-tab .rating-tile,
-.ratings-tab .rating-tile {
-  height: 150px !important;
-  max-height: 150px !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  align-self: flex-start !important;
+.ratings-tab .rt-rate-btn {
+  padding: 5px 14px;
+  background: #1e293b;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ratings-tab .rt-rate-btn:hover {
+  background: #334155;
+}
+
+/* ── Right column: item thumbnail ───────────────────────────────────────── */
+.ratings-tab .rt-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.ratings-tab .rt-item-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.ratings-tab .rt-item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ratings-tab .rt-item-thumb-placeholder {
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 1rem;
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────── */
+.ratings-tab .rt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 52px 24px;
+  gap: 8px;
+  text-align: center;
+}
+
+.ratings-tab .rt-empty-icon {
+  font-size: 2.25rem;
+  color: #d1d5db;
+}
+
+.ratings-tab .rt-empty-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.ratings-tab .rt-empty-sub {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+/* ── Username secondary text ────────────────────────────────────────────── */
+.ratings-tab .rt-username {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+/* ── Pending avatar accent ──────────────────────────────────────────────── */
+.ratings-tab .rt-avatar--pending {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+/* ── Pending prompt text ────────────────────────────────────────────────── */
+.ratings-tab .rt-pending-prompt {
+  font-size: 0.8125rem;
+  color: #92400e;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+/* ── Pending right column ───────────────────────────────────────────────── */
+.ratings-tab .rt-right--pending {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+/* ── Pending item (thumb + info) ────────────────────────────────────────── */
+.ratings-tab .rt-pending-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ratings-tab .rt-pending-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+}
+
+.ratings-tab .rt-pending-item-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ratings-tab .rt-pending-item-price {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .ratings-tab .rt-topbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ratings-tab .rt-avg-card {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .ratings-tab .rt-row {
+    flex-wrap: wrap;
+  }
+
+  .ratings-tab .rt-right {
+    display: none;
+  }
 }

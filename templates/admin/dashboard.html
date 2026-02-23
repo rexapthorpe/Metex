@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/dashboard.css') }}?v=15">
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+  <!-- Header Section -->
+  <div class="admin-header">
+    <div class="admin-header-left">
+      <div class="admin-icon">
+        <i class="fa-regular fa-circle"></i>
+      </div>
+      <div class="admin-title-section">
+        <h1 class="admin-title">Admin Dashboard</h1>
+        <p class="admin-subtitle">Manage users, listings, transactions, and platform settings</p>
+      </div>
+    </div>
+    <div class="admin-header-actions">
+      <button class="admin-action-btn" onclick="refreshDashboard()">
+        <i class="fa-solid fa-rotate"></i>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="admin-tabs">
+    <button class="admin-tab active" data-tab="overview">
+      <i class="fa-solid fa-chart-simple"></i>
+      Overview
+    </button>
+    <button class="admin-tab" data-tab="users">
+      <i class="fa-solid fa-users"></i>
+      Users
+    </button>
+    <button class="admin-tab" data-tab="listings">
+      <i class="fa-solid fa-tags"></i>
+      Listings
+    </button>
+    <button class="admin-tab" data-tab="buckets">
+      <i class="fa-solid fa-layer-group"></i>
+      Buckets
+    </button>
+    <button class="admin-tab" data-tab="transactions">
+      <i class="fa-solid fa-receipt"></i>
+      Transactions
+    </button>
+    <button class="admin-tab" data-tab="ledger">
+      <i class="fa-solid fa-book"></i>
+      Ledger
+    </button>
+    <button class="admin-tab" data-tab="disputes">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      Disputes
+    </button>
+    <button class="admin-tab" data-tab="messages">
+      <i class="fa-solid fa-message"></i>
+      Messages
+    </button>
+    <button class="admin-tab" data-tab="system">
+      <i class="fa-solid fa-server"></i>
+      System
+    </button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="admin-content">
+    <!-- Overview Tab -->
+    <div class="tab-panel active" id="panel-overview">
+      {% include 'admin/partials/_overview_tab.html' %}
+    </div>
+
+    <!-- Users Tab -->
+    <div class="tab-panel" id="panel-users">
+      {% include 'admin/partials/_users_tab.html' %}
+    </div>
+
+    <!-- Listings Tab -->
+    <div class="tab-panel" id="panel-listings">
+      {% include 'admin/partials/_listings_tab.html' %}
+    </div>
+
+    <!-- Buckets Tab -->
+    <div class="tab-panel" id="panel-buckets">
+      {% include 'admin/partials/_buckets_tab.html' %}
+    </div>
+
+    <!-- Transactions Tab -->
+    <div class="tab-panel" id="panel-transactions">
+      {% include 'admin/partials/_transactions_tab.html' %}
+    </div>
+
+    <!-- Ledger Tab -->
+    <div class="tab-panel" id="panel-ledger">
+      {% include 'admin/partials/_ledger_tab.html' %}
+    </div>
+
+    <!-- Disputes Tab -->
+    <div class="tab-panel" id="panel-disputes">
+      {% include 'admin/partials/_disputes_tab.html' %}
+    </div>
+
+    <!-- Messages Tab -->
+    <div class="tab-panel" id="panel-messages">
+      {% include 'admin/partials/_messages_tab.html' %}
+    </div>
+
+    <!-- System Tab -->
+    <div class="tab-panel" id="panel-system">
+      {% include 'admin/partials/_system_tab.html' %}
+    </div>
+  </div>
+</div>
+
+<!-- Modals -->
+{% include 'admin/partials/_modals.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/tabs.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/search-filters.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/users-tab.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/messages-tab.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/user-actions.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/orders-modal.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/modals.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/clear-data.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/window-exports-1.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/disputes-tab.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/ledger-tab.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/buckets-tab.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/metrics.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard.js') }}?v=15"></script>
+{% endblock %}

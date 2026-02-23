@@ -19,7 +19,7 @@ def get_user_holdings(user_id):
     # Get all holdings (individual lots)
     holdings = conn.execute("""
         SELECT
-            oi.order_item_id,
+            oi.id AS order_item_id,
             oi.order_id,
             oi.quantity,
             oi.price_each AS purchase_price,
@@ -51,7 +51,7 @@ def get_user_holdings(user_id):
         JOIN categories c ON l.category_id = c.id
         LEFT JOIN users u ON l.seller_id = u.id
         WHERE o.buyer_id = ?
-          AND oi.order_item_id NOT IN (
+          AND oi.id NOT IN (
               SELECT order_item_id
               FROM portfolio_exclusions
               WHERE user_id = ?
@@ -290,7 +290,7 @@ def _compute_dynamic_history(user_id, days=30):
     # Get all order_items for this user with their purchase dates (without current_market_price)
     all_items = conn.execute("""
         SELECT
-            oi.order_item_id,
+            oi.id AS order_item_id,
             oi.quantity,
             oi.price_each AS purchase_price,
             o.created_at AS purchase_date,
@@ -300,7 +300,7 @@ def _compute_dynamic_history(user_id, days=30):
         JOIN listings l ON oi.listing_id = l.id
         JOIN categories c ON l.category_id = c.id
         WHERE o.buyer_id = ?
-          AND oi.order_item_id NOT IN (
+          AND oi.id NOT IN (
               SELECT order_item_id
               FROM portfolio_exclusions
               WHERE user_id = ?

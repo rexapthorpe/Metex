@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout - MetEx{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/checkout_page.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="checkout-container">
+  <!-- Left Column - Forms -->
+  <div class="checkout-main">
+    <!-- Header -->
+    <div class="checkout-header">
+      <a href="javascript:history.back()" class="back-link">
+        <i class="fa-solid fa-arrow-left"></i>
+      </a>
+      <div class="checkout-title-section">
+        <h1 class="checkout-title">Checkout</h1>
+        <p class="checkout-subtitle">{{ item_count }} item{{ 's' if item_count != 1 else '' }} • ${{ '{:,.2f}'.format(cart_total) }}</p>
+      </div>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="checkout-progress">
+      <div class="progress-step active" data-step="1">
+        <span class="step-number">1</span>
+        <span class="step-label">Shipping</span>
+      </div>
+      <div class="progress-connector"></div>
+      <div class="progress-step" data-step="2">
+        <span class="step-number">2</span>
+        <span class="step-label">Payment</span>
+      </div>
+      <div class="progress-connector"></div>
+      <div class="progress-step" data-step="3">
+        <span class="step-number">3</span>
+        <span class="step-label">Review</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Shipping Address -->
+    <div class="checkout-step active" id="step-shipping">
+      <div class="step-header">
+        <div class="step-title-row">
+          <h2 class="step-title">
+            <i class="fa-solid fa-truck-fast"></i>
+            Shipping Address
+          </h2>
+          <div class="saved-addresses-dropdown">
+            <button type="button" class="saved-addresses-btn" id="savedAddressesBtn">
+              <i class="fa-solid fa-location-dot"></i>
+              Saved addresses
+              <i class="fa-solid fa-chevron-down"></i>
+            </button>
+            <div class="saved-addresses-menu" id="savedAddressesMenu">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <form id="shippingForm" class="checkout-form">
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="firstName">First Name <span class="required">*</span></label>
+            <input type="text" id="firstName" name="first_name" placeholder="First" value="{{ user_info.get('first_name', '') or '' }}" required>
+          </div>
+          <div class="form-group">
+            <label for="lastName">Last Name <span class="required">*</span></label>
+            <input type="text" id="lastName" name="last_name" placeholder="Last" value="{{ user_info.get('last_name', '') or '' }}" required>
+          </div>
+        </div>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="email">Email <span class="required">*</span></label>
+            <input type="email" id="email" name="email" placeholder="yourname@email.com" value="{{ user_info.get('email', '') or '' }}" required>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone <span class="required">*</span></label>
+            <input type="tel" id="phone" name="phone" placeholder="(123) 456-7890" value="{{ user_info.get('phone', '') or '' }}" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="streetAddress">Street Address <span class="required">*</span></label>
+          <input type="text" id="streetAddress" name="street" placeholder="123 Street" required>
+        </div>
+
+        <div class="form-group">
+          <label for="apartment">Apartment, Suite, etc. (optional)</label>
+          <input type="text" id="apartment" name="street_line2" placeholder="Apt 1A">
+        </div>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="city">City <span class="required">*</span></label>
+            <input type="text" id="city" name="city" placeholder="Your City" required>
+          </div>
+          <div class="form-group">
+            <label for="state">State <span class="required">*</span></label>
+            <input type="text" id="state" name="state" placeholder="Your State" required>
+          </div>
+        </div>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="zipCode">ZIP Code <span class="required">*</span></label>
+            <input type="text" id="zipCode" name="zip_code" placeholder="12345" required>
+          </div>
+          <div class="form-group">
+            <label for="country">Country</label>
+            <input type="text" id="country" name="country" value="United States" readonly>
+          </div>
+        </div>
+      </form>
+
+      <!-- Free Shipping Banner -->
+      <div class="shipping-banner">
+        <div class="shipping-icon">
+          <i class="fa-solid fa-truck-fast"></i>
+        </div>
+        <div class="shipping-info">
+          <h4>Free Insured Shipping</h4>
+          <p>All orders include free fully-insured shipping with tracking • 3-5 business days</p>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button type="button" class="btn-back" onclick="history.back()">Back</button>
+        <button type="button" class="btn-continue" onclick="goToStep(2)">Continue to Payment</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Payment Method -->
+    <div class="checkout-step" id="step-payment">
+      <div class="step-header">
+        <h2 class="step-title">
+          <i class="fa-solid fa-credit-card"></i>
+          Payment Method
+        </h2>
+      </div>
+
+      <div class="payment-options">
+        <label class="payment-option selected">
+          <input type="radio" name="payment_method" value="card" checked>
+          <div class="payment-option-content">
+            <div class="payment-icon">
+              <i class="fa-solid fa-credit-card"></i>
+            </div>
+            <div class="payment-details">
+              <span class="payment-name">Credit / Debit Card</span>
+              <span class="payment-subtitle">2.99% fee</span>
+            </div>
+          </div>
+          <div class="payment-check">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </label>
+
+        <label class="payment-option">
+          <input type="radio" name="payment_method" value="ach">
+          <div class="payment-option-content">
+            <div class="payment-icon">
+              <i class="fa-solid fa-building-columns"></i>
+            </div>
+            <div class="payment-details">
+              <span class="payment-name">Bank Transfer (ACH)</span>
+              <span class="payment-subtitle">Free</span>
+            </div>
+          </div>
+          <div class="payment-check">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </label>
+
+      </div>
+
+      <!-- Card Form -->
+      <div class="card-form" id="cardForm">
+        <div class="form-group">
+          <label for="cardNumber">Card Number <span class="required">*</span></label>
+          <input type="text" id="cardNumber" name="card_number" placeholder="1234 5678 9012 3456" maxlength="19">
+        </div>
+
+        <div class="form-group">
+          <label for="cardholderName">Cardholder Name <span class="required">*</span></label>
+          <input type="text" id="cardholderName" name="cardholder_name" placeholder="JOHN DOE">
+        </div>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="expiryDate">Expiry Date <span class="required">*</span></label>
+            <input type="text" id="expiryDate" name="expiry_date" placeholder="MM/YY" maxlength="5">
+          </div>
+          <div class="form-group">
+            <label for="cvv">CVV <span class="required">*</span></label>
+            <input type="password" id="cvv" name="cvv" placeholder="•••" maxlength="4">
+          </div>
+        </div>
+
+        <label class="save-card-checkbox">
+          <input type="checkbox" name="save_card" id="saveCard">
+          <span>Save card for future purchases</span>
+        </label>
+      </div>
+
+      <!-- ACH Form (hidden by default) -->
+      <div class="ach-form" id="achForm" style="display: none;">
+        <div class="form-group">
+          <label for="routingNumber">Routing Number <span class="required">*</span></label>
+          <input type="text" id="routingNumber" name="routing_number" placeholder="123456789" maxlength="9">
+        </div>
+        <div class="form-group">
+          <label for="accountNumber">Account Number <span class="required">*</span></label>
+          <input type="text" id="accountNumber" name="account_number" placeholder="••••••••••••">
+        </div>
+        <div class="form-group">
+          <label for="accountType">Account Type</label>
+          <select id="accountType" name="account_type">
+            <option value="checking">Checking</option>
+            <option value="savings">Savings</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Crypto Instructions (hidden by default) -->
+      <div class="crypto-form" id="cryptoForm" style="display: none;">
+        <div class="crypto-notice">
+          <i class="fa-solid fa-info-circle"></i>
+          <p>Payment instructions will be provided after order review. You'll receive a wallet address to send your cryptocurrency payment.</p>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button type="button" class="btn-back" onclick="goToStep(1)">Back</button>
+        <button type="button" class="btn-continue" onclick="goToStep(3)">Review Order</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Review -->
+    <div class="checkout-step" id="step-review">
+      <div class="step-header">
+        <div class="step-title-row">
+          <h2 class="step-title">
+            <i class="fa-solid fa-location-dot"></i>
+            Shipping Details
+          </h2>
+          <button type="button" class="edit-btn" onclick="goToStep(1)">Edit</button>
+        </div>
+      </div>
+
+      <div class="review-section shipping-review">
+        <div class="review-columns">
+          <div class="review-column">
+            <span class="review-label">Deliver to</span>
+            <span class="review-value" id="reviewName">-</span>
+            <span class="review-value" id="reviewAddress">-</span>
+          </div>
+          <div class="review-column">
+            <span class="review-label">Contact</span>
+            <span class="review-value" id="reviewEmail">-</span>
+            <span class="review-value" id="reviewPhone">-</span>
+          </div>
+        </div>
+        <div class="shipping-method">
+          <span class="shipping-method-badge">
+            <i class="fa-solid fa-truck-fast"></i>
+            Free Insured (3-5 days)
+          </span>
+        </div>
+      </div>
+
+      <div class="step-header">
+        <div class="step-title-row">
+          <h2 class="step-title">
+            <i class="fa-solid fa-credit-card"></i>
+            Payment Method
+          </h2>
+          <button type="button" class="edit-btn" onclick="goToStep(2)">Edit</button>
+        </div>
+      </div>
+
+      <div class="review-section payment-review">
+        <div class="payment-display" id="paymentDisplay">
+          <i class="fa-solid fa-credit-card"></i>
+          <span>Card ending in ****</span>
+        </div>
+      </div>
+
+      <div class="step-header">
+        <h2 class="step-title">
+          <i class="fa-solid fa-box"></i>
+          Order Items ({{ item_count }})
+        </h2>
+      </div>
+
+      <div class="review-section order-items-review">
+        {% for item in cart_items %}
+        <div class="review-item">
+          <div class="review-item-image">
+            {% if item.photo_path %}
+              <img src="{{ url_for('static', filename=item.photo_path) }}" alt="{{ item.metal }} {{ item.product_type }}">
+            {% else %}
+              <div class="review-item-placeholder" style="background: linear-gradient(135deg, {{ '#D4AF37' if item.metal == 'Gold' else '#C0C0C0' if item.metal == 'Silver' else '#E5E4E2' }} 0%, {{ '#B8860B' if item.metal == 'Gold' else '#A8A8A8' if item.metal == 'Silver' else '#D3D3D3' }} 100%);">
+                <span>{{ item.metal[:2] if item.metal else 'M' }}</span>
+              </div>
+            {% endif %}
+          </div>
+          <div class="review-item-details">
+            <span class="review-item-title">{{ item.year }} {{ item.product_line or item.product_type }} {{ item.weight }}</span>
+            <span class="review-item-specs">{{ item.quantity }}x • Sold by {{ item.seller_username or 'Seller' }}</span>
+          </div>
+          <div class="review-item-price">${{ '{:,.2f}'.format(item.total_price) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Buyer Protection Banner -->
+      <div class="buyer-protection-banner">
+        <div class="protection-icon">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div class="protection-info">
+          <h4>Buyer Protection Guaranteed</h4>
+          <p>Your purchase is protected by our escrow service. Payment is only released to the seller after you confirm receipt and verify authenticity.</p>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button type="button" class="btn-back" onclick="goToStep(2)">Back</button>
+        <button type="button" class="btn-place-order" id="placeOrderBtn" onclick="placeOrder()">
+          <i class="fa-solid fa-lock"></i>
+          Place Order • ${{ '{:,.2f}'.format(cart_total) }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column - Order Summary -->
+  <div class="checkout-sidebar">
+    <div class="order-summary-card">
+      <h3 class="summary-title">Order Summary</h3>
+
+      <div class="summary-items">
+        {% for item in cart_items %}
+        <div class="summary-item">
+          <div class="summary-item-image">
+            <span class="summary-item-qty-badge">{{ item.quantity }}</span>
+            {% if item.photo_path %}
+              <img src="{{ url_for('static', filename=item.photo_path) }}" alt="{{ item.metal }} {{ item.product_type }}">
+            {% else %}
+              <div class="summary-item-placeholder" style="background: linear-gradient(135deg, {{ '#D4AF37' if item.metal == 'Gold' else '#C0C0C0' if item.metal == 'Silver' else '#E5E4E2' }} 0%, {{ '#B8860B' if item.metal == 'Gold' else '#A8A8A8' if item.metal == 'Silver' else '#D3D3D3' }} 100%);">
+                <span style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.9);">{{ item.metal[:2] if item.metal else 'M' }}</span>
+              </div>
+            {% endif %}
+          </div>
+          <div class="summary-item-info">
+            <span class="summary-item-name">{{ item.year or '' }} {{ item.product_line or item.product_type or '' }}</span>
+            <span class="summary-item-qty">{{ item.weight or '' }}</span>
+          </div>
+          <span class="summary-item-price">${{ '{:,.2f}'.format(item.total_price) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="summary-divider"></div>
+
+      <div class="summary-row">
+        <span class="summary-label">Subtotal</span>
+        <span class="summary-value">${{ '{:,.2f}'.format(subtotal) }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Shipping</span>
+        <span class="summary-value">$0.00</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Insurance</span>
+        <span class="summary-value">${{ '{:,.2f}'.format(insurance) }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Tax</span>
+        <span class="summary-value">$0.00</span>
+      </div>
+
+      <div class="summary-divider"></div>
+
+      <div class="summary-row summary-total">
+        <span class="summary-label">Total</span>
+        <span class="summary-value">${{ '{:,.2f}'.format(cart_total) }}</span>
+      </div>
+
+      <div class="summary-badges">
+        <div class="summary-badge">
+          <i class="fa-solid fa-lock"></i>
+          <span>Secure Checkout</span>
+        </div>
+        <div class="summary-badge">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Buyer Protection</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden form for order submission -->
+<form id="orderForm" method="POST" action="{{ url_for('checkout.checkout') }}" style="display: none;">
+  <input type="hidden" name="shipping_address" id="shippingAddressInput">
+  <input type="hidden" name="payment_method" id="paymentMethodInput">
+  <input type="hidden" name="recipient_first_name" id="recipientFirstName">
+  <input type="hidden" name="recipient_last_name" id="recipientLastName">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/checkout_page.js') }}"></script>
+{% endblock %}

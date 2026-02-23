@@ -1,0 +1,52 @@
+/* ============================================
+   ADMIN DASHBOARD STYLES
+   Refactored: 2026-01-15
+
+   This file imports all dashboard partials.
+   Original monolithic file split into modular components.
+   ============================================ */
+
+/* Core layout and navigation */
+@import 'dashboard/_header.css';
+
+/* Stats cards and metrics display */
+@import 'dashboard/_stats_cards.css';
+
+/* Base modal styles */
+@import 'dashboard/_modals_base.css';
+
+/* User management (freeze states) */
+@import 'dashboard/_user_management.css';
+
+/* Danger zone styling */
+@import 'dashboard/_danger_zone.css';
+
+/* Clear data modal */
+@import 'dashboard/_modals_clear_data.css';
+
+/* Confirm action modal */
+@import 'dashboard/_modals_confirm.css';
+
+/* Freeze user modal */
+@import 'dashboard/_modals_freeze.css';
+
+/* Disputes and reports tab */
+@import 'dashboard/_disputes_reports.css';
+
+/* Messages tab */
+@import 'dashboard/_messages_tab.css';
+
+/* Conversation modal */
+@import 'dashboard/_modals_conversation.css';
+
+/* Ledger tab */
+@import 'dashboard/_ledger_tab.css';
+
+/* Bucket management */
+@import 'dashboard/_bucket_management.css';
+
+/* Responsive styles */
+@import 'dashboard/_responsive.css';
+
+/* Metrics modal */
+@import 'dashboard/_metrics_modal.css';

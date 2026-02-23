@@ -130,6 +130,39 @@
           </div>
         </div>
 
+        <!-- Seller Proceeds Preview Container -->
+        <div class="detail-section seller-proceeds-section">
+          <h4>Your Estimated Proceeds</h4>
+          <div class="proceeds-summary-box">
+            <!-- Primary: Net Proceeds -->
+            <div class="proceeds-row proceeds-net-row">
+              <span class="proceeds-label">You Will Receive:</span>
+              <span class="proceeds-value proceeds-net-value" id="confirm-net-proceeds">—</span>
+            </div>
+
+            <!-- Fee indicator badge (if non-default) -->
+            <div class="proceeds-row proceeds-fee-indicator-row" id="confirm-fee-indicator-row" style="display: none;">
+              <span class="proceeds-fee-badge" id="confirm-fee-badge">—</span>
+            </div>
+
+            <div class="proceeds-divider"></div>
+
+            <!-- Breakdown -->
+            <div class="proceeds-row proceeds-breakdown-row">
+              <span class="proceeds-label">Listed Price:</span>
+              <span class="proceeds-value" id="confirm-gross-price">—</span>
+            </div>
+            <div class="proceeds-row proceeds-breakdown-row">
+              <span class="proceeds-label">Platform Fee (<span id="confirm-fee-percent">—</span>%):</span>
+              <span class="proceeds-value proceeds-fee-deduction" id="confirm-fee-amount">—</span>
+            </div>
+          </div>
+          <p class="proceeds-note">
+            <i class="fas fa-info-circle"></i>
+            Final proceeds are calculated when your item sells.
+          </p>
+        </div>
+
         <p class="confirm-question">Do you want to create this listing?</p>
       </div>
     </div>
@@ -277,6 +310,39 @@
               <span class="summary-value total-highlight" id="success-effective-total">—</span>
             </div>
           </div>
+        </div>
+
+        <!-- Seller Proceeds Preview Container -->
+        <div class="detail-section seller-proceeds-section">
+          <h4>Your Estimated Proceeds</h4>
+          <div class="proceeds-summary-box">
+            <!-- Primary: Net Proceeds -->
+            <div class="proceeds-row proceeds-net-row">
+              <span class="proceeds-label">You Will Receive:</span>
+              <span class="proceeds-value proceeds-net-value" id="success-net-proceeds">—</span>
+            </div>
+
+            <!-- Fee indicator badge (if non-default) -->
+            <div class="proceeds-row proceeds-fee-indicator-row" id="success-fee-indicator-row" style="display: none;">
+              <span class="proceeds-fee-badge" id="success-fee-badge">—</span>
+            </div>
+
+            <div class="proceeds-divider"></div>
+
+            <!-- Breakdown -->
+            <div class="proceeds-row proceeds-breakdown-row">
+              <span class="proceeds-label">Listed Price:</span>
+              <span class="proceeds-value" id="success-gross-price">—</span>
+            </div>
+            <div class="proceeds-row proceeds-breakdown-row">
+              <span class="proceeds-label">Platform Fee (<span id="success-fee-percent">—</span>%):</span>
+              <span class="proceeds-value proceeds-fee-deduction" id="success-fee-amount">—</span>
+            </div>
+          </div>
+          <p class="proceeds-note">
+            <i class="fas fa-info-circle"></i>
+            Final proceeds are calculated when your item sells.
+          </p>
         </div>
 
         <div class="next-steps-notice">

@@ -1,286 +1,286 @@
 <div class="sold-tab">
-  <h2 class="tab-heading">Sold Items</h2>
+  <!-- Header -->
+  <div class="tab-page-header">
+    <h1 class="tab-page-title">Sold Items</h1>
+  </div>
+
+  <!-- Filter Tabs -->
+  <div class="tab-filter-bar">
+    <button class="filter-pill active" data-filter="all" onclick="filterSold('all')">All</button>
+    <button class="filter-pill" data-filter="pending" onclick="filterSold('pending')">Pending</button>
+    <button class="filter-pill" data-filter="shipped" onclick="filterSold('shipped')">Shipped</button>
+    <button class="filter-pill" data-filter="completed" onclick="filterSold('completed')">Completed</button>
+  </div>
 
   {% if sales %}
-    <div class="order-grid">
+    <div class="sold-list">
       {% for sale in sales %}
-        <div class="order-tile sold-tile-compact" id="order-{{ sale.order_id }}">
-          <!-- Header with Item Title and Status -->
-          <div class="sold-tile-header">
-            <div class="item-title-section">
-              <h3 class="item-title">
-                {% if sale.weight %}{{ sale.weight }}{% endif %}
-                {% if sale.year %}{{ sale.year }}{% endif %}
-                {% if sale.metal %}{{ sale.metal }}{% endif %}
-                {% if sale.product_line %}{{ sale.product_line }}{% endif %}
-                {% if sale.product_type %}{{ sale.product_type }}{% endif %}
-              </h3>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <div class="status-badge status-{{ sale.status|lower|replace(' ', '-') }}">
-                  <span class="status-dot"></span>
-                  <span class="status-text">{{ sale.status }}</span>
-                </div>
-                <!-- Isolated/Set Badge -->
-                {% if sale.is_isolated %}
-                  {% if sale.isolated_type == 'set' %}
-                    <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">SET</span>
-                  {% elif sale.issue_number and sale.issue_total %}
-                    <span style="background-color: #8b5cf6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">#{{ sale.issue_number }} of {{ sale.issue_total }}</span>
-                  {% else %}
-                    <span style="background-color: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">ONE-OF-A-KIND</span>
-                  {% endif %}
+        {% set status_lower = sale.status | lower | replace(' ', '-') %}
+        {% set listing_type = 'set' if (sale.is_isolated and sale.isolated_type == 'set') else ('one-of-a-kind' if sale.is_isolated else 'standard') %}
+
+        <div class="sold-card sold-card--{{ status_lower }}" id="order-{{ sale.order_id }}" data-sold-filter="{{ status_lower }}">
+
+          <!-- Card Header -->
+          <div class="sold-card-header">
+            <div class="sold-card-header-left">
+              <!-- Status Badge -->
+              <span class="sold-status-badge sold-status-badge--{{ status_lower }}">
+                <span class="sold-status-dot"></span>
+                {{ sale.status }}
+              </span>
+              <!-- Type Badge -->
+              {% if sale.is_isolated %}
+                {% if sale.isolated_type == 'set' %}
+                  <span class="sold-type-badge sold-type-badge--set"><i class="fa-solid fa-layer-group"></i> Set</span>
+                {% elif sale.issue_number and sale.issue_total %}
+                  <span class="sold-type-badge sold-type-badge--edition">#{{ sale.issue_number }} of {{ sale.issue_total }}</span>
+                {% else %}
+                  <span class="sold-type-badge sold-type-badge--ooak"><i class="fa-solid fa-gem"></i> One-of-a-Kind</span>
                 {% endif %}
-                <!-- Third-Party Grading Badge -->
-                {% if sale.third_party_grading_requested %}
-                  <span style="background-color: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">TPG REQUIRED</span>
-                {% endif %}
-              </div>
+              {% else %}
+                <span class="sold-type-badge sold-type-badge--standard"><i class="fa-solid fa-circle-dot"></i> Standard</span>
+              {% endif %}
+              {% if sale.third_party_grading_requested %}
+                <span class="sold-type-badge sold-type-badge--tpg"><i class="fa-solid fa-certificate"></i> TPG Required</span>
+              {% endif %}
+            </div>
+            <!-- Total Sale (right) -->
+            <div class="sold-card-total">
+              <span class="sold-card-total-label">TOTAL SALE</span>
+              <span class="sold-card-total-value">${{ '%.2f'|format(sale.gross_amount) }}</span>
+              <span class="sold-card-total-breakdown">{{ sale.quantity }} × ${{ '%.2f'|format(sale.price_each) }}</span>
             </div>
           </div>
 
-          <!-- Third-Party Grading Notice (if applicable) -->
-          {% if sale.third_party_grading_requested %}
-          <div style="margin: 12px 20px; padding: 12px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px;">
-            <p style="margin: 0; font-size: 13px; font-weight: 500; color: #1e40af;">
-              <i class="fas fa-certificate" style="margin-right: 6px;"></i>
-              <strong>Third-Party Grading Required</strong>
-            </p>
-            <p style="margin: 6px 0 0 0; font-size: 12px; color: #475569; line-height: 1.5;">
-              This item must be shipped directly to {{ sale.grading_service_requested or 'the grading service' }} before the buyer receives it. Click "Grading Instructions" below for complete details.
-            </p>
+          <!-- Title + Date -->
+          <div class="sold-card-title-row">
+            <h3 class="sold-card-title">
+              {% if sale.weight %}{{ sale.weight }} {% endif %}{% if sale.year %}{{ sale.year }} {% endif %}{% if sale.metal %}{{ sale.metal }} {% endif %}{% if sale.product_line %}{{ sale.product_line }} {% endif %}{% if sale.product_type %}{{ sale.product_type }}{% endif %}
+            </h3>
+            <span class="sold-card-order-date">Order placed {{ sale.order_date }}</span>
+          </div>
+
+          <!-- Specs + Buyer (two columns) -->
+          <div class="sold-card-body">
+            <!-- Item Specs -->
+            <div class="sold-specs-section">
+              <div class="sold-section-label">ITEM SPECIFICATIONS</div>
+              <div class="sold-specs-grid">
+                <div class="sold-spec"><span>Metal</span><strong>{{ sale.metal or '—' }}</strong></div>
+                <div class="sold-spec"><span>Weight</span><strong>{{ sale.weight or '—' }}</strong></div>
+                <div class="sold-spec"><span>Purity</span><strong>{{ sale.purity or '—' }}</strong></div>
+                <div class="sold-spec"><span>Year</span><strong>{{ sale.year or '—' }}</strong></div>
+                <div class="sold-spec"><span>Type</span><strong>{{ sale.product_type or '—' }}</strong></div>
+                <div class="sold-spec"><span>Mint</span><strong>{{ sale.mint or '—' }}</strong></div>
+                <div class="sold-spec"><span>Grade</span><strong>{{ sale.grade or '—' }}</strong></div>
+                <div class="sold-spec">
+                  <span>Graded</span>
+                  <strong>{% if sale.graded %}Yes ({{ sale.grading_service }}){% else %}No{% endif %}</strong>
+                </div>
+              </div>
+              <!-- Proceeds summary -->
+              <div class="sold-proceeds-row">
+                <span class="sold-proceeds-label">You Received:</span>
+                <span class="sold-proceeds-value">${{ '%.2f'|format(sale.seller_net) }}</span>
+                {% if sale.fee_percent %}
+                  <span class="sold-fee-note">({{ '%.1f'|format(sale.fee_percent) }}% fee)</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Buyer Info -->
+            <div class="sold-buyer-section">
+              <div class="sold-section-label">BUYER</div>
+              {% set buyer_initials = sale.buyer_username[:2].upper() if sale.buyer_username else '??' %}
+              <div class="sold-buyer-card">
+                <div class="sold-buyer-avatar">{{ buyer_initials }}</div>
+                <div class="sold-buyer-info">
+                  <div class="sold-buyer-name">{{ sale.shipping_name if sale.shipping_name else '—' }}</div>
+                  <div class="sold-buyer-username">@{{ sale.buyer_username }}</div>
+                </div>
+              </div>
+              {% if sale.delivery_address %}
+                <div class="sold-buyer-address">
+                  <i class="fa-solid fa-location-dot"></i>
+                  {{ sale.delivery_address | replace('•', ', ') }}
+                </div>
+              {% else %}
+                <div class="sold-buyer-address sold-buyer-address--default">
+                  <i class="fa-solid fa-location-dot"></i> Default Address
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Cancellation Request Bar -->
+          {% if sale.cancel_status == 'pending' and sale.seller_cancel_response is none %}
+          <div class="cancel-request-bar">
+            <div class="cancel-request-bar-left">
+              <div class="cancel-request-bar-icon">
+                <i class="fa-regular fa-clock"></i>
+              </div>
+              <div>
+                <div class="cancel-request-bar-title">Buyer Requested Cancellation</div>
+                <div class="cancel-request-bar-subtitle">Reason: {{ sale.cancel_reason or 'Not specified' }}</div>
+              </div>
+            </div>
+            <div class="cancel-request-bar-actions">
+              <button class="cancel-bar-btn decline"
+                      onclick="openSellerCancelResponseModal({{ sale.order_id }}, 'deny', {{ sale.cancel_reason | tojson }})">
+                <i class="fa-solid fa-xmark"></i> Decline
+              </button>
+              <button class="cancel-bar-btn accept"
+                      onclick="openSellerCancelResponseModal({{ sale.order_id }}, 'approve', {{ sale.cancel_reason | tojson }})">
+                <i class="fa-solid fa-check"></i> Accept
+              </button>
+            </div>
+          </div>
+          {% elif sale.cancel_status == 'pending' and sale.seller_cancel_response == 'approved' %}
+          <div class="cancel-request-bar" style="background:#f0fdf4; border-left-color:#10b981;">
+            <div class="cancel-request-bar-left">
+              <div class="cancel-request-bar-icon" style="background:#bbf7d0; color:#10b981;">
+                <i class="fa-solid fa-check"></i>
+              </div>
+              <div>
+                <div class="cancel-request-bar-title" style="color:#15803d;">You Approved This Request</div>
+                <div class="cancel-request-bar-subtitle">Waiting for other sellers to respond</div>
+              </div>
+            </div>
+          </div>
+          {% elif sale.cancel_status == 'approved' %}
+          <div class="cancel-request-bar" style="background:#f0fdf4; border-left-color:#10b981;">
+            <div class="cancel-request-bar-left">
+              <div class="cancel-request-bar-icon" style="background:#bbf7d0; color:#10b981;">
+                <i class="fa-solid fa-circle-check"></i>
+              </div>
+              <div>
+                <div class="cancel-request-bar-title" style="color:#15803d;">Order Cancelled</div>
+                <div class="cancel-request-bar-subtitle">All sellers approved — inventory restored</div>
+              </div>
+            </div>
+          </div>
+          {% elif sale.cancel_status == 'denied' %}
+          <div class="cancel-request-bar" style="background:#fef2f2; border-left-color:#ef4444;">
+            <div class="cancel-request-bar-left">
+              <div class="cancel-request-bar-icon" style="background:#fecaca; color:#ef4444;">
+                <i class="fa-solid fa-xmark"></i>
+              </div>
+              <div>
+                <div class="cancel-request-bar-title" style="color:#b91c1c;">Cancellation Denied</div>
+                <div class="cancel-request-bar-subtitle">A seller rejected the cancellation request</div>
+              </div>
+            </div>
           </div>
           {% endif %}
 
-          <div class="sold-tile-content">
-            <!-- Left Column: Price Details -->
-            <div class="sold-section price-details-section">
-              <h4 class="section-title">Price Details</h4>
-              <div class="price-details-box">
-                <div class="price-line">
-                  <span class="price-label">Quantity:</span>
-                  <span class="price-value">{{ sale.quantity }}</span>
-                </div>
-                <div class="price-line">
-                  <span class="price-label">Price/Item:</span>
-                  <span class="price-value">${{ '%.2f'|format(sale.price_each) }}</span>
-                </div>
-                <div class="price-line total-line">
-                  <span class="price-label">Total:</span>
-                  <span class="price-value">${{ '%.2f'|format(sale.quantity * sale.price_each) }}</span>
-                </div>
+          <!-- Action Bar for Awaiting Confirmation -->
+          {% if sale.status | lower in ['awaiting confirmation', 'awaiting-confirmation', 'pending'] %}
+          <div class="sold-action-bar sold-action-bar--confirm">
+            <div class="sold-action-bar-left">
+              <div class="sold-action-bar-icon sold-action-bar-icon--warning">
+                <i class="fa-regular fa-clock"></i>
+              </div>
+              <div>
+                <div class="sold-action-bar-title">New Order Received</div>
+                <div class="sold-action-bar-subtitle">Please confirm or decline</div>
               </div>
             </div>
+            <div class="sold-action-bar-right">
+              <button class="sold-confirm-btn sold-confirm-btn--decline" onclick="alert('Decline functionality coming soon')">
+                <i class="fa-solid fa-xmark"></i> Decline
+              </button>
+              <button class="sold-confirm-btn sold-confirm-btn--accept" onclick="alert('Accept functionality coming soon')">
+                <i class="fa-solid fa-check"></i> Accept
+              </button>
+            </div>
+          </div>
+          {% endif %}
 
-            <!-- Left Column: Item Details (Product Description) -->
-            <div class="sold-section item-description-section">
-              <h4 class="section-title">Item Details</h4>
-              <div class="item-details-box">
-                {% if sale.metal %}<div class="detail-line"><strong>Metal:</strong> <span>{{ sale.metal }}</span></div>{% endif %}
-                {% if sale.product_type %}<div class="detail-line"><strong>Type:</strong> <span>{{ sale.product_type }}</span></div>{% endif %}
-                {% if sale.weight %}<div class="detail-line"><strong>Weight:</strong> <span>{{ sale.weight }}</span></div>{% endif %}
-                {% if sale.mint %}<div class="detail-line"><strong>Mint:</strong> <span>{{ sale.mint }}</span></div>{% endif %}
-                {% if sale.year %}<div class="detail-line"><strong>Year:</strong> <span>{{ sale.year }}</span></div>{% endif %}
-                {% if sale.purity %}<div class="detail-line"><strong>Purity:</strong> <span>{{ sale.purity }}</span></div>{% endif %}
-                {% if sale.finish %}<div class="detail-line"><strong>Finish:</strong> <span>{{ sale.finish }}</span></div>{% endif %}
-                {% if sale.grade %}<div class="detail-line"><strong>Grade:</strong> <span>{{ sale.grade }}</span></div>{% endif %}
-                {% if sale.product_line %}<div class="detail-line"><strong>Product Line:</strong> <span>{{ sale.product_line }}</span></div>{% endif %}
-                {% if sale.coin_series %}<div class="detail-line"><strong>Series:</strong> <span>{{ sale.coin_series }}</span></div>{% endif %}
-                {% if sale.special_designation %}<div class="detail-line"><strong>Designation:</strong> <span>{{ sale.special_designation }}</span></div>{% endif %}
+          <!-- Card Footer -->
+          <div class="sold-card-footer">
+            <span class="sold-footer-date">
+              <i class="fa-regular fa-calendar"></i>
+              {{ sale.order_date }}
+            </span>
+            <div class="sold-footer-actions">
+              {% if sale.third_party_grading_requested %}
+                {% set item_desc = [sale.weight, sale.year, sale.metal, sale.product_line, sale.product_type] | select | join(' ') %}
+                {% set grading_service = sale.grading_service_requested or 'PCGS' %}
+                {% set service_addr = grading_service_addresses.get(grading_service, grading_service_addresses['PCGS']) %}
+                <button
+                  class="sold-footer-btn"
+                  onclick="openGradingInstructionsModal(this)"
+                  data-order-id="{{ sale.order_id }}"
+                  data-item-description="{{ item_desc }}"
+                  data-quantity="{{ sale.quantity }}"
+                  data-grading-service="{{ grading_service }}"
+                  data-service-name="{{ service_addr.name }}"
+                  data-service-line1="{{ service_addr.line1 }}"
+                  data-service-line2="{{ service_addr.line2 }}"
+                  data-service-city="{{ service_addr.city }}"
+                  data-service-state="{{ service_addr.state }}"
+                  data-service-zip="{{ service_addr.zip }}"
+                  data-buyer-name="{{ sale.shipping_name if sale.shipping_name else '—' }}"
+                  data-buyer-address="{{ sale.delivery_address if sale.delivery_address else '' }}"
+                >
+                  <i class="fas fa-certificate"></i> Grading
+                </button>
+              {% endif %}
 
-                <!-- Grading Info -->
-                {% if sale.graded %}
-                  <div class="detail-line"><strong>Graded:</strong> <span>Yes{% if sale.grading_service %} ({{ sale.grading_service }}){% endif %}</span></div>
-                {% else %}
-                  <div class="detail-line"><strong>Graded:</strong> <span>No</span></div>
+              <button class="sold-footer-btn" onclick="typeof openReportUserModal !== 'undefined' && openReportUserModal({{ sale.order_id }})">
+                <i class="fa-regular fa-flag"></i> Report
+              </button>
+              <button class="sold-footer-btn" onclick="openMessageModal({{ sale.order_id }}, 'buyer')">
+                <i class="fa-regular fa-comment"></i> Message
+              </button>
+              {% set sale_title = [sale.weight or '', sale.year or '', sale.metal or '', sale.product_line or '', sale.product_type or ''] | select | join(' ') | trim %}
+              <button
+                class="sold-footer-btn{% if sale.already_rated %} sold-footer-btn--rated{% endif %}"
+                {% if not sale.already_rated %}
+                onclick="openRateModal({{ sale.order_id }}, 'buyer', {{ {'title': sale_title, 'price': '$%d' | format(sale.gross_amount or 0), 'date': sale.order_date or ''} | tojson }})"
                 {% endif %}
-              </div>
-            </div>
+                {% if sale.already_rated %}disabled{% endif %}>
+                <i class="{% if sale.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
+                {% if sale.already_rated %}Rated{% else %}Rate{% endif %}
+              </button>
 
-            <!-- Right Column: Buyer Information -->
-            <div class="sold-section buyer-info-section">
-              <h4 class="section-title">Buyer Information</h4>
-              <div class="buyer-details-box">
-                {# ✅ ALWAYS show Name field - display order-level recipient name #}
-                {# Do NOT fall back to account profile name - order name is the source of truth #}
-                <div class="buyer-line">
-                  <i class="fas fa-id-card"></i>
-                  <span><strong>Name:</strong> {{ sale.shipping_name if sale.shipping_name else '—' }}</span>
-                </div>
-                <div class="buyer-line">
-                  <i class="fas fa-user"></i>
-                  <span><strong>Username:</strong> {{ sale.buyer_username }}</span>
-                </div>
-                <div class="buyer-line">
-                  <i class="fas fa-calendar"></i>
-                  <span><strong>Order Date:</strong> {{ sale.order_date }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Right Column: Shipping Address (directly under Buyer Info) -->
-            <div class="sold-section shipping-address-section">
-              <h4 class="section-title">Shipping Address</h4>
-              <div class="address-details-box">
-                {% if sale.delivery_address %}
-                  {# Parse address - Format: "Street • [Street2 •] City, State ZIP" (NO NAME) #}
-                  {% set parts = sale.delivery_address.split('•') %}
-                  {% set parsed = namespace(street='', street2='', city='', state='', zip='') %}
-
-                  {# Extract street and optional street2 #}
-                  {% if parts|length >= 1 %}
-                    {% set parsed.street = parts[0].strip() %}
-                  {% endif %}
-
-                  {# Check if we have 3 parts (street • street2 • city,state zip) or 2 parts (street • city,state zip) #}
-                  {% if parts|length == 3 %}
-                    {# Middle part is Address Line 2 #}
-                    {% set parsed.street2 = parts[1].strip() %}
-                    {% set city_state_zip = parts[2].strip() %}
-                  {% elif parts|length == 2 %}
-                    {# No Address Line 2 #}
-                    {% set city_state_zip = parts[1].strip() %}
-                  {% else %}
-                    {# Fallback for old format or unexpected format #}
-                    {% set city_state_zip = sale.delivery_address %}
-                  {% endif %}
-
-                  {# Parse "City, State ZIP" from the last part #}
-                  {% if ',' in city_state_zip %}
-                    {% set city_parts = city_state_zip.split(',') %}
-                    {% set parsed.city = city_parts[0].strip() %}
-                    {% if city_parts|length > 1 %}
-                      {% set state_zip = city_parts[1].strip().split() %}
-                      {% if state_zip|length >= 1 %}
-                        {% set parsed.state = state_zip[0].strip() %}
-                      {% endif %}
-                      {% if state_zip|length >= 2 %}
-                        {% set parsed.zip = state_zip[1].strip() %}
-                      {% endif %}
-                    {% endif %}
-                  {% endif %}
-
-                  {# ✅ Display address components as labeled line items (matching Congrats modal style) #}
-                  <div class="address-line">
-                    <span class="address-label">Address Line 1:</span>
-                    <span class="address-value">{{ parsed.street if parsed.street else '—' }}</span>
-                  </div>
-                  {# ✅ ALWAYS show Address Line 2 row (even if empty) #}
-                  <div class="address-line">
-                    <span class="address-label">Address Line 2:</span>
-                    <span class="address-value">{{ parsed.street2 if parsed.street2 else '—' }}</span>
-                  </div>
-                  <div class="address-line">
-                    <span class="address-label">City:</span>
-                    <span class="address-value">{{ parsed.city if parsed.city else '—' }}</span>
-                  </div>
-                  <div class="address-line">
-                    <span class="address-label">State:</span>
-                    <span class="address-value">{{ parsed.state if parsed.state else '—' }}</span>
-                  </div>
-                  <div class="address-line">
-                    <span class="address-label">ZIP Code:</span>
-                    <span class="address-value">{{ parsed.zip if parsed.zip else '—' }}</span>
-                  </div>
-
-                  {# Fallback: if parsing completely failed, show raw address #}
-                  {% if not parsed.street and not parsed.city %}
-                    <div class="address-line address-fallback">
-                      <span>{{ sale.delivery_address }}</span>
-                    </div>
-                  {% endif %}
-                {% else %}
-                  <div class="address-line address-not-collected">— Address not collected —</div>
-                {% endif %}
-              </div>
+              {% if sale.status | lower in ['shipped', 'delivered', 'completed'] %}
+                <button class="sold-footer-btn sold-footer-btn--track" onclick="addTrackingNumber({{ sale.order_id }})">
+                  <i class="fa-solid fa-truck"></i> Add Tracking
+                  <i class="fa-solid fa-chevron-right" style="font-size:10px;"></i>
+                </button>
+              {% else %}
+                <button class="sold-footer-btn" onclick="addTrackingNumber({{ sale.order_id }})">
+                  <i class="fa-solid fa-box"></i> Add Tracking
+                </button>
+              {% endif %}
             </div>
           </div>
 
-          <!-- Actions Row -->
-          <div class="sold-actions-row">
-            {% if sale.third_party_grading_requested %}
-            {% set item_desc = [
-              sale.weight if sale.weight else '',
-              sale.year if sale.year else '',
-              sale.metal if sale.metal else '',
-              sale.product_line if sale.product_line else '',
-              sale.product_type if sale.product_type else ''
-            ]|select|join(' ') %}
-            {% set grading_service = sale.grading_service_requested or 'PCGS' %}
-            {% set service_addr = grading_service_addresses.get(grading_service, grading_service_addresses['PCGS']) %}
-            <button
-              class="sold-action-btn sold-action-btn--grading"
-              onclick="openGradingInstructionsModal(this)"
-              style="background-color: #3b82f6; color: white;"
-              data-order-id="{{ sale.order_id }}"
-              data-item-description="{{ item_desc }}"
-              data-quantity="{{ sale.quantity }}"
-              data-grading-service="{{ grading_service }}"
-              data-service-name="{{ service_addr.name }}"
-              data-service-line1="{{ service_addr.line1 }}"
-              data-service-line2="{{ service_addr.line2 }}"
-              data-service-city="{{ service_addr.city }}"
-              data-service-state="{{ service_addr.state }}"
-              data-service-zip="{{ service_addr.zip }}"
-              data-buyer-name="{{ sale.shipping_name if sale.shipping_name else '—' }}"
-              data-buyer-address="{{ sale.delivery_address if sale.delivery_address else '' }}"
-            >
-              <i class="fas fa-certificate"></i>
-              <span>Grading Instructions</span>
-            </button>
-            {% endif %}
-
-            <button
-              class="sold-action-btn sold-action-btn--message"
-              onclick="openMessageModal({{ sale.order_id }}, 'buyer')"
-            >
-              <i class="fas fa-envelope"></i>
-              <span>Message</span>
-            </button>
-
-            <button
-              class="sold-action-btn sold-action-btn--rate"
-              onclick="openRateModal({{ sale.order_id }}, 'buyer')"
-            >
-              <i class="fas fa-star"></i>
-              <span>Rate Buyer</span>
-            </button>
-
-            <button
-              type="button"
-              class="sold-action-btn sold-action-btn--tracking"
-              onclick="addTrackingNumber({{ sale.order_id }})"
-            >
-              <i class="fas fa-box"></i>
-              <span>Add Tracking</span>
-            </button>
-          </div>
         </div>
       {% endfor %}
     </div>
   {% else %}
-    <p class="empty-message">You have no sold items yet!</p>
+    <div class="tab-empty-state">
+      <i class="fa-solid fa-circle-check tab-empty-icon"></i>
+      <h3>No sold items yet</h3>
+      <p>Your sold orders will appear here once buyers purchase your listings.</p>
+    </div>
   {% endif %}
 </div>
 
-<!-- Third-Party Grading Instructions Modal -->
+<!-- Third-Party Grading Instructions Modal (preserved from original) -->
 <div id="gradingInstructionsModal" class="buy-modal-overlay" style="display: none;" onclick="closeGradingInstructionsModalOnOverlayClick(event)">
   <div class="buy-modal-dialog" style="max-width: 700px;">
     <button type="button" class="modal-close" onclick="closeGradingInstructionsModal()" aria-label="Close">&times;</button>
-
     <div class="modal-header">
       <h2>Third-Party Grading Instructions</h2>
       <p style="margin: 8px 0 0 0; font-size: 14px; color: #6b7280;">Order #<span id="grading-order-id">—</span></p>
     </div>
-
     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-      <!-- Section 1: Summary -->
       <div style="margin-bottom: 24px;">
-        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-          Order Summary
-        </h3>
-        <p style="margin-bottom: 12px; font-size: 14px; color: #4b5563; line-height: 1.6;">
-          This order includes a third-party grading service requested by the buyer. The buyer has paid an additional grading fee, and you must ship the coin directly to the grading service.
-        </p>
+        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Order Summary</h3>
+        <p style="margin-bottom: 12px; font-size: 14px; color: #4b5563; line-height: 1.6;">This order includes a third-party grading service requested by the buyer. You must ship the coin directly to the grading service.</p>
         <div style="background: #f9fafb; padding: 12px; border-radius: 6px; font-size: 13px;">
           <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 4px;">
             <span style="font-weight: 600; color: #374151;">Item:</span>
@@ -292,96 +292,50 @@
           </div>
         </div>
       </div>
-
-      <!-- Section 2: Ship-To (Grading Service) Address -->
       <div style="margin-bottom: 24px;">
-        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-          <i class="fas fa-shipping-fast" style="margin-right: 8px; color: #3b82f6;"></i>
-          Ship To (Grading Service)
-        </h3>
+        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Ship To (Grading Service)</h3>
         <div style="background: #fffbeb; border: 2px solid #fbbf24; border-radius: 8px; padding: 16px;">
-          <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #92400e;">
-            Ship your item to this address:
-          </p>
+          <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #92400e;">Ship your item to this address:</p>
           <div id="grading-service-address" style="font-size: 14px; color: #1f2937; line-height: 1.8;">
             <div id="grading-service-name" style="font-weight: 700;">—</div>
             <div id="grading-service-line1">—</div>
             <div id="grading-service-line2"></div>
-            <div>
-              <span id="grading-service-city">—</span>,
-              <span id="grading-service-state">—</span>
-              <span id="grading-service-zip">—</span>
-            </div>
+            <div><span id="grading-service-city">—</span>, <span id="grading-service-state">—</span> <span id="grading-service-zip">—</span></div>
           </div>
         </div>
       </div>
-
-      <!-- Section 3: Final Recipient (Buyer) Address -->
       <div style="margin-bottom: 24px;">
-        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-          <i class="fas fa-home" style="margin-right: 8px; color: #10b981;"></i>
-          Final Recipient (After Grading)
-        </h3>
-        <p style="margin-bottom: 12px; font-size: 13px; color: #6b7280; font-style: italic;">
-          The grading service will ship the graded coin to this address:
-        </p>
+        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Final Recipient (After Grading)</h3>
         <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; font-size: 14px; color: #1f2937; line-height: 1.8;">
           <div id="buyer-name" style="font-weight: 700; margin-bottom: 8px;">—</div>
           <div id="buyer-address-line1">—</div>
           <div id="buyer-address-line2"></div>
-          <div>
-            <span id="buyer-city">—</span>,
-            <span id="buyer-state">—</span>
-            <span id="buyer-zip">—</span>
-          </div>
+          <div><span id="buyer-city">—</span>, <span id="buyer-state">—</span> <span id="buyer-zip">—</span></div>
         </div>
       </div>
-
-      <!-- Section 4: Step-by-Step Instructions -->
-      <div style="margin-bottom: 24px;">
-        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-          <i class="fas fa-list-ol" style="margin-right: 8px; color: #8b5cf6;"></i>
-          Seller Instructions
-        </h3>
-        <ol style="margin: 0; padding-left: 24px; font-size: 14px; color: #4b5563; line-height: 1.8;">
-          <li style="margin-bottom: 12px;">
-            <strong>Package the coin carefully</strong> for shipment to ensure it arrives safely at the grading service.
-          </li>
-          <li style="margin-bottom: 12px;">
-            <strong>Print or save this information</strong> to reference when preparing your shipment.
-          </li>
-          <li style="margin-bottom: 12px;">
-            <strong>Address the package</strong> to the grading service address shown above (highlighted in yellow).
-          </li>
-          <li style="margin-bottom: 12px;">
-            <strong>Include inside the package:</strong>
-            <ul style="margin-top: 6px; padding-left: 20px; list-style-type: disc;">
-              <li>Order ID: <strong><span id="grading-order-id-copy">—</span></strong></li>
-              <li>Buyer Name: <strong><span id="buyer-name-copy">—</span></strong></li>
-              <li>Item Description: <strong><span id="grading-item-description-copy">—</span></strong></li>
-            </ul>
-          </li>
-          <li style="margin-bottom: 12px;">
-            <strong>Use a trackable, insured shipping method</strong> to protect your shipment.
-          </li>
-          <li>
-            <strong>After shipping,</strong> return to the Sold tab and click "Add Tracking" to enter your tracking number.
-          </li>
-        </ol>
-      </div>
-
-      <!-- Section 5: Submission Reference (if available) -->
       <div id="grading-submission-ref-section" style="display: none; margin-bottom: 16px;">
         <div style="background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; padding: 12px;">
-          <p style="margin: 0; font-size: 13px; color: #1e40af;">
-            <strong>Metex Grading Submission ID:</strong> <span id="grading-submission-ref" style="font-family: monospace; font-weight: 600;">—</span>
-          </p>
+          <p style="margin: 0; font-size: 13px; color: #1e40af;"><strong>Metex Grading Submission ID:</strong> <span id="grading-submission-ref" style="font-family: monospace; font-weight: 600;">—</span></p>
         </div>
       </div>
     </div>
-
     <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding: 16px 20px; background: #f9fafb;">
       <button type="button" class="btn btn-secondary" onclick="closeGradingInstructionsModal()">Close</button>
     </div>
   </div>
 </div>
+
+<script>
+function filterSold(filter) {
+  document.querySelectorAll('.sold-tab .filter-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  document.querySelectorAll('.sold-card').forEach(card => {
+    const f = card.dataset.soldFilter;
+    const show = filter === 'all' || f === filter ||
+      (filter === 'pending' && ['pending','awaiting-confirmation','awaiting confirmation'].includes(f));
+    card.style.display = show ? '' : 'none';
+  });
+}
+window.filterSold = filterSold;
+</script>

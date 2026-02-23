@@ -6,6 +6,7 @@
 }
 
 .product-tile {
+    position: relative;
     width: 200px;
     text-decoration: none;
     color: black;
@@ -55,6 +56,40 @@
     color: #999;
     font-style: italic;
     font-weight: normal;
+}
+
+/* ===================================
+   FEE INDICATOR BADGE
+   =================================== */
+
+.fee-indicator-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Reduced fee - green/teal accent (advantage for sellers) */
+.fee-indicator-badge.fee-reduced {
+    background-color: #059669;
+    color: #ffffff;
+}
+
+/* Elevated fee - neutral gray (transparent but not alarming) */
+.fee-indicator-badge.fee-elevated {
+    background-color: #6b7280;
+    color: #ffffff;
+}
+
+/* Custom (flat fee) - neutral styling */
+.fee-indicator-badge.fee-custom {
+    background-color: #6b7280;
+    color: #ffffff;
 }
 
 .flash-message {

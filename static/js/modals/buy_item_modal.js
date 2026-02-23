@@ -582,9 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmBtn.addEventListener('click', handleConfirmBuy);
   }
 
-  // Intercept buy forms
-  interceptBuyForm();
-
   // Close confirm modal on overlay click
   document.getElementById('buyItemConfirmModal')?.addEventListener('click', (e) => {
     if (e.target.id === 'buyItemConfirmModal') {
