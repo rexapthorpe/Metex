@@ -80,6 +80,15 @@ function openBidModal(bucketId, bidId = null) {
         warn.textContent = 'Form loaded but initialization failed. See console for details.';
         content.prepend(warn);
       }
+
+      // Initialize step wizard on top of field-level logic
+      try {
+        if (typeof window.initBidModalSteps === 'function') {
+          window.initBidModalSteps();
+        }
+      } catch (e) {
+        console.error('❌ Step wizard initialization error:', e);
+      }
     })
     .catch(err => {
       console.error('❌ Bid form fetch error:', err);
@@ -675,6 +684,13 @@ function initBidForm() {
       metal: metal,
       weight: weightStr
     };
+
+    // Wizard mode: skip the extra confirmation modal and submit directly
+    if (window.bidWizardMode) {
+      window.bidWizardMode = false;
+      submitBidForm();
+      return;
+    }
 
     // Open confirmation modal with data
     openBidConfirmModal({

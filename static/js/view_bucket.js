@@ -186,11 +186,35 @@ function syncQuantity(targetId) {
 })();
 
 /* ===== Bid selection + dial logic ===== */
+function updateSelectionSummary() {
+  const summary = document.getElementById('bidsSelectionSummary');
+  if (!summary) return;
+  let count = 0;
+  let total = 0;
+  document.querySelectorAll('.bid-row').forEach(row => {
+    const card = row.querySelector('.bid-card-visual');
+    if (card && card.classList.contains('selected')) {
+      count++;
+      const price = parseFloat(row.dataset.price || 0);
+      const hiddenInput = row.querySelector('input[type="hidden"][id^="accept_qty_"]');
+      const qty = hiddenInput ? parseInt(hiddenInput.value || row.dataset.max || 1, 10) : parseInt(row.dataset.max || 1, 10);
+      total += price * qty;
+    }
+  });
+  if (count > 0) {
+    summary.textContent = count + ' selected · $' + total.toFixed(2) + ' total';
+    summary.style.display = 'inline';
+  } else {
+    summary.style.display = 'none';
+  }
+}
+
 function setAcceptBarVisibility() {
   const button = document.getElementById('acceptBidsButton');
   if (!button) return;
   const anySelected = !!document.querySelector('.selected-checkbox:checked');
   button.disabled = !anySelected;
+  updateSelectionSummary();
 }
 function updateDialVisual(rowEl, val, max) {
   const valueEl = rowEl.querySelector('.dial-value');
@@ -238,6 +262,7 @@ function handleDialAdjust(rowEl, delta) {
   if (hiddenInput) val = parseInt(hiddenInput.value || '0', 10);
   val = Math.max(0, Math.min(max, val + delta));
   updateDialVisual(rowEl, val, max);
+  updateSelectionSummary();
 }
 
 /* ===== Buy-box quantity pill ===== */

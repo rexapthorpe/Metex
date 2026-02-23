@@ -130,7 +130,7 @@
                 <i class="fa-solid fa-circle-xmark"></i> Cancel Order
               </button>
             {% endif %}
-            <button class="order-action-report" onclick="openReportUserModal ? openReportUserModal({{ order.id }}) : null">
+            <button class="order-action-report" onclick="openReportUserModalForOrder({{ order.id }})">
               <i class="fa-regular fa-flag"></i> Report User
             </button>
           </div>
@@ -159,4 +159,24 @@ function filterOrders(filter) {
   });
 }
 window.filterOrders = filterOrders;
+
+function openReportUserModalForOrder(orderId) {
+  fetch('/orders/api/' + orderId + '/message_sellers')
+    .then(function(res) { return res.json(); })
+    .then(function(sellers) {
+      if (!sellers || sellers.length === 0) {
+        alert('No seller found for this order.');
+        return;
+      }
+      var seller = sellers[0];
+      if (typeof openReportUserModal === 'function') {
+        openReportUserModal(seller.seller_id, seller.username, orderId);
+      }
+    })
+    .catch(function(err) {
+      console.error('[Report] Error fetching seller:', err);
+      alert('Failed to load seller information. Please try again.');
+    });
+}
+window.openReportUserModalForOrder = openReportUserModalForOrder;
 </script>

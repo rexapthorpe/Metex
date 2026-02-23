@@ -19,162 +19,73 @@ function openSellConfirmModal(formData) {
   const modal = document.getElementById('sellListingConfirmModal');
   if (!modal) return;
 
-  // Extract ALL values from form data
-  const metal = formData.get('metal') || '—';
-  const productLine = formData.get('product_line') || '—';
+  // Core field values
+  const metal      = formData.get('metal') || '—';
   const productType = formData.get('product_type') || '—';
-  const weight = formData.get('weight') || '—';
-  const purity = formData.get('purity') || '—';
-  const mint = formData.get('mint') || '—';
-  const year = formData.get('year') || '—';
-  const grade = formData.get('grade') || '—';
-  const finish = formData.get('finish') || '—';
-  const quantity = formData.get('quantity') || '0';
+  const mint       = formData.get('mint') || '—';
+  const year       = formData.get('year') || '';
+  const productLine = formData.get('product_line') || '';
+  const qty        = parseInt(formData.get('quantity')) || 1;
 
-  // Get grading information
-  const isGraded = formData.get('graded') === '1';
-  let gradedText = 'No';
-  if (isGraded) {
-    const gradingService = formData.get('grading_service') || '';
-    if (gradingService) {
-      gradedText = `Yes (${gradingService})`;
-    } else {
-      gradedText = 'Yes';
+  // Listing mode
+  const isSet      = formData.get('is_set') === '1';
+  const isIsolated = formData.get('is_isolated') === '1';
+
+  // Type badge label
+  let typeLabel = 'STANDARD LISTING';
+  if (isSet) typeLabel = 'SET LISTING';
+  else if (isIsolated) typeLabel = 'ONE-OF-A-KIND';
+
+  // Display title: use listing_title for isolated/set; generate for standard
+  let listingTitle;
+  if (isSet || isIsolated) {
+    listingTitle = formData.get('listing_title') || productType || 'New Listing';
+  } else {
+    listingTitle = [year, productLine, productType].filter(Boolean).join(' ') || 'New Listing';
+  }
+
+  // Pricing
+  const pricingMode    = formData.get('pricing_mode') || 'static';
+  const isPremiumToSpot = pricingMode === 'premium_to_spot';
+  let pricePerUnit;
+  let priceLabel = 'Price per Unit';
+  if (isPremiumToSpot) {
+    pricePerUnit = parseFloat(formData.get('floor_price')) || 0;
+    priceLabel = 'Floor Price';
+  } else {
+    pricePerUnit = parseFloat(formData.get('price_per_coin')) || 0;
+  }
+  const totalValue = pricePerUnit * qty;
+
+  // Photo count
+  let photoCount = 0;
+  if (isSet) {
+    const coverFile = formData.get('cover_photo');
+    if (coverFile && coverFile.name) photoCount = 1;
+  } else {
+    for (const key of ['item_photo_1', 'item_photo_2', 'item_photo_3']) {
+      const f = formData.get(key);
+      if (f && f.name) photoCount++;
     }
   }
 
-  // Get isolated/set/numismatic information
-  const isIsolated = formData.get('is_isolated') === '1';
-  const isSet = formData.get('is_set') === '1';
-  const issueNumber = formData.get('issue_number') || '';
-  const issueTotal = formData.get('issue_total') || '';
+  // Populate elements
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
-  // Determine listing type classification
-  let listingTypeText = 'Standard pooled listing';
-  let showNumismaticRow = false;
-  let showSetItemsRow = false;
-  let numismaticText = '';
-  let setItemsCountText = '';
+  set('confirm-type-label',    typeLabel);
+  set('confirm-listing-title', listingTitle);
+  set('confirm-metal',         metal);
+  set('confirm-product-type',  productType);
+  set('confirm-mint',          mint);
+  set('confirm-price',         `$${pricePerUnit.toFixed(2)}`);
+  set('confirm-quantity',      qty);
+  set('confirm-total-value',   `$${totalValue.toFixed(2)}`);
+  set('confirm-photo-count',   photoCount === 1 ? '1 Photo Uploaded' : `${photoCount} Photos Uploaded`);
 
-  if (isSet) {
-    listingTypeText = 'Set listing (isolated)';
-    showSetItemsRow = true;
-    // Count set items from form (set_items[N][...])
-    const setItemsCount = Array.from(formData.keys()).filter(key => key.startsWith('set_items[')).reduce((acc, key) => {
-      const match = key.match(/set_items\[(\d+)\]/);
-      if (match) {
-        const index = parseInt(match[1]);
-        return Math.max(acc, index + 1);
-      }
-      return acc;
-    }, 0);
-    setItemsCountText = `${setItemsCount + 1} items (1 main + ${setItemsCount} additional)`;
-  } else if (issueNumber && issueTotal) {
-    listingTypeText = 'Numismatic item (isolated)';
-    showNumismaticRow = true;
-    numismaticText = `Issue #${issueNumber} of ${issueTotal}`;
-  } else if (isIsolated) {
-    listingTypeText = 'One-of-a-kind (isolated)';
-  }
+  const priceLabelEl = document.getElementById('confirm-price-label');
+  if (priceLabelEl) priceLabelEl.textContent = priceLabel;
 
-  // Get pricing mode
-  const pricingMode = formData.get('pricing_mode') || 'static';
-  const isPremiumToSpot = pricingMode === 'premium_to_spot';
-
-  // Populate ALL item detail fields
-  document.getElementById('confirm-metal').textContent = metal;
-  document.getElementById('confirm-product-line').textContent = productLine;
-  document.getElementById('confirm-product-type').textContent = productType;
-  document.getElementById('confirm-weight').textContent = weight;
-  document.getElementById('confirm-purity').textContent = purity;
-  document.getElementById('confirm-mint').textContent = mint;
-  document.getElementById('confirm-year').textContent = year;
-  document.getElementById('confirm-grade').textContent = grade;
-  document.getElementById('confirm-finish').textContent = finish;
-  document.getElementById('confirm-graded').textContent = gradedText;
-
-  // Populate listing classification fields
-  document.getElementById('confirm-listing-type').textContent = listingTypeText;
-
-  // Show/hide and populate numismatic row
-  const numismaticRow = document.getElementById('confirm-numismatic-row');
-  if (showNumismaticRow) {
-    numismaticRow.style.display = 'flex';
-    document.getElementById('confirm-numismatic-issue').textContent = numismaticText;
-  } else {
-    numismaticRow.style.display = 'none';
-  }
-
-  // Show/hide and populate set items row
-  const setItemsRow = document.getElementById('confirm-set-items-row');
-  if (showSetItemsRow) {
-    setItemsRow.style.display = 'flex';
-    document.getElementById('confirm-set-items-count').textContent = setItemsCountText;
-  } else {
-    setItemsRow.style.display = 'none';
-  }
-
-  // Populate pricing fields
-  document.getElementById('confirm-quantity').textContent = quantity;
-
-  // Display pricing mode
-  document.getElementById('confirm-pricing-mode').textContent = isPremiumToSpot ? 'Premium to Spot' : 'Fixed Price';
-
-  if (isPremiumToSpot) {
-    // Premium-to-spot mode
-    const spotPremium = parseFloat(formData.get('spot_premium')) || 0;
-    const floorPrice = parseFloat(formData.get('floor_price')) || 0;
-    const effectivePrice = parseFloat(document.getElementById('price_preview')?.querySelector('.preview-amount')?.textContent.replace(/[$,]/g, '')) || floorPrice;
-    const totalValue = parseInt(quantity) * effectivePrice;
-
-    // Hide static pricing rows
-    document.getElementById('confirm-static-price-row').style.display = 'none';
-    document.getElementById('confirm-static-total-row').style.display = 'none';
-
-    // Show and populate premium-to-spot rows
-    document.getElementById('confirm-premium-row').style.display = 'flex';
-    document.getElementById('confirm-floor-row').style.display = 'flex';
-    document.getElementById('confirm-effective-price-row').style.display = 'flex';
-    document.getElementById('confirm-effective-total-row').style.display = 'flex';
-
-    document.getElementById('confirm-premium').textContent = `+$${spotPremium.toFixed(2)} USD per unit above spot`;
-    document.getElementById('confirm-floor').textContent = `$${floorPrice.toFixed(2)} USD minimum`;
-    document.getElementById('confirm-effective-price').textContent = `$${effectivePrice.toFixed(2)} USD`;
-    document.getElementById('confirm-effective-total').textContent = `$${totalValue.toFixed(2)} USD`;
-  } else {
-    // Static mode
-    const pricePerCoin = parseFloat(formData.get('price_per_coin')) || 0;
-    const totalValue = parseInt(quantity) * pricePerCoin;
-
-    // Show static pricing rows
-    document.getElementById('confirm-static-price-row').style.display = 'flex';
-    document.getElementById('confirm-static-total-row').style.display = 'flex';
-
-    // Hide premium-to-spot rows
-    document.getElementById('confirm-premium-row').style.display = 'none';
-    document.getElementById('confirm-floor-row').style.display = 'none';
-    document.getElementById('confirm-effective-price-row').style.display = 'none';
-    document.getElementById('confirm-effective-total-row').style.display = 'none';
-
-    document.getElementById('confirm-price').textContent = `$${pricePerCoin.toFixed(2)} USD`;
-    document.getElementById('confirm-total-value').textContent = `$${totalValue.toFixed(2)} USD`;
-  }
-
-  // Calculate and display seller proceeds preview
-  // Get effective price for calculation
-  let grossPrice;
-  if (isPremiumToSpot) {
-    const effectivePrice = parseFloat(document.getElementById('price_preview')?.querySelector('.preview-amount')?.textContent.replace(/[$,]/g, '')) || parseFloat(formData.get('floor_price')) || 0;
-    grossPrice = effectivePrice * parseInt(quantity);
-  } else {
-    const pricePerCoin = parseFloat(formData.get('price_per_coin')) || 0;
-    grossPrice = pricePerCoin * parseInt(quantity);
-  }
-
-  // Fetch fee preview from API and populate proceeds section
-  fetchAndDisplayProceeds('confirm', grossPrice, parseInt(quantity));
-
-  // Show modal with animation
+  // Show modal
   modal.style.display = 'flex';
   requestAnimationFrame(() => {
     modal.classList.add('active');
@@ -495,6 +406,32 @@ function closeSellSuccessModal() {
 }
 
 /**
+ * Show the listing success animation overlay, then redirect to /buy
+ */
+function showListingSuccessAnimation() {
+  const overlay = document.getElementById('listingSuccessAnimation');
+  if (!overlay) {
+    window.location.href = '/buy';
+    return;
+  }
+
+  // Reset animation classes so they replay cleanly
+  overlay.style.display = 'flex';
+  overlay.classList.remove('active');
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      overlay.classList.add('active');
+    });
+  });
+
+  // Redirect after animation completes (~2s)
+  setTimeout(() => {
+    window.location.href = '/buy';
+  }, 2200);
+}
+
+/**
  * Handle confirm listing button click - submit via AJAX
  */
 function handleConfirmListing() {
@@ -528,12 +465,10 @@ function handleConfirmListing() {
     })
     .then(data => {
       if (data.success) {
-        // Close confirmation modal
+        // Close confirmation modal, then show success animation
         closeSellConfirmModal();
-
-        // Show success modal with listing details
         setTimeout(() => {
-          openSellSuccessModal(data);
+          showListingSuccessAnimation();
         }, 350);
       } else {
         // Show error
@@ -630,3 +565,4 @@ window.openSellConfirmModal = openSellConfirmModal;
 window.closeSellConfirmModal = closeSellConfirmModal;
 window.openSellSuccessModal = openSellSuccessModal;
 window.closeSellSuccessModal = closeSellSuccessModal;
+window.showListingSuccessAnimation = showListingSuccessAnimation;

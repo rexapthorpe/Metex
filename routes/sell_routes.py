@@ -189,8 +189,8 @@ def sell():
                     options = get_dropdown_options()
                     return render_template('sell.html', **options)
             else:
-                # Standard or one-of-a-kind listing: require item photo
-                photo_file = request.files.get('item_photo')
+                # Standard or one-of-a-kind listing: require item photo (first of up to 3)
+                photo_file = request.files.get('item_photo_1')
                 if not photo_file or photo_file.filename == "":
                     error_msg = "Please upload a photo of your item."
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -298,13 +298,32 @@ def sell():
             # Get the newly created listing ID
             listing_id = cursor.lastrowid
 
-            # Insert photo into listing_photos table
+            # Insert primary photo into listing_photos table
             # Store path relative to static folder: uploads/listings/filename.jpg
             file_path = f"uploads/listings/{photo_filename}"
             cursor.execute('''
                 INSERT INTO listing_photos (listing_id, uploader_id, file_path)
                 VALUES (?, ?, ?)
             ''', (listing_id, session['user_id'], file_path))
+
+            # Save optional additional photos (item_photo_2 and item_photo_3)
+            if not is_set:
+                for extra_key in ('item_photo_2', 'item_photo_3'):
+                    extra_file = request.files.get(extra_key)
+                    if extra_file and extra_file.filename:
+                        if allowed_file(extra_file.filename):
+                            extra_safe = secure_filename(extra_file.filename)
+                            base2, ext2 = os.path.splitext(extra_safe)
+                            cand2 = extra_safe
+                            j = 1
+                            while os.path.exists(os.path.join(UPLOAD_FOLDER, cand2)):
+                                cand2 = f"{base2}_{j}{ext2}"
+                                j += 1
+                            extra_file.save(os.path.join(UPLOAD_FOLDER, cand2))
+                            cursor.execute('''
+                                INSERT INTO listing_photos (listing_id, uploader_id, file_path)
+                                VALUES (?, ?, ?)
+                            ''', (listing_id, session['user_id'], f"uploads/listings/{cand2}"))
 
             # ========== CREATE SET ITEMS IF THIS IS A SET LISTING ==========
             if is_set:

@@ -648,7 +648,7 @@
       <!-- Submit Button -->
       <div class="sidebar-section" style="border-bottom: none;">
         <button type="button" id="sidebarSubmitBtn" class="btn submit-btn full-width-button" disabled
-                onclick="document.getElementById('sellForm').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})) || document.getElementById('sellForm').submit()">
+                onclick="document.getElementById('sellForm').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}))">
           List Item
         </button>
         <p style="font-size: 0.75rem; color: #9ca3af; text-align: center; margin-top: 8px;">
@@ -674,7 +674,7 @@
 
 <!-- Pass prefill data to JS -->
 <script>
-  window.sellPrefillData = {{ prefill | tojson }};
+  window.sellPrefillData = {{ (prefill if prefill is defined else {}) | tojson }};
 </script>
 
 <!-- Standard Photo Box Setup (must run before mode_controller) -->

@@ -1,4 +1,4 @@
-{# templates/tabs/bid_form.html — injected into #editBidModalContent by JS #}
+{# templates/tabs/bid_form.html — 5-step wizard injected into #bidModalContent by JS #}
 
 <form id="bid-form" method="post" action="{{ form_action_url }}"
       data-bucket-metal="{{ bucket.metal if bucket else '' }}"
@@ -10,350 +10,392 @@
       data-bucket-finish="{{ bucket.finish if bucket else '' }}"
       data-bucket-grade="{{ bucket.grade if bucket else '' }}"
       data-bucket-purity="{{ bucket.purity if bucket else '' }}">
-  {% if bid %}
-    <input type="hidden" name="bid_id" value="{{ bid.id }}">
-  {% endif %}
+
+  {# ── Hidden inputs (managed by JS) ── #}
+  {% if bid %}<input type="hidden" name="bid_id" value="{{ bid.id }}">{% endif %}
   <input type="hidden" name="requires_grading" id="requires_grading" value="no">
   <input type="hidden" name="preferred_grader" id="preferred_grader" value="">
+  <input type="hidden" name="payment_method" id="payment_method" value="credit_card">
 
-  <div class="bid-modal-form">
-    <!-- Header - Dynamic title based on mode -->
-    <h2>{{ 'Edit Your Bid' if is_edit else 'Place Your Bid' }}</h2>
-    <hr class="eb-hr" />
+  <div class="bm-wizard">
 
-    <!-- Premium-to-Spot Pricing Notice (if applicable) -->
-    {% if pricing_info and pricing_info.pricing_mode == 'premium_to_spot' %}
-    <div class="pricing-notice" style="margin: 0 0 16px 0; padding: 12px; background: #fff9e6; border-radius: 8px; border-left: 4px solid #ffd700;">
-      <div style="font-weight: 600; color: #b8860b; margin-bottom: 6px; font-size: 14px;">
-        ⚠️ Dynamic Pricing - Premium to Spot
-      </div>
-      <div style="font-size: 13px; color: #5d4e00; line-height: 1.4;">
-        This bucket contains <strong>premium-to-spot</strong> listings. Prices automatically adjust based on live {{ pricing_info.pricing_metal }} spot prices:
-      </div>
-      <div style="margin-top: 8px; padding: 8px; background: rgba(255, 255, 255, 0.6); border-radius: 4px;">
-        <div style="font-size: 13px; color: #5d4e00;">
-          <strong>Current Pricing:</strong><br>
-          • Premium: <strong>+${{ '%.2f'|format(pricing_info.spot_premium) }}</strong> per unit above spot<br>
-          • Listing Floor Price: <strong>${{ '%.2f'|format(pricing_info.floor_price) }}</strong> (seller minimum)<br>
-          • Current Effective Price: <strong>${{ '%.2f'|format(current_item_price) }}</strong> per unit
+    {# ── Header ── #}
+    <div class="bm-header">
+      <h2 class="bm-title">{{ 'Edit Your Bid' if is_edit else 'Create Bid' }}</h2>
+    </div>
+
+    {# ── Stepper ── #}
+    <div class="bm-stepper">
+      <div class="bm-step-item active" data-step="1">
+        <div class="bm-step-circle">
+          <span class="bm-step-num">1</span>
+          <i class="bm-step-check fa-solid fa-check" style="display:none"></i>
         </div>
+        <div class="bm-step-label">Pricing</div>
       </div>
-      <div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;">
-        Note: Listing prices may change as spot prices fluctuate. Your bid is a fixed price offer.
+      <div class="bm-step-line"></div>
+      <div class="bm-step-item" data-step="2">
+        <div class="bm-step-circle">
+          <span class="bm-step-num">2</span>
+          <i class="bm-step-check fa-solid fa-check" style="display:none"></i>
+        </div>
+        <div class="bm-step-label">Options</div>
+      </div>
+      <div class="bm-step-line"></div>
+      <div class="bm-step-item" data-step="3">
+        <div class="bm-step-circle">
+          <span class="bm-step-num">3</span>
+          <i class="bm-step-check fa-solid fa-check" style="display:none"></i>
+        </div>
+        <div class="bm-step-label">Delivery</div>
+      </div>
+      <div class="bm-step-line"></div>
+      <div class="bm-step-item" data-step="4">
+        <div class="bm-step-circle">
+          <span class="bm-step-num">4</span>
+          <i class="bm-step-check fa-solid fa-check" style="display:none"></i>
+        </div>
+        <div class="bm-step-label">Payment</div>
+      </div>
+      <div class="bm-step-line"></div>
+      <div class="bm-step-item" data-step="5">
+        <div class="bm-step-circle">
+          <span class="bm-step-num">5</span>
+          <i class="bm-step-check fa-solid fa-check" style="display:none"></i>
+        </div>
+        <div class="bm-step-label">Review</div>
       </div>
     </div>
-    {% endif %}
 
-    <!-- BODY: Three columns with static vertical dividers (5 grid tracks) -->
-    <div id="eb-grid" class="eb-grid" aria-live="polite">
-      <!-- Column 1: Bid Pricing -->
-      <section class="eb-col col1" style="grid-area: col1;">
-        <div class="col-title">Bid Pricing</div>
+    {# ══════════════════════════════════════════
+       STEP 1 — PRICING
+       ══════════════════════════════════════════ #}
+    <div class="bm-step-content active" id="bm-step-1">
 
-        <!-- Pricing Mode Selector -->
-        <div class="feature-block" style="margin-bottom: 16px;">
-          <div class="eb-label">Pricing Mode</div>
-          <select id="bid-pricing-mode" name="bid_pricing_mode" class="eb-input" style="width: 100%;">
-            <option value="static" {% if not bid or not bid.pricing_mode or bid.pricing_mode == 'static' %}selected{% endif %}>Fixed Price</option>
-            <option value="premium_to_spot" {% if bid and bid.pricing_mode == 'premium_to_spot' %}selected{% endif %}>Variable (Premium to Spot)</option>
+      {# Pricing Mode #}
+      <div class="bm-field-group">
+        <label class="bm-label">Pricing Mode</label>
+        <select id="bid-pricing-mode" name="bid_pricing_mode" class="bm-select">
+          <option value="static" {% if not bid or not bid.pricing_mode or bid.pricing_mode == 'static' %}selected{% endif %}>Fixed Price</option>
+          <option value="premium_to_spot" {% if bid and bid.pricing_mode == 'premium_to_spot' %}selected{% endif %}>Variable (Premium to Spot)</option>
+        </select>
+        <div id="pricing-mode-helper" class="bm-helper">Set a specific dollar amount for your bid.</div>
+      </div>
+
+      {# ── Static pricing fields (Fixed Price) ── #}
+      <div id="static-pricing-fields" {% if bid and bid.pricing_mode == 'premium_to_spot' %}style="display:none"{% endif %}>
+
+        <div class="bm-field-group">
+          <label class="bm-label">Quantity</label>
+          <div class="bm-qty-stepper">
+            <button type="button" id="qty-dec" class="bm-qty-btn" aria-label="Decrease">−</button>
+            <span id="qty-value" class="bm-qty-num">{{ bid.quantity_requested or 1 }}</span>
+            <button type="button" id="qty-inc" class="bm-qty-btn" aria-label="Increase">+</button>
+          </div>
+          <input id="qty-input" name="bid_quantity" type="number" min="1" step="1"
+                 value="{{ bid.quantity_requested or 1 }}" style="display:none">
+          <div id="qty-hint" class="bm-error-hint" aria-live="polite"></div>
+        </div>
+
+        <div class="bm-field-group">
+          <label class="bm-label">Price Per Item</label>
+          <div class="bm-price-box">
+            <span class="bm-price-dollar">$</span>
+            <input id="bid-price-input" name="bid_price" type="number" inputmode="decimal"
+                   step="0.01" min="0.01" class="bm-price-field"
+                   value="{{ '%.2f'|format(bid.price_per_coin) if bid and bid.price_per_coin else '' }}"
+                   placeholder="0.00" aria-describedby="price-hint">
+          </div>
+          <div id="price-hint" class="bm-error-hint" aria-live="polite"></div>
+        </div>
+      </div>
+
+      {# ── Premium to Spot fields ── #}
+      <div id="premium-pricing-fields" {% if not bid or not bid.pricing_mode or bid.pricing_mode == 'static' %}style="display:none"{% endif %}>
+
+        <div class="bm-field-group">
+          <label class="bm-label">Quantity</label>
+          <div class="bm-qty-stepper">
+            <button type="button" id="qty-dec-premium" class="bm-qty-btn" aria-label="Decrease">−</button>
+            <span id="qty-value-premium" class="bm-qty-num">{{ bid.quantity_requested or 1 }}</span>
+            <button type="button" id="qty-inc-premium" class="bm-qty-btn" aria-label="Increase">+</button>
+          </div>
+          <input id="qty-input-premium" name="bid_quantity_premium" type="number" min="1" step="1"
+                 value="{{ bid.quantity_requested or 1 }}" style="display:none">
+        </div>
+
+        <div class="bm-field-group">
+          <label class="bm-label">Pricing Metal</label>
+          <select id="bid-pricing-metal" name="bid_pricing_metal" class="bm-select">
+            <option value="{{ bucket.metal if bucket else 'Gold' }}" selected>
+              {{ bucket.metal if bucket else 'Gold' }} (same as item)
+            </option>
           </select>
-          <div class="eb-hint" style="margin-top: 4px; font-size: 12px; color: #666;">
-            Fixed Price: set a specific dollar amount | Variable: bid tracks live spot price + your premium
-          </div>
         </div>
 
-        <!-- Static Pricing Fields (shown when bid_pricing_mode = 'static') -->
-        <div id="static-pricing-fields" class="price-qty-row feature-block" data-anchor="Crow" style="{% if bid and bid.pricing_mode == 'premium_to_spot' %}display: none;{% endif %}">
-          <!-- Quantity block -->
-          <div class="qty-block">
-            <div class="eb-label">Quantity</div>
-            <div class="qty-dial" role="group" aria-label="Adjust quantity">
-              <button type="button" id="qty-dec" class="qty-btn" aria-label="Decrease">−</button>
-              <span id="qty-value" class="qty-value">{{ bid.quantity_requested or 1 }}</span>
-              <button type="button" id="qty-inc" class="qty-btn" aria-label="Increase">＋</button>
-            </div>
-            <input id="qty-input" name="bid_quantity" type="number" min="1" step="1"
-                   value="{{ bid.quantity_requested or 1 }}">
-            <div id="qty-hint" class="eb-hint" aria-live="polite"></div>
+        <div class="bm-field-group">
+          <label class="bm-label">Premium Above Spot</label>
+          <div class="bm-price-box">
+            <span class="bm-price-dollar">$</span>
+            <input id="bid-spot-premium" name="bid_spot_premium" type="number"
+                   inputmode="decimal" step="0.01" min="0" class="bm-price-field"
+                   value="{{ '%.2f'|format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}"
+                   placeholder="0.00">
           </div>
-
-          <!-- Price block (narrower) -->
-          <div class="price-block">
-            <div class="eb-label">Price Per Item</div>
-            <div class="input-prefix">
-              <input id="bid-price-input"
-                     name="bid_price"
-                     type="number"
-                     inputmode="decimal"
-                     step="0.01"
-                     min="0.01"
-                     pattern="^\d+(\.\d{0,2})?$"
-                     value="{{ '%.2f'|format(bid.price_per_coin) if bid and bid.price_per_coin else '' }}"
-                     placeholder="0.00"
-                     aria-describedby="price-hint" />
-            </div>
-            <div id="price-hint" class="eb-hint" aria-live="polite"></div>
-          </div>
+          <div class="bm-helper">Amount added above current spot price per unit</div>
         </div>
 
-        <!-- Premium-to-Spot Pricing Fields (shown when bid_pricing_mode = 'premium_to_spot') -->
-        <div id="premium-pricing-fields" style="{% if not bid or not bid.pricing_mode or bid.pricing_mode == 'static' %}display: none;{% endif %}">
-          <!-- Quantity (same for both modes) -->
-          <div class="feature-block" style="margin-bottom: 16px;">
-            <div class="eb-label">Quantity</div>
-            <div class="qty-dial" role="group" aria-label="Adjust quantity">
-              <button type="button" id="qty-dec-premium" class="qty-btn" aria-label="Decrease">−</button>
-              <span id="qty-value-premium" class="qty-value">{{ bid.quantity_requested or 1 }}</span>
-              <button type="button" id="qty-inc-premium" class="qty-btn" aria-label="Increase">＋</button>
-            </div>
-            <input id="qty-input-premium" name="bid_quantity_premium" type="number" min="1" step="1"
-                   value="{{ bid.quantity_requested or 1 }}">
+        <div class="bm-field-group">
+          <label class="bm-label">No Higher Than (Max Price)</label>
+          <div class="bm-price-box">
+            <span class="bm-price-dollar">$</span>
+            <input id="bid-ceiling-price" name="bid_ceiling_price" type="number"
+                   inputmode="decimal" step="0.01" min="0.01" class="bm-price-field"
+                   value="{{ '%.2f'|format(bid.ceiling_price) if bid and bid.ceiling_price else '' }}"
+                   placeholder="0.00">
           </div>
-
-          <!-- Pricing Metal -->
-          <div class="feature-block" style="margin-bottom: 16px;">
-            <div class="eb-label">Pricing Metal</div>
-            <select id="bid-pricing-metal" name="bid_pricing_metal" class="eb-input" style="width: 100%;">
-              <option value="{{ bucket.metal if bucket else 'Gold' }}" selected>{{ bucket.metal if bucket else 'Gold' }} (same as item)</option>
-            </select>
-            <div class="eb-hint" style="margin-top: 4px; font-size: 12px; color: #666;">
-              Metal whose spot price your bid will track
-            </div>
-          </div>
-
-          <!-- Premium Above Spot -->
-          <div class="feature-block" style="margin-bottom: 16px;">
-            <div class="eb-label">Premium Above Spot</div>
-            <div class="input-prefix">
-              <input id="bid-spot-premium"
-                     name="bid_spot_premium"
-                     type="number"
-                     inputmode="decimal"
-                     step="0.01"
-                     min="0"
-                     value="{{ '%.2f'|format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}"
-                     placeholder="0.00"
-                     class="eb-input" />
-            </div>
-            <div class="eb-hint" style="margin-top: 4px; font-size: 12px; color: #666;">
-              Amount to add above current spot price per unit
-            </div>
-          </div>
-
-          <!-- Ceiling Price (Maximum) -->
-          <div class="feature-block" style="margin-bottom: 16px;">
-            <div class="eb-label">No Higher Than (Max Price)</div>
-            <div class="input-prefix">
-              <input id="bid-ceiling-price"
-                     name="bid_ceiling_price"
-                     type="number"
-                     inputmode="decimal"
-                     step="0.01"
-                     min="0.01"
-                     value="{{ '%.2f'|format(bid.ceiling_price) if bid and bid.ceiling_price else '' }}"
-                     placeholder="0.00"
-                     class="eb-input" />
-            </div>
-            <div class="eb-hint" style="margin-top: 4px; font-size: 12px; color: #666;">
-              Maximum price ceiling - your bid won't auto-fill if spot + premium exceeds this amount
-            </div>
-          </div>
-
-          <!-- Current Spot Price Display -->
-          <div class="feature-block" style="margin-bottom: 12px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
-            <div style="font-size: 13px; color: #333; margin-bottom: 4px;">
-              <strong>Current {{ bucket.metal if bucket else 'Metal' }} Spot Price:</strong>
-            </div>
-            <div id="current-spot-price" style="font-size: 20px; font-weight: 600; color: #1976d2;">
-              {% if current_spot_price %}
-                ${{ '%.2f'|format(current_spot_price) }}
-              {% else %}
-                Loading...
-              {% endif %}
-            </div>
-            <div style="font-size: 11px; color: #666; margin-top: 4px;">
-              Your bid: Spot + $<span id="premium-display">{{ '%.2f'|format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}</span>
-              = $<span id="effective-bid-price">{{ '%.2f'|format((current_spot_price or 0) + (bid.spot_premium or 0)) }}</span>
-            </div>
-          </div>
-
-          <div class="premium-pricing-notice" style="margin-top: 12px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
-            <strong>How Variable Pricing Works:</strong> Your bid automatically adjusts based on live spot prices. Effective price = <strong>Spot Price + Your Premium</strong>, but won't auto-fill if it exceeds your max price ceiling.
-          </div>
+          <div class="bm-helper">Your bid won't fill if spot + premium exceeds this amount</div>
         </div>
 
-        <!-- Random Year toggle -->
-        <div class="feature-block" style="margin-bottom: 16px;">
-          <div class="switch-row">
-            <div style="flex: 1;">
-              <div class="eb-label">Random Year Bid</div>
-              <div class="eb-hint" style="font-size: 12px; color: #666;">Apply bid to all years with matching specs</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="random_year_bid" name="random_year" {% if bid and bid.random_year %}checked{% endif %}>
-              <span class="slider"></span>
-            </label>
+        <div class="bm-spot-display">
+          <div class="bm-spot-label">
+            Current <span id="spot-metal-name">{{ bucket.metal if bucket else 'Metal' }}</span> Spot Price
+          </div>
+          <div id="current-spot-price" class="bm-spot-price">
+            {% if current_spot_price %}${{ '%.2f'|format(current_spot_price) }}{% else %}Loading...{% endif %}
+          </div>
+          <div class="bm-spot-calc">
+            Your bid: Spot + $<span id="premium-display">{{ '%.2f'|format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}</span>
+            = $<span id="effective-bid-price">{{ '%.2f'|format((current_spot_price or 0) + (bid.spot_premium or 0)) }}</span>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- Grading options (always visible) -->
-        <div class="eb-grading-block feature-block">
-          <div class="eb-label">Require 3rd Party Grading</div>
-          <div class="eb-grading-options">
-            <div class="switch-row">
-              <span>Any Grader</span>
-              <label class="switch">
-                <input type="checkbox" id="grader_any" {% if bid and bid.preferred_grader == 'Any' %}checked{% endif %}>
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="divider"></div>
-            <div class="switch-row">
-              <span>PCGS</span>
-              <label class="switch">
-                <input type="checkbox" id="grader_pcgs" {% if bid and bid.preferred_grader == 'PCGS' %}checked{% endif %}>
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="divider"></div>
-            <div class="switch-row">
-              <span>NGC</span>
-              <label class="switch">
-                <input type="checkbox" id="grader_ngc" {% if bid and bid.preferred_grader == 'NGC' %}checked{% endif %}>
-                <span class="slider"></span>
-              </label>
-            </div>
+    {# ══════════════════════════════════════════
+       STEP 2 — OPTIONS
+       ══════════════════════════════════════════ #}
+    <div class="bm-step-content" id="bm-step-2">
+
+      <div class="bm-toggle-row">
+        <div class="bm-toggle-left">
+          <div class="bm-toggle-title">Random Year Bid</div>
+          <div class="bm-toggle-desc">Match any year with same specs</div>
+        </div>
+        <label class="bm-switch">
+          <input type="checkbox" id="random_year_bid" name="random_year" {% if bid and bid.random_year %}checked{% endif %}>
+          <span class="bm-slider"></span>
+        </label>
+      </div>
+
+      <div class="bm-section-heading">Third Party Grading</div>
+
+      <div class="bm-toggle-group">
+        <div class="bm-toggle-row bm-toggle-row--bordered">
+          <div class="bm-toggle-title">Any Grader</div>
+          <label class="bm-switch">
+            <input type="checkbox" id="grader_any" {% if bid and bid.preferred_grader == 'Any' %}checked{% endif %}>
+            <span class="bm-slider"></span>
+          </label>
+        </div>
+        <div class="bm-toggle-row bm-toggle-row--bordered">
+          <div class="bm-toggle-title">PCGS</div>
+          <label class="bm-switch">
+            <input type="checkbox" id="grader_pcgs" {% if bid and bid.preferred_grader == 'PCGS' %}checked{% endif %}>
+            <span class="bm-slider"></span>
+          </label>
+        </div>
+        <div class="bm-toggle-row bm-toggle-row--bordered">
+          <div class="bm-toggle-title">NGC</div>
+          <label class="bm-switch">
+            <input type="checkbox" id="grader_ngc" {% if bid and bid.preferred_grader == 'NGC' %}checked{% endif %}>
+            <span class="bm-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    {# ══════════════════════════════════════════
+       STEP 3 — DELIVERY
+       ══════════════════════════════════════════ #}
+    <div class="bm-step-content" id="bm-step-3">
+
+      <div class="bm-field-group">
+        <label class="bm-label">Saved Address</label>
+        {% if addresses and addresses|length > 0 %}
+          <select id="addr-selector" class="bm-select">
+            <option value="custom">Enter New Address</option>
+            {% for address in addresses %}
+              <option value="{{ address.id }}"
+                      data-first="{{ user_info.first_name if user_info and user_info.first_name else '' }}"
+                      data-last="{{ user_info.last_name if user_info and user_info.last_name else '' }}"
+                      data-line1="{{ address.street }}"
+                      data-line2="{{ address.street_line2 if address.street_line2 else '' }}"
+                      data-city="{{ address.city }}"
+                      data-state="{{ address.state }}"
+                      data-zip="{{ address.zip_code }}">
+                {{ address.name }} — {{ address.city }}, {{ address.state }}
+              </option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <select id="addr-selector" class="bm-select">
+            <option value="custom" selected>Enter New Address</option>
+          </select>
+        {% endif %}
+      </div>
+
+      <div id="custom-address-fields">
+        <div class="bm-field-group">
+          <input id="addr-line1" class="bm-input" placeholder="Address Line 1"
+                 autocomplete="address-line1"
+                 value="{{ bid.parsed_address.line1 if bid and bid.parsed_address else '' }}">
+        </div>
+        <div class="bm-field-group">
+          <input id="addr-line2" class="bm-input" placeholder="Address Line 2 (optional)"
+                 autocomplete="address-line2"
+                 value="{{ bid.parsed_address.line2 if bid and bid.parsed_address else '' }}">
+        </div>
+        <div class="bm-addr-row">
+          <input id="addr-city" class="bm-input" placeholder="City"
+                 autocomplete="address-level2"
+                 value="{{ bid.parsed_address.city if bid and bid.parsed_address else '' }}">
+          <select id="addr-state" class="bm-select bm-select--state" autocomplete="address-level1">
+            <option value="">State</option>
+            {% for st in ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',
+                          'LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND',
+                          'OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'] %}
+              <option value="{{ st }}" {% if bid and bid.parsed_address and bid.parsed_address.state == st %}selected{% endif %}>{{ st }}</option>
+            {% endfor %}
+          </select>
+          <input id="addr-zip" class="bm-input bm-input--zip" placeholder="Zip"
+                 inputmode="numeric" autocomplete="postal-code"
+                 value="{{ bid.parsed_address.zip if bid and bid.parsed_address else '' }}">
+        </div>
+      </div>
+
+      {# Hidden fields needed by initBidForm (not submitted directly, combined by JS) #}
+      <input type="hidden" id="addr-first" value="{{ user_info.first_name if user_info else '' }}">
+      <input type="hidden" id="addr-last"  value="{{ user_info.last_name  if user_info else '' }}">
+
+      <div id="address-hint" class="bm-error-hint" aria-live="polite"></div>
+    </div>
+
+    {# ══════════════════════════════════════════
+       STEP 4 — PAYMENT
+       ══════════════════════════════════════════ #}
+    <div class="bm-step-content" id="bm-step-4">
+
+      <div class="bm-payment-header">
+        <div class="bm-payment-title">Select Payment Method</div>
+        <div class="bm-payment-desc">Choose how you'd like to pay when your bid is matched</div>
+      </div>
+
+      <div class="bm-payment-opts" id="bm-payment-opts">
+
+        <label class="bm-payment-opt" data-value="credit_card">
+          <div class="bm-pm-icon"><i class="fa-regular fa-credit-card"></i></div>
+          <div class="bm-pm-info">
+            <div class="bm-pm-name">Credit Card</div>
+            <div class="bm-pm-detail">Visa, Mastercard, Amex</div>
           </div>
-        </div>
-      </section>
+          <input type="radio" name="payment_method_radio" value="credit_card" style="display:none">
+          <div class="bm-radio-vis"></div>
+        </label>
 
-      <!-- STATIC vertical divider #1 -->
-      <div class="vdiv v1" aria-hidden="true" style="grid-area: v1;"></div>
-
-      <!-- Column 2: Address -->
-      <section class="eb-col col2" style="grid-area: col2;">
-        <div class="col-title">Address</div>
-
-        <!-- Address Selector Dropdown -->
-        <div class="addr-field" style="margin-bottom: 16px;">
-          <div class="addr-label">Delivery Address</div>
-
-          {% if addresses and addresses|length > 0 %}
-            <!-- User has saved addresses - show dropdown -->
-            <select id="addr-selector" class="eb-input">
-              <option value="custom">Enter New Address</option>
-              {% for address in addresses %}
-                <option value="{{ address.id }}"
-                        data-first="{{ user_info.first_name if user_info and user_info.first_name else '' }}"
-                        data-last="{{ user_info.last_name if user_info and user_info.last_name else '' }}"
-                        data-line1="{{ address.street }}"
-                        data-line2="{{ address.street_line2 if address.street_line2 else '' }}"
-                        data-city="{{ address.city }}"
-                        data-state="{{ address.state }}"
-                        data-zip="{{ address.zip_code }}">
-                  {{ address.name }} - {{ address.city }}, {{ address.state }}
-                </option>
-              {% endfor %}
-            </select>
-          {% else %}
-            <!-- No saved addresses - show message and auto-enable custom fields -->
-            <select id="addr-selector" class="eb-input">
-              <option value="custom" selected>Enter New Address (No saved addresses yet)</option>
-            </select>
-            <div class="no-addresses-hint" style="margin-top: 8px; padding: 10px; background: #e3f2fd; border-left: 3px solid #2196f3; border-radius: 4px;">
-              <p style="margin: 0; font-size: 13px; color: #1565c0;">
-                <i class="fas fa-info-circle"></i>
-                Fill in the address fields below to place your bid.
-                <a href="/account#details-shipping" style="color: #1565c0; text-decoration: underline; font-weight: 600;">Save addresses in Account Details</a> for faster checkout in the future.
-              </p>
-            </div>
-          {% endif %}
-        </div>
-
-        <!-- Address fields (without names - moved to Billing) -->
-        <div id="custom-address-fields" class="addr-grid" role="group" aria-label="Structured address fields" data-anchor="A3">
-          <div class="addr-field">
-            <div class="addr-label">Address Line 1</div>
-            <input id="addr-line1" class="eb-input" autocomplete="address-line1" value="{{ bid.parsed_address.line1 if bid and bid.parsed_address else '' }}">
+        <label class="bm-payment-opt" data-value="paypal">
+          <div class="bm-pm-icon"><i class="fa-brands fa-paypal"></i></div>
+          <div class="bm-pm-info">
+            <div class="bm-pm-name">PayPal</div>
+            <div class="bm-pm-detail">Pay with your PayPal account</div>
           </div>
+          <input type="radio" name="payment_method_radio" value="paypal" style="display:none">
+          <div class="bm-radio-vis"></div>
+        </label>
 
-          <div class="addr-field">
-            <div class="addr-label">Address Line 2</div>
-            <input id="addr-line2" class="eb-input" autocomplete="address-line2" value="{{ bid.parsed_address.line2 if bid and bid.parsed_address else '' }}">
+        <label class="bm-payment-opt" data-value="bank_transfer">
+          <div class="bm-pm-icon"><i class="fa-solid fa-building-columns"></i></div>
+          <div class="bm-pm-info">
+            <div class="bm-pm-name">Bank Transfer</div>
+            <div class="bm-pm-detail">Direct bank payment</div>
           </div>
+          <input type="radio" name="payment_method_radio" value="bank_transfer" style="display:none">
+          <div class="bm-radio-vis"></div>
+        </label>
 
-          <div class="addr-row">
-            <div class="addr-subfield">
-              <div class="addr-label">City</div>
-              <input id="addr-city" class="eb-input" autocomplete="address-level2" value="{{ bid.parsed_address.city if bid and bid.parsed_address else '' }}">
-            </div>
-            <div class="addr-subfield">
-              <div class="addr-label">State</div>
-              <select id="addr-state" class="eb-input" autocomplete="address-level1">
-                <option value=""></option>
-                {% for st in [
-                  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI',
-                  'MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT',
-                  'VT','VA','WA','WV','WI','WY'
-                ] %}
-                  <option value="{{ st }}" {% if bid and bid.parsed_address and bid.parsed_address.state == st %}selected{% endif %}>{{ st }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="addr-subfield">
-              <div class="addr-label">Zip</div>
-              <input id="addr-zip" class="eb-input" inputmode="numeric" autocomplete="postal-code" value="{{ bid.parsed_address.zip if bid and bid.parsed_address else '' }}">
-            </div>
+        <label class="bm-payment-opt" data-value="crypto">
+          <div class="bm-pm-icon"><i class="fa-brands fa-bitcoin"></i></div>
+          <div class="bm-pm-info">
+            <div class="bm-pm-name">Cryptocurrency</div>
+            <div class="bm-pm-detail">Bitcoin, Ethereum, etc.</div>
           </div>
+          <input type="radio" name="payment_method_radio" value="crypto" style="display:none">
+          <div class="bm-radio-vis"></div>
+        </label>
+
+      </div>
+
+      <div class="bm-payment-hint" id="payment-hint">Please select a payment method to continue</div>
+    </div>
+
+    {# ══════════════════════════════════════════
+       STEP 5 — REVIEW
+       ══════════════════════════════════════════ #}
+    <div class="bm-step-content" id="bm-step-5">
+
+      <div class="bm-review-card">
+        <div class="bm-review-heading">PRICE BREAKDOWN</div>
+        <div class="bm-review-line">
+          <span id="rv-price-label">Fixed Price</span>
+          <span id="rv-price-val">$0.00</span>
         </div>
-        <div id="address-hint" class="eb-hint addr-hint" aria-live="polite"></div>
-      </section>
-
-      <!-- STATIC vertical divider #2 -->
-      <div class="vdiv v2" aria-hidden="true" style="grid-area: v2;"></div>
-
-      <!-- Column 3: Billing -->
-      <section class="eb-col col3" style="grid-area: col3;">
-        <div class="col-title">Billing</div>
-
-        <!-- Name on Order (Read-Only from Account Details) -->
-        <div class="billing-fields">
-          {% set has_saved_name = user_info and user_info.first_name and user_info.last_name %}
-          {% set full_name = (user_info.first_name ~ ' ' ~ user_info.last_name)|trim if has_saved_name else '' %}
-
-          {% if has_saved_name %}
-            <!-- Name Display (Read-Only) -->
-            <div class="name-display-section">
-              <div class="addr-label">Name on Order</div>
-              <div class="name-display-value">{{ full_name }}</div>
-              <button type="button" class="btn btn-secondary change-name-btn" onclick="window.location.href='/account#details-personal'">
-                <i class="fas fa-edit"></i> Change Name in Account Details
-              </button>
-            </div>
-          {% else %}
-            <!-- Warning: No Name Saved -->
-            <div class="name-warning-section">
-              <div class="addr-label">Name on Order</div>
-              <div class="name-warning-box">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p class="warning-text">Please add your full name in Account Details before placing a bid.</p>
-              </div>
-              <button type="button" class="btn btn-primary change-name-btn" onclick="window.location.href='/account#details-personal'">
-                <i class="fas fa-user-edit"></i> Add Name in Account Details
-              </button>
-            </div>
-          {% endif %}
+        <div class="bm-review-line">
+          <span>Quantity</span>
+          <span id="rv-qty">×1</span>
         </div>
-
-        <!-- Confirm aligned with City/State/Zip row -->
-        <hr class="eb-hr eb-col-hr">
-        <div class="confirm-wrap">
-          <button id="eb-confirm" type="submit" class="eb-confirm" {% if not has_saved_name %}disabled title="Please add your name in Account Details first"{% endif %}>
-            Confirm
-          </button>
+        <div class="bm-review-sep"></div>
+        <div class="bm-review-line">
+          <span>Subtotal</span>
+          <span id="rv-subtotal">$0.00</span>
         </div>
-      </section>
+        <div class="bm-review-line">
+          <span>Tax (8.25%)</span>
+          <span id="rv-tax">$0.00</span>
+        </div>
+        <div class="bm-review-line">
+          <span>Processing fee</span>
+          <span id="rv-fee">$0.00</span>
+        </div>
+        <div class="bm-review-sep"></div>
+        <div class="bm-review-line bm-review-total-row">
+          <span>Total</span>
+          <span id="rv-total">$0.00</span>
+        </div>
+      </div>
+
+      <div class="bm-review-card bm-review-card--payment">
+        <i class="bm-rv-pm-icon fa-regular fa-credit-card" id="rv-pm-icon"></i>
+        <div>
+          <div class="bm-rv-pm-label">Payment Method</div>
+          <div class="bm-rv-pm-val" id="rv-pm-name">Credit Card</div>
+        </div>
+      </div>
 
     </div>
-  </div>
+
+    {# ── Footer ── #}
+    <div class="bm-footer">
+      <button type="button" class="bm-back-btn" id="bm-back" style="display:none">
+        <i class="fa-solid fa-chevron-left"></i> Back
+      </button>
+      <div></div>
+      <button type="button" class="bm-continue-btn" id="bm-continue">
+        Continue <i class="fa-solid fa-chevron-right"></i>
+      </button>
+      <button type="button" class="bm-confirm-btn" id="bm-submit" style="display:none">
+        Confirm Bid
+      </button>
+    </div>
+
+  </div>{# end .bm-wizard #}
 </form>

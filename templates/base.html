@@ -37,6 +37,9 @@
     <!-- Footer -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
 
+    <!-- Legal Modals -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/legal_modals.css') }}">
+
     <!-- Page-specific CSS -->
     {% block page_css %}{% endblock %}
 </head>
@@ -180,6 +183,10 @@
             </div>
         </div>
     </footer>
+
+    <!-- Legal Modals -->
+    {% include 'modals/legal_modals.html' %}
+    <script src="{{ url_for('static', filename='js/modals/legal_modals.js') }}"></script>
 
     <!-- Footer JavaScript -->
     <script src="{{ url_for('static', filename='js/footer.js') }}"></script>

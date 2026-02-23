@@ -82,22 +82,35 @@
               {% endif %}
             </div>
 
-            <!-- Info -->
-            <div class="bid-card-info">
-              <div class="bid-card-title">{{ bid.year or '' }} {{ bid.product_line or bid.product_type or '' }}</div>
-              <div class="bid-card-specs">{{ bid.weight or '' }}{% if bid.purity %} · {{ bid.purity }}{% endif %}{% if bid.metal %} · {{ bid.metal }}{% endif %}</div>
-              <div class="bid-card-price-line">
-                {% if bid.pricing_mode == 'premium_to_spot' %}
-                  <span class="bid-price">${{ '{:,.2f}'.format(bid.bid_effective_price or 0) }}/unit</span>
-                  <span class="bid-vs-spot bid-vs-spot--down">
-                    <i class="fa-solid fa-arrow-trend-down"></i>
-                    -${{ '%.2f'|format(bid.spot_premium or 0) }} vs spot
-                  </span>
-                {% else %}
-                  <span class="bid-price">${{ '%.2f'|format(bid.price_per_coin or 0) }}/unit</span>
-                {% endif %}
+            <!-- Info + Progress (stacked) -->
+            <div class="bid-card-center">
+              <div class="bid-card-info">
+                <div class="bid-card-title">{{ bid.year or '' }} {{ bid.product_line or bid.product_type or '' }}</div>
+                <div class="bid-card-specs">{{ bid.weight or '' }}{% if bid.purity %} · {{ bid.purity }}{% endif %}{% if bid.metal %} · {{ bid.metal }}{% endif %}</div>
+                <div class="bid-card-price-line">
+                  {% if bid.pricing_mode == 'premium_to_spot' %}
+                    <span class="bid-price">${{ '{:,.2f}'.format(bid.bid_effective_price or 0) }}/unit</span>
+                    <span class="bid-vs-spot bid-vs-spot--down">
+                      <i class="fa-solid fa-arrow-trend-down"></i>
+                      -${{ '%.2f'|format(bid.spot_premium or 0) }} vs spot
+                    </span>
+                  {% else %}
+                    <span class="bid-price">${{ '%.2f'|format(bid.price_per_coin or 0) }}/unit</span>
+                  {% endif %}
+                </div>
+              </div>
+
+            <!-- Fill Progress Bar (condensed) -->
+            <div class="bid-progress-section bid-progress-section--inline">
+              <div class="bid-progress-header">
+                <span class="bid-progress-title">Fill Progress</span>
+                <span class="bid-progress-label">{{ filled_units }} of {{ bid.quantity_requested or 0 }} units ({{ fill_pct }}%)</span>
+              </div>
+              <div class="bid-progress-bar-wrap">
+                <div class="bid-progress-bar-fill" style="width: {{ fill_pct }}%"></div>
               </div>
             </div>
+            </div>{# end bid-card-center #}
 
             <!-- Right: status badge · donut · controls -->
             <div class="bid-card-right">
@@ -150,10 +163,6 @@
                 <span class="bid-detail-value">{{ bid.created_at }}</span>
               </div>
               <div class="bid-detail-item">
-                <span class="bid-detail-label">Expires</span>
-                <span class="bid-detail-value {% if bid.expires_at %}bid-detail-value--red{% endif %}">{{ bid.expires_at or '—' }}</span>
-              </div>
-              <div class="bid-detail-item">
                 <span class="bid-detail-label">Current Spot</span>
                 <span class="bid-detail-value">
                   {% if bid.listing_effective_price is not none %}${{ '{:,.2f}'.format(bid.listing_effective_price) }}{% else %}—{% endif %}
@@ -175,17 +184,6 @@
               </div>
             </div>
             {% endif %}
-
-            <!-- Fill Progress Bar -->
-            <div class="bid-progress-section">
-              <div class="bid-progress-header">
-                <span class="bid-progress-title">Fill Progress</span>
-                <span class="bid-progress-label">{{ filled_units }} of {{ bid.quantity_requested or 0 }} units ({{ fill_pct }}%)</span>
-              </div>
-              <div class="bid-progress-bar-wrap">
-                <div class="bid-progress-bar-fill" style="width: {{ fill_pct }}%"></div>
-              </div>
-            </div>
 
             <!-- Actions -->
             <div class="bid-detail-actions">

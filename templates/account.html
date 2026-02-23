@@ -35,6 +35,7 @@
   {% include 'modals/error_notification_modal.html' %}
   {% include 'modals/field_validation_modal.html' %}
   {% include 'modals/cancel_order_modal.html' %}
+  {% include 'modals/report_user_modal.html' %}
 
   <!-- Account Page Layout -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
@@ -55,7 +56,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_sellers_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_individual_listings_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/remove_seller_confirmation_modal.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bid_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bid_modal.css') }}?v=wizard-1">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bid_confirm_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_bid_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_listing_modal.css') }}?v=7">
@@ -71,6 +72,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/address_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/buy_item_modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cancel_order_modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/report_user_modal.css') }}">
 
   <div class="account-layout">
     <!-- Main Sidebar -->
@@ -202,6 +204,7 @@
   <script src="{{ url_for('static', filename='js/modals/order_sellers_modal.js') }}"></script>
   <script src="{{ url_for('static', filename='js/modals/order_items_modal.js') }}"></script>
   <script src="{{ url_for('static', filename='js/modals/cancel_order_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/report_user_modal.js') }}"></script>
 
   <!-- ratings modal -->
   <script src="{{ url_for('static', filename='js/modals/ratings_modal_v2.js') }}?v=2"></script>
@@ -210,7 +213,8 @@
   <script src="{{ url_for('static', filename='js/modals/message_sellers_modal.js') }}?v={{ config.VERSION }}"></script>
 
   <!-- bids modal (unified) -->
-  <script src="{{ url_for('static', filename='js/modals/bid_modal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/modals/bid_modal_steps.js') }}?v=wizard-1"></script>
+  <script src="{{ url_for('static', filename='js/modals/bid_modal.js') }}?v=wizard-1"></script>
   <script src="{{ url_for('static', filename='js/modals/bid_confirm_modal.js') }}?v=CALC_FIX"></script>
   {# OLD: Keep for backward compatibility during transition #}
   {# <script src="{{ url_for('static', filename='js/modals/edit_bid_modal.js') }}"></script> #}

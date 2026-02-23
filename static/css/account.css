@@ -232,7 +232,7 @@
 
 /* Shift content when secondary nav is open */
 .account-layout.details-nav-open .account-content {
-  margin-left: 250px; /* Push content right when secondary nav appears */
+  margin-left: 0;
 }
 
 .tab-content { display: none; }

@@ -614,3 +614,400 @@ body.dark-mode .proceeds-note {
 body.dark-mode .proceeds-note i {
   color: var(--text-muted);
 }
+
+/* ============================================================
+   Confirm Modal – Redesigned card style
+   ============================================================ */
+.confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.confirm-modal-overlay.active {
+  opacity: 1;
+}
+
+.confirm-modal-card {
+  background: #f2f4f7;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 460px;
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 92vh;
+  overflow-y: auto;
+  transform: translateY(18px);
+  transition: transform 0.22s ease;
+}
+
+.confirm-modal-overlay.active .confirm-modal-card {
+  transform: translateY(0);
+}
+
+/* Header row */
+.confirm-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.confirm-modal-type-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.confirm-type-icon {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1;
+}
+
+.confirm-type-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.confirm-modal-close {
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid #94a3b8;
+  border-radius: 7px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.confirm-modal-close:hover {
+  background: #e2e8f0;
+}
+
+/* Title */
+.confirm-modal-title {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+  margin-top: -4px;
+  word-break: break-word;
+}
+
+/* Price card */
+.confirm-price-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px 20px 14px;
+}
+
+.confirm-price-top-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.confirm-price-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.confirm-price-col--right {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.confirm-price-label {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.confirm-price-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.confirm-price-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin-bottom: 12px;
+}
+
+.confirm-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.confirm-total-label {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.confirm-total-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #d97706;
+}
+
+/* Section label */
+.confirm-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  margin-bottom: -6px;
+}
+
+/* Details card */
+.confirm-details-card {
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.confirm-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 18px;
+}
+
+.confirm-detail-icon {
+  font-size: 13px;
+  color: #94a3b8;
+  width: 15px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.confirm-detail-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.confirm-detail-key {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.confirm-detail-val {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.confirm-detail-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 0 18px;
+}
+
+/* Photo card */
+.confirm-photo-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.confirm-photo-icon-wrap {
+  width: 44px;
+  height: 44px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.confirm-photo-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.confirm-photo-count {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.confirm-photo-sub {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.confirm-photo-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.confirm-ready-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
+.confirm-ready-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #22c55e;
+}
+
+/* Footer */
+.confirm-modal-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+  margin-top: 2px;
+}
+
+.confirm-publish-btn {
+  width: 100%;
+  padding: 16px;
+  background: #1e293b;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-bottom: 10px;
+}
+
+.confirm-publish-btn:hover {
+  background: #334155;
+}
+
+.confirm-publish-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirm-back-btn {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: color 0.15s;
+  text-align: center;
+}
+
+.confirm-back-btn:hover {
+  color: #64748b;
+}
+
+/* ============================================================
+   Listing Success Animation Overlay
+   ============================================================ */
+#listingSuccessAnimation {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.97);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+#listingSuccessAnimation.active {
+  opacity: 1;
+}
+
+.success-anim-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.success-anim-checkmark svg {
+  width: 88px;
+  height: 88px;
+}
+
+.success-anim-circle {
+  stroke: #22c55e;
+  stroke-width: 2.5;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: anim-circle 0.55s cubic-bezier(0.65, 0, 0.45, 1) 0.1s forwards;
+}
+
+.success-anim-check {
+  stroke: #22c55e;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 36;
+  stroke-dashoffset: 36;
+  animation: anim-circle 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.65s forwards;
+}
+
+@keyframes anim-circle {
+  to { stroke-dashoffset: 0; }
+}
+
+.success-anim-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  opacity: 0;
+  animation: anim-fade-up 0.35s ease 0.7s forwards;
+}
+
+.success-anim-subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0;
+  opacity: 0;
+  animation: anim-fade-up 0.35s ease 0.9s forwards;
+}
+
+@keyframes anim-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

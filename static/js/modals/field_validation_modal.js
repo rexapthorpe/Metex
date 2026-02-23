@@ -23,7 +23,8 @@ const FIELD_LABELS = {
   'price_per_coin': 'Price Per Coin',
   'spot_premium': 'Premium above spot',
   'floor_price': '"No lower than" price',
-  'item_photo': 'Item Photo'
+  'item_photo_1': 'Item Photo',
+  'cover_photo': 'Cover Photo'
 };
 
 /**
@@ -134,6 +135,10 @@ function validateForm(form, requiredFields) {
 function validateSellForm(form) {
   if (!form) return { isValid: true, errors: [] };
 
+  // Determine listing mode
+  const isSetMode = window.currentMode === 'set';
+  const isIsolatedMode = window.currentMode === 'isolated';
+
   // Base required fields (always required regardless of pricing mode)
   const baseRequiredFields = [
     'metal',
@@ -145,9 +150,15 @@ function validateSellForm(form) {
     'year',
     'finish',
     'grade',
-    'quantity',
-    'item_photo'
+    'quantity'
   ];
+
+  // Photo requirement depends on mode
+  if (isSetMode) {
+    baseRequiredFields.push('cover_photo');
+  } else {
+    baseRequiredFields.push('item_photo_1');
+  }
 
   // Determine pricing mode from the form
   const staticRadio = form.querySelector('#pricing_mode_static');

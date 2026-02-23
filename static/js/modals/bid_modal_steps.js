@@ -1,426 +1,339 @@
-/**
- * Bid Modal Step Navigation - Lovable Specification
- * Handles multi-step form flow for creating/editing bids
- */
+/* static/js/modals/bid_modal_steps.js — 5-step wizard navigation */
+'use strict';
 
-(function() {
+(function () {
+
+  /* Payment method display labels */
+  const PM_LABELS = {
+    credit_card:   { name: 'Credit Card',     icon: 'fa-regular fa-credit-card' },
+    paypal:        { name: 'PayPal',           icon: 'fa-brands fa-paypal' },
+    bank_transfer: { name: 'Bank Transfer',    icon: 'fa-solid fa-building-columns' },
+    crypto:        { name: 'Cryptocurrency',   icon: 'fa-brands fa-bitcoin' },
+  };
+
+  const TOTAL_STEPS = 5;
   let currentStep = 1;
-  const totalSteps = 4;
+  let selectedPaymentMethod = null;
 
-  /**
-   * Initialize step navigation when DOM is ready
-   */
-  function initStepNavigation() {
-    const btnBack = document.getElementById('btn-back');
-    const btnContinue = document.getElementById('btn-continue');
-    const btnSubmit = document.getElementById('btn-submit');
+  /* ══════════════════════════════════════════════════════════════
+     INIT — called by bid_modal.js after form HTML is injected
+     ══════════════════════════════════════════════════════════════ */
+  function initBidModalSteps() {
+    const wizard = document.querySelector('.bm-wizard');
+    if (!wizard) return;
+
+    currentStep = 1;
+    selectedPaymentMethod = null;
+
+    const btnBack     = document.getElementById('bm-back');
+    const btnContinue = document.getElementById('bm-continue');
+    const btnSubmit   = document.getElementById('bm-submit');
 
     if (!btnBack || !btnContinue || !btnSubmit) {
-      console.warn('Step navigation buttons not found');
+      console.warn('[BidSteps] Navigation buttons not found');
       return;
     }
 
-    // Back button handler
+    /* ── Back ── */
     btnBack.addEventListener('click', () => {
-      if (currentStep > 1) {
-        goToStep(currentStep - 1);
-      }
+      if (currentStep > 1) goToStep(currentStep - 1);
     });
 
-    // Continue button handler
+    /* ── Continue ── */
     btnContinue.addEventListener('click', () => {
-      if (validateCurrentStep()) {
-        if (currentStep < totalSteps) {
-          goToStep(currentStep + 1);
-        }
+      if (validateStep(currentStep)) {
+        if (currentStep < TOTAL_STEPS) goToStep(currentStep + 1);
       }
     });
 
-    // Initialize quantity stepper
-    initQuantityStepper();
+    /* ── Confirm Bid (step 5 submit) — bypass the extra confirm modal ── */
+    btnSubmit.addEventListener('click', () => {
+      const form = document.getElementById('bid-form');
+      if (form) {
+        window.bidWizardMode = true;  // signal to initBidForm to skip confirm modal
+        form.requestSubmit();
+      }
+    });
 
-    // Initialize pricing mode toggle
+    /* ── Pricing mode switcher ── */
     initPricingModeToggle();
 
-    // Initialize variable pricing calculator
-    initVariablePricingCalculator();
+    /* ── Grading toggles (mutual exclusivity) ── */
+    initGradingToggles();
 
-    // Initialize grading checkboxes
-    initGradingCheckboxes();
+    /* ── Payment option selection ── */
+    initPaymentOptions();
 
-    // Initialize address selector
-    initAddressSelector();
-
-    // Initialize payment radios
-    initPaymentRadios();
+    /* ── Initialize at step 1 ── */
+    goToStep(1);
   }
 
-  /**
-   * Navigate to a specific step
-   */
-  function goToStep(stepNumber) {
-    if (stepNumber < 1 || stepNumber > totalSteps) {
-      return;
-    }
+  /* ══════════════════════════════════════════════════════════════
+     STEP NAVIGATION
+     ══════════════════════════════════════════════════════════════ */
+  function goToStep(n) {
+    if (n < 1 || n > TOTAL_STEPS) return;
 
-    // Hide all step content
-    document.querySelectorAll('.step-content').forEach(content => {
-      content.classList.remove('active');
+    /* Update step content */
+    document.querySelectorAll('.bm-step-content').forEach((el, i) => {
+      el.classList.toggle('active', i + 1 === n);
     });
 
-    // Show target step content
-    const targetContent = document.getElementById(`step-${stepNumber}`);
-    if (targetContent) {
-      targetContent.classList.add('active');
+    /* Update stepper circles and connector lines */
+    const stepItems = document.querySelectorAll('.bm-step-item');
+    const stepLines = document.querySelectorAll('.bm-step-line');
+
+    stepItems.forEach((item, i) => {
+      const stepNum = i + 1;
+      item.classList.remove('active', 'completed');
+      if (stepNum < n)      item.classList.add('completed');
+      else if (stepNum === n) item.classList.add('active');
+    });
+
+    stepLines.forEach((line, i) => {
+      /* Line i connects step i+1 → i+2; completed when both sides done */
+      line.classList.toggle('completed', i + 1 < n);
+    });
+
+    /* Update footer buttons */
+    const btnBack     = document.getElementById('bm-back');
+    const btnContinue = document.getElementById('bm-continue');
+    const btnSubmit   = document.getElementById('bm-submit');
+
+    if (btnBack)     btnBack.style.display     = n === 1 ? 'none' : 'inline-flex';
+    if (btnContinue) btnContinue.style.display = n === TOTAL_STEPS ? 'none' : 'inline-flex';
+    if (btnSubmit)   btnSubmit.style.display   = n === TOTAL_STEPS ? 'inline-flex' : 'none';
+
+    /* Populate review on step 5 */
+    if (n === TOTAL_STEPS) populateReview();
+
+    currentStep = n;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PER-STEP VALIDATION
+     ══════════════════════════════════════════════════════════════ */
+  function validateStep(step) {
+    switch (step) {
+      case 1: return validatePricing();
+      case 2: return true; /* options always valid */
+      case 3: return validateDelivery();
+      case 4: return validatePayment();
+      default: return true;
     }
+  }
 
-    // Update step indicator
-    document.querySelectorAll('.step-item').forEach((step, index) => {
-      const stepNum = index + 1;
-      step.classList.remove('active', 'completed');
+  function validatePricing() {
+    const modeEl = document.getElementById('bid-pricing-mode');
+    const mode   = modeEl ? modeEl.value : 'static';
 
-      if (stepNum < stepNumber) {
-        step.classList.add('completed');
-      } else if (stepNum === stepNumber) {
-        step.classList.add('active');
+    if (mode === 'static') {
+      const qtyEl   = document.getElementById('qty-input');
+      const priceEl = document.getElementById('bid-price-input');
+      const qty     = parseInt(qtyEl && qtyEl.value) || 0;
+      const price   = parseFloat(priceEl && priceEl.value) || 0;
+
+      if (qty < 1) {
+        showHint('qty-hint', 'Quantity must be at least 1');
+        return false;
       }
-    });
-
-    // Update navigation buttons
-    const btnBack = document.getElementById('btn-back');
-    const btnContinue = document.getElementById('btn-continue');
-    const btnSubmit = document.getElementById('btn-submit');
-
-    // Show/hide back button
-    btnBack.style.display = stepNumber === 1 ? 'none' : 'inline-flex';
-
-    // Show continue or submit button
-    if (stepNumber === totalSteps) {
-      btnContinue.style.display = 'none';
-      btnSubmit.style.display = 'inline-flex';
+      if (price <= 0) {
+        showHint('price-hint', 'Price must be greater than $0');
+        return false;
+      }
     } else {
-      btnContinue.style.display = 'inline-flex';
-      btnSubmit.style.display = 'none';
+      const qtyEl     = document.getElementById('qty-input-premium');
+      const ceilingEl = document.getElementById('bid-ceiling-price');
+      const qty     = parseInt(qtyEl && qtyEl.value) || 0;
+      const ceiling = parseFloat(ceilingEl && ceilingEl.value) || 0;
+
+      if (qty < 1)     { alert('Quantity must be at least 1'); return false; }
+      if (ceiling <= 0){ alert('Please enter a valid max price'); return false; }
     }
 
-    currentStep = stepNumber;
-  }
-
-  /**
-   * Validate current step before proceeding
-   */
-  function validateCurrentStep() {
-    switch (currentStep) {
-      case 1: // Pricing
-        return validatePricingStep();
-      case 2: // Options
-        return true; // Options are optional
-      case 3: // Delivery
-        return validateDeliveryStep();
-      case 4: // Payment
-        return true; // Payment already selected
-      default:
-        return true;
-    }
-  }
-
-  /**
-   * Validate pricing step
-   */
-  function validatePricingStep() {
-    const pricingMode = document.getElementById('bid-pricing-mode').value;
-    const quantity = parseInt(document.getElementById('qty-input').value);
-
-    if (!quantity || quantity < 1) {
-      alert('Please enter a valid quantity');
-      return false;
-    }
-
-    if (pricingMode === 'static') {
-      const price = parseFloat(document.getElementById('bid-price-input').value);
-      if (!price || price <= 0) {
-        alert('Please enter a valid price');
-        return false;
-      }
-    } else if (pricingMode === 'variable') {
-      const ceiling = parseFloat(document.getElementById('bid-ceiling-price').value);
-      if (!ceiling || ceiling <= 0) {
-        alert('Please enter a valid floor price');
-        return false;
-      }
-    }
-
+    clearHint('qty-hint');
+    clearHint('price-hint');
     return true;
   }
 
-  /**
-   * Validate delivery step
-   */
-  function validateDeliveryStep() {
-    const line1 = document.getElementById('addr-line1').value.trim();
-    const city = document.getElementById('addr-city').value.trim();
-    const state = document.getElementById('addr-state').value;
-    const zip = document.getElementById('addr-zip').value.trim();
+  function validateDelivery() {
+    const line1 = (document.getElementById('addr-line1')?.value || '').trim();
+    const city  = (document.getElementById('addr-city')?.value  || '').trim();
+    const state = (document.getElementById('addr-state')?.value  || '').trim();
+    const zip   = (document.getElementById('addr-zip')?.value   || '').trim();
 
     if (!line1 || !city || !state || !zip) {
-      alert('Please fill in all required address fields');
+      showHint('address-hint', 'Please fill in all required address fields');
       return false;
     }
+    clearHint('address-hint');
+    return true;
+  }
+
+  function validatePayment() {
+    if (!selectedPaymentMethod) {
+      const hint = document.getElementById('payment-hint');
+      if (hint) {
+        hint.style.color = '#dc2626';
+        hint.textContent = 'Please select a payment method to continue';
+      }
+      return false;
+    }
+
+    /* Write selected payment to hidden input */
+    const pmHidden = document.getElementById('payment_method');
+    if (pmHidden) pmHidden.value = selectedPaymentMethod;
 
     return true;
   }
 
-  /**
-   * Initialize quantity stepper
-   */
-  function initQuantityStepper() {
-    const qtyInput = document.getElementById('qty-input');
-    const qtyDisplay = document.getElementById('qty-display');
-    const qtyMinus = document.getElementById('qty-minus');
-    const qtyPlus = document.getElementById('qty-plus');
+  /* ══════════════════════════════════════════════════════════════
+     REVIEW STEP — populate summary
+     ══════════════════════════════════════════════════════════════ */
+  function populateReview() {
+    const modeEl  = document.getElementById('bid-pricing-mode');
+    const mode    = modeEl ? modeEl.value : 'static';
 
-    if (!qtyInput || !qtyDisplay || !qtyMinus || !qtyPlus) return;
+    let price = 0, qty = 1, priceLabel = 'Fixed Price';
 
-    qtyMinus.addEventListener('click', () => {
-      let currentValue = parseInt(qtyInput.value) || 1;
-      if (currentValue > 1) {
-        qtyInput.value = currentValue - 1;
-        qtyDisplay.textContent = currentValue - 1;
-      }
-    });
-
-    qtyPlus.addEventListener('click', () => {
-      let currentValue = parseInt(qtyInput.value) || 1;
-      qtyInput.value = currentValue + 1;
-      qtyDisplay.textContent = currentValue + 1;
-    });
-  }
-
-  /**
-   * Update spot price display
-   */
-  function updateSpotPriceDisplay() {
-    const metalSelect = document.getElementById('bid-pricing-metal');
-    const premiumInput = document.getElementById('bid-spot-premium');
-    const spotMetalName = document.getElementById('spot-metal-name');
-    const spotPriceDisplay = document.getElementById('spot-price-display');
-    const spotCalcDisplay = document.getElementById('spot-calc-display');
-
-    if (!metalSelect || !spotMetalName || !spotPriceDisplay || !spotCalcDisplay) {
-      console.log('Spot price elements not found');
-      return;
+    if (mode === 'static') {
+      price = parseFloat(document.getElementById('bid-price-input')?.value) || 0;
+      qty   = parseInt(document.getElementById('qty-input')?.value) || 1;
+      priceLabel = 'Fixed Price';
+    } else {
+      price = parseFloat(document.getElementById('bid-ceiling-price')?.value) || 0;
+      qty   = parseInt(document.getElementById('qty-input-premium')?.value) || 1;
+      priceLabel = 'Max Price (ceiling)';
     }
 
-    // Get live spot prices from cache (fetched from API via bid_modal.js)
-    const spotPrices = typeof getSpotPrices === 'function'
-      ? getSpotPrices()
-      : { 'Gold': 0, 'Silver': 0, 'Platinum': 0, 'Palladium': 0 };
+    const subtotal = price * qty;
+    const tax      = subtotal * 0.0825;
+    const fee      = subtotal > 0 ? 0.65 : 0;
+    const total    = subtotal + tax + fee;
 
-    const selectedMetal = metalSelect.value;
-    const spotPrice = spotPrices[selectedMetal] || 0;
-    const premium = parseFloat(premiumInput ? premiumInput.value : 0) || 0;
-    const totalBid = spotPrice + premium;
+    setText('rv-price-label', priceLabel);
+    setText('rv-price-val',   fmt(price));
+    setText('rv-qty',         '×' + qty);
+    setText('rv-subtotal',    fmt(subtotal));
+    setText('rv-tax',         fmt(tax));
+    setText('rv-fee',         fmt(fee));
+    setText('rv-total',       fmt(total));
 
-    spotMetalName.textContent = selectedMetal;
-    spotPriceDisplay.textContent = formatPrice(spotPrice);
-    spotCalcDisplay.textContent = `Your bid: Spot + ${formatPrice(premium)} = ${formatPrice(totalBid)}`;
+    /* Payment method */
+    const pm = PM_LABELS[selectedPaymentMethod] || PM_LABELS['credit_card'];
+    setText('rv-pm-name', pm.name);
 
-    console.log('Updated spot price display:', { selectedMetal, spotPrice, premium, totalBid });
+    const pmIcon = document.getElementById('rv-pm-icon');
+    if (pmIcon) pmIcon.className = 'bm-rv-pm-icon ' + pm.icon;
   }
 
-  /**
-   * Initialize pricing mode dropdown
-   */
+  /* ══════════════════════════════════════════════════════════════
+     PRICING MODE TOGGLE
+     ══════════════════════════════════════════════════════════════ */
   function initPricingModeToggle() {
-    console.log('Initializing pricing mode toggle...');
+    const modeEl   = document.getElementById('bid-pricing-mode');
+    const staticEl = document.getElementById('static-pricing-fields');
+    const premEl   = document.getElementById('premium-pricing-fields');
+    const helperEl = document.getElementById('pricing-mode-helper');
 
-    const modeSelect = document.getElementById('bid-pricing-mode');
-    const staticSection = document.getElementById('static-pricing-section');
-    const premiumSection = document.getElementById('premium-pricing-section');
-    const helperText = document.getElementById('pricing-mode-helper');
+    if (!modeEl) return;
 
-    console.log('Elements found:', {
-      modeSelect: !!modeSelect,
-      staticSection: !!staticSection,
-      premiumSection: !!premiumSection,
-      helperText: !!helperText
-    });
-
-    if (!modeSelect) {
-      console.error('CRITICAL: Pricing mode select not found!');
-      return;
-    }
-
-    if (!staticSection || !premiumSection) {
-      console.error('CRITICAL: Pricing sections not found!', {
-        staticSection: !!staticSection,
-        premiumSection: !!premiumSection
-      });
-      return;
-    }
-
-    console.log('Initial mode value:', modeSelect.value);
-
-    // Handle dropdown change
-    modeSelect.addEventListener('change', function(e) {
-      const selectedMode = this.value;
-      console.log('=== PRICING MODE CHANGED ===');
-      console.log('New mode:', selectedMode);
-
-      if (selectedMode === 'static') {
-        staticSection.style.display = 'block';
-        premiumSection.style.display = 'none';
-        if (helperText) {
-          helperText.textContent = 'Enter a fixed price per item.';
-        }
-        console.log('✓ Switched to static pricing');
-        console.log('Static display:', staticSection.style.display);
-        console.log('Premium display:', premiumSection.style.display);
-      } else if (selectedMode === 'variable') {
-        staticSection.style.display = 'none';
-        premiumSection.style.display = 'block';
-        if (helperText) {
-          helperText.textContent = 'Bid tracks live spot price plus your premium.';
-        }
-        console.log('✓ Switched to variable pricing');
-        console.log('Static display:', staticSection.style.display);
-        console.log('Premium display:', premiumSection.style.display);
-        // Update spot price display when switching to variable
-        setTimeout(updateSpotPriceDisplay, 100);
+    function applyMode(mode) {
+      if (!staticEl || !premEl) return;
+      const isStatic = mode === 'static';
+      staticEl.style.display = isStatic ? ''      : 'none';
+      premEl.style.display   = isStatic ? 'none'  : '';
+      if (helperEl) {
+        helperEl.textContent = isStatic
+          ? 'Set a specific dollar amount for your bid.'
+          : 'Bid tracks live spot price plus your premium.';
       }
-    });
-
-    console.log('Event listener attached to dropdown');
-
-    // Initialize display based on current selection
-    const initialMode = modeSelect.value;
-    console.log('Setting initial display for mode:', initialMode);
-
-    if (initialMode === 'static') {
-      staticSection.style.display = 'block';
-      premiumSection.style.display = 'none';
-      console.log('Initial: Static pricing shown');
-    } else if (initialMode === 'variable') {
-      staticSection.style.display = 'none';
-      premiumSection.style.display = 'block';
-      console.log('Initial: Variable pricing shown');
-      setTimeout(updateSpotPriceDisplay, 100);
     }
 
-    console.log('Pricing mode toggle initialization complete');
+    modeEl.addEventListener('change', () => applyMode(modeEl.value));
+    applyMode(modeEl.value);
   }
 
-  /**
-   * Initialize variable pricing calculator
-   */
-  function initVariablePricingCalculator() {
-    const metalSelect = document.getElementById('bid-pricing-metal');
-    const premiumInput = document.getElementById('bid-spot-premium');
+  /* ══════════════════════════════════════════════════════════════
+     GRADING TOGGLES (mutual-exclusivity handled by initBidForm too,
+     but we also wire it here so step 2 feels responsive)
+     ══════════════════════════════════════════════════════════════ */
+  function initGradingToggles() {
+    const anyEl  = document.getElementById('grader_any');
+    const pcgsEl = document.getElementById('grader_pcgs');
+    const ngcEl  = document.getElementById('grader_ngc');
+    const reqEl  = document.getElementById('requires_grading');
+    const prefEl = document.getElementById('preferred_grader');
 
-    if (metalSelect) {
-      metalSelect.addEventListener('change', updateSpotPriceDisplay);
-    }
+    if (!anyEl || !pcgsEl || !ngcEl) return;
 
-    if (premiumInput) {
-      premiumInput.addEventListener('input', updateSpotPriceDisplay);
-    }
-
-    // Initial update
-    updateSpotPriceDisplay();
-  }
-
-  /**
-   * Initialize grading checkboxes (mutual exclusivity)
-   */
-  function initGradingCheckboxes() {
-    const anyGrader = document.getElementById('grader_any');
-    const pcgs = document.getElementById('grader_pcgs');
-    const ngc = document.getElementById('grader_ngc');
-    const requiresGrading = document.getElementById('requires_grading');
-    const preferredGrader = document.getElementById('preferred_grader');
-
-    if (!anyGrader || !pcgs || !ngc) return;
-
-    [anyGrader, pcgs, ngc].forEach(checkbox => {
-      checkbox.addEventListener('change', function() {
+    [anyEl, pcgsEl, ngcEl].forEach(cb => {
+      cb.addEventListener('change', function () {
         if (this.checked) {
-          // Uncheck others
-          [anyGrader, pcgs, ngc].forEach(cb => {
-            if (cb !== this) cb.checked = false;
-          });
-
-          // Update hidden fields
-          requiresGrading.value = 'yes';
-          if (this === anyGrader) preferredGrader.value = 'Any';
-          else if (this === pcgs) preferredGrader.value = 'PCGS';
-          else if (this === ngc) preferredGrader.value = 'NGC';
+          [anyEl, pcgsEl, ngcEl].forEach(other => { if (other !== this) other.checked = false; });
+          if (reqEl)  reqEl.value  = 'yes';
+          if (prefEl) prefEl.value = this === anyEl ? 'Any' : this === pcgsEl ? 'PCGS' : 'NGC';
         } else {
-          // If unchecked and no others are checked
-          const anyChecked = [anyGrader, pcgs, ngc].some(cb => cb.checked);
+          const anyChecked = [anyEl, pcgsEl, ngcEl].some(c => c.checked);
           if (!anyChecked) {
-            requiresGrading.value = 'no';
-            preferredGrader.value = '';
+            if (reqEl)  reqEl.value  = 'no';
+            if (prefEl) prefEl.value = '';
           }
         }
       });
     });
   }
 
-  /**
-   * Initialize address selector
-   */
-  function initAddressSelector() {
-    const selector = document.getElementById('addr-selector');
-    if (!selector) return;
+  /* ══════════════════════════════════════════════════════════════
+     PAYMENT OPTIONS
+     ══════════════════════════════════════════════════════════════ */
+  function initPaymentOptions() {
+    const opts = document.querySelectorAll('.bm-payment-opt');
+    opts.forEach(opt => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
 
-    selector.addEventListener('change', function() {
-      if (this.value === 'custom') {
-        // Clear fields
-        document.getElementById('addr-line1').value = '';
-        document.getElementById('addr-line2').value = '';
-        document.getElementById('addr-city').value = '';
-        document.getElementById('addr-state').value = '';
-        document.getElementById('addr-zip').value = '';
-      } else {
-        // Load selected address
-        const option = this.options[this.selectedIndex];
-        document.getElementById('addr-line1').value = option.dataset.line1 || '';
-        document.getElementById('addr-line2').value = option.dataset.line2 || '';
-        document.getElementById('addr-city').value = option.dataset.city || '';
-        document.getElementById('addr-state').value = option.dataset.state || '';
-        document.getElementById('addr-zip').value = option.dataset.zip || '';
-      }
-    });
-  }
+        selectedPaymentMethod = opt.dataset.value || null;
 
-  /**
-   * Initialize payment radio buttons
-   */
-  function initPaymentRadios() {
-    const radios = document.querySelectorAll('.radio-option');
+        const radio = opt.querySelector('input[type="radio"]');
+        if (radio) radio.checked = true;
 
-    radios.forEach(radio => {
-      radio.addEventListener('click', function() {
-        // Remove selected class from all
-        radios.forEach(r => r.classList.remove('selected'));
-        // Add selected class to clicked
-        this.classList.add('selected');
-        // Check the radio input
-        const input = this.querySelector('input[type="radio"]');
-        if (input) input.checked = true;
+        const hint = document.getElementById('payment-hint');
+        if (hint) {
+          hint.style.color = '#9ca3af';
+          hint.textContent = '';
+        }
+
+        const pmHidden = document.getElementById('payment_method');
+        if (pmHidden && selectedPaymentMethod) pmHidden.value = selectedPaymentMethod;
       });
     });
   }
 
-  /**
-   * Initialize on DOM ready
-   */
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initStepNavigation);
-  } else {
-    initStepNavigation();
+  /* ══════════════════════════════════════════════════════════════
+     HELPERS
+     ══════════════════════════════════════════════════════════════ */
+  function fmt(n) {
+    return '$' + (Math.round(n * 100) / 100).toFixed(2);
   }
 
-  // Export for external use
-  window.initBidModalSteps = initStepNavigation;
+  function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  function showHint(id, msg) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = msg;
+  }
+
+  function clearHint(id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  }
+
+  /* ── Export ── */
+  window.initBidModalSteps = initBidModalSteps;
+
 })();
