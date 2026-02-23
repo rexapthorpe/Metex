@@ -22,7 +22,34 @@
 .sold-card--shipped { border-left-color: #3b82f6; }
 .sold-card--delivered,
 .sold-card--completed { border-left-color: #22c55e; }
-.sold-card--cancelled { border-left-color: #ef4444; }
+.sold-card--cancelled,
+.sold-card--canceled { border-left-color: #ef4444; }
+
+/* Cancellation pending: seller approved, waiting for others — orange accent, muted */
+.sold-card--cancel-pending {
+  border-left-color: #f59e0b !important;
+  opacity: 0.75;
+}
+.sold-card--cancel-pending .sold-card-header,
+.sold-card--cancel-pending .sold-card-title-row,
+.sold-card--cancel-pending .sold-card-body {
+  filter: grayscale(30%);
+}
+
+/* Cancellation approved: fully cancelled — red accent, clearly muted */
+.sold-card--cancel-approved {
+  border-left-color: #ef4444 !important;
+  opacity: 0.6;
+}
+.sold-card--cancel-approved .sold-card-header,
+.sold-card--cancel-approved .sold-card-title-row,
+.sold-card--cancel-approved .sold-card-body {
+  filter: grayscale(60%);
+}
+
+/* Canceled status badge (for sold tiles with Canceled status) */
+.sold-status-badge--canceled { background: #fee2e2; color: #991b1b; }
+.sold-status-badge--canceled .sold-status-dot { background: #ef4444; }
 
 /* ===== Card Header ===== */
 .sold-card-header {

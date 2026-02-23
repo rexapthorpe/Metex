@@ -18,7 +18,7 @@
         {% set status_lower = sale.status | lower | replace(' ', '-') %}
         {% set listing_type = 'set' if (sale.is_isolated and sale.isolated_type == 'set') else ('one-of-a-kind' if sale.is_isolated else 'standard') %}
 
-        <div class="sold-card sold-card--{{ status_lower }}" id="order-{{ sale.order_id }}" data-sold-filter="{{ status_lower }}">
+        <div class="sold-card sold-card--{{ status_lower }}{% if sale.cancel_status == 'pending' and sale.seller_cancel_response == 'approved' %} sold-card--cancel-pending{% endif %}{% if sale.cancel_status == 'approved' %} sold-card--cancel-approved{% endif %}" id="order-{{ sale.order_id }}" data-sold-filter="{{ status_lower }}">
 
           <!-- Card Header -->
           <div class="sold-card-header">
@@ -148,13 +148,13 @@
             </div>
           </div>
           {% elif sale.cancel_status == 'approved' %}
-          <div class="cancel-request-bar" style="background:#f0fdf4; border-left-color:#10b981;">
+          <div class="cancel-request-bar" style="background:#fef2f2; border-left-color:#ef4444;">
             <div class="cancel-request-bar-left">
-              <div class="cancel-request-bar-icon" style="background:#bbf7d0; color:#10b981;">
-                <i class="fa-solid fa-circle-check"></i>
+              <div class="cancel-request-bar-icon" style="background:#fecaca; color:#ef4444;">
+                <i class="fa-solid fa-circle-xmark"></i>
               </div>
               <div>
-                <div class="cancel-request-bar-title" style="color:#15803d;">Order Cancelled</div>
+                <div class="cancel-request-bar-title" style="color:#b91c1c;">Order Cancelled</div>
                 <div class="cancel-request-bar-subtitle">All sellers approved — inventory restored</div>
               </div>
             </div>
@@ -169,29 +169,6 @@
                 <div class="cancel-request-bar-title" style="color:#b91c1c;">Cancellation Denied</div>
                 <div class="cancel-request-bar-subtitle">A seller rejected the cancellation request</div>
               </div>
-            </div>
-          </div>
-          {% endif %}
-
-          <!-- Action Bar for Awaiting Confirmation -->
-          {% if sale.status | lower in ['awaiting confirmation', 'awaiting-confirmation', 'pending'] %}
-          <div class="sold-action-bar sold-action-bar--confirm">
-            <div class="sold-action-bar-left">
-              <div class="sold-action-bar-icon sold-action-bar-icon--warning">
-                <i class="fa-regular fa-clock"></i>
-              </div>
-              <div>
-                <div class="sold-action-bar-title">New Order Received</div>
-                <div class="sold-action-bar-subtitle">Please confirm or decline</div>
-              </div>
-            </div>
-            <div class="sold-action-bar-right">
-              <button class="sold-confirm-btn sold-confirm-btn--decline" onclick="alert('Decline functionality coming soon')">
-                <i class="fa-solid fa-xmark"></i> Decline
-              </button>
-              <button class="sold-confirm-btn sold-confirm-btn--accept" onclick="alert('Accept functionality coming soon')">
-                <i class="fa-solid fa-check"></i> Accept
-              </button>
             </div>
           </div>
           {% endif %}
@@ -237,7 +214,7 @@
               <button
                 class="sold-footer-btn{% if sale.already_rated %} sold-footer-btn--rated{% endif %}"
                 {% if not sale.already_rated %}
-                onclick="openRateModal({{ sale.order_id }}, 'buyer', {{ {'title': sale_title, 'price': '$%d' | format(sale.gross_amount or 0), 'date': sale.order_date or ''} | tojson }})"
+                onclick='openRateModal({{ sale.order_id }}, "buyer", {{ {"title": sale_title, "price": "$%d" | format(sale.gross_amount or 0), "date": sale.order_date or ""} | tojson }})'
                 {% endif %}
                 {% if sale.already_rated %}disabled{% endif %}>
                 <i class="{% if sale.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>

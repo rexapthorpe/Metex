@@ -42,7 +42,7 @@ def get_message_buyers(order_id):
     conn = get_db_connection()
     rows = conn.execute(
         """
-        SELECT
+        SELECT DISTINCT
             o.buyer_id    AS participant_id,
             u.username    AS username
         FROM orders o

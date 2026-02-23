@@ -282,7 +282,7 @@ def account():
            JOIN categories c   ON l.category_id = c.id
            JOIN users u        ON l.seller_id = u.id
           WHERE o.buyer_id = ?
-            AND o.status IN ('Delivered','Complete','Refunded','Cancelled')
+            AND o.status IN ('Delivered','Complete','Refunded','Cancelled','Canceled')
           GROUP BY o.id, o.status, o.created_at, o.delivery_address, o.shipping_address
           ORDER BY o.created_at DESC
         """, (user_id, user_id, user_id)

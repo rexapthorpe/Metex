@@ -163,7 +163,7 @@
           {% set item_title = [p['metal'] or '', p['product_type'] or ''] | join(' ') | trim %}
           {% set item_price = '$%d' | format(p['total_amount'] or 0) %}
           {% set item_date = p['completed_at'] if p.get('completed_at') else (p['created_at'] if p.get('created_at') else '') %}
-          <button class="rt-rate-btn" onclick="openRateModal({{ p['order_id'] }}, {{ p['user_role'] | tojson }}, {{ {'title': item_title, 'price': item_price, 'date': item_date} | tojson }})">
+          <button class="rt-rate-btn" onclick='openRateModal({{ p["order_id"] }}, {{ p["user_role"] | tojson }}, {{ {"title": item_title, "price": item_price, "date": item_date} | tojson }})'>
             <i class="fa-regular fa-star"></i> Rate
           </button>
         </div>

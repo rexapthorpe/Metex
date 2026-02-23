@@ -343,6 +343,7 @@ def account():
              MIN(l.isolated_type) AS isolated_type,
              MIN(l.issue_number) AS issue_number,
              MIN(l.issue_total) AS issue_total,
+             MIN(u.username)    AS seller_username,
              MIN(lp.file_path) AS photo_path,
              MAX(oi.third_party_grading_requested) AS third_party_grading,
              SUM(oi.grading_fee_charged) AS grading_fee_total,
@@ -361,6 +362,7 @@ def account():
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id
            JOIN categories c   ON l.category_id = c.id
+           JOIN users u        ON l.seller_id = u.id
            LEFT JOIN listing_photos lp ON lp.listing_id = l.id
           WHERE o.buyer_id = ?
             AND o.status IN ('Pending','Pending Shipment','Awaiting Shipment','Awaiting Delivery')
@@ -638,9 +640,17 @@ def account():
             ).fetchone()
 
             sale['cancellation_response'] = dict(seller_response) if seller_response else None
+
+            # Flatten for template access
+            sale['cancel_status'] = cancel_request['status']
+            sale['cancel_reason'] = cancel_request['reason']
+            sale['seller_cancel_response'] = seller_response['response'] if seller_response else None
         else:
             sale['cancellation_request'] = None
             sale['cancellation_response'] = None
+            sale['cancel_status'] = None
+            sale['cancel_reason'] = None
+            sale['seller_cancel_response'] = None
 
         sales.append(sale)
 

@@ -365,19 +365,17 @@
         {% endfor %}
       </div>
 
-      <div class="summary-divider"></div>
-
       <div class="summary-row">
         <span class="summary-label">Subtotal</span>
         <span class="summary-value">${{ '{:,.2f}'.format(subtotal) }}</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Shipping</span>
-        <span class="summary-value">$0.00</span>
+        <span class="summary-value summary-value-free">Free</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Insurance</span>
-        <span class="summary-value">${{ '{:,.2f}'.format(insurance) }}</span>
+        <span class="summary-value summary-value-free">Free</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Tax</span>

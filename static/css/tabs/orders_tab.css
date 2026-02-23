@@ -80,6 +80,10 @@
 .order-status-badge--delivered .order-status-dot { background: #22c55e; }
 .order-status-badge--awaiting-confirmation { background: #f1f5f9; color: #64748b; }
 .order-status-badge--awaiting-confirmation .order-status-dot { background: #94a3b8; }
+.order-status-badge--canceled,
+.order-status-badge--cancelled { background: #fee2e2; color: #991b1b; }
+.order-status-badge--canceled .order-status-dot,
+.order-status-badge--cancelled .order-status-dot { background: #ef4444; }
 
 .order-number { font-size: 12px; color: #64748b; font-weight: 500; }
 

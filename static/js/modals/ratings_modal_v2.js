@@ -222,7 +222,15 @@
         body: new FormData(this)
       })
       .then(res => res.json())
-      .then(() => showConfirmation())
+      .then(data => {
+        if (data.success) {
+          showConfirmation();
+        } else {
+          // Re-enable submit on error
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Rating'; }
+          console.error('Rating error:', data.error);
+        }
+      })
       .catch(() => showConfirmation());
     });
   });

@@ -96,7 +96,7 @@
             <button
               class="order-quick-action order-quick-action--muted{% if order.already_rated %} order-quick-action--rated{% endif %}"
               {% if not order.already_rated %}
-              onclick="openRateModal({{ order.id }}, 'seller', {{ {'title': order_title, 'price': '$%d' | format(order.price_each or 0), 'date': order.formatted_order_date or ''} | tojson }})"
+              onclick='openRateModal({{ order.id }}, "seller", {{ {"title": order_title, "price": "$%d" | format(order.price_each or 0), "date": order.formatted_order_date or ""} | tojson }})'
               {% endif %}
               {% if order.already_rated %}disabled{% endif %}>
               <i class="{% if order.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>

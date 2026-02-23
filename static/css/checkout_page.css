@@ -906,6 +906,8 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+  border-bottom: none;
+  padding: 0;
 }
 
 .checkout-container .summary-row:last-of-type {
@@ -920,6 +922,12 @@ body {
 .checkout-container .summary-row .summary-value {
   font-size: 14px;
   color: #1a1a2e;
+}
+
+.checkout-container .summary-row .summary-value-free {
+  font-size: 14px;
+  color: #10b981;
+  font-weight: 600;
 }
 
 .checkout-container .summary-row.summary-total {
