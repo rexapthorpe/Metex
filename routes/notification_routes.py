@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, session, request
 from services.notification_service import (
     get_user_notifications,
     mark_notification_read,
+    mark_all_notifications_read,
     delete_notification,
     get_unread_count
 )
@@ -45,6 +46,17 @@ def get_unread_notification_count():
         'success': True,
         'count': count
     })
+
+
+@notification_bp.route('/notifications/mark-all-read', methods=['POST'])
+def mark_all_read():
+    """Mark all notifications as read for the current user"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+
+    user_id = session['user_id']
+    mark_all_notifications_read(user_id)
+    return jsonify({'success': True})
 
 
 @notification_bp.route('/notifications/<int:notification_id>/read', methods=['POST'])

@@ -1,95 +1,149 @@
 // static/js/modals/bid_bidder_modal.js
-// Modal for viewing bidder information on the Bucket ID page
+// Modal for viewing bidder (buyer) information on the Bucket ID page
+// Styled to match the order_sellers_modal osm-* layout
 
 function openBidderModal(bidId) {
-  console.log('[Bidder Modal] Opening modal for bid:', bidId);
-
   fetch(`/bids/api/bid/${bidId}/bidder_info`)
     .then(res => {
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       return res.json();
     })
     .then(data => {
-      console.log('[Bidder Modal] Received bidder data:', data);
-
       if (data.error) {
-        alert('Error loading bidder information: ' + data.error);
+        alert('Error loading buyer information: ' + data.error);
         return;
       }
-
       renderBidder(data);
-
-      // Show modal - match Orders modal pattern
       const modal = document.getElementById('bidBidderModal');
       modal.style.display = 'flex';
-      modal.addEventListener('click', outsideBidderClickListener);
+      modal.addEventListener('click', _outsideBidderClick);
     })
     .catch(err => {
-      console.error('[Bidder Modal] Error loading bidder:', err);
-      alert('Failed to load bidder information. Please try again.');
+      console.error('[Bidder Modal] Error:', err);
+      alert('Failed to load buyer information. Please try again.');
     });
 }
 
 function closeBidderModal() {
   const modal = document.getElementById('bidBidderModal');
   modal.style.display = 'none';
-  modal.removeEventListener('click', outsideBidderClickListener);
+  modal.removeEventListener('click', _outsideBidderClick);
 }
 
-function outsideBidderClickListener(e) {
-  if (e.target && e.target.id === 'bidBidderModal') {
-    closeBidderModal();
-  }
+function _outsideBidderClick(e) {
+  if (e.target && e.target.id === 'bidBidderModal') closeBidderModal();
 }
 
-function renderBidder(bidder) {
+function _esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+}
+
+function renderBidder(b) {
   const container = document.getElementById('bidBidderModalContent');
+  if (!container) return;
 
-  if (!container || !bidder) {
-    console.error('[Bidder Modal] Missing container or bidder data');
-    return;
-  }
+  // Avatar initial
+  const initial = (b.display_name || b.username || '?')[0].toUpperCase();
 
-  console.log('[Bidder Modal] Rendering bidder:', bidder);
-
-  // Build rounded stars
-  const rounded = Math.round(bidder.rating || 0);
+  // Stars
+  const ratingVal = parseFloat(b.rating || 0);
   let starsHtml = '';
   for (let i = 1; i <= 5; i++) {
-    starsHtml += `<span class="star${i <= rounded ? ' filled' : ''}">★</span>`;
+    starsHtml += `<span class="star${i <= Math.round(ratingVal) ? '' : ' empty'}">&#9733;</span>`;
   }
 
-  // Render bidder information (no navigation arrows, no remove button)
+  // Verified badge
+  const verifiedBadge = b.is_verified
+    ? `<span class="osm-verified-badge"><i class="fa-solid fa-shield-halved"></i> Verified Buyer</span>`
+    : '';
+
+  // Stats values
+  const transactions   = b.transaction_count != null ? Number(b.transaction_count).toLocaleString() : '--';
+  const repeatSellers  = b.repeat_sellers_pct != null ? `${b.repeat_sellers_pct}%` : '--';
+  const memberSince    = b.member_since  || '--';
+  const responseTime   = b.response_time || '--';
+  const shipsTo        = b.ships_to      || '--';
+  const bidQty         = b.quantity      != null ? b.quantity : '--';
+
+  // Purchase interests tags
+  const interestsHtml = (Array.isArray(b.purchase_interests) && b.purchase_interests.length > 0)
+    ? b.purchase_interests.map(t => `<span class="osm-tag">${_esc(t)}</span>`).join('')
+    : '<span class="osm-tag">&mdash;</span>';
+
   container.innerHTML = `
-    <div class="modal-header">
-      <div class="modal-title">${bidder.username}</div>
-    </div>
-
-    <div class="modal-body">
-      <div class="seller-photo">Image</div>
-
-      <div class="stats-row">
-        <div class="rating-block">
-          <span class="avg-rating">${(bidder.rating || 0).toFixed(1)}</span>
-          <span class="stars">${starsHtml}</span>
-        </div>
-      </div>
-
-      <div class="stats-row">
-        <div class="review-count">
-          ${bidder.num_reviews} Review${bidder.num_reviews === 1 ? '' : 's'}
-        </div>
-      </div>
-
-      <div class="unit-count">
-        ${bidder.quantity} Unit${bidder.quantity === 1 ? '' : 's'} In This Bid
+    <div class="osm-identity">
+      <div class="osm-avatar">${initial}</div>
+      <div class="osm-identity-info">
+        <div class="osm-display-name">${_esc(b.display_name || b.username)}</div>
+        <div class="osm-username">@${_esc(b.username)}</div>
+        ${verifiedBadge}
       </div>
     </div>
+
+    <hr class="osm-divider">
+
+    <div class="osm-stats-card">
+      <div class="osm-stats-top">
+        <div class="osm-rating-block">
+          <div class="osm-rating-number">${ratingVal.toFixed(1)}</div>
+          <div class="osm-stars-col">
+            <div class="osm-stars">${starsHtml}</div>
+            <div class="osm-reviews-count">${Number(b.num_reviews || 0).toLocaleString()} ratings</div>
+          </div>
+        </div>
+        <div class="osm-transactions-block">
+          <div class="osm-transactions-num">${transactions}</div>
+          <div class="osm-transactions-label">transactions</div>
+        </div>
+      </div>
+      <div class="osm-stats-bottom">
+        <div class="osm-stat-item">
+          <div class="osm-stat-icon green"><i class="fa-solid fa-arrow-trend-up"></i></div>
+          <div>
+            <div class="osm-stat-label">Repeat Sellers</div>
+            <div class="osm-stat-value">${repeatSellers}</div>
+          </div>
+        </div>
+        <div class="osm-stat-item">
+          <div class="osm-stat-icon"><i class="fa-solid fa-cube"></i></div>
+          <div>
+            <div class="osm-stat-label">This Bid</div>
+            <div class="osm-stat-value">${bidQty} unit${bidQty !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="osm-info-grid">
+      <div class="osm-info-item">
+        <div class="osm-info-icon"><i class="fa-regular fa-calendar"></i></div>
+        <div>
+          <span class="osm-info-label">Member since</span>
+          <span class="osm-info-value">${memberSince}</span>
+        </div>
+      </div>
+      <div class="osm-info-item">
+        <div class="osm-info-icon"><i class="fa-regular fa-clock"></i></div>
+        <div>
+          <span class="osm-info-label">Response</span>
+          <span class="osm-info-value">${responseTime}</span>
+        </div>
+      </div>
+      <div class="osm-info-item">
+        <div class="osm-info-icon"><i class="fa-solid fa-location-dot"></i></div>
+        <div>
+          <span class="osm-info-label">Ships to</span>
+          <span class="osm-info-value">${shipsTo}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="osm-specializes-label">Purchase interests</div>
+    <div class="osm-tags">${interestsHtml}</div>
   `;
 }
 
-// Make functions globally available
-window.openBidderModal = openBidderModal;
+window.openBidderModal  = openBidderModal;
 window.closeBidderModal = closeBidderModal;

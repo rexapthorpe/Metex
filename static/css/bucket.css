@@ -781,115 +781,76 @@
 .header-bid-btn:hover { background: #d97706; }
 
 /* === MY ACTIVE BIDS (account section) ===
-   Styles for: .account-bid-tiles / .account-bid-tile / .abt-*
-   Matches the look of the bid cards above.
+   Styled to match the standard bid cards.
 */
 .account-bid-tiles {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  align-items: flex-start;
   margin-bottom: 24px;
 }
+
 .account-bid-tile {
-  border: 1px solid #ccc;
-  background: #f9f9f9;
-  border-radius: 12px;
-  padding: 16px;
-  min-height: 92px;
-  width: clamp(500px, 100%, 500px);
-  min-width: 500px;
-  max-width: 500px;
+  position: relative;
   box-sizing: border-box;
+  border: 1.5px solid #e5e7eb;
+  padding: 20px;
+  border-radius: 14px;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
-.abt-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
+
+.account-bid-tile:hover {
+  border-color: #9ca3af;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
-.abt-price {
-  font-weight: 800;
-  font-size: 1.2rem;
-  color: #0b1222;
+
+/* Form wrapping the close button needs to be inline */
+.account-bid-tile .bid-actions form {
+  display: inline-flex;
+  margin: 0;
 }
-.abt-price-suffix {
-  font-weight: 800;
-  color: #0b1222;
+
+/* "Your Bid" status badge */
+.my-bid-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
 }
+
+/* Danger variant for the close/trash icon button */
+.icon-button--danger {
+  color: #dc2626 !important;
+}
+.icon-button--danger:hover {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+
+/* Pricing mode badges (used by standard and user bid tiles) */
 .pricing-mode-badge {
   display: inline-block;
-  padding: 4px 10px;
-  margin-left: 8px;
-  border-radius: 12px;
-  font-size: 11px;
+  padding: 3px 8px;
+  margin-left: 6px;
+  border-radius: 10px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   vertical-align: middle;
 }
 .pricing-mode-badge.variable {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #4caf50;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #6ee7b7;
 }
 .pricing-mode-badge.fixed {
-  background: #e3f2fd;
-  color: #1565c0;
-  border: 1px solid #1976d2;
-}
-.abt-units { color: #333; font-variant-numeric: tabular-nums; }
-.abt-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  color: #555;
-  font-size: 0.95rem;
-}
-.abt-curr { }
-.abt-filled { }
-.abt-date { color: #555; font-size: 0.95rem; }
-
-.abt-actions {
-  display: flex;
-  justify-content: flex-end;   /* push buttons to the right */
-  align-items: center;         /* keep icons/text aligned */
-  gap: 10px;
-  margin-top: 10px;
-  width: 100%;                 /* span tile width so right edge lines up */
-}
-.abt-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 9999px;
-  border: none;
-  background: none;
-  color: #000000;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
-}
-.abt-action:hover {
-  transform: scale(1.03);
-  background: #63c9f5;
-  color: #ffffff;
-}
-
-.abt-actions form {
-  flex: 0 0 auto;
-  width: auto;
-  margin: 0;
-  display: inline-flex;        /* keeps each button inline */
-}
-.abt-action svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
 }
 
 /* Responsive */
@@ -916,9 +877,11 @@
 /* Responsive bids grid */
 @media (max-width: 1024px) {
   .bids-list { grid-template-columns: repeat(2, 1fr); }
+  .account-bid-tiles { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 640px) {
   .bids-list { grid-template-columns: 1fr; }
+  .account-bid-tiles { grid-template-columns: 1fr; }
   .bids-panel { padding: 20px 16px; }
 }
 

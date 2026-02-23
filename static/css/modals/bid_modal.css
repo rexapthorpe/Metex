@@ -782,6 +782,78 @@
   border-left: 3px solid #dc2626;
 }
 
+/* ═══════════════════════════════════════════
+   SUCCESS ANIMATION
+   ═══════════════════════════════════════════ */
+
+#bidModal .bm-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 56px 32px 48px;
+  min-height: 340px;
+  background: #ffffff;
+  border-radius: 0 0 20px 20px;
+}
+
+#bidModal .bm-success-icon {
+  margin-bottom: 24px;
+}
+
+#bidModal .bm-check-svg {
+  width: 84px;
+  height: 84px;
+  display: block;
+}
+
+/* Circle draws in */
+#bidModal .bm-check-circle {
+  stroke: #22c55e;
+  stroke-width: 2;
+  fill: rgba(34, 197, 94, 0.08);
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  animation: bm-draw 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+/* Checkmark draws in after circle */
+#bidModal .bm-check-path {
+  stroke: #22c55e;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: bm-draw 0.35s cubic-bezier(0.65, 0, 0.45, 1) 0.55s forwards;
+}
+
+@keyframes bm-draw {
+  100% { stroke-dashoffset: 0; }
+}
+
+#bidModal .bm-success-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+  opacity: 0;
+  animation: bm-fadein 0.4s ease 0.8s forwards;
+}
+
+#bidModal .bm-success-msg {
+  font-size: 15px;
+  color: #6b7280;
+  opacity: 0;
+  animation: bm-fadein 0.4s ease 1s forwards;
+}
+
+@keyframes bm-fadein {
+  to { opacity: 1; }
+}
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
   #bidModal .modal-content { padding: 16px !important; }

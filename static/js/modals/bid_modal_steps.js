@@ -50,6 +50,8 @@
     btnSubmit.addEventListener('click', () => {
       const form = document.getElementById('bid-form');
       if (form) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = 'Submitting…';
         window.bidWizardMode = true;  // signal to initBidForm to skip confirm modal
         form.requestSubmit();
       }
@@ -333,7 +335,36 @@
     if (el) el.textContent = '';
   }
 
-  /* ── Export ── */
+  /* ══════════════════════════════════════════════════════════════
+     SUCCESS ANIMATION — called by submitBidForm() on success
+     ══════════════════════════════════════════════════════════════ */
+  function showWizardSuccess() {
+    const wizard = document.querySelector('.bm-wizard');
+    if (!wizard) return;
+
+    // Replace entire wizard contents with success view
+    wizard.innerHTML = `
+      <div class="bm-success">
+        <div class="bm-success-icon">
+          <svg class="bm-check-svg" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+            <circle class="bm-check-circle" cx="26" cy="26" r="25"/>
+            <path class="bm-check-path" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+        </div>
+        <div class="bm-success-title">Bid Placed!</div>
+        <div class="bm-success-msg">Your bid has been submitted successfully.</div>
+      </div>
+    `;
+
+    // Auto-close and reload after 2.5s
+    setTimeout(() => {
+      if (typeof window.closeBidModal === 'function') window.closeBidModal();
+      location.reload();
+    }, 2500);
+  }
+
+  /* ── Exports ── */
   window.initBidModalSteps = initBidModalSteps;
+  window.showWizardSuccess  = showWizardSuccess;
 
 })();

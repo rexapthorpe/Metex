@@ -722,6 +722,7 @@ window.submitBidForm = function() {
   const form = pending.form;
   const formData = pending.formData;
   const btn = document.getElementById('eb-confirm');
+  const wizardBtn = document.getElementById('bm-submit');
 
   // Disable button to prevent double submission
   if (btn) {
@@ -733,11 +734,9 @@ window.submitBidForm = function() {
     .then(res => res.json())
     .then(data => {
       if (!data.success) {
-        // Re-enable button
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = 'Confirm';
-        }
+        // Re-enable buttons
+        if (btn)       { btn.disabled = false;       btn.textContent = 'Confirm'; }
+        if (wizardBtn) { wizardBtn.disabled = false;  wizardBtn.textContent = 'Confirm Bid'; }
 
         // Show validation errors
         if (data.errors) {
@@ -759,7 +758,15 @@ window.submitBidForm = function() {
         return;
       }
 
-      // Success! Show success modal
+      // Success!
+      // Wizard mode: show inline checkmark animation (skips the success modal)
+      if (document.querySelector('.bm-wizard') && typeof window.showWizardSuccess === 'function') {
+        window.pendingBidFormData = null;
+        window.showWizardSuccess();
+        return;
+      }
+
+      // Non-wizard fallback: old success modal flow
       closeBidConfirmModal();
       closeBidModal();
 
@@ -865,11 +872,9 @@ window.submitBidForm = function() {
     .catch(err => {
       console.error('❌ Form submission failed:', err);
 
-      // Re-enable button
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Confirm';
-      }
+      // Re-enable buttons
+      if (btn)       { btn.disabled = false;       btn.textContent = 'Confirm'; }
+      if (wizardBtn) { wizardBtn.disabled = false;  wizardBtn.textContent = 'Confirm Bid'; }
 
       alert('Server error occurred. Please try again.');
       closeBidConfirmModal();

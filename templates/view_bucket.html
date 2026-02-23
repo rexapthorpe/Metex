@@ -559,71 +559,91 @@
 <!-- ================== FULL-WIDTH BIDS SECTION (anchor target) ================== -->
 <section class="content-tile bids-panel" id="bidsSection" aria-label="Bids">
   {% if user_bids %}
-  <section aria-label="Your active bids">
-    <h3 class="bids-panel-heading">Your Active Bids</h3>
+  <section aria-label="Your active bids" style="margin-bottom: 32px;">
+    <div class="bids-header">
+      <div class="bids-header-left">
+        <h3 class="bids-panel-heading">Your Active Bids</h3>
+        <p class="bids-header-subtitle">Bids you've placed on this item</p>
+      </div>
+    </div>
 
     <div class="account-bid-tiles">
       {% for bid in user_bids if bid['active'] and bid['status']|lower in ['open','pending','partially filled'] %}
         {% set requested = bid['quantity_requested'] or 0 %}
         {% set remaining = bid['remaining_quantity'] if bid['remaining_quantity'] is not none else requested %}
         {% set filled = requested - remaining %}
+        {% set fill_pct = ((filled / requested * 100)|int) if requested > 0 else 0 %}
         <article class="account-bid-tile">
-          <div class="abt-top">
-            <div class="abt-price">
-              ${{ bid.get('effective_price', bid['price_per_coin'])|commas }}
-              <span class="abt-price-suffix">BID</span>
-              {% if bid.get('pricing_mode') == 'premium_to_spot' %}
-                <span class="pricing-mode-badge variable">Variable</span>
-              {% endif %}
+          <div class="bid-card-content">
+
+            <!-- Top row: Price + "Your Bid" badge -->
+            <div class="bid-top-row">
+              <div class="bid-price-section">
+                <div class="bid-price-strong">
+                  ${{ bid.get('effective_price', bid['price_per_coin'])|commas }}
+                  {% if bid.get('pricing_mode') == 'premium_to_spot' %}
+                    <span class="pricing-mode-badge variable">Variable</span>
+                  {% endif %}
+                </div>
+                <div class="bid-price-label">bid per unit</div>
+              </div>
+              <span class="bid-status-badge my-bid-badge">Your Bid</span>
             </div>
-            <div class="abt-units">{{ requested }} units</div>
-          </div>
 
-          {% if bid.get('pricing_mode') == 'premium_to_spot' %}
-          <div class="abt-row pricing-info">
-            <div class="abt-curr" style="font-size: 12px; color: #4caf50;">
-              <strong>Variable Pricing:</strong> Spot + ${{ bid.get('spot_premium', 0)|commas }}
-              {% if bid.get('floor_price') %}
-                (Floor: ${{ bid['floor_price']|commas }})
-              {% endif %}
+            <!-- Units row -->
+            <div class="bid-username-row">
+              <i class="fa-solid fa-layer-group"></i>
+              <span>{{ requested }} unit{{ 's' if requested != 1 else '' }} requested</span>
             </div>
-          </div>
-          {% endif %}
 
-          <div class="abt-row">
-            <div class="abt-curr">
-              {% if bid['requires_grading'] %}
-                Require 3rd party Grading: Yes{% if bid['preferred_grader'] %} ({{ bid['preferred_grader'] }}){% endif %}
-              {% else %}
-                Require 3rd party Grading: No
-              {% endif %}
+            <!-- Fill progress -->
+            <div class="bid-progress-section">
+              <div class="bid-progress-header">
+                <span class="bid-progress-label">Fill Progress</span>
+                <span class="bid-progress-units">{{ filled }}/{{ requested }} units</span>
+              </div>
+              <div class="bid-progress-bar">
+                <div class="bid-progress-fill" style="width: {{ fill_pct }}%"></div>
+              </div>
             </div>
-            <div class="abt-filled">Filled: {{ filled }}</div>
-          </div>
 
-          {% if bid['created_at'] %}<div class="abt-date">{{ bid['created_at'] }}</div>{% endif %}
+            <!-- Bottom: Grading + Date + Actions -->
+            <div class="bid-bottom-section">
+              <div class="bid-bottom-left">
+                <div class="bid-grading-row">
+                  {% if bid['requires_grading'] %}
+                    <div class="grading-icon required"><i class="fa-solid fa-check"></i></div>
+                    <span>Requires {{ bid['preferred_grader'] or '' }} grading</span>
+                  {% else %}
+                    <div class="grading-icon not-required"></div>
+                    <span>No grading required</span>
+                  {% endif %}
+                </div>
+                {% if bid['created_at'] %}
+                <div class="bid-date-row">
+                  <i class="fa-regular fa-clock"></i>
+                  <span>{{ bid['created_at'][:10] }}</span>
+                </div>
+                {% endif %}
+              </div>
 
-          <div class="abt-actions">
-            <!-- NEW: Opens unified bid modal for editing -->
-            <button type="button" class="abt-action" onclick="openBidModal({{ bucket['id'] }}, {{ bid['id'] }})">
-              <i class="fas fa-pencil-alt" aria-hidden="true"></i>
-              <span>Edit</span>
-            </button>
-            <!-- OLD: Full page navigation (kept as backup)
-            <form method="GET" action="{{ url_for('bid.edit_bid', bid_id=bid['id']) }}" style="display:none">
-              <button type="submit" class="abt-action">
-                <i class="fas fa-pencil-alt" aria-hidden="true"></i>
-                <span>Edit (Old)</span>
-              </button>
-            </form>
-            -->
+              <div class="bid-actions">
+                <button type="button" class="icon-button"
+                        onclick="openBidModal({{ bucket['id'] }}, {{ bid['id'] }})">
+                  <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                  <span class="icon-label">Edit</span>
+                </button>
+                <form method="POST" action="{{ url_for('bid.cancel_bid', bid_id=bid['id']) }}"
+                      id="closeBidForm-{{ bid['id'] }}"
+                      onsubmit="event.preventDefault(); openCloseBidBuyPageConfirmModal(this);">
+                  <button type="submit" class="icon-button icon-button--danger">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                    <span class="icon-label">Close</span>
+                  </button>
+                </form>
+              </div>
+            </div>
 
-            <form method="POST" action="{{ url_for('bid.cancel_bid', bid_id=bid['id']) }}" id="closeBidForm-{{ bid['id'] }}" onsubmit="event.preventDefault(); openCloseBidBuyPageConfirmModal(this);">
-              <button type="submit" class="abt-action">
-                <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                <span>Close</span>
-              </button>
-            </form>
           </div>
         </article>
       {% else %}
@@ -995,10 +1015,10 @@
   }
 </script>
 <script src="{{ url_for('static', filename='js/modals/bucket_ID_sellers_modal.js') }}?v=bucket-v2"></script>
-<script src="{{ url_for('static', filename='js/modals/bid_bidder_modal.js') }}?v=OVERLAY_FIX"></script>
+<script src="{{ url_for('static', filename='js/modals/bid_bidder_modal.js') }}?v=osm-style-1"></script>
 <script src="{{ url_for('static', filename='js/view_bucket.js') }}?v=bucket-v6"></script>
-<script src="{{ url_for('static', filename='js/modals/bid_modal_steps.js') }}?v=wizard-1"></script>
-<script src="{{ url_for('static', filename='js/modals/bid_modal.js') }}?v=wizard-1"></script>
+<script src="{{ url_for('static', filename='js/modals/bid_modal_steps.js') }}?v=wizard-2"></script>
+<script src="{{ url_for('static', filename='js/modals/bid_modal.js') }}?v=wizard-2"></script>
 <script src="{{ url_for('static', filename='js/modals/bid_confirm_modal.js') }}?v=CALC_FIX"></script>
 <script src="{{ url_for('static', filename='js/modals/accept_bid_modals.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/modals/buy_item_modal.js') }}?v=1"></script>

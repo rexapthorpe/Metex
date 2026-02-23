@@ -408,6 +408,19 @@ def mark_notification_read(notification_id):
     return True
 
 
+def mark_all_notifications_read(user_id):
+    """Mark all notifications as read for a user"""
+    conn = get_db_connection()
+    conn.execute('''
+        UPDATE notifications
+        SET is_read = 1, read_at = ?
+        WHERE user_id = ? AND is_read = 0
+    ''', (datetime.now(), user_id))
+    conn.commit()
+    conn.close()
+    return True
+
+
 def delete_notification(notification_id, user_id):
     """
     Delete a notification (with user ownership check)

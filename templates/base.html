@@ -75,7 +75,7 @@
                 <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
             </button>
             {% endif %}
-            <a href="{{ url_for('buy.view_cart') }}" class="btn-pill cart-pill" title="View Cart">🛒</a>
+            <a href="{{ url_for('buy.view_cart') }}" class="btn-pill cart-pill" title="View Cart"><i class="fa-solid fa-cart-shopping"></i></a>
             <a href="{{ url_for('sell.sell') }}" class="btn-pill {% if request.endpoint == 'sell.sell' %}active{% endif %}">Sell</a>
             {% if session.get('user_id') %}
                 {% if is_user_admin %}
@@ -101,14 +101,25 @@
     {% if session.get('user_id') %}
     <div class="notification-sidebar" id="notificationSidebar">
         <div class="notification-sidebar-header">
-            <h3>Notifications</h3>
-            <button class="notification-close-btn" id="notificationCloseBtn">
-                <i class="fa-solid fa-times"></i>
+            <div class="notif-header-left">
+                <i class="fa-regular fa-bell notif-header-bell"></i>
+                <h3>Notifications</h3>
+                <span class="notif-new-badge" id="notifNewBadge" style="display:none">0 new</span>
+            </div>
+            <button class="notification-close-btn" id="notificationCloseBtn" aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
             </button>
+        </div>
+        <div class="notification-toolbar">
+            <button class="notif-mark-all-btn" id="notifMarkAllBtn">Mark all as read</button>
+            <a href="/account" class="notif-settings-link">Settings</a>
         </div>
         <div class="notification-list" id="notificationList">
             <!-- Notifications will be dynamically loaded here -->
             <div class="notification-loading">Loading notifications...</div>
+        </div>
+        <div class="notification-sidebar-footer">
+            <a href="/account" class="notif-view-all-btn">View All Notifications</a>
         </div>
     </div>
     <!-- Notification Overlay -->

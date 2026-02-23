@@ -9,7 +9,43 @@
 
 let notifications = [];
 let isNotificationSidebarOpen = false;
-const POLL_INTERVAL = 30000; // Poll every 30 seconds for new notifications
+const POLL_INTERVAL = 30000; // Poll every 30 seconds
+
+// ===================================
+// NOTIFICATION TYPE → ICON/COLOR MAP
+// ===================================
+
+const NOTIF_ICON_MAP = {
+    'bid_filled':       { icon: 'fa-dollar-sign',  bg: '#f3e8ff', color: '#9333ea' },
+    'new_bid':          { icon: 'fa-dollar-sign',  bg: '#f3e8ff', color: '#9333ea' },
+    'bid_received':     { icon: 'fa-dollar-sign',  bg: '#f3e8ff', color: '#9333ea' },
+    'order_confirmed':  { icon: 'fa-cube',          bg: '#dbeafe', color: '#6366f1' },
+    'order_shipped':    { icon: 'fa-cube',          bg: '#dbeafe', color: '#6366f1' },
+    'order_delivered':  { icon: 'fa-cube',          bg: '#e0e7ff', color: '#818cf8' },
+    'listing_sold':     { icon: 'fa-tag',           bg: '#dbeafe', color: '#2563eb' },
+    'new_message':      { icon: 'fa-comment',       bg: '#dcfce7', color: '#22c55e' },
+    'message':          { icon: 'fa-comment',       bg: '#dcfce7', color: '#22c55e' },
+    'new_review':       { icon: 'fa-star',          bg: '#fef9c3', color: '#ca8a04' },
+    'rating':           { icon: 'fa-star',          bg: '#fef9c3', color: '#ca8a04' },
+    'review':           { icon: 'fa-star',          bg: '#fef9c3', color: '#ca8a04' },
+};
+
+function getNotifIcon(type) {
+    return NOTIF_ICON_MAP[type] || { icon: 'fa-bell', bg: '#f3f4f6', color: '#9ca3af' };
+}
+
+// ===================================
+// TARGET URL PER TYPE
+// ===================================
+
+function getTargetUrl(type) {
+    if (type === 'bid_filled' || type === 'new_bid' || type === 'bid_received') return '/account#orders';
+    if (type === 'order_confirmed' || type === 'order_shipped' || type === 'order_delivered') return '/account#orders';
+    if (type === 'listing_sold') return '/account#sold';
+    if (type === 'new_message' || type === 'message') return '/account#messages';
+    if (type === 'new_review' || type === 'rating' || type === 'review') return '/account#ratings';
+    return '/account';
+}
 
 // ===================================
 // DOM ELEMENTS
@@ -17,39 +53,29 @@ const POLL_INTERVAL = 30000; // Poll every 30 seconds for new notifications
 
 const bellBtn = document.getElementById('notificationBellBtn');
 const badge = document.getElementById('notificationBadge');
+const notifNewBadge = document.getElementById('notifNewBadge');
 const sidebar = document.getElementById('notificationSidebar');
 const overlay = document.getElementById('notificationOverlay');
 const closeBtn = document.getElementById('notificationCloseBtn');
 const notificationList = document.getElementById('notificationList');
+const markAllBtn = document.getElementById('notifMarkAllBtn');
 
 // ===================================
 // INITIALIZATION
 // ===================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Initial load
     loadNotifications();
     updateBadgeCount();
 
-    // Set up event listeners
-    if (bellBtn) {
-        bellBtn.addEventListener('click', toggleNotificationSidebar);
-    }
+    if (bellBtn) bellBtn.addEventListener('click', toggleNotificationSidebar);
+    if (closeBtn) closeBtn.addEventListener('click', closeNotificationSidebar);
+    if (overlay) overlay.addEventListener('click', closeNotificationSidebar);
+    if (markAllBtn) markAllBtn.addEventListener('click', handleMarkAllRead);
 
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeNotificationSidebar);
-    }
-
-    if (overlay) {
-        overlay.addEventListener('click', closeNotificationSidebar);
-    }
-
-    // Poll for new notifications
     setInterval(() => {
         updateBadgeCount();
-        if (isNotificationSidebarOpen) {
-            loadNotifications();
-        }
+        if (isNotificationSidebarOpen) loadNotifications();
     }, POLL_INTERVAL);
 });
 
@@ -69,7 +95,7 @@ function openNotificationSidebar() {
     isNotificationSidebarOpen = true;
     sidebar.classList.add('open');
     overlay.classList.add('show');
-    loadNotifications(); // Refresh notifications when opening
+    loadNotifications();
 }
 
 function closeNotificationSidebar() {
@@ -89,6 +115,7 @@ function loadNotifications() {
             if (data.success) {
                 notifications = data.notifications;
                 renderNotifications();
+                updateNewBadge();
             } else {
                 console.error('Failed to load notifications:', data.error);
             }
@@ -109,21 +136,18 @@ function loadNotifications() {
 // ===================================
 
 function renderNotifications() {
-    // Clear loading state
     notificationList.innerHTML = '';
 
-    // Check if empty
     if (notifications.length === 0) {
         notificationList.innerHTML = `
             <div class="notification-empty">
-                <i class="fa-solid fa-bell-slash"></i>
+                <i class="fa-regular fa-bell-slash"></i>
                 <p>No notifications yet</p>
             </div>
         `;
         return;
     }
 
-    // Render each notification
     notifications.forEach(notification => {
         const tile = createNotificationTile(notification);
         notificationList.appendChild(tile);
@@ -140,63 +164,62 @@ function createNotificationTile(notification) {
     tile.setAttribute('data-notification-id', notification.id);
     tile.setAttribute('data-type', notification.type);
 
-    // Unread dot (only if unread)
-    const unreadDot = notification.is_read ? '' : '<div class="notification-unread-dot"></div>';
-
-    // Determine button text and link based on type
-    let buttonText = 'View';
-    let targetUrl = '/account';
-
-    if (notification.type === 'bid_filled') {
-        buttonText = 'View Order';
-        targetUrl = '/account#orders';
-    } else if (notification.type === 'order_confirmed') {
-        buttonText = 'View Order';
-        targetUrl = '/account#orders';
-    } else if (notification.type === 'listing_sold') {
-        buttonText = 'View Sold';
-        targetUrl = '/account#sold';
-    }
-
-    // Format timestamp
+    const { icon, bg, color } = getNotifIcon(notification.type);
     const timeAgo = getTimeAgo(notification.created_at);
+    const unreadDot = notification.is_read ? '' : '<div class="notif-unread-dot"></div>';
 
     tile.innerHTML = `
+        <div class="notif-icon-circle" style="background:${bg}; color:${color}">
+            <i class="fa-solid ${icon}"></i>
+        </div>
+        <div class="notif-body">
+            <div class="notification-title">${escapeHtml(notification.title)}</div>
+            <div class="notification-message">${escapeHtml(notification.message)}</div>
+            <div class="notification-time">${timeAgo}</div>
+        </div>
         ${unreadDot}
-        <div class="notification-content">
-            <h4 class="notification-title">${escapeHtml(notification.title)}</h4>
-            <p class="notification-message">${escapeHtml(notification.message)}</p>
-            <p class="notification-time">${timeAgo}</p>
-        </div>
-        <div class="notification-actions">
-            <button class="notification-delete-btn" data-notification-id="${notification.id}">
-                <i class="fa-solid fa-trash"></i>
-            </button>
-            <button class="notification-goto-btn" data-notification-id="${notification.id}" data-url="${targetUrl}">
-                ${buttonText}
-            </button>
-        </div>
     `;
 
-    // Add event listeners
-    const deleteBtn = tile.querySelector('.notification-delete-btn');
-    const gotoBtn = tile.querySelector('.notification-goto-btn');
-
-    deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteNotification(notification.id, tile);
-    });
-
-    gotoBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleGotoClick(notification.id, targetUrl);
+    // Click the whole tile to navigate (and mark as read)
+    tile.addEventListener('click', () => {
+        const targetUrl = getTargetUrl(notification.type);
+        handleTileClick(notification.id, targetUrl, tile);
     });
 
     return tile;
 }
 
 // ===================================
-// UPDATE BADGE COUNT
+// TILE CLICK — MARK READ + NAVIGATE
+// ===================================
+
+function handleTileClick(notificationId, targetUrl, tileEl) {
+    if (!notifications.find(n => n.id === notificationId)?.is_read) {
+        fetch(`/notifications/${notificationId}/read`, { method: 'POST' })
+            .then(() => { updateBadgeCount(); })
+            .catch(() => {});
+    }
+    window.location.href = targetUrl;
+}
+
+// ===================================
+// MARK ALL AS READ
+// ===================================
+
+function handleMarkAllRead() {
+    fetch('/notifications/mark-all-read', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadNotifications();
+                updateBadgeCount();
+            }
+        })
+        .catch(error => console.error('Error marking all as read:', error));
+}
+
+// ===================================
+// UPDATE BADGE COUNT (bell icon)
 // ===================================
 
 function updateBadgeCount() {
@@ -213,83 +236,20 @@ function updateBadgeCount() {
                 }
             }
         })
-        .catch(error => {
-            console.error('Error updating badge count:', error);
-        });
+        .catch(error => console.error('Error updating badge count:', error));
 }
 
-// ===================================
-// DELETE NOTIFICATION
-// ===================================
-
-function deleteNotification(notificationId, tileElement) {
-    // Add deleting class for animation
-    tileElement.classList.add('deleting');
-
-    // Wait for animation to complete, then remove from DOM and update server
-    setTimeout(() => {
-        fetch(`/notifications/${notificationId}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Remove from local state
-                notifications = notifications.filter(n => n.id !== notificationId);
-
-                // Remove from DOM
-                tileElement.remove();
-
-                // Update badge
-                updateBadgeCount();
-
-                // Check if list is now empty
-                if (notifications.length === 0) {
-                    renderNotifications();
-                }
-            } else {
-                console.error('Failed to delete notification:', data.error);
-                // Remove animation class if failed
-                tileElement.classList.remove('deleting');
-            }
-        })
-        .catch(error => {
-            console.error('Error deleting notification:', error);
-            tileElement.classList.remove('deleting');
-        });
-    }, 300); // Match CSS transition duration
-}
-
-// ===================================
-// HANDLE "GO TO" BUTTON CLICK
-// ===================================
-
-function handleGotoClick(notificationId, targetUrl) {
-    // Mark as read
-    fetch(`/notifications/${notificationId}/read`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Update local state
-            const notification = notifications.find(n => n.id === notificationId);
-            if (notification) {
-                notification.is_read = 1;
-            }
-
-            // Update badge
-            updateBadgeCount();
-
-            // Navigate to target URL
-            window.location.href = targetUrl;
+// Update the "N new" pill in the sidebar header
+function updateNewBadge() {
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+    if (notifNewBadge) {
+        if (unreadCount > 0) {
+            notifNewBadge.textContent = `${unreadCount} new`;
+            notifNewBadge.style.display = '';
+        } else {
+            notifNewBadge.style.display = 'none';
         }
-    })
-    .catch(error => {
-        console.error('Error marking notification as read:', error);
-        // Still navigate even if marking as read failed
-        window.location.href = targetUrl;
-    });
+    }
 }
 
 // ===================================
@@ -310,22 +270,15 @@ function getTimeAgo(timestamp) {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) {
-        return 'Just now';
-    } else if (diffMins < 60) {
-        return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-    } else if (diffHours < 24) {
-        return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-    } else if (diffDays < 7) {
-        return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-    } else {
-        return notifTime.toLocaleDateString();
-    }
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    return notifTime.toLocaleDateString();
 }
 
 // ===================================
 // GLOBAL REFRESH FUNCTION
-// (Can be called from other scripts)
 // ===================================
 
 window.refreshNotifications = function() {
