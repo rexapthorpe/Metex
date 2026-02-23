@@ -75,8 +75,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/report_user_modal.css') }}">
 
   <div class="account-layout">
+    <!-- Mobile sidebar overlay (tap to close) -->
+    <div class="account-sidebar-overlay" id="accountSidebarOverlay"></div>
+
     <!-- Main Sidebar -->
-    <div class="account-sidebar">
+    <div class="account-sidebar" id="accountSidebar">
       <h2 class="sidebar-title">My Account</h2>
       <div class="sidebar-divider"></div>
       <nav class="sidebar-nav">
@@ -154,6 +157,14 @@
 
     <!-- Content Area -->
     <div class="account-content">
+      <!-- Mobile account header (only visible on small screens) -->
+      <div class="account-mobile-header">
+        <button class="account-mobile-menu-btn" id="accountMobileMenuBtn" aria-label="Open account menu">
+          <i class="fa-solid fa-bars"></i>
+          <span>Menu</span>
+        </button>
+        <span class="account-mobile-title" id="accountMobileTitle">My Account</span>
+      </div>
       <div id="cart-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/cart_tab.html' %}</div></div>
       <div id="bids-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/bids_tab.html' %}</div></div>
       <div id="listings-tab" class="tab-content tiles-tab"><div class="tab-inner-wrapper">{% include 'tabs/listings_tab.html' %}</div></div>

@@ -81,7 +81,7 @@
   flex-wrap: wrap;
 }
 
-.cart-seller-star { color: #f59e0b; }
+.cart-seller-star { color: #facc15; }
 .cart-seller-count { color: #64748b; }
 
 /* ===== Qty + Price ===== */
@@ -244,7 +244,7 @@
 
 .add-items-to-cart-given-empty-cart-btn-cart-tab {
   padding: 10px 24px;
-  background: #1e293b;
+  background: #3da6ff;
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -253,7 +253,7 @@
   cursor: pointer;
 }
 
-.add-items-to-cart-given-empty-cart-btn-cart-tab:hover { background: #334155; }
+.add-items-to-cart-given-empty-cart-btn-cart-tab:hover { background: #1e74f0; }
 
 /* ===== Order Summary Card ===== */
 .order-summary-card {
@@ -345,7 +345,7 @@
 .proceed-checkout-btn {
   width: 100%;
   padding: 12px;
-  background: #1e293b;
+  background: #3da6ff;
   color: #ffffff;
   border: none;
   border-radius: 10px;
@@ -360,7 +360,7 @@
   margin-bottom: 12px;
 }
 
-.proceed-checkout-btn:hover { background: #334155; }
+.proceed-checkout-btn:hover { background: #1e74f0; }
 
 /* ===== Savings Banner ===== */
 .summary-savings-banner {
@@ -377,3 +377,53 @@
 
 .summary-savings-banner i { font-size: 16px; }
 .summary-savings-banner strong { font-weight: 700; }
+
+/* ===================================
+   RESPONSIVE — CART TAB
+   =================================== */
+
+@media (max-width: 900px) {
+  /* Order summary card goes below cart items */
+  .cart-page-layout {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .order-summary-card {
+    width: 100%;
+    position: static;
+  }
+}
+
+@media (max-width: 600px) {
+  .cart-tab-header { flex-direction: column; gap: 10px; }
+
+  /* Cart item main row: tighten */
+  .cart-item-main { gap: 10px; padding: 12px 14px; }
+
+  .cart-item-image { width: 64px; height: 64px; }
+
+  .cart-item-total { font-size: 16px; }
+
+  /* Details grid: 3 → 2 cols */
+  .cart-details-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Trust badges: wrap */
+  .cart-trust-badges {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .cart-trust-badge { flex: 1 1 calc(50% - 8px); }
+}
+
+@media (max-width: 400px) {
+  .cart-item-main { padding: 10px 12px; gap: 8px; }
+  .cart-item-image { width: 56px; height: 56px; }
+
+  .cart-details-grid { grid-template-columns: 1fr; }
+
+  .cart-trust-badge { flex: 1 1 100%; }
+}

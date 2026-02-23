@@ -1,4 +1,17 @@
+// ============================================================
+// Mobile Sidebar: close helper
+// ============================================================
+function closeMobileAccountSidebar() {
+  var sidebar = document.getElementById('accountSidebar');
+  var overlay = document.getElementById('accountSidebarOverlay');
+  if (sidebar) sidebar.classList.remove('mobile-open');
+  if (overlay) overlay.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+// ============================================================
 // Show the selected tab
+// ============================================================
 function showTab(tabName) {
   // Hide all tab panels
   document.querySelectorAll('.tab-content').forEach(tab => {
@@ -48,12 +61,40 @@ function showTab(tabName) {
   if (tabName === 'reports' && typeof initReportsTab === 'function') {
     initReportsTab();
   }
+
+  // Update mobile title and close mobile sidebar after selection
+  var mobileTitle = document.getElementById('accountMobileTitle');
+  if (mobileTitle) {
+    var activeItem = document.querySelector('.account-sidebar .sidebar-item.active');
+    if (activeItem) {
+      var label = activeItem.querySelector('.sidebar-label');
+      if (label) mobileTitle.textContent = label.textContent.trim();
+    }
+  }
+  closeMobileAccountSidebar();
 }
 
 // Automatically open tab based on URL hash (e.g. #bids), or default to cart
 document.addEventListener('DOMContentLoaded', () => {
   const hash = window.location.hash.slice(1); // "orders" from "#orders"
   handleHashNavigation(hash);
+
+  // ── Mobile Account Sidebar Toggle ──
+  var menuBtn = document.getElementById('accountMobileMenuBtn');
+  var sidebar = document.getElementById('accountSidebar');
+  var overlay = document.getElementById('accountSidebarOverlay');
+
+  if (menuBtn && sidebar) {
+    menuBtn.addEventListener('click', function() {
+      sidebar.classList.toggle('mobile-open');
+      if (overlay) overlay.classList.toggle('show');
+      document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
+    });
+  }
+
+  if (overlay) {
+    overlay.addEventListener('click', closeMobileAccountSidebar);
+  }
 });
 
 // Handle hash changes (e.g., when clicking notification "View Order" button)

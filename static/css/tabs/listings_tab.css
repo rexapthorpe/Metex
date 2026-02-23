@@ -78,14 +78,14 @@
 
 .listing-status-badge--pending {
   background: rgba(255,255,255,0.9);
-  color: #92400e;
+  color: #64748b;
 }
 
 .listing-status-badge--pending .listing-status-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #f59e0b;
+  background: #94a3b8;
   display: inline-block;
 }
 
@@ -119,7 +119,7 @@
   margin-bottom: 8px;
 }
 
-.pricing-mode-badge--variable { background: #fef3c7; color: #92400e; }
+.pricing-mode-badge--variable { background: #dbeafe; color: #1e40af; }
 .pricing-mode-badge--fixed { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 
 .listing-price-details { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
@@ -133,7 +133,7 @@
 
 .listing-price-value { font-weight: 600; color: #0f172a; }
 .listing-price-value--green { color: #16a34a; }
-.listing-price-value--amber { color: #d97706; }
+.listing-price-value--amber { color: #3da6ff; }
 
 .listing-fixed-price {
   font-size: 22px;
@@ -176,3 +176,24 @@
 .listing-footer-btn:hover { background: #f8fafc; }
 .listing-footer-btn--cancel { color: #ef4444; border-color: #fecaca; }
 .listing-footer-btn--cancel:hover { background: #fef2f2; }
+
+/* ===================================
+   RESPONSIVE — LISTINGS TAB
+   =================================== */
+
+@media (max-width: 768px) {
+  /* 2-col grid → 1 col */
+  .listing-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .listing-card-photo { height: 180px; }
+}
+
+@media (max-width: 480px) {
+  .listing-card-photo { height: 160px; }
+  .listing-card-body { padding: 12px; }
+  .listing-card-title { font-size: 14px; }
+  .listing-fixed-price { font-size: 20px; }
+}

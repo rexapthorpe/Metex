@@ -457,65 +457,73 @@
         </div>
 
         <!-- Pricing Mode Selection -->
-        <div class="input-group">
+        <div class="input-group" style="grid-column: 1 / -1;">
           <label>Pricing Mode</label>
-          <div class="pricing-mode-options">
-            <label class="radio-option">
+          <div class="pm-tiles">
+            <label class="pm-tile pm-tile--fixed">
               <input type="radio" name="pricing_mode" value="static" id="pricing_mode_static" checked>
-              <span>Fixed Price</span>
+              <div class="pm-tile-icon pm-icon--fixed">
+                <i class="fa-solid fa-dollar-sign"></i>
+              </div>
+              <div class="pm-tile-text">
+                <div class="pm-tile-title">Fixed Price</div>
+                <div class="pm-tile-sub">Set exact price</div>
+              </div>
             </label>
-            <label class="radio-option">
+            <label class="pm-tile pm-tile--spot">
               <input type="radio" name="pricing_mode" value="premium_to_spot" id="pricing_mode_premium">
-              <span>Premium to Spot</span>
+              <div class="pm-tile-icon pm-icon--spot">
+                <i class="fa-solid fa-arrow-trend-up"></i>
+              </div>
+              <div class="pm-tile-text">
+                <div class="pm-tile-title">Premium to Spot</div>
+                <div class="pm-tile-sub">Track market</div>
+              </div>
             </label>
           </div>
-          <small class="example-text">Choose pricing method</small>
         </div>
 
         <!-- Fixed Price -->
         <div class="input-group" id="static_price_group">
-          <label for="price_per_coin">Price Per Coin</label>
+          <label for="price_per_coin">Price Per Unit <span class="required">*</span></label>
           <div class="price-input-wrapper">
             <span class="price-currency">$</span>
-            <input type="text" name="price_per_coin" id="price_per_coin" inputmode="decimal">
+            <input type="text" name="price_per_coin" id="price_per_coin" inputmode="decimal" placeholder="0.00">
           </div>
-          <small class="example-text">Fixed USD price per coin</small>
         </div>
 
         <!-- Premium to Spot Fields -->
         <div id="premium_to_spot_fields" style="display: none; grid-column: 1 / -1;">
-          <div class="input-group">
-            <label for="spot_premium">Premium Above Spot ($)</label>
-            <div class="price-input-wrapper">
-              <span class="price-currency">$</span>
-              <input type="text" name="spot_premium" id="spot_premium"
-                inputmode="decimal" placeholder="e.g., 100.00">
+          <div class="pm-spot-container">
+            <div class="pm-spot-grid">
+              <div class="input-group">
+                <label for="pricing_metal">Pricing Metal <span class="required">*</span></label>
+                <select name="pricing_metal" id="pricing_metal">
+                  <option value="">Select metal</option>
+                  <option value="gold">Gold</option>
+                  <option value="silver">Silver</option>
+                  <option value="platinum">Platinum</option>
+                  <option value="palladium">Palladium</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label for="spot_premium">Premium Above Spot <span class="required">*</span></label>
+                <div class="price-input-wrapper">
+                  <span class="price-currency">$</span>
+                  <input type="text" name="spot_premium" id="spot_premium" inputmode="decimal" placeholder="0.00">
+                </div>
+                <small class="example-text">$ or % above spot price</small>
+              </div>
+              <div class="input-group">
+                <label for="floor_price">Floor Price <span class="required">*</span></label>
+                <div class="price-input-wrapper">
+                  <span class="price-currency">$</span>
+                  <input type="text" name="floor_price" id="floor_price" inputmode="decimal" placeholder="0.00">
+                </div>
+                <small class="example-text">Minimum selling price</small>
+              </div>
             </div>
-            <small class="example-text">Amount above spot price</small>
           </div>
-
-          <div class="input-group" style="margin-top: 1rem;">
-            <label for="floor_price">Floor Price ($)</label>
-            <div class="price-input-wrapper">
-              <span class="price-currency">$</span>
-              <input type="text" name="floor_price" id="floor_price"
-                inputmode="decimal" placeholder="e.g., 2000.00">
-            </div>
-            <small class="example-text">Minimum price protection</small>
-          </div>
-
-          <div class="input-group" style="margin-top: 1rem;">
-            <label for="pricing_metal">Pricing Metal</label>
-            <select name="pricing_metal" id="pricing_metal">
-              <option value="">Use category metal</option>
-              <option value="gold">Gold</option>
-              <option value="silver">Silver</option>
-              <option value="platinum">Platinum</option>
-              <option value="palladium">Palladium</option>
-            </select>
-            <small class="example-text">Which spot price to use</small>
-          </div>
-
           <div class="price-preview" id="price_preview" style="display: none; margin-top: 1rem;">
             <strong>Current Preview Price:</strong>
             <span class="preview-amount">$0.00</span>

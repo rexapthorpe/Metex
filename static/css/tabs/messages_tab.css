@@ -32,7 +32,7 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: #1e293b;
+  background: #3da6ff;
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
@@ -62,7 +62,7 @@
 }
 
 .convo-unread-badge {
-  background: #1e293b;
+  background: #3da6ff;
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
@@ -136,7 +136,7 @@
   line-height: 1.4;
 }
 
-.message.sent .message-text { background: #1e293b; color: #ffffff; border-bottom-right-radius: 4px; }
+.message.sent .message-text { background: #3da6ff; color: #ffffff; border-bottom-right-radius: 4px; }
 .message.received .message-text { background: #ffffff; border: 1px solid #e2e8f0; color: #0f172a; border-bottom-left-radius: 4px; }
 
 .message-time { font-size: 11px; color: #94a3b8; }
@@ -158,11 +158,11 @@
   background: #ffffff;
 }
 
-.message-input:focus { border-color: #1e293b; }
+.message-input:focus { border-color: #3da6ff; }
 
 .send-button {
   padding: 8px 16px;
-  background: #1e293b;
+  background: #3da6ff;
   color: #ffffff;
   border: none;
   border-radius: 9999px;
@@ -172,4 +172,25 @@
   transition: background 0.15s ease;
 }
 
-.send-button:hover { background: #334155; }
+.send-button:hover { background: #1e74f0; }
+
+/* ===================================
+   RESPONSIVE — MESSAGES TAB
+   =================================== */
+
+@media (max-width: 600px) {
+  .convo-row { padding: 12px 14px; gap: 10px; }
+  .convo-avatar { width: 36px; height: 36px; font-size: 12px; }
+  .convo-name { font-size: 13px; }
+  .convo-preview { font-size: 12px; }
+
+  .message-history { max-height: 220px; }
+  .message { max-width: 85%; }
+
+  .message-body { padding: 10px 14px; }
+}
+
+@media (max-width: 400px) {
+  .message-input-row { gap: 6px; }
+  .send-button { padding: 8px 12px; font-size: 12px; }
+}

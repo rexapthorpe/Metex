@@ -607,7 +607,7 @@
               </div>
             </div>
 
-            <!-- Bottom: Grading + Date + Actions -->
+            <!-- Bottom: Grading + Date -->
             <div class="bid-bottom-section">
               <div class="bid-bottom-left">
                 <div class="bid-grading-row">
@@ -626,22 +626,22 @@
                 </div>
                 {% endif %}
               </div>
+            </div>
 
-              <div class="bid-actions">
-                <button type="button" class="icon-button"
-                        onclick="openBidModal({{ bucket['id'] }}, {{ bid['id'] }})">
-                  <i class="fas fa-pencil-alt" aria-hidden="true"></i>
-                  <span class="icon-label">Edit</span>
+            <!-- Actions row — bottom right -->
+            <div class="my-bid-card-actions">
+              <button type="button" class="bid-action-btn bid-action-btn--edit"
+                      onclick="openBidModal({{ bucket['id'] }}, {{ bid['id'] }})">
+                <i class="fas fa-pencil-alt" aria-hidden="true"></i> Edit
+              </button>
+              <form method="POST" action="{{ url_for('bid.cancel_bid', bid_id=bid['id']) }}"
+                    id="closeBidForm-{{ bid['id'] }}"
+                    onsubmit="event.preventDefault(); openCloseBidBuyPageConfirmModal(this);"
+                    style="display:inline-flex; margin:0;">
+                <button type="submit" class="bid-action-btn bid-action-btn--close">
+                  <i class="fa-solid fa-trash" aria-hidden="true"></i> Close
                 </button>
-                <form method="POST" action="{{ url_for('bid.cancel_bid', bid_id=bid['id']) }}"
-                      id="closeBidForm-{{ bid['id'] }}"
-                      onsubmit="event.preventDefault(); openCloseBidBuyPageConfirmModal(this);">
-                  <button type="submit" class="icon-button icon-button--danger">
-                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                    <span class="icon-label">Close</span>
-                  </button>
-                </form>
-              </div>
+              </form>
             </div>
 
           </div>

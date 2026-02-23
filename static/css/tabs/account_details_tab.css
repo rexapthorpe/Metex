@@ -557,3 +557,47 @@
     align-self: flex-end;
   }
 }
+
+@media (max-width: 768px) {
+  .account-details-tab {
+    padding: 16px 14px;
+  }
+
+  /* Form rows: 2 col → 1 col */
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Address card: side-by-side → stack */
+  .address-card {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .address-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Use 16px font size to prevent iOS auto-zoom */
+  .form-group input,
+  .form-group textarea {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .account-details-tab {
+    padding: 12px 10px;
+  }
+
+  .details-section h3 {
+    font-size: 1.2rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

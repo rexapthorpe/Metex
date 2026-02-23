@@ -809,11 +809,6 @@
 }
 
 /* Form wrapping the close button needs to be inline */
-.account-bid-tile .bid-actions form {
-  display: inline-flex;
-  margin: 0;
-}
-
 /* "Your Bid" status badge */
 .my-bid-badge {
   background: #eff6ff;
@@ -821,14 +816,38 @@
   border-color: #bfdbfe;
 }
 
-/* Danger variant for the close/trash icon button */
-.icon-button--danger {
-  color: #dc2626 !important;
+/* Actions row at the bottom-right of user bid cards */
+.my-bid-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 4px;
 }
-.icon-button--danger:hover {
-  background: #fee2e2 !important;
-  color: #b91c1c !important;
+
+/* Shared action button style — matches bids_tab.css */
+.bid-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #374151;
+  transition: background 0.15s ease;
+  font-family: inherit;
 }
+.bid-action-btn:hover            { background: #f8fafc; }
+.bid-action-btn--edit            { color: #1e40af; border-color: #bfdbfe; }
+.bid-action-btn--edit:hover      { background: #eff6ff; }
+.bid-action-btn--close           { color: #ef4444; border-color: #fecaca; }
+.bid-action-btn--close:hover     { background: #fef2f2; }
 
 /* Pricing mode badges (used by standard and user bid tiles) */
 .pricing-mode-badge {

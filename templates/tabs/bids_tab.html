@@ -184,25 +184,25 @@
               </div>
             </div>
             {% endif %}
+          </div>
 
-            <!-- Actions -->
-            <div class="bid-detail-actions">
-              {% if bid.status == 'Open' %}
-                <button type="button" onclick="openBidModal({{ bid.category_id }}, {{ bid.id }})" class="bid-action-btn bid-action-btn--edit">
-                  <i class="fas fa-pencil-alt"></i> Edit
-                </button>
-                <a href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}" class="bid-action-btn bid-action-btn--view">
-                  <i class="fas fa-binoculars"></i> View
-                </a>
-                <button type="button" onclick="closeBid({{ bid.id }})" class="bid-action-btn bid-action-btn--close">
-                  <i class="fas fa-trash"></i> Close
-                </button>
-              {% else %}
-                <a href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}" class="bid-action-btn bid-action-btn--view">
-                  <i class="fas fa-binoculars"></i> View
-                </a>
-              {% endif %}
-            </div>
+          <!-- Card Footer Actions (always visible, bottom right) -->
+          <div class="bid-card-footer">
+            {% if bid.status == 'Open' %}
+              <button type="button" onclick="openBidModal({{ bid.category_id }}, {{ bid.id }})" class="bid-footer-btn">
+                <i class="fas fa-pencil-alt"></i> Edit
+              </button>
+              <a href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}" class="bid-footer-btn">
+                <i class="fas fa-binoculars"></i> View
+              </a>
+              <button type="button" onclick="closeBid({{ bid.id }})" class="bid-footer-btn bid-footer-btn--close">
+                <i class="fas fa-trash"></i> Close
+              </button>
+            {% else %}
+              <a href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}" class="bid-footer-btn">
+                <i class="fas fa-binoculars"></i> View
+              </a>
+            {% endif %}
           </div>
         </div>
       {% endfor %}

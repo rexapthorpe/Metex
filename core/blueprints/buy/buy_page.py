@@ -40,6 +40,7 @@ def buy():
     filter_type = request.args.get('filter')  # 'popular', 'new'
     metal_filter = request.args.get('metal')  # 'Gold', 'Silver', 'Platinum'
     product_line_filter = request.args.get('product_line')  # 'American Eagle', etc.
+    search_query = request.args.get('search', '').strip().lower()  # Free-text search
 
     # Get current user ID to exclude their own listings
     user_id = session.get('user_id')
@@ -291,6 +292,27 @@ def buy():
         one_of_a_kind_buckets.sort(key=lambda b: (b['lowest_price'] is None, b['lowest_price'] if b['lowest_price'] is not None else 0))
         set_buckets.sort(key=lambda b: (b['lowest_price'] is None, b['lowest_price'] if b['lowest_price'] is not None else 0))
 
+    # Apply free-text search filter if present
+    if search_query:
+        def _bucket_matches(bucket):
+            fields = [
+                bucket.get('metal') or '',
+                bucket.get('product_line') or '',
+                bucket.get('coin_series') or '',
+                bucket.get('product_type') or '',
+                bucket.get('mint') or '',
+                bucket.get('year') or '',
+                bucket.get('finish') or '',
+                bucket.get('grade') or '',
+                bucket.get('listing_title') or '',
+                bucket.get('weight') or '',
+            ]
+            return any(search_query in str(f).lower() for f in fields)
+
+        standard_buckets = [b for b in standard_buckets if _bucket_matches(b)]
+        one_of_a_kind_buckets = [b for b in one_of_a_kind_buckets if _bucket_matches(b)]
+        set_buckets = [b for b in set_buckets if _bucket_matches(b)]
+
     # Add fee indicator data for buckets with non-default fees
     for bucket in standard_buckets + one_of_a_kind_buckets + set_buckets:
         fee_type = bucket.get('platform_fee_type')
@@ -349,4 +371,5 @@ def buy():
                          graded_only=graded_only,
                          filter_type=filter_type,
                          metal_filter=metal_filter,
-                         product_line_filter=product_line_filter)
+                         product_line_filter=product_line_filter,
+                         search_query=search_query)

@@ -21,10 +21,10 @@
   border-right: 1px solid #e2e8f0;
   padding: 24px 0 16px;
   position: sticky;
-  top: 60px;
+  top: 110px;
   align-self: flex-start;
-  height: calc(100vh - 60px);
-  max-height: calc(100vh - 60px);
+  height: calc(100vh - 110px);
+  max-height: calc(100vh - 110px);
   overflow-y: auto;
   z-index: 100;
   flex-shrink: 0;
@@ -40,10 +40,10 @@
   padding-top: 20px;
   padding-bottom: 20px;
   position: sticky;
-  top: 60px; /* ✅ Stick at header height (header bottom edge) */
+  top: 110px;
   align-self: flex-start;
-  height: calc(100vh - 60px); /* ✅ Full viewport height minus header height */
-  max-height: calc(100vh - 60px);
+  height: calc(100vh - 110px);
+  max-height: calc(100vh - 110px);
   overflow-y: auto;
   z-index: 99;
   flex-shrink: 0;
@@ -118,7 +118,7 @@
 }
 
 .sidebar-item.active {
-  background-color: #1e293b;
+  background-color: #3da6ff;
   color: #ffffff;
 }
 
@@ -210,7 +210,7 @@
 }
 
 .account-secondary-sidebar li.active {
-  background-color: #1e293b;
+  background-color: #3da6ff;
   color: #ffffff;
 }
 
@@ -280,4 +280,134 @@
    We only prevent shrinking so each tile keeps whatever size its OWN tab CSS gives it. */
 .tiles-tab .tile-grid > * {
   flex: 0 0 auto;       /* keep intrinsic/tab-defined width; no shrinking */
+}
+
+/* ============================================================
+   MOBILE ACCOUNT HEADER (shown only on small screens)
+   ============================================================ */
+
+.account-mobile-header {
+  display: none; /* Hidden on desktop */
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 143px; /* just below mobile 2-row header + subheader */
+  z-index: 50;
+}
+
+.account-mobile-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.account-mobile-menu-btn:hover { background: #f1f5f9; }
+.account-mobile-menu-btn i { font-size: 15px; }
+
+.account-mobile-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sidebar overlay (mobile) */
+.account-sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 400;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.account-sidebar-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ============================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================ */
+
+@media (max-width: 768px) {
+  /* Show mobile account header */
+  .account-mobile-header {
+    display: flex;
+  }
+
+  /* Show sidebar overlay backdrop */
+  .account-sidebar-overlay {
+    display: block;
+  }
+
+  /* Account layout becomes single column */
+  .account-layout {
+    flex-direction: column;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    min-height: 0;
+  }
+
+  /* Sidebar becomes slide-in drawer from left */
+  .account-sidebar {
+    position: fixed;
+    left: -300px;
+    top: 0;
+    height: 100vh;
+    width: 280px;
+    max-width: 85vw;
+    z-index: 500;
+    padding-top: 150px; /* space for 2-row mobile header + subheader */
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+    transition: left 0.3s ease;
+    overflow-y: auto;
+  }
+
+  .account-sidebar.mobile-open {
+    left: 0;
+  }
+
+  /* Hide secondary sidebar on mobile */
+  .account-secondary-sidebar {
+    display: none;
+  }
+
+  /* Content takes full width */
+  .account-content {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Reduce inner padding on mobile */
+  .tab-inner-wrapper {
+    padding: 20px 16px 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-inner-wrapper {
+    padding: 16px 12px 40px;
+  }
+
+  .sidebar-title { font-size: 16px; }
 }

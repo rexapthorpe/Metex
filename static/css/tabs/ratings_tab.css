@@ -30,7 +30,7 @@
 .ratings-tab .rt-heading {
   font-size: 1.4rem;
   font-weight: 700;
-  color: #1e293b;
+  color: #111827;
   margin: 0 0 4px 0;
 }
 
@@ -58,8 +58,8 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
+  background: #f0f7ff;
+  border: 1px solid #bfdbfe;
   border-radius: 12px;
   padding: 14px 24px;
   min-width: 180px;
@@ -73,7 +73,7 @@
 }
 
 .ratings-tab .rt-star-filled {
-  color: #f59e0b;
+  color: #facc15;
 }
 
 .ratings-tab .rt-star-empty {
@@ -94,7 +94,7 @@
 .ratings-tab .rt-avg-number {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1e293b;
+  color: #111827;
   opacity: 0;
   transition: opacity 1.5s ease;
 }
@@ -105,7 +105,7 @@
 
 .ratings-tab .rt-avg-text {
   font-size: 0.8rem;
-  color: #92400e;
+  color: #64748b;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -138,9 +138,9 @@
 }
 
 .ratings-tab .rt-filter-btn.rt-filter-active {
-  background: #1e293b;
+  background: #3da6ff;
   color: #ffffff;
-  border-color: #1e293b;
+  border-color: #3da6ff;
 }
 
 /* ── Rating list ────────────────────────────────────────────────────────── */
@@ -172,12 +172,12 @@
 
 /* Pending row accent */
 .ratings-tab .rt-row[data-type="pending"] {
-  background: #fffbeb;
-  border-left: 3px solid #f59e0b;
+  background: #f0f7ff;
+  border-left: 3px solid #3da6ff;
 }
 
 .ratings-tab .rt-row[data-type="pending"]:hover {
-  background: #fef3c7;
+  background: #e0efff;
 }
 
 /* ── Left column ────────────────────────────────────────────────────────── */
@@ -194,7 +194,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #1e293b;
+  background: #3da6ff;
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -235,7 +235,7 @@
 .ratings-tab .rt-name {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #111827;
 }
 
 /* ── Badges ─────────────────────────────────────────────────────────────── */
@@ -260,8 +260,8 @@
 }
 
 .ratings-tab .rt-badge-pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 /* ── Stars row ──────────────────────────────────────────────────────────── */
@@ -306,13 +306,13 @@
 
 .ratings-tab .rt-pending-label {
   font-size: 0.8125rem;
-  color: #92400e;
+  color: #64748b;
   font-weight: 500;
 }
 
 .ratings-tab .rt-rate-btn {
   padding: 5px 14px;
-  background: #1e293b;
+  background: #3da6ff;
   color: #ffffff;
   border: none;
   border-radius: 6px;
@@ -323,7 +323,7 @@
 }
 
 .ratings-tab .rt-rate-btn:hover {
-  background: #334155;
+  background: #1e74f0;
 }
 
 /* ── Right column: item thumbnail ───────────────────────────────────────── */
@@ -377,7 +377,7 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #111827;
 }
 
 .ratings-tab .rt-empty-sub {
@@ -395,14 +395,14 @@
 
 /* ── Pending avatar accent ──────────────────────────────────────────────── */
 .ratings-tab .rt-avatar--pending {
-  background: #f59e0b;
+  background: #3da6ff;
   color: #ffffff;
 }
 
 /* ── Pending prompt text ────────────────────────────────────────────────── */
 .ratings-tab .rt-pending-prompt {
   font-size: 0.8125rem;
-  color: #92400e;
+  color: #64748b;
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -436,7 +436,7 @@
 .ratings-tab .rt-pending-item-name {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #111827;
   white-space: nowrap;
   max-width: 140px;
   overflow: hidden;

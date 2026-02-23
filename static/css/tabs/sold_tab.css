@@ -18,7 +18,7 @@
 /* Left border color by status */
 .sold-card--awaiting-confirmation,
 .sold-card--awaiting\.confirmation,
-.sold-card--pending { border-left-color: #f59e0b; }
+.sold-card--pending { border-left-color: #94a3b8; }
 .sold-card--shipped { border-left-color: #3b82f6; }
 .sold-card--delivered,
 .sold-card--completed { border-left-color: #22c55e; }
@@ -59,9 +59,9 @@
 }
 
 .sold-status-badge--awaiting-confirmation,
-.sold-status-badge--pending { background: #fef3c7; color: #92400e; }
+.sold-status-badge--pending { background: #f1f5f9; color: #64748b; }
 .sold-status-badge--awaiting-confirmation .sold-status-dot,
-.sold-status-badge--pending .sold-status-dot { background: #f59e0b; }
+.sold-status-badge--pending .sold-status-dot { background: #94a3b8; }
 
 .sold-status-badge--shipped { background: #dbeafe; color: #1e40af; }
 .sold-status-badge--shipped .sold-status-dot { background: #3b82f6; }
@@ -182,7 +182,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #334155;
+  background: #3da6ff;
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
@@ -216,8 +216,8 @@
 }
 
 .sold-action-bar--confirm {
-  background: #fff7ed;
-  border-top-color: #fed7aa;
+  background: #f0f7ff;
+  border-top-color: #bfdbfe;
 }
 
 .sold-action-bar-left {
@@ -236,7 +236,7 @@
   font-size: 16px;
 }
 
-.sold-action-bar-icon--warning { background: #fde68a; color: #92400e; }
+.sold-action-bar-icon--warning { background: #dbeafe; color: #3b82f6; }
 
 .sold-action-bar-title { font-size: 14px; font-weight: 600; color: #0f172a; }
 .sold-action-bar-subtitle { font-size: 12px; color: #64748b; }
@@ -305,12 +305,12 @@
 .sold-footer-btn:hover { background: #f1f5f9; color: #374151; }
 
 .sold-footer-btn--track {
-  background: #1e293b;
+  background: #3da6ff;
   color: #ffffff;
   padding: 5px 12px;
 }
 
-.sold-footer-btn--track:hover { background: #334155; color: #ffffff; }
+.sold-footer-btn--track:hover { background: #1e74f0; color: #ffffff; }
 
 .sold-footer-btn--rated {
   background: #f0fdf4;
@@ -320,3 +320,49 @@
   pointer-events: none;
 }
 .sold-footer-btn--rated i { color: #22c55e !important; }
+
+/* ===================================
+   RESPONSIVE — SOLD TAB
+   =================================== */
+
+@media (max-width: 768px) {
+  /* Body: 2 cols → 1 col */
+  .sold-card-body {
+    grid-template-columns: 1fr;
+  }
+
+  .sold-specs-section {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  /* Action bar stacks */
+  .sold-action-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .sold-action-bar-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Specs grid: 2 cols → 2 cols (keep) */
+  .sold-specs-grid { gap: 6px; }
+}
+
+@media (max-width: 480px) {
+  .sold-card-header { padding: 12px 14px 8px; }
+  .sold-card-total-value { font-size: 18px; }
+  .sold-card-title { font-size: 14px; }
+
+  .sold-specs-section,
+  .sold-buyer-section { padding: 12px 14px; }
+
+  /* Confirm buttons stack on very small screens */
+  .sold-action-bar-right { flex-direction: column; gap: 6px; width: 100%; }
+  .sold-confirm-btn { width: 100%; justify-content: center; }
+
+  .sold-footer-btn { font-size: 11px; }
+}
