@@ -164,8 +164,8 @@ def edit_listing(listing_id):
                     pricing_metal = None
 
                 # Extract new optional fields
-                series_variant = request.form.get('series_variant', 'None').strip()
-                condition_category = request.form.get('condition_category', 'None').strip()
+                series_variant = request.form.get('series_variant', '').strip() or None
+                condition_category = request.form.get('condition_category', '').strip() or None
                 coin_series = request.form.get('coin_series', '').strip() or None
 
                 # Build category specification (category fields already extracted above)
@@ -565,7 +565,7 @@ def edit_listing(listing_id):
                 if updated_listing['pricing_mode'] == 'premium_to_spot':
                     # Get current spot prices
                     spot_data = get_current_spot_prices()
-                    spot_prices = spot_data['prices']
+                    spot_prices = spot_data.get('prices', spot_data) if isinstance(spot_data, dict) else {}
                     pricing_metal = updated_listing['pricing_metal'] or updated_listing['metal']
 
                     if pricing_metal and pricing_metal.lower() in spot_prices:

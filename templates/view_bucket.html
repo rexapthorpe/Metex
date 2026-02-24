@@ -180,7 +180,7 @@
                     <div class="spec-row"><span class="spec-label">Product type</span><span class="spec-value">{{ item['product_type'] or '--' }}</span></div>
                     <div class="spec-row"><span class="spec-label">Weight</span><span class="spec-value">{{ item['weight'] or '--' }}</span></div>
                     {% if item['graded'] %}
-                      <div class="spec-row"><span class="spec-label">Grading</span><span class="spec-value">{{ item['grading_service'] }} {{ item['grade'] }}</span></div>
+                      <div class="spec-row"><span class="spec-label">Grading</span><span class="spec-value">{{ item['grading_service'] }}</span></div>
                     {% endif %}
                   </div>
                   <div class="spec-col">
@@ -233,7 +233,7 @@
           <div class="sellers-kicker">See all available sellers</div>
           <button class="btn sellers-btn" type="button" onclick="openBucketSellerPopup({{ bucket['bucket_id'] }})">View All Sellers</button>
           <div class="sellers-foot">
-            <a href="/sell?metal={{ bucket.metal or '' }}&product_line={{ bucket.product_line or '' }}&product_type={{ bucket.product_type or '' }}&weight={{ bucket.weight or '' }}&purity={{ bucket.purity or '' }}&mint={{ bucket.mint or '' }}&year={{ bucket.year or '' }}&finish={{ bucket.finish or '' }}&grade={{ bucket.grade or '' }}&condition_category={{ bucket.condition_category or '' }}&series_variant={{ bucket.series_variant or '' }}" class="sellers-foot-link">List this item?</a>
+            <a href="/sell?metal={{ bucket.metal or '' }}&product_line={{ bucket.product_line or '' }}&product_type={{ bucket.product_type or '' }}&weight={{ bucket.weight or '' }}&purity={{ bucket.purity or '' }}&mint={{ bucket.mint or '' }}&year={{ bucket.year or '' }}&finish={{ bucket.finish or '' }}&condition_category={{ bucket.condition_category or '' }}&series_variant={{ bucket.series_variant or '' }}" class="sellers-foot-link">List this item?</a>
           </div>
         {% endif %}
       </div>

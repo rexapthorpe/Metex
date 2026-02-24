@@ -204,35 +204,26 @@ document.addEventListener("DOMContentLoaded", () => {
         // ── Existing photos (edit mode only) ──
         if (window.sellEditMode && prefill.existing_photos && prefill.existing_photos.length) {
             const keepPhotoIds = document.getElementById('keepPhotoIds');
-            const list = document.getElementById('existingPhotosList');
             const ids = prefill.existing_photos.map(p => p.id);
             if (keepPhotoIds) keepPhotoIds.value = ids.join(',');
 
-            if (list) {
-                prefill.existing_photos.forEach(photo => {
-                    const wrapper = document.createElement('div');
-                    wrapper.style.cssText = 'position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;flex-shrink:0;';
-                    wrapper.innerHTML =
-                        '<img src="' + photo.url + '" style="width:100%;height:100%;object-fit:cover;" alt="Existing photo">' +
-                        '<button type="button" style="position:absolute;top:4px;right:4px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:22px;text-align:center;" data-photo-id="' + photo.id + '">\u00d7</button>';
-                    wrapper.querySelector('button').addEventListener('click', function() {
-                        const pid = parseInt(this.dataset.photoId);
-                        wrapper.remove();
-                        if (keepPhotoIds) {
-                            const current = keepPhotoIds.value.split(',').filter(x => x && parseInt(x) !== pid);
-                            keepPhotoIds.value = current.join(',');
-                        }
-                    });
-                    list.appendChild(wrapper);
-                });
-            }
+            // Populate standard photo boxes with existing photos
+            const boxIds     = ['standardPhotoBox1', 'standardPhotoBox2', 'standardPhotoBox3'];
+            const previewIds = ['standardPhotoPreview1', 'standardPhotoPreview2', 'standardPhotoPreview3'];
+            const clearIds   = ['standardPhotoClear1', 'standardPhotoClear2', 'standardPhotoClear3'];
 
-            // Pre-check the photo requirement in the sidebar checklist
-            const checkPhoto = document.getElementById('checkItemPhoto');
-            if (checkPhoto) {
-                const icon = checkPhoto.querySelector('.checklist-icon');
-                if (icon) { icon.classList.remove('incomplete'); icon.classList.add('complete'); }
-            }
+            prefill.existing_photos.slice(0, 3).forEach(function(photo, i) {
+                const box     = document.getElementById(boxIds[i]);
+                const preview = document.getElementById(previewIds[i]);
+                const clearBtn = document.getElementById(clearIds[i]);
+                if (box && preview) {
+                    preview.src = photo.url;
+                    preview.style.display = 'block';
+                    if (clearBtn) clearBtn.style.display = 'flex';
+                    box.classList.add('has-image');
+                    box.dataset.existingPhotoId = photo.id;
+                }
+            });
         }
 
         // Refresh sidebar after all prefill values are set
@@ -654,3 +645,32 @@ function setupPremiumInputs() {
         }
     }
 }
+
+// ── Sidebar: fixed until footer, then scroll away ──
+(function() {
+    const SIDEBAR_TOP = 80; // matches CSS top: 80px
+    const GAP = 12;         // px gap to keep between sidebar bottom and footer top
+
+    function updateSidebarTop() {
+        const sidebar = document.querySelector('.sell-sticky-sidebar');
+        const footer = document.getElementById('siteFooter');
+        if (!sidebar || !footer) return;
+
+        const footerViewportTop = footer.getBoundingClientRect().top;
+        const sidebarHeight = sidebar.offsetHeight;
+        const threshold = SIDEBAR_TOP + sidebarHeight + GAP;
+
+        if (footerViewportTop < threshold) {
+            // Footer is encroaching — push sidebar upward (top can go negative;
+            // the header clips anything above 0 and the effect looks natural)
+            sidebar.style.top = (footerViewportTop - sidebarHeight - GAP) + 'px';
+        } else {
+            // Normal: pin to fixed position
+            sidebar.style.top = SIDEBAR_TOP + 'px';
+        }
+    }
+
+    window.addEventListener('scroll', updateSidebarTop, { passive: true });
+    window.addEventListener('resize', updateSidebarTop, { passive: true });
+    document.addEventListener('DOMContentLoaded', updateSidebarTop);
+}());

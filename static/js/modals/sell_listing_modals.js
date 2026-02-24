@@ -91,6 +91,11 @@ function openSellConfirmModal(formData) {
     confirmBtn.textContent = 'Update Listing \u2192';
   }
 
+  // Disable sidebar submit button while confirmation modal is open
+  // (prevents rapid-click from dispatching multiple submit events)
+  const sidebarBtn = document.getElementById('sidebarSubmitBtn');
+  if (sidebarBtn) sidebarBtn.disabled = true;
+
   // Show modal
   modal.style.display = 'flex';
   requestAnimationFrame(() => {
@@ -178,6 +183,8 @@ function closeSellConfirmModal() {
     modal.style.display = 'none';
     pendingListingForm = null;
     pendingFormData = null;
+    // Re-enable the sidebar button by letting updateCTAButton recalculate state
+    if (typeof window.updateChecklist === 'function') window.updateChecklist();
   }, 300);
 }
 

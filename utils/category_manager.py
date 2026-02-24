@@ -143,7 +143,6 @@ def validate_category_specification(category_spec, valid_options):
         'mint': ('mints', 'Mint'),
         'year': ('years', 'Year'),
         'finish': ('finishes', 'Finish'),
-        'grade': ('grades', 'Grade')
     }
 
     for spec_key, (options_key, display_name) in validations.items():

@@ -173,25 +173,7 @@
           <small class="example-text">Example: Proof</small>
         </div>
 
-        <!-- Grade (searchable, validated) -->
-        <div class="field-group">
-          <label>Grade</label>
-          <input
-            type="text"
-            name="grade"
-            value="{{ listing.grade }}"
-            class="validated-datalist custom-dropdown-input"
-            data-list-id="grade_options_{{ listing.listing_id }}"
-            autocomplete="off"
-            required
-          >
-          <datalist id="grade_options_{{ listing.listing_id }}">
-            {% for g in grades %}
-            <option value="{{ g }}"></option>
-            {% endfor %}
-          </datalist>
-          <small class="example-text">Example: MS-70</small>
-        </div>
+        <input type="hidden" name="grade" value="{{ listing.grade or '' }}">
       </div>
 
       <!-- Divider and Subheader -->

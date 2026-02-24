@@ -8,7 +8,7 @@
 {% if buckets %}
     {% for bucket_id, bucket in buckets.items() %}
         <div class="bucket-tile">
-            <h3 class="bucket-title">{{ bucket['category']['metal'] }} {{ bucket['category']['product_type'] }} — Grade {{ bucket['category']['grade'] }}</h3>
+            <h3 class="bucket-title">{{ bucket['category']['metal'] }} {{ bucket['category']['product_type'] }}</h3>
             <div class="bucket-info">
                 <p><strong>Weight:</strong> {{ bucket.category.weight }}</p>
                 <p><strong>Mint:</strong> {{ bucket.category.mint }}</p>

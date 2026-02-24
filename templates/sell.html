@@ -334,15 +334,6 @@
         <div class="row-divider"></div>
         <h3 class="section-header">Listing Specifications</h3>
 
-        {% if edit_listing_id %}
-        <!-- Existing Photos (edit mode only) -->
-        <div id="existingPhotosContainer" class="input-group" style="grid-column: 1 / -1; margin-bottom: 4px;">
-          <label>Existing Photos</label>
-          <div id="existingPhotosList" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;"></div>
-          <small class="example-text">Click × to remove an existing photo. Upload new photos below to add more.</small>
-        </div>
-        {% endif %}
-
         <!-- Standard Photo Container (Standard / One-of-a-Kind modes) -->
         <div id="standardPhotoContainer" style="grid-column: 1 / -1;">
           <div class="input-group">
@@ -720,6 +711,17 @@
         if (preview) { preview.style.display = 'none'; preview.src = ''; }
         clearBtn.style.display = 'none';
         box.classList.remove('has-image');
+        // Handle existing photo removal in edit mode
+        const existingPhotoId = box.dataset.existingPhotoId;
+        if (existingPhotoId) {
+          delete box.dataset.existingPhotoId;
+          const keepPhotoIds = document.getElementById('keepPhotoIds');
+          if (keepPhotoIds) {
+            const pid = parseInt(existingPhotoId);
+            const current = keepPhotoIds.value.split(',').filter(x => x && parseInt(x) !== pid);
+            keepPhotoIds.value = current.join(',');
+          }
+        }
         // Trigger sidebar checklist update
         if (typeof window.updateChecklist === 'function') window.updateChecklist();
         if (typeof window.updateAddItemButtonState === 'function') window.updateAddItemButtonState();
@@ -746,7 +748,7 @@
 <script src="{{ url_for('static', filename='js/sell/sidebar_controller.js') }}?v=2"></script>
 
 <!-- Sell confirmation modals -->
-<script src="{{ url_for('static', filename='js/modals/sell_listing_modals.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/modals/sell_listing_modals.js') }}?v=3"></script>
 
 <!-- Field validation modal -->
 <script src="{{ url_for('static', filename='js/modals/field_validation_modal.js') }}"></script>

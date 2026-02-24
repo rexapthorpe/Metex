@@ -135,7 +135,6 @@
               data-mint="{{ listing.mint or '' }}"
               data-year="{{ listing.year or '' }}"
               data-finish="{{ listing.finish or '' }}"
-              data-grade="{{ listing.grade or '' }}"
               data-product-line="{{ listing.product_line or '' }}"
               data-graded="{{ '1' if listing.graded else '0' }}"
               data-grading-service="{{ listing.grading_service or '' }}"
@@ -217,7 +216,6 @@ function openListingSpecsModal(btn) {
     specItem('<i class="fa-solid fa-building-columns"></i>', 'Mint',          show(d.mint)),
     specItem('<i class="fa-regular fa-calendar"></i>',       'Year',          show(d.year)),
     specItem('<i class="fa-solid fa-certificate"></i>',      'Finish',        show(d.finish)),
-    specItem('<i class="fa-solid fa-medal"></i>',            'Grade',         show(d.grade)),
     specItem('<i class="fa-solid fa-shield-halved"></i>',    'Certification', certDisplay),
   ].filter(Boolean).join('');
 

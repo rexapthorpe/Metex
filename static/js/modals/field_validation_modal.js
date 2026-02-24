@@ -18,7 +18,6 @@ const FIELD_LABELS = {
   'mint': 'Mint',
   'year': 'Year',
   'finish': 'Finish',
-  'grade': 'Grade',
   'quantity': 'Quantity',
   'price_per_coin': 'Price Per Coin',
   'spot_premium': 'Premium above spot',
@@ -149,7 +148,6 @@ function validateSellForm(form) {
     'mint',
     'year',
     'finish',
-    'grade',
     'quantity'
   ];
 
@@ -200,7 +198,6 @@ function validateEditListingForm(form) {
     'mint',
     'year',
     'finish',
-    'grade',
     'quantity'
     // Note: photo is not required for editing
   ];

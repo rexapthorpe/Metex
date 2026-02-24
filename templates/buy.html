@@ -50,7 +50,7 @@
                     <p class="product-title">
                         {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
                     </p>
-                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['grade'] }} {{ bucket['year'] }}</p>
+                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
                     {% if bucket['lowest_price'] is not none %}
                         <p class="price">${{ bucket['lowest_price']|commas }}</p>
                         {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
@@ -101,7 +101,7 @@
                     <p class="product-title">
                         {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
                     </p>
-                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['grade'] }} {{ bucket['year'] }}</p>
+                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
                     {% if bucket['lowest_price'] is not none %}
                         <p class="price">${{ bucket['lowest_price']|commas }}</p>
                         {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
@@ -143,7 +143,7 @@
                     <p class="product-title">
                         {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
                     </p>
-                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['grade'] }} {{ bucket['year'] }}</p>
+                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
                     {% if bucket['lowest_price'] is not none %}
                         <p class="price">${{ bucket['lowest_price']|commas }}</p>
                         {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}

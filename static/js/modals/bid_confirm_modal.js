@@ -109,7 +109,6 @@ async function openBidConfirmModal(data) {
   const productLineSpec = modal.querySelector('#confirm-spec-product-line .spec-value');
   const productTypeSpec = modal.querySelector('#confirm-spec-product-type .spec-value');
   const weightSpec = modal.querySelector('#confirm-spec-weight .spec-value');
-  const gradeSpec = modal.querySelector('#confirm-spec-grade .spec-value');
   const yearSpec = modal.querySelector('#confirm-spec-year .spec-value');
   const mintSpec = modal.querySelector('#confirm-spec-mint .spec-value');
   const puritySpec = modal.querySelector('#confirm-spec-purity .spec-value');
@@ -119,7 +118,6 @@ async function openBidConfirmModal(data) {
   if (productLineSpec) productLineSpec.textContent = productLine || '—';
   if (productTypeSpec) productTypeSpec.textContent = productType || '—';
   if (weightSpec) weightSpec.textContent = weight || '—';
-  if (gradeSpec) gradeSpec.textContent = grade || 'N/A';
   if (yearSpec) yearSpec.textContent = year || '—';
   if (mintSpec) mintSpec.textContent = mint || '—';
   if (puritySpec) puritySpec.textContent = purity || '—';
@@ -512,7 +510,6 @@ function openBidSuccessModal(data) {
   const productLineSpec = modal.querySelector('#success-spec-product-line .spec-value');
   const productTypeSpec = modal.querySelector('#success-spec-product-type .spec-value');
   const weightSpec = modal.querySelector('#success-spec-weight .spec-value');
-  const gradeSpec = modal.querySelector('#success-spec-grade .spec-value');
   const yearSpec = modal.querySelector('#success-spec-year .spec-value');
   const mintSpec = modal.querySelector('#success-spec-mint .spec-value');
   const puritySpec = modal.querySelector('#success-spec-purity .spec-value');
@@ -522,7 +519,6 @@ function openBidSuccessModal(data) {
   if (productLineSpec) productLineSpec.textContent = data.bucketProductLine || '—';
   if (productTypeSpec) productTypeSpec.textContent = data.bucketProductType || '—';
   if (weightSpec) weightSpec.textContent = data.bucketWeight || '—';
-  if (gradeSpec) gradeSpec.textContent = data.bucketGrade || 'N/A';
   if (yearSpec) yearSpec.textContent = data.bucketYear || '—';
   if (mintSpec) mintSpec.textContent = data.bucketMint || '—';
   if (puritySpec) puritySpec.textContent = data.bucketPurity || '—';

@@ -13,7 +13,7 @@
   padding: 2rem;
   align-items: start;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: clip;
 }
 
 .sell-main-form {
@@ -21,10 +21,13 @@
 }
 
 .sell-sticky-sidebar {
-  position: sticky;
+  position: fixed;
   top: 80px;
-  max-height: calc(100vh - 100px);
+  right: max(2rem, calc((100vw - 1200px) / 2 + 2rem));
+  width: 300px;
+  max-height: calc(100vh - 96px);
   overflow-y: auto;
+  z-index: 10;
 }
 
 /* ===== FORM STRUCTURE ===== */
@@ -1152,7 +1155,11 @@ body.dark-mode .sidebar-add-item-btn:disabled {
 
   .sell-sticky-sidebar {
     position: static;
+    top: auto;
+    right: auto;
+    width: auto;
     max-height: none;
+    z-index: auto;
   }
 }
 

@@ -31,7 +31,6 @@ function openBuyItemConfirmModal(itemData) {
   document.getElementById('buy-spec-mint').textContent = specs['Mint'] || '—';
   document.getElementById('buy-spec-year').textContent = specs['Year'] || '—';
   document.getElementById('buy-spec-finish').textContent = specs['Finish'] || '—';
-  document.getElementById('buy-spec-grade').textContent = specs['Grading'] || '—';
   document.getElementById('buy-spec-product-line').textContent = specs['Product line'] || '—';
 
   // Populate "Requires 3rd Party Grading" field based on buyer's toggle choice
@@ -284,7 +283,6 @@ function openBuyItemSuccessModal(orderData) {
     'success-buy-spec-product-line': bucket.product_line || specs.product_line || '—',
     'success-buy-spec-product-type': bucket.product_type || specs.product_type || '—',
     'success-buy-spec-weight': bucket.weight || specs.weight || '—',
-    'success-buy-spec-grade': bucket.grade || specs.grade || '—',
     'success-buy-spec-year': bucket.year || specs.year || '—',
     'success-buy-spec-mint': bucket.mint || specs.mint || '—',
     'success-buy-spec-purity': bucket.purity || specs.purity || '—',
@@ -914,7 +912,6 @@ function openBuyItemConfirmModalWithData(itemData, previewData) {
   document.getElementById('buy-spec-mint').textContent = specs['Mint'] || '—';
   document.getElementById('buy-spec-year').textContent = specs['Year'] || '—';
   document.getElementById('buy-spec-finish').textContent = specs['Finish'] || '—';
-  document.getElementById('buy-spec-grade').textContent = specs['Grading'] || '—';
   document.getElementById('buy-spec-product-line').textContent = specs['Product line'] || '—';
 
   // Populate "Requires 3rd Party Grading" field based on buyer's toggle choice
