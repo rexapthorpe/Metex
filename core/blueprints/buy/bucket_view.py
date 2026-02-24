@@ -424,9 +424,14 @@ def view_bucket(bucket_id):
                 ''', (listing_id,)).fetchall()
 
                 if all_photos_raw:
-                    # First photo is cover, rest are thumbnails
+                    # First photo is cover (shown on buy page tile), rest are item detail photos
                     cover_photo_url = f"/static/{all_photos_raw[0]['file_path']}"
                     thumbnail_urls = [f"/static/{p['file_path']}" for p in all_photos_raw[1:]]
+
+                # For one-of-a-kind: gallery shows item photos (thumbnail_urls)
+                # Fall back to cover_photo_url if no item photos (old listings created before fix)
+                if isolated_type != 'set':
+                    images = thumbnail_urls if thumbnail_urls else ([cover_photo_url] if cover_photo_url else [])
 
                 # If this is a set, get all set items with photos
                 if isolated_type == 'set':
@@ -452,12 +457,14 @@ def view_bucket(bucket_id):
                         # Convert to URLs (up to 3 photos per item)
                         item['photo_urls'] = [f"/static/{p['file_path']}" for p in photos_raw]
 
-                        # Also add to thumbnail gallery if not already cover photo
-                        for photo in photos_raw:
-                            photo_url = f"/static/{photo['file_path']}"
-                            # Only add if it's not the cover photo and not already in thumbnails
-                            if photo_url != cover_photo_url and photo_url not in thumbnail_urls:
-                                thumbnail_urls.append(photo_url)
+                        # Collect each set item's first photo for the gallery
+                        if photos_raw:
+                            first_photo_url = f"/static/{photos_raw[0]['file_path']}"
+                            if first_photo_url not in thumbnail_urls:
+                                thumbnail_urls.append(first_photo_url)
+
+                    # For set listings: gallery shows cover photo + each item's first photo
+                    images = ([cover_photo_url] if cover_photo_url else []) + thumbnail_urls
 
     conn.close()
 

@@ -101,7 +101,7 @@
             </button>
             {% set order_title = [order.weight or '', order.year or '', order.metal or '', order.product_line or '', order.product_type or ''] | select | join(' ') | trim %}
             <button
-              class="order-quick-action order-quick-action--muted{% if order.already_rated %} order-quick-action--rated{% endif %}"
+              class="order-quick-action{% if order.already_rated %} order-quick-action--rated{% endif %}"
               {% if not order.already_rated %}
               onclick='openRateModal({{ order.id }}, "seller", {{ {"title": order_title, "price": "$%d" | format(order.price_each or 0), "date": order.formatted_order_date or ""} | tojson }})'
               {% endif %}
@@ -110,10 +110,14 @@
               {% if order.already_rated %}Rated{% else %}Rate{% endif %}
             </button>
             <button
-              class="order-quick-action order-quick-action--muted {% if order.excluded_count == 0 %}order-quick-action--disabled{% endif %}"
+              class="order-quick-action {% if order.excluded_count == 0 %}order-quick-action--muted order-quick-action--disabled{% else %}order-quick-action--restore{% endif %}"
               onclick="toggleOrderPortfolio({{ order.id }}, {{ order.excluded_count }})"
               {% if order.excluded_count == 0 %}disabled{% endif %}>
-              <i class="fa-regular fa-clock"></i> Portfolio
+              {% if order.excluded_count > 0 %}
+                <i class="fa-solid fa-rotate-left"></i> Restore Portfolio
+              {% else %}
+                <i class="fa-solid fa-chart-line"></i> Portfolio
+              {% endif %}
             </button>
             <div class="order-actions-divider"></div>
             <div class="order-actions-bottom">

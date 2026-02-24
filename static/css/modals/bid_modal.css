@@ -426,7 +426,7 @@
   align-items: center;
   justify-content: center;
   width: 48px;
-  height: 48px;
+  align-self: stretch;
   background: #f3f4f6;
   color: #6b7280;
   font-size: 18px;
@@ -437,13 +437,17 @@
 
 #bidModal .bm-price-field {
   flex: 1;
-  padding: 12px 14px;
+  padding: 0 14px;
+  height: 52px;
+  line-height: 52px;
   border: none;
   background: transparent;
   font-size: 18px;
   font-weight: 500;
   color: #111827;
   outline: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 #bidModal .bm-price-field::placeholder { color: #9ca3af; font-weight: 400; }

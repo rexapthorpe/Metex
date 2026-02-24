@@ -162,9 +162,80 @@ def view_cart():
             ''', (category_id,)).fetchone()
         bucket['total_available'] = result['total_available'] if result and result['total_available'] else 0
 
+    # Build suggested items based on metals in cart
+    suggested_items = []
+    if buckets:
+        cart_metals = list(set(
+            b['category']['metal'] for b in buckets.values() if b['category'].get('metal')
+        ))
+        if cart_metals:
+            # Get bucket_ids already in cart so we can exclude them
+            cat_ids = list(buckets.keys())
+            cat_ph = ','.join('?' * len(cat_ids))
+            cart_bucket_ids = [
+                r['bucket_id'] for r in conn.execute(
+                    f'SELECT bucket_id FROM categories WHERE id IN ({cat_ph}) AND bucket_id IS NOT NULL',
+                    cat_ids
+                ).fetchall()
+            ]
+
+            metal_ph = ','.join('?' * len(cart_metals))
+            exclude_clause = (
+                f'AND c.bucket_id NOT IN ({",".join("?" * len(cart_bucket_ids))})'
+                if cart_bucket_ids else ''
+            )
+            params = cart_metals + (cart_bucket_ids if cart_bucket_ids else [])
+
+            rows = conn.execute(f'''
+                SELECT DISTINCT
+                    c.bucket_id, c.metal, c.product_type, c.weight,
+                    c.mint, c.year, c.product_line, c.coin_series,
+                    l.price_per_coin, l.pricing_mode, l.spot_premium,
+                    l.floor_price, l.pricing_metal
+                FROM categories c
+                JOIN listings l ON l.category_id = c.id
+                WHERE l.active = 1 AND l.quantity > 0
+                  AND c.bucket_id IS NOT NULL
+                  AND c.is_isolated = 0
+                  AND c.metal IN ({metal_ph})
+                  {exclude_clause}
+            ''', params).fetchall()
+
+            bucket_map = {}
+            for row in rows:
+                rd = dict(row)
+                # get_effective_price needs metal/weight/product_type on the dict
+                ep = get_effective_price(rd)
+                bid = rd['bucket_id']
+                if bid not in bucket_map:
+                    bucket_map[bid] = {
+                        'bucket_id': bid,
+                        'metal': rd['metal'],
+                        'product_type': rd['product_type'],
+                        'weight': rd['weight'],
+                        'mint': rd['mint'],
+                        'year': rd['year'],
+                        'product_line': rd['product_line'],
+                        'coin_series': rd['coin_series'],
+                        'lowest_price': ep
+                    }
+                else:
+                    bucket_map[bid]['lowest_price'] = min(bucket_map[bid]['lowest_price'], ep)
+
+            suggested_items = sorted(
+                bucket_map.values(),
+                key=lambda x: (x['lowest_price'] is None, x['lowest_price'] or 0)
+            )[:8]
+
     conn.close()
 
-    return render_template('view_cart.html', buckets=buckets, cart_total=round(cart_total, 2), session=session)
+    return render_template(
+        'view_cart.html',
+        buckets=buckets,
+        cart_total=round(cart_total, 2),
+        suggested_items=suggested_items,
+        session=session
+    )
 
 
 @buy_bp.route('/order_success')

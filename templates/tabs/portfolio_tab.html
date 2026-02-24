@@ -109,8 +109,19 @@
     <div class="holdings-col holdings-col--num purchase-price-value"></div>
     <div class="holdings-col holdings-col--num current-price-value"></div>
     <div class="holdings-col holdings-col--num gain-loss-value"></div>
-    <div class="holdings-col holdings-col--actions">
-      <button class="holding-more-btn" onclick="viewHoldingDetails(this)">···</button>
+    <div class="holdings-col holdings-col--actions holding-menu-wrapper">
+      <button class="holding-more-btn" onclick="toggleHoldingMenu(event, this)">···</button>
+      <div class="holding-dropdown">
+        <button class="holding-dropdown-item" onclick="closeAllHoldingMenus(); viewHoldingDetails(this)">
+          <i class="fa-solid fa-list-ul"></i> Item Specs
+        </button>
+        <button class="holding-dropdown-item" onclick="closeAllHoldingMenus(); excludeHolding(this)">
+          <i class="fa-solid fa-eye-slash"></i> Not in Portfolio
+        </button>
+        <button class="holding-dropdown-item holding-dropdown-item--sell" onclick="closeAllHoldingMenus(); openListingModalFromHolding(this)">
+          <i class="fa-solid fa-tag"></i> Sell Item
+        </button>
+      </div>
     </div>
   </div>
 </template>

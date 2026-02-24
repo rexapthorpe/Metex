@@ -1385,7 +1385,7 @@ def include_order_in_portfolio(order_id):
 
         # Get all order_items for this order
         order_items = conn.execute(
-            "SELECT order_item_id FROM order_items WHERE order_id = ?",
+            "SELECT id FROM order_items WHERE order_id = ?",
             (order_id,)
         ).fetchall()
 
@@ -1393,7 +1393,7 @@ def include_order_in_portfolio(order_id):
         for item in order_items:
             conn.execute(
                 "DELETE FROM portfolio_exclusions WHERE user_id = ? AND order_item_id = ?",
-                (user_id, item['order_item_id'])
+                (user_id, item['id'])
             )
 
         conn.commit()

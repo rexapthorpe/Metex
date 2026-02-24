@@ -217,6 +217,14 @@
 .order-quick-action--muted i { color: #cbd5e1; }
 .order-quick-action--disabled { opacity: 0.5; cursor: not-allowed; }
 
+.order-quick-action--restore {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+.order-quick-action--restore i { color: #2563eb; }
+.order-quick-action--restore:hover { background: #dbeafe; }
+
 .order-quick-action--rated {
   background: #f0fdf4;
   border-color: #86efac;

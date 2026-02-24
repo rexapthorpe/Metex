@@ -1,6 +1,7 @@
 let orderSellerData = [];
 let orderSellerIndex = 0;
 let orderSellerOrderId = null;
+let _osmIsCartContext = false;
 
 function _osmEsc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
@@ -9,6 +10,7 @@ function _osmEsc(s) {
 }
 
 function openOrderSellerPopup(orderId) {
+  _osmIsCartContext = false;
   orderSellerOrderId = orderId;
   fetch(`/orders/api/${orderId}/order_sellers`)
     .then(res => {
@@ -151,14 +153,42 @@ function renderOrderSeller() {
       </div>
     </div>
 
+    ${!_osmIsCartContext && orderSellerOrderId != null ? `
     <button class="osm-contact-btn" onclick="openMessageModal(${orderSellerOrderId}, 'seller'); closeOrderSellerPopup();">
       <i class="fa-regular fa-comment"></i> Contact Seller
-    </button>
+    </button>` : ''}
   `;
+}
+
+function openCartSellerPopup(bucketId) {
+  _osmIsCartContext = true;
+  orderSellerOrderId = null;
+  fetch(`/cart/api/bucket/${bucketId}/cart_sellers`)
+    .then(res => {
+      if (!res.ok) throw new Error('Could not load sellers');
+      return res.json();
+    })
+    .then(data => {
+      if (!Array.isArray(data) || data.length === 0) {
+        alert('No sellers found for this item.');
+        return;
+      }
+      orderSellerData = data;
+      orderSellerIndex = 0;
+      renderOrderSeller();
+      const overlay = document.getElementById('orderSellersModal');
+      overlay.style.display = 'flex';
+      overlay.addEventListener('click', _osmOutsideClick);
+    })
+    .catch(err => {
+      console.error(err);
+      alert(err.message);
+    });
 }
 
 // expose globally
 window.openOrderSellerPopup = openOrderSellerPopup;
+window.openCartSellerPopup = openCartSellerPopup;
 window.closeOrderSellerPopup = closeOrderSellerPopup;
 window.prevOrderSeller = prevOrderSeller;
 window.nextOrderSeller = nextOrderSeller;

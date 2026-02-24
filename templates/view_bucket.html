@@ -23,13 +23,32 @@
       <!-- Gallery -->
       <div class="gallery">
         <div class="gallery-main" id="galleryMain" aria-live="polite">
-          {% if isolated_type == 'set' and (cover_photo or set_items) %}
-            {# Set listing: show cover photo as main image #}
-            {% set main_photo = cover_photo if cover_photo else 'static/uploads/placeholder.jpg' %}
-            <img src="/{{ main_photo }}" alt="Set cover image" id="mainImage">
-            <div id="mainImagePlaceholder" class="gallery-ph" style="display: none;" aria-label="Image placeholder"></div>
+          {% if is_isolated %}
+            {# One-of-a-kind: show item photos with carousel #}
+            {% set has_images = images and images|length > 0 %}
+
+            <button class="gal-arrow left" id="galPrev" aria-label="Previous image"
+                    {% if not has_images or images|length < 2 %}disabled{% endif %}>‹</button>
+
+            {% if has_images %}
+              <img src="{{ images[0] }}" alt="Item image" id="mainImage">
+              <div id="mainImagePlaceholder" class="gallery-ph" style="display: none;" aria-label="Image placeholder"></div>
+            {% else %}
+              <div id="mainImagePlaceholder" class="gallery-ph" aria-label="Image placeholder"></div>
+            {% endif %}
+
+            <button class="gal-arrow right" id="galNext" aria-label="Next image"
+                    {% if not has_images or images|length < 2 %}disabled{% endif %}>›</button>
+
+            <div class="gal-dots" id="galDots">
+              {% if has_images %}
+                {% for i in range(images|length) %}
+                  <span class="dot {{ 'active' if i == 0 else '' }}" data-idx="{{ i }}"></span>
+                {% endfor %}
+              {% endif %}
+            </div>
           {% else %}
-            {# Standard or one-of-a-kind listing: use existing images array #}
+            {# Standard listing: use images array #}
             {% set has_images = images and images|length > 0 %}
 
             <button class="gal-arrow left" id="galPrev" aria-label="Previous image"
@@ -55,17 +74,15 @@
         </div>
 
         <!-- Thumbs row -->
-        {% if isolated_type == 'set' and set_items %}
-          {# Set listing: show item photo thumbnails #}
+        {% if is_isolated and images %}
+          {# One-of-a-kind: show all item photo thumbnails, clickable to switch main image #}
           <div class="thumbs-row">
             <div class="thumbs" style="display: flex; gap: 8px; overflow-x: auto; padding: 8px 0;">
-              {% for item in set_items %}
-                {% if item.photo_path %}
-                  <button class="thumb set-item-thumb" data-photo="/{{ item.photo_path }}" aria-label="View item #{{ loop.index }} photo"
-                          style="min-width: 80px; height: 80px; border: 2px solid #ddd; border-radius: 6px; overflow: hidden; cursor: pointer; padding: 0; background: none;">
-                    <img src="/{{ item.photo_path }}" alt="Item #{{ loop.index }}" style="width: 100%; height: 100%; object-fit: cover;">
-                  </button>
-                {% endif %}
+              {% for url in images %}
+                <button class="thumb" data-idx="{{ loop.index0 }}" aria-label="Show photo {{ loop.index }}"
+                        style="min-width: 80px; height: 80px; border: 2px solid {% if loop.first %}#1976d2{% else %}#ddd{% endif %}; border-radius: 6px; overflow: hidden; cursor: pointer; padding: 0; background: none;">
+                  <img src="{{ url }}" alt="Photo {{ loop.index }}" style="width: 100%; height: 100%; object-fit: cover;">
+                </button>
               {% endfor %}
             </div>
           </div>
@@ -832,7 +849,7 @@
 
 <script>
   window.flashMessages = {{ get_flashed_messages(with_categories=true) | tojson }};
-  window.bucketImages  = {{ (images or []) | tojson }};
+  window.bucketImages  = {{ (images or []) | tojson }};  // includes item photos for one-of-a-kind
   window.bestBid       = {{ (best_bid or {}) | tojson }};
   window.bucketId      = {{ bucket['id'] }};
   window.actualBucketId = {{ bucket['bucket_id'] }};  // For price history chart
@@ -841,23 +858,32 @@
   window.lowestPrice   = {{ availability.lowest_price if availability and availability.lowest_price else 0 }};
   window.bucketIsIsolated = {{ 'true' if is_isolated else 'false' }};
 
-  // Set photo gallery: handle thumbnail clicks
-  {% if isolated_type == 'set' and set_items %}
+  {% if is_isolated and images %}
+  // Isolated listing gallery: sync thumbnail border highlight with active carousel image
   document.addEventListener('DOMContentLoaded', function() {
-    const mainImage = document.getElementById('mainImage');
-    const setItemThumbs = document.querySelectorAll('.set-item-thumb');
-
-    setItemThumbs.forEach(function(thumb) {
-      thumb.addEventListener('click', function() {
-        const photoPath = this.getAttribute('data-photo');
-        if (photoPath && mainImage) {
-          mainImage.src = photoPath;
-
-          // Update active state on thumbnails
-          setItemThumbs.forEach(t => t.style.borderColor = '#ddd');
-          this.style.borderColor = '#1976d2';
-        }
+    const thumbs = document.querySelectorAll('.thumbs-row .thumb[data-idx]');
+    function updateThumbHighlight(activeIdx) {
+      thumbs.forEach(function(t) {
+        t.style.borderColor = (parseInt(t.dataset.idx) === activeIdx) ? '#1976d2' : '#ddd';
       });
+    }
+    // Patch the gallery arrows to also update highlights
+    const prev = document.getElementById('galPrev');
+    const next = document.getElementById('galNext');
+    const dots = document.querySelectorAll('#galDots .dot');
+    const imgs = window.bucketImages || [];
+    let currentIdx = 0;
+    function goTo(n) {
+      currentIdx = (n + imgs.length) % imgs.length;
+      updateThumbHighlight(currentIdx);
+    }
+    if (prev) prev.addEventListener('click', function() { goTo(currentIdx - 1); });
+    if (next) next.addEventListener('click', function() { goTo(currentIdx + 1); });
+    thumbs.forEach(function(t) {
+      t.addEventListener('click', function() { goTo(parseInt(t.dataset.idx)); });
+    });
+    dots.forEach(function(d) {
+      d.addEventListener('click', function() { goTo(parseInt(d.dataset.idx)); });
     });
   });
   {% endif %}

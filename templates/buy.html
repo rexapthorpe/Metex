@@ -40,7 +40,11 @@
                 {% endif %}
 
                 <div class="image-box">
-                    <span>Item image</span>  <!-- Placeholder text; image can go here later -->
+                    {% if bucket.get('tile_image_url') %}
+                        <img src="{{ bucket.tile_image_url }}" alt="Item" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
+                    {% else %}
+                        <span>Item image</span>
+                    {% endif %}
                 </div>
                 <div class="product-text">
                     <p class="product-title">
@@ -87,7 +91,11 @@
                 {% endif %}
 
                 <div class="image-box">
-                    <span>Item image</span>  <!-- Placeholder text; image can go here later -->
+                    {% if bucket.get('tile_image_url') %}
+                        <img src="{{ bucket.tile_image_url }}" alt="Item" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
+                    {% else %}
+                        <span>Item image</span>
+                    {% endif %}
                 </div>
                 <div class="product-text">
                     <p class="product-title">

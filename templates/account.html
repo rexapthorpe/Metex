@@ -143,15 +143,27 @@
 
     <!-- Secondary Sidebar for Account Details -->
     <div class="account-secondary-sidebar">
-      <ul>
-        <h2>Account Details</h2>
-        <div class="sidebar-divider"></div>
-        <li class="active" onclick="showDetailsSection('overview')">Account Overview</li>
-        <li onclick="showDetailsSection('personal')">Personal Info</li>
-        <li onclick="showDetailsSection('payment')">Payment Methods</li>
-        <li onclick="showDetailsSection('shipping')">Shipping Addresses</li>
-        <li onclick="showDetailsSection('security')">Security & Login</li>
-        <li onclick="showDetailsSection('notifications')">Notification Settings</li>
+      <div class="sidebar-title">Account Details</div>
+      <div class="sidebar-divider"></div>
+      <ul class="secondary-sidebar-nav">
+        <li class="active" onclick="showDetailsSection('overview')">
+          <i class="fa-solid fa-user sidebar-icon"></i>Account Overview
+        </li>
+        <li onclick="showDetailsSection('personal')">
+          <i class="fa-solid fa-pen sidebar-icon"></i>Personal Info
+        </li>
+        <li onclick="showDetailsSection('payment')">
+          <i class="fa-solid fa-credit-card sidebar-icon"></i>Payment Methods
+        </li>
+        <li onclick="showDetailsSection('shipping')">
+          <i class="fa-solid fa-location-dot sidebar-icon"></i>Shipping Addresses
+        </li>
+        <li onclick="showDetailsSection('security')">
+          <i class="fa-solid fa-shield sidebar-icon"></i>Security & Login
+        </li>
+        <li onclick="showDetailsSection('notifications')">
+          <i class="fa-solid fa-bell sidebar-icon"></i>Notification Settings
+        </li>
       </ul>
     </div>
 

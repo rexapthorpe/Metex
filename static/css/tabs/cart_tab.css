@@ -310,6 +310,18 @@
 
 .summary-promo-btn:hover { background: #f1f5f9; }
 
+/* ===== Per-item sections ===== */
+.summary-item-section {
+  margin-bottom: 16px;
+}
+
+.summary-item-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+}
+
 /* ===== Lines ===== */
 .summary-lines { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
 
@@ -318,6 +330,7 @@
   justify-content: space-between;
   font-size: 13px;
   color: #64748b;
+  margin-bottom: 7px;
 }
 
 .summary-label { color: #64748b; }
@@ -326,6 +339,11 @@
 .summary-free-tag {
   color: #16a34a;
   font-size: 11px;
+  font-weight: 600;
+}
+
+.summary-free {
+  color: #16a34a;
   font-weight: 600;
 }
 

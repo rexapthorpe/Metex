@@ -296,7 +296,8 @@ def get_order_details(order_id):
             MIN(c.product_type) as product_type,
             MIN(c.weight) as weight,
             MIN(c.year) as year,
-            MIN(l.name) as listing_name
+            MIN(l.name) as listing_name,
+            MIN(c.bucket_id) as bucket_id
         FROM orders o
         JOIN order_items oi ON oi.order_id = o.id
         JOIN listings l ON oi.listing_id = l.id
@@ -344,7 +345,8 @@ def get_order_details(order_id):
         'product_line': order_data['product_line'],
         'product_type': order_data['product_type'],
         'weight': order_data['weight'],
-        'year': order_data['year']
+        'year': order_data['year'],
+        'bucket_id': order_data['bucket_id']
     }
 
     return jsonify(result)

@@ -2,6 +2,20 @@
    CART PAGE - ORDERS-STYLE LAYOUT
    ========================================== */
 
+/* ===== Suggested Items Section ===== */
+.cart-suggested-section {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.cart-suggested-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 20px 0;
+}
+
 .cart-page-content-container {
   max-width: 1600px;
   margin: 0 auto;
@@ -350,7 +364,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 6px 0;
+  margin: 9px 0;
   font-size: 0.95rem;
 }
 
@@ -364,6 +378,11 @@
   text-align: right;
   font-weight: 500;
   color: #000;
+}
+
+.summary-free {
+  color: #16a34a;
+  font-weight: 600;
 }
 
 /* Divider before total */

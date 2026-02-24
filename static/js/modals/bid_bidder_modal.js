@@ -63,14 +63,7 @@ function renderBidder(b) {
   const transactions   = b.transaction_count != null ? Number(b.transaction_count).toLocaleString() : '--';
   const repeatSellers  = b.repeat_sellers_pct != null ? `${b.repeat_sellers_pct}%` : '--';
   const memberSince    = b.member_since  || '--';
-  const responseTime   = b.response_time || '--';
-  const shipsTo        = b.ships_to      || '--';
   const bidQty         = b.quantity      != null ? b.quantity : '--';
-
-  // Purchase interests tags
-  const interestsHtml = (Array.isArray(b.purchase_interests) && b.purchase_interests.length > 0)
-    ? b.purchase_interests.map(t => `<span class="osm-tag">${_esc(t)}</span>`).join('')
-    : '<span class="osm-tag">&mdash;</span>';
 
   container.innerHTML = `
     <div class="osm-identity">
@@ -124,24 +117,7 @@ function renderBidder(b) {
           <span class="osm-info-value">${memberSince}</span>
         </div>
       </div>
-      <div class="osm-info-item">
-        <div class="osm-info-icon"><i class="fa-regular fa-clock"></i></div>
-        <div>
-          <span class="osm-info-label">Response</span>
-          <span class="osm-info-value">${responseTime}</span>
-        </div>
-      </div>
-      <div class="osm-info-item">
-        <div class="osm-info-icon"><i class="fa-solid fa-location-dot"></i></div>
-        <div>
-          <span class="osm-info-label">Ships to</span>
-          <span class="osm-info-value">${shipsTo}</span>
-        </div>
-      </div>
     </div>
-
-    <div class="osm-specializes-label">Purchase interests</div>
-    <div class="osm-tags">${interestsHtml}</div>
   `;
 }
 

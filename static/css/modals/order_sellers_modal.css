@@ -303,16 +303,18 @@
   padding: 15px;
   border: none;
   border-radius: 10px;
-  background: #2563eb;
-  color: #ffffff;
+  background: #2563eb !important;
+  color: #ffffff !important;
   font-size: 1rem;
   font-weight: 600;
-  cursor: pointer;
+  cursor: pointer !important;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   margin-bottom: 8px;
   transition: background 0.15s ease;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
-.osm-contact-btn:hover { background: #1d4ed8; }
+.osm-contact-btn:hover { background: #1d4ed8 !important; }

@@ -223,8 +223,10 @@ def handle_sell_post():
         conn = get_db_connection()
 
         # --- Handle photo upload(s) ---
-        # For sets: use cover_photo, for non-sets: use item_photo
-        standard_photos = []  # Initialize for all modes (only populated for standard mode)
+        # For sets: use cover_photo as main
+        # For one-of-a-kind (isolated): use cover_photo as main tile image, item_photo_1/2/3 as additional
+        # For standard: use item_photo_1/2/3
+        standard_photos = []  # Additional photos beyond the main one
         if is_set:
             # Set listing: require cover photo
             photo_file = request.files.get('cover_photo')
@@ -235,11 +237,23 @@ def handle_sell_post():
                 flash(error_msg, "error")
                 options = get_dropdown_options()
                 return _render_sell_template(options)
+        elif is_isolated:
+            # One-of-a-kind listing: cover_photo is the main tile image
+            photo_file = request.files.get('cover_photo')
+            # Collect item_photo_1/2/3 as additional detail photos
+            for photo_idx in range(1, 4):
+                pf = request.files.get(f'item_photo_{photo_idx}')
+                if pf and pf.filename:
+                    standard_photos.append(pf)
+            if not photo_file or photo_file.filename == "":
+                error_msg = "Please upload a cover photo for your one-of-a-kind listing."
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify(success=False, message=error_msg), 400
+                flash(error_msg, "error")
+                options = get_dropdown_options()
+                return _render_sell_template(options)
         else:
-            # Standard or one-of-a-kind listing: require item photo
-            # Standard mode now supports multiple photos (item_photo_1, item_photo_2, item_photo_3)
-            # Try multi-photo format first for standard mode
-            standard_photos = []
+            # Standard listing: use item_photo_1/2/3
             for photo_idx in range(1, 4):  # Check for photos 1, 2, 3
                 pf = request.files.get(f'item_photo_{photo_idx}')
                 if pf and pf.filename:
@@ -249,7 +263,7 @@ def handle_sell_post():
                 # Use first photo as main photo_file for backwards compatibility
                 photo_file = standard_photos[0]
             else:
-                # Fallback to single photo (for isolated mode or legacy)
+                # Fallback to single photo (legacy)
                 photo_file = request.files.get('item_photo')
 
             if not photo_file or photo_file.filename == "":
@@ -400,9 +414,12 @@ def handle_sell_post():
             VALUES (?, ?, ?)
         ''', (listing_id, session['user_id'], file_path))
 
-        # For standard mode: save additional photos (2nd and 3rd)
-        if standard_photos and len(standard_photos) > 1:
-            for idx, std_photo in enumerate(standard_photos[1:], start=2):  # Skip first photo, start numbering at 2
+        # Save additional photos:
+        # - Standard mode: skip first (already saved as photo_file), save 2nd and 3rd
+        # - One-of-a-kind: cover_photo already saved; save all item_photo_1/2/3 as additional
+        extra_photos = standard_photos if is_isolated else (standard_photos[1:] if len(standard_photos) > 1 else [])
+        if extra_photos:
+            for idx, std_photo in enumerate(extra_photos, start=2):
                 if std_photo and std_photo.filename:
                     # Save each additional photo with unique filename
                     safe_name = secure_filename(std_photo.filename)

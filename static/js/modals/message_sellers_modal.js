@@ -46,12 +46,25 @@
         const orderIdEl = document.getElementById('msgOrderId');
         if (orderIdEl) orderIdEl.textContent = formatOrderNumber(orderId);
 
-        const viewBtn = document.getElementById('msgViewOrderBtn');
-        if (viewBtn) {
-          viewBtn.onclick = () => {
-            window.location.href = '/account?tab=orders';
-          };
-        }
+        // Fetch order details to get bucket_id for the View Order button
+        fetch(`/orders/api/${orderId}/details`)
+          .then(r => r.ok ? r.json() : null)
+          .then(details => {
+            const viewBtn = document.getElementById('msgViewOrderBtn');
+            if (viewBtn && details && details.bucket_id) {
+              viewBtn.onclick = () => {
+                window.location.href = `/bucket/${details.bucket_id}`;
+              };
+            } else if (viewBtn) {
+              viewBtn.onclick = () => {
+                window.location.href = '/account#orders';
+              };
+            }
+          })
+          .catch(() => {
+            const viewBtn = document.getElementById('msgViewOrderBtn');
+            if (viewBtn) viewBtn.onclick = () => { window.location.href = '/account#orders'; };
+          });
 
         // Reset and render
         currentIndex = 0;

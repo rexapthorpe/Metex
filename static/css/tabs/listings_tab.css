@@ -3,7 +3,8 @@
 /* ===== Grid ===== */
 .listing-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, 375px);
+  justify-content: start;
   gap: 20px;
 }
 
@@ -167,14 +168,14 @@
   font-weight: 500;
   cursor: pointer;
   text-decoration: none;
-  border: 1px solid #e2e8f0;
+  border: none;
   background: #ffffff;
   color: #374151;
   transition: background 0.15s ease;
 }
 
 .listing-footer-btn:hover { background: #f8fafc; }
-.listing-footer-btn--cancel { color: #ef4444; border-color: #fecaca; }
+.listing-footer-btn--cancel { color: #ef4444; }
 .listing-footer-btn--cancel:hover { background: #fef2f2; }
 
 /* ===================================
@@ -182,7 +183,6 @@
    =================================== */
 
 @media (max-width: 768px) {
-  /* 2-col grid → 1 col */
   .listing-grid {
     grid-template-columns: 1fr;
     gap: 16px;

@@ -39,7 +39,8 @@
       "Bash(tmutil listlocalsnapshots:*)",
       "Bash(wc:*)",
       "Bash(python3:*)",
-      "Bash(/Users/rexapthorpe/Library/Caches/ms-playwright-go/1.50.1/node:*)"
+      "Bash(/Users/rexapthorpe/Library/Caches/ms-playwright-go/1.50.1/node:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

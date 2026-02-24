@@ -30,16 +30,6 @@
 <div class="cart-page-content-container">
   <h2>Your Cart</h2>
 
-  <!-- Price Update Warning for Dynamic Pricing -->
-  <div class="price-update-warning">
-    <div class="price-update-warning-icon">ⓘ</div>
-    <div class="price-update-warning-content">
-      <div class="price-update-warning-title">Live Pricing Active</div>
-      <div class="price-update-warning-text">
-        Cart prices are recalculated on every page load. Items with Premium-to-Spot pricing may have changed since you last viewed your cart.
-      </div>
-    </div>
-  </div>
 
   <div class="cart-page-layout">
     <div class="cart-items-column">
@@ -182,6 +172,26 @@
 
       <hr class="summary-divider">
 
+      <!-- Fee rows -->
+      <div class="summary-line">
+        <span class="summary-label">Subtotal</span>
+        <span class="summary-value">${{ cart_total|commas }}</span>
+      </div>
+      <div class="summary-line">
+        <span class="summary-label">Tax</span>
+        <span class="summary-value">$0.00</span>
+      </div>
+      <div class="summary-line">
+        <span class="summary-label">Insurance</span>
+        <span class="summary-value summary-free">Free</span>
+      </div>
+      <div class="summary-line">
+        <span class="summary-label">Shipping</span>
+        <span class="summary-value summary-free">Free</span>
+      </div>
+
+      <hr class="summary-divider">
+
       <div class="summary-line summary-total">
         <span class="summary-label">Total:</span>
         <span class="summary-value">${{ cart_total|commas }}</span>
@@ -200,6 +210,36 @@
     {% endif %}
   </div>
 </div>
+
+<!-- Suggested Items -->
+{% if suggested_items %}
+<div class="cart-suggested-section">
+  <h3 class="cart-suggested-title">You Might Also Like</h3>
+  <div class="grid">
+    {% for bucket in suggested_items %}
+    <a href="{{ url_for('buy.view_bucket', bucket_id=bucket.bucket_id) }}" class="product-tile">
+      <div class="image-box">
+        <span>Item image</span>
+      </div>
+      <div class="product-text">
+        <p class="product-title">
+          {{ bucket.weight }}
+          {% if bucket.product_line %}{{ bucket.product_line }}
+          {% elif bucket.coin_series %}{{ bucket.coin_series }}
+          {% else %}{{ bucket.product_type }}{% endif %}
+        </p>
+        <p class="product-subtext">{{ bucket.metal }}{% if bucket.year %} • {{ bucket.year }}{% endif %}{% if bucket.mint %} • {{ bucket.mint }}{% endif %}</p>
+        {% if bucket.lowest_price is not none %}
+          <p class="price">${{ bucket.lowest_price|commas }}</p>
+        {% else %}
+          <p class="price no-listings">No listings available</p>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 <!-- Pass per‐unit price arrays to JS -->
 <script>

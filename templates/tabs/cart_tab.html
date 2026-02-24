@@ -91,7 +91,7 @@
               <i class="fa-solid fa-chevron-down" style="font-size:10px;"></i> View details
             </button>
             <div class="cart-footer-actions">
-              <button class="cart-footer-btn" onclick="openSellerPopup({{ bucket_id }})">
+              <button class="cart-footer-btn" onclick="openCartSellerPopup({{ bucket_id }})">
                 <i class="fa-solid fa-user"></i> Sellers
               </button>
               <button class="cart-footer-btn" onclick="openPriceBreakdown({{ bucket_id }})">
@@ -162,31 +162,54 @@
   <div class="order-summary-card">
     <h3 class="summary-header">Order Summary</h3>
 
-    <!-- Line items -->
-    <div class="summary-lines">
-      {% set item_count = namespace(n=0) %}
-      {% for bucket_id, bucket in buckets.items() %}
-        {% set item_count.n = item_count.n + bucket.total_qty %}
-      {% endfor %}
-      <div class="summary-line">
-        <span class="summary-label">Subtotal ({{ item_count.n }} item{{ 's' if item_count.n != 1 else '' }})</span>
-        <span class="summary-value" id="cart-subtotal">${{ '%.2f'|format(cart_total) }}</span>
+    <!-- Per-item sections -->
+    {% for bucket_id, bucket in buckets.items() %}
+      <div class="summary-item-section" data-bucket-id="{{ bucket_id }}">
+        <div class="summary-item-name">
+          {% if bucket.category.weight %}{{ bucket.category.weight }} {% endif %}
+          {% if bucket.category.metal %}{{ bucket.category.metal }} {% endif %}
+          {{ bucket.category.product_type or '' }}
+        </div>
+        <div class="summary-line">
+          <span class="summary-label">Quantity:</span>
+          <span class="summary-value" id="summary-qty-{{ bucket_id }}">{{ bucket.total_qty }}</span>
+        </div>
+        <div class="summary-line">
+          <span class="summary-label">Average Price:</span>
+          <span class="summary-value">${{ '%.2f'|format(bucket.avg_price) }}</span>
+        </div>
+        <div class="summary-line">
+          <span class="summary-label">Subtotal:</span>
+          <span class="summary-value" id="summary-subtotal-{{ bucket_id }}">${{ '%.2f'|format(bucket.total_price) }}</span>
+        </div>
       </div>
-      <div class="summary-line">
-        <span class="summary-label">Shipping <span class="summary-free-tag">Free</span></span>
-        <span class="summary-value">Free</span>
-      </div>
-      <div class="summary-line">
-        <span class="summary-label">Insurance (1%)</span>
-        <span class="summary-value">${{ '%.2f'|format(cart_total * 0.01) }}</span>
-      </div>
+    {% endfor %}
+
+    <hr class="summary-divider">
+
+    <!-- Fee rows -->
+    <div class="summary-line">
+      <span class="summary-label">Subtotal</span>
+      <span class="summary-value" id="cart-subtotal">${{ '%.2f'|format(cart_total) }}</span>
+    </div>
+    <div class="summary-line">
+      <span class="summary-label">Tax</span>
+      <span class="summary-value">$0.00</span>
+    </div>
+    <div class="summary-line">
+      <span class="summary-label">Insurance</span>
+      <span class="summary-value summary-free">Free</span>
+    </div>
+    <div class="summary-line">
+      <span class="summary-label">Shipping</span>
+      <span class="summary-value summary-free">Free</span>
     </div>
 
     <hr class="summary-divider">
 
     <div class="summary-total-row">
       <span class="summary-total-label">Total</span>
-      <span class="summary-total-value">${{ '%.2f'|format(cart_total * 1.01) }}</span>
+      <span class="summary-total-value" id="cart-total-all">${{ '%.2f'|format(cart_total) }}</span>
     </div>
 
     {% if session.get('user_id') %}
@@ -206,7 +229,7 @@
       <i class="fa-solid fa-sparkles"></i>
       <div>
         <strong>You're saving!</strong>
-        <span> Free shipping on this order</span>
+        <span> Free shipping &amp; insurance on this order</span>
       </div>
     </div>
   </div>

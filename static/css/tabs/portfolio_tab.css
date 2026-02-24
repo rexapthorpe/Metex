@@ -735,6 +735,10 @@
 .holdings-col--num { text-align: right; font-size: 14px; color: #374151; font-weight: 500; }
 .holdings-col--actions { text-align: right; }
 
+.holding-menu-wrapper {
+  position: relative;
+}
+
 .holding-more-btn {
   background: transparent;
   border: none;
@@ -747,6 +751,50 @@
 }
 
 .holding-more-btn:hover { background: #f1f5f9; }
+
+/* Dropdown menu (fixed-positioned to avoid overflow:hidden clipping) */
+.holding-dropdown {
+  display: none;
+  position: fixed;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.13);
+  min-width: 180px;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.holding-dropdown.open { display: block; }
+
+.holding-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.holding-dropdown-item:hover { background: #f8fafc; }
+
+.holding-dropdown-item i {
+  width: 14px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.holding-dropdown-item--sell { color: #16a34a; }
+.holding-dropdown-item--sell i { color: #16a34a; }
+.holding-dropdown-item--sell:hover { background: #f0fdf4; }
 
 .holdings-loading {
   padding: 40px;

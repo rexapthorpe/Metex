@@ -742,38 +742,55 @@ function confirmExcludeHolding() {
  */
 function openListingModalFromHolding(button) {
     const tile = button.closest('.holding-row');
-    const bucketId = tile.getAttribute('data-bucket-id');
+    if (!tile) return;
 
-    if (!bucketId) {
-        alert('Cannot list this item: Bucket ID not found');
-        return;
-    }
+    // Read from data attributes (set in renderHoldingsList)
+    const metal       = tile.dataset.metal       || '';
+    const productType = tile.dataset.productType || '';
+    const weight      = tile.dataset.weight      || '';
+    const purity      = tile.dataset.purity      || '';
+    const mint        = tile.dataset.mint        || '';
+    const year        = tile.dataset.year        || '';
+    const finish      = tile.dataset.finish      || '';
+    const grade       = tile.dataset.grade       || '';
+    const productLine = tile.dataset.productLine || '';
 
-    // Extract holding data from tile
-    const metal = tile.querySelector('.metal-value')?.textContent?.trim() || '';
-    const productType = tile.querySelector('.product-type-value')?.textContent?.trim() || '';
-    const weight = tile.querySelector('.weight-value')?.textContent?.trim() || '';
-    const purity = tile.querySelector('.purity-value')?.textContent?.trim() || '';
-    const mint = tile.querySelector('.mint-value')?.textContent?.trim() || '';
-    const year = tile.querySelector('.year-value')?.textContent?.trim() || '';
-    const finish = tile.querySelector('.finish-value')?.textContent?.trim() || '';
-    const grade = tile.querySelector('.grade-value')?.textContent?.trim() || '';
-    const productLine = tile.querySelector('.product-line-value')?.textContent?.trim() || '';
-
-    // Build query string with prefilled data
     const params = new URLSearchParams();
-    if (metal && metal !== '--') params.append('metal', metal);
+    if (metal       && metal       !== '--') params.append('metal',        metal);
     if (productType && productType !== '--') params.append('product_type', productType);
-    if (weight && weight !== '--') params.append('weight', weight);
-    if (purity && purity !== '--') params.append('purity', purity);
-    if (mint && mint !== '--') params.append('mint', mint);
-    if (year && year !== '--') params.append('year', year);
-    if (finish && finish !== '--') params.append('finish', finish);
-    if (grade && grade !== '--') params.append('grade', grade);
+    if (weight      && weight      !== '--') params.append('weight',       weight);
+    if (purity      && purity      !== '--') params.append('purity',       purity);
+    if (mint        && mint        !== '--') params.append('mint',         mint);
+    if (year        && year        !== '--') params.append('year',         year);
+    if (finish      && finish      !== '--') params.append('finish',       finish);
+    if (grade       && grade       !== '--') params.append('grade',        grade);
     if (productLine && productLine !== '--') params.append('product_line', productLine);
 
-    // Redirect to Sell page with prefilled data
     window.location.href = `/sell?${params.toString()}`;
+}
+
+/**
+ * Toggle the 3-dot dropdown for a holding row.
+ * Uses fixed positioning so it isn't clipped by the card's overflow:hidden.
+ */
+function toggleHoldingMenu(event, btn) {
+    event.stopPropagation();
+    const dropdown = btn.nextElementSibling;
+    const isOpen = dropdown.classList.contains('open');
+
+    // Close all other open menus first
+    closeAllHoldingMenus();
+
+    if (!isOpen) {
+        const rect = btn.getBoundingClientRect();
+        dropdown.style.top   = (rect.bottom + 4) + 'px';
+        dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+        dropdown.classList.add('open');
+    }
+}
+
+function closeAllHoldingMenus() {
+    document.querySelectorAll('.holding-dropdown.open').forEach(d => d.classList.remove('open'));
 }
 
 /**
@@ -793,6 +810,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (portfolioTab && portfolioTab.style.display !== 'none') {
         initPortfolioTab();
     }
+
+    // Close holding dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.holding-menu-wrapper')) {
+            closeAllHoldingMenus();
+        }
+    });
 });
 
 // Also initialize when tab is shown (for tab switching)
@@ -912,3 +936,5 @@ window.excludeHolding = excludeHolding;
 window.openListingModalFromHolding = openListingModalFromHolding;
 window.viewHoldingDetails = viewHoldingDetails;
 window.sortHoldings = sortHoldings;
+window.toggleHoldingMenu = toggleHoldingMenu;
+window.closeAllHoldingMenus = closeAllHoldingMenus;
