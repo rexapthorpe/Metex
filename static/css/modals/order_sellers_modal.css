@@ -297,6 +297,42 @@
   color: #374151;
 }
 
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  .order-sellers-modal-content {
+    padding: 16px;
+    border-radius: 14px;
+    width: 96%;
+  }
+
+  /* Shrink avatar on phones */
+  .osm-avatar {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    font-size: 1.4rem;
+  }
+
+  /* Collapse 2-column info grid to single column */
+  .osm-info-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Reduce large stat numbers */
+  .osm-rating-number,
+  .osm-transactions-num {
+    font-size: 1.6rem;
+  }
+
+  .osm-stats-card { padding: 12px; }
+
+  .osm-title { font-size: 1.15rem; }
+  .osm-display-name { font-size: 1.1rem; }
+
+  .osm-stats-bottom { flex-direction: column; gap: 8px; }
+}
+
 /* Contact button */
 .osm-contact-btn {
   width: 100%;
@@ -318,3 +354,18 @@
   pointer-events: auto !important;
 }
 .osm-contact-btn:hover { background: #1d4ed8 !important; }
+
+.osm-contact-btn--locked {
+  background: #e5e7eb !important;
+  color: #9ca3af !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+.osm-contact-btn--locked:hover { background: #e5e7eb !important; }
+
+.osm-contact-locked-note {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin: 6px 0 0 0;
+}

@@ -89,9 +89,14 @@ def get_cart_sellers(bucket_id):
                 display_name = user_info['username']
             seller_data['display_name'] = display_name
 
-            # Member since year
-            if user_info['created_at']:
-                seller_data['member_since'] = user_info['created_at'][:4]
+            # Member since (formatted as "Mon YYYY")
+            raw_date = user_info['created_at']
+            if raw_date:
+                try:
+                    dt = datetime.fromisoformat(str(raw_date).replace('Z', ''))
+                    seller_data['member_since'] = dt.strftime('%b %Y')
+                except (ValueError, TypeError):
+                    seller_data['member_since'] = str(raw_date)[:4]
             else:
                 seller_data['member_since'] = None
 
@@ -191,8 +196,21 @@ def get_cart_sellers(bucket_id):
         else:
             seller_data['response_time'] = None
 
-        # Avg ship time - placeholder (tracking not built yet)
-        seller_data['avg_ship_time'] = None
+        # Avg ship time: days from order creation to tracking number entry
+        ship_time_result = conn.execute('''
+            SELECT AVG(julianday(sot.created_at) - julianday(o.created_at)) AS avg_days
+            FROM seller_order_tracking sot
+            JOIN orders o ON sot.order_id = o.id
+            WHERE sot.seller_id = ?
+              AND sot.tracking_number IS NOT NULL
+              AND sot.tracking_number != ''
+        ''', (seller_id,)).fetchone()
+        avg_days = ship_time_result['avg_days'] if ship_time_result and ship_time_result['avg_days'] is not None else None
+        if avg_days is not None:
+            d = round(avg_days)
+            seller_data['avg_ship_time'] = f"{d} day{'s' if d != 1 else ''}"
+        else:
+            seller_data['avg_ship_time'] = None
 
         enriched_sellers.append(seller_data)
 

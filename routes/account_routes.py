@@ -189,6 +189,16 @@ def account():
             if order.get('year_count', 1) > 1:
                 order['year'] = 'Random'
 
+            # Set image_url for isolated/set listings using their cover photo
+            raw_path = order.get('photo_path')
+            if raw_path and order.get('is_isolated'):
+                if raw_path.startswith('/'):
+                    order['image_url'] = raw_path
+                elif raw_path.startswith('static/'):
+                    order['image_url'] = '/' + raw_path
+                else:
+                    order['image_url'] = '/static/' + raw_path
+
             out.append(order)
         return out
 
@@ -231,7 +241,8 @@ def account():
              o.tracking_number,
              (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_status,
              (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_reason,
-             (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status
+             (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status,
+             (SELECT lp.file_path FROM listing_photos lp WHERE lp.listing_id IN (SELECT oi2.listing_id FROM order_items oi2 WHERE oi2.order_id = o.id) LIMIT 1) AS photo_path
            FROM orders o
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id
@@ -280,7 +291,8 @@ def account():
                  AND pe.user_id = ?
              ) AS excluded_count,
              (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_status,
-             (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status
+             (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status,
+             (SELECT lp.file_path FROM listing_photos lp WHERE lp.listing_id IN (SELECT oi2.listing_id FROM order_items oi2 WHERE oi2.order_id = o.id) LIMIT 1) AS photo_path
            FROM orders o
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id

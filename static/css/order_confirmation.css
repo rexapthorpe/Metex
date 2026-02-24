@@ -485,3 +485,80 @@ body.dark-mode .trust-badge {
     width: 100%;
   }
 }
+
+@media (max-width: 480px) {
+  .order-confirmation-page {
+    padding: 16px 12px;
+    padding-left: calc(50vw - 50% + 12px);
+    padding-right: calc(50vw - 50% + 12px);
+  }
+
+  .confirmation-title {
+    font-size: 22px;
+  }
+
+  .confirmation-subtitle {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .order-details-card {
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+
+  .whats-next-section {
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+
+  .whats-next-section h3 {
+    font-size: 15px;
+    margin-bottom: 14px;
+  }
+
+  /* Overlay animation: shrink checkmark on small phones */
+  .confirm-checkmark {
+    width: 100px;
+    height: 100px;
+  }
+
+  .confirm-overlay-label {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 360px) {
+  .order-confirmation-page {
+    padding: 12px 10px;
+    padding-left: calc(50vw - 50% + 10px);
+    padding-right: calc(50vw - 50% + 10px);
+  }
+
+  .confirmation-title {
+    font-size: 20px;
+  }
+
+  .order-details-card {
+    padding: 12px;
+  }
+
+  .whats-next-section {
+    padding: 12px;
+  }
+
+  .next-step {
+    gap: 10px;
+  }
+
+  .step-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .step-content h4 {
+    font-size: 13px;
+  }
+}

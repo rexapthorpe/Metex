@@ -159,6 +159,29 @@
   bottom: 12px;
 }
 
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  /* Card body: the 50px horizontal padding is too tight on 350px-wide card */
+  #sellerModal .modal-body {
+    padding: 8px 20px 80px;
+  }
+
+  /* Shrink the 250×250 seller photo — card is only 315px wide on a 350px screen */
+  #sellerModal .seller-photo {
+    width: 160px;
+    height: 160px;
+  }
+
+  /* Reduce large username font */
+  #sellerModal .username-section {
+    font-size: 1.3rem;
+  }
+
+  /* Stars and rating: tighten up */
+  #sellerModal .modal-body .avg-rating { font-size: 1.4rem; }
+  #sellerModal .modal-body .stars .star { font-size: 1.5rem; }
+}
+
 /* Remove button styling */
 #sellerModal .modal-footer .remove-btn {
   text-align: center !important;

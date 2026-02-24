@@ -454,6 +454,54 @@
   flex-shrink: 0;
 }
 
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  .message-modal {
+    width: 96%;
+    min-height: auto; /* Remove fixed 560px min — phones are shorter */
+    max-height: 88vh;
+    border-radius: 12px;
+  }
+
+  .msg-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 0.9rem;
+  }
+
+  .msg-header {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .msg-name { font-size: 1rem; }
+  .msg-handle { font-size: 0.8rem; }
+
+  .msg-order-bar {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  /* Hide "View Order" text label, keep icon only */
+  .msg-view-order-btn {
+    padding: 6px 10px;
+    font-size: 0.8125rem;
+  }
+
+  #messageModal .message-body {
+    padding: 14px !important;
+  }
+
+  .message-bubble { max-width: 85%; }
+
+  .msg-textarea { font-size: 0.875rem; padding: 8px 12px; }
+}
+
+@media (max-width: 360px) {
+  .msg-order-img { width: 36px; height: 36px; }
+  .msg-view-order-btn { display: none; } /* too narrow — icon bar in header is enough */
+}
+
 /* ===== DARK MODE ===== */
 body.dark-mode .message-modal {
   background: var(--bg-card);

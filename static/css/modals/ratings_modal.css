@@ -106,6 +106,18 @@
 .rm-content .nav-arrow.left  { left: -18px; }
 .rm-content .nav-arrow.right { right: -18px; }
 
+/* On narrow screens the -18px arrows fall outside the viewport — pull them inside */
+@media (max-width: 480px) {
+  .rm-content { padding: 20px 20px 18px; }
+  .rm-content .nav-arrow.left  { left: 8px; }
+  .rm-content .nav-arrow.right { right: 8px; }
+  .rm-title { font-size: 1.2rem; }
+}
+
+@media (max-width: 360px) {
+  .rm-content { padding: 16px 14px 14px; }
+}
+
 /* Header */
 .rm-header { margin-bottom: 20px; padding-right: 32px; }
 .rm-title {

@@ -373,20 +373,21 @@
 .mobile-nav-drawer {
     position: fixed;
     top: 0;
-    right: -300px;
+    left: -300px;
+    right: auto;
     width: 280px;
     max-width: 85vw;
     height: 100vh;
     background: #ffffff;
     z-index: 2002;
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
-    transition: right 0.3s ease;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    transition: left 0.3s ease;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
 }
 
-.mobile-nav-drawer.open { right: 0; }
+.mobile-nav-drawer.open { left: 0; }
 
 .mobile-nav-header {
     display: flex;
@@ -508,6 +509,20 @@
     }
 
     .logo { font-size: 20px; }
+}
+
+/* Smallest phones (320px) */
+@media (max-width: 360px) {
+    .header-bar {
+        padding: 6px 10px 5px;
+    }
+
+    .logo { font-size: 18px; }
+
+    .header-search-input {
+        font-size: 13px;
+        padding: 8px 12px 8px 34px;
+    }
 }
 
 /* Ensure drawer is only rendered on mobile */

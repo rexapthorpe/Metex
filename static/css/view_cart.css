@@ -63,9 +63,6 @@
   align-items: flex-start;  /* Top-align tiles and summary */
   gap: 30px;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-behavior: smooth;
 }
 
 .cart-items-column {
@@ -328,16 +325,15 @@
   position: sticky;
   top: 100px;
   width: 320px;
-  max-width: 320px;
-  flex: 0 0 320px;
   background: #fff;
   border: 1px solid #ccc;
   border-radius: 20px;
   padding: 24px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
   height: fit-content;
-  align-self: flex-start;  /* Align to top of flex container */
-  margin: 0;  /* Remove any margins */
+  align-self: flex-start;
+  flex-shrink: 0;
+  margin: 0;
 }
 
 .summary-header {
@@ -453,28 +449,46 @@
 }
 
 /* ==========================================
-   RESPONSIVE (maintain desktop layout)
+   RESPONSIVE
    ========================================== */
 
-@media (max-width: 768px) {
-  .cart-item-tile {
-    min-width: 700px;
-  }
+/* Tablet: stack layout — summary card goes below items */
+@media (max-width: 900px) {
   .cart-page-layout {
-    flex-direction: row;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .order-summary-card {
+    width: 100%;
+    position: static;
   }
 }
 
-@media (max-width: 600px) {
-  .cart-page-layout {
-    flex-direction: row;
+@media (max-width: 768px) {
+  .cart-page-content-container {
+    padding: 12px;
   }
-  .cart-qty {
-    height: 36px;
+}
+
+/* Phone */
+@media (max-width: 480px) {
+  .cart-page-content-container {
+    padding: 10px;
   }
-  .cart-qty__value {
-    line-height: 36px;
-    flex-basis: 56px;
-    width: 56px;
+
+  .cart-suggested-title {
+    font-size: 1.1rem;
+  }
+
+  .empty-cart-container {
+    padding: 40px 20px;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+  .cart-page-content-container {
+    padding: 8px;
   }
 }

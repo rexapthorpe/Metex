@@ -189,9 +189,14 @@ def order_sellers(order_id):
                 display_name = user_info['username']
             seller_data['display_name'] = display_name
 
-            # Member since year
-            if user_info['created_at']:
-                seller_data['member_since'] = user_info['created_at'][:4]
+            # Member since (formatted as "Mon YYYY")
+            raw_date = user_info['created_at']
+            if raw_date:
+                try:
+                    dt = datetime.fromisoformat(str(raw_date).replace('Z', ''))
+                    seller_data['member_since'] = dt.strftime('%b %Y')
+                except (ValueError, TypeError):
+                    seller_data['member_since'] = str(raw_date)[:4]
             else:
                 seller_data['member_since'] = None
 
@@ -200,15 +205,33 @@ def order_sellers(order_id):
         num_reviews = seller_data.get('num_reviews') or 0
         seller_data['is_verified'] = rating >= 4.7 and num_reviews > 100
 
-        # Get transaction count (orders where this seller has sold items)
+        # Transaction count: only orders confirmed as delivered
         transaction_result = conn.execute('''
             SELECT COUNT(DISTINCT o.id) as transaction_count
             FROM orders o
             JOIN order_items oi ON o.id = oi.order_id
             JOIN listings l ON oi.listing_id = l.id
             WHERE l.seller_id = ?
+              AND o.status IN ('Delivered', 'Complete')
         ''', (seller_id,)).fetchone()
         seller_data['transaction_count'] = transaction_result['transaction_count'] if transaction_result else 0
+
+        # Fulfillment percentage (non-canceled orders / total orders)
+        fulfillment_result = conn.execute('''
+            SELECT
+                COUNT(DISTINCT o.id) AS total,
+                SUM(CASE WHEN o.canceled_at IS NULL THEN 1 ELSE 0 END) AS fulfilled
+            FROM orders o
+            JOIN order_items oi ON o.id = oi.order_id
+            JOIN listings l ON oi.listing_id = l.id
+            WHERE l.seller_id = ?
+        ''', (seller_id,)).fetchone()
+        if fulfillment_result and fulfillment_result['total']:
+            seller_data['fulfillment_pct'] = round(
+                (fulfillment_result['fulfilled'] / fulfillment_result['total']) * 100
+            )
+        else:
+            seller_data['fulfillment_pct'] = None
 
         # Calculate repeat buyers percentage
         buyers_result = conn.execute('''
@@ -289,8 +312,21 @@ def order_sellers(order_id):
         else:
             seller_data['response_time'] = None
 
-        # Avg ship time - placeholder (tracking not built yet)
-        seller_data['avg_ship_time'] = None
+        # Avg ship time: days from order creation to tracking number entry
+        ship_time_result = conn.execute('''
+            SELECT AVG(julianday(sot.created_at) - julianday(o.created_at)) AS avg_days
+            FROM seller_order_tracking sot
+            JOIN orders o ON sot.order_id = o.id
+            WHERE sot.seller_id = ?
+              AND sot.tracking_number IS NOT NULL
+              AND sot.tracking_number != ''
+        ''', (seller_id,)).fetchone()
+        avg_days = ship_time_result['avg_days'] if ship_time_result and ship_time_result['avg_days'] is not None else None
+        if avg_days is not None:
+            d = round(avg_days)
+            seller_data['avg_ship_time'] = f"{d} day{'s' if d != 1 else ''}"
+        else:
+            seller_data['avg_ship_time'] = None
 
         enriched_sellers.append(seller_data)
 

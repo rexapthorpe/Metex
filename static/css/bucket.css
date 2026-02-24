@@ -12,7 +12,7 @@
 .bucket-card {
   width: 100%;
   max-width: 1200px;
-  min-width: 500px;
+  min-width: 0;
   margin: 40px auto;
   background-color: #ffffff;
   border-radius: 20px;
@@ -40,8 +40,8 @@
   align-items: start;
 }
 
-.left-col { display: flex; flex-direction: column; gap: 16px; }
-.right-col { display: flex; flex-direction: column; gap: 16px; }
+.left-col  { display: flex; flex-direction: column; gap: 16px; min-width: 0; overflow: hidden; }
+.right-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; overflow: hidden; }
 
 /* Reusable inner white tiles */
 .content-tile {
@@ -143,6 +143,9 @@
   justify-content: space-between;
   align-items: flex-start;   /* top-align with thumbnails */
   gap: 12px;
+  flex-wrap: wrap;            /* sell-stack wraps below on very small screens */
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Right-side vertical stack: label above the circular button */
@@ -725,6 +728,7 @@
 .bids-panel {
   margin: 28px auto 60px auto;
   max-width: 1200px;
+  width: 100%;
   padding: 24px;
   background: #ffffff;
   border-radius: 18px;
@@ -733,6 +737,7 @@
     0 20px 50px rgba(24,119,255,0.10),
     0 8px 20px rgba(0,0,0,0.08),
     0 1px 3px rgba(0,0,0,0.04);
+  box-sizing: border-box;
 }
 .bids-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 .bids-header-left { display: flex; flex-direction: column; gap: 3px; }
@@ -874,13 +879,34 @@
 
 /* Responsive */
 @media (max-width: 960px) {
-  .bucket-card.two-col-6535 { grid-template-columns: 1fr; }
+  /* Collapse 65/35 grid to single column, reorder: gallery → buy controls → specs */
+  .bucket-card.two-col-6535 {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "gallery"
+      "buy"
+      "specs";
+    gap: 20px;
+  }
+
+  /* Make left-col transparent so its children become direct grid participants */
+  .bucket-card.two-col-6535 .left-col {
+    display: contents;
+  }
+
+  /* Assign each section to its named area */
+  .bucket-card.two-col-6535 .gallery       { grid-area: gallery; }
+  .bucket-card.two-col-6535 .right-col     { grid-area: buy; }
+  .bucket-card.two-col-6535 .description-tile { grid-area: specs; }
+
   .bucket-page { flex-direction: column; align-items: center; padding: 0 5%; }
-  .thumbs .thumb { width: 70px; }
+  .thumbs .thumb      { width: 70px; }
+  .thumbs .thumb.ph   { width: 70px; }  /* override the 150px base rule (specificity fix) */
   .bids-header { flex-direction: column; align-items: flex-start; }
   .qty-row { flex-wrap: wrap; }
   .qty-available { margin-left: 0; }
   .price-box.moved { transform: translateY(calc(var(--price-shift, 52px) + 6px)); }
+  .bucket-card { margin: 24px auto; }
 }
 
 /* Flash messages */
@@ -894,6 +920,32 @@
 .popup-alert.warning { background: #fd7e14; }
 
 /* Responsive bids grid */
+@media (max-width: 768px) {
+  .bucket-page { padding: 0; } /* container already handles side padding */
+  .bucket-card { margin: 16px auto; }
+
+  /* Tiles */
+  .content-tile { padding: 16px; }
+
+  /* Specs — collapse to single column */
+  .description-tile .specs-two-col { grid-template-columns: 1fr; }
+
+  /* Best-bid two-col — stack vertically */
+  .bb-grid { grid-template-columns: 1fr; gap: 8px; }
+  .bb-colR { min-height: auto; }
+  .price-box { position: static; }
+  .price-box.moved { transform: none; }
+  .bb-r1-flex { justify-content: flex-start; }
+
+  /* Typography */
+  .right-title { font-size: 20px; }
+  .buy-price-amount { font-size: 28px; }
+  .best-bid-price #bestBidPrice { font-size: 20px; }
+
+  /* Full-width sections side margins */
+  .bids-panel { margin: 20px 0 40px; }
+}
+
 @media (max-width: 1024px) {
   .bids-list { grid-template-columns: repeat(2, 1fr); }
   .account-bid-tiles { grid-template-columns: repeat(2, 1fr); }
@@ -901,7 +953,36 @@
 @media (max-width: 640px) {
   .bids-list { grid-template-columns: 1fr; }
   .account-bid-tiles { grid-template-columns: 1fr; }
-  .bids-panel { padding: 20px 16px; }
+  .bids-panel { padding: 20px 16px; margin: 16px 0 32px; }
+}
+
+@media (max-width: 480px) {
+  .bucket-page { padding: 0; } /* container already handles side padding */
+  .bucket-card { margin: 12px auto; }
+
+  /* Tiles */
+  .content-tile { padding: 14px 12px; }
+
+  /* Gallery */
+  .gal-arrow { font-size: 38px; }
+  .thumbs .thumb    { width: 58px; }
+  .thumbs .thumb.ph { width: 58px; }  /* specificity fix */
+
+  /* Typography */
+  .right-title { font-size: 17px; }
+  .buy-price-amount { font-size: 24px; }
+  .best-bid-price #bestBidPrice { font-size: 18px; }
+  .bid-price-strong { font-size: 1.5rem; }
+
+  /* Quantity dial — tighter on small phones */
+  .dial-pill { width: 120px; }
+
+  /* Full-width sections */
+  .bids-panel { margin: 12px 0 24px; padding: 16px 12px; }
+
+  /* Bids header wrapping */
+  .bids-actions { gap: 8px; }
+  .accept-bids-btn, .header-bid-btn { padding: 0 14px; font-size: 0.875rem; }
 }
 
 

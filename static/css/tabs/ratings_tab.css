@@ -468,3 +468,37 @@
     display: none;
   }
 }
+
+@media (max-width: 480px) {
+  .ratings-tab .rt-heading {
+    font-size: 1.2rem;
+  }
+
+  .ratings-tab .rt-row {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .ratings-tab .rt-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 0.75rem;
+  }
+
+  .ratings-tab .rt-name {
+    font-size: 0.875rem;
+  }
+
+  .ratings-tab .rt-comment {
+    font-size: 0.8rem;
+  }
+
+  .ratings-tab .rt-empty {
+    padding: 36px 16px;
+  }
+
+  .ratings-tab .rt-filter-btn {
+    padding: 5px 12px;
+    font-size: 0.75rem;
+  }
+}

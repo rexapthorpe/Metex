@@ -10,6 +10,11 @@ let bucketPriceChart = null;
 let currentBucketTimeRange = '1d';  // Default to 1D instead of 1M
 let bucketChartData = null;
 let bucketChartMouseLeaveHandler = null;  // Store reference to event handler for cleanup
+let currentBucketId = null;  // Stored for resize-triggered redraws
+let chartResizeTimer = null;
+let lastChartWasMobile = null;
+
+const isMobileChart = () => window.innerWidth <= 768;
 
 /**
  * Initialize bucket price chart
@@ -18,11 +23,28 @@ let bucketChartMouseLeaveHandler = null;  // Store reference to event handler fo
 function initBucketPriceChart(bucketId) {
     console.log('[BucketChart] Initializing price chart for bucket:', bucketId);
 
+    currentBucketId = bucketId;
+    lastChartWasMobile = isMobileChart();
+
     // Setup time range selector
     setupBucketTimeRangeSelector(bucketId);
 
     // Load initial data
     loadBucketPriceHistory(bucketId, currentBucketTimeRange);
+
+    // Redraw chart when crossing the mobile breakpoint (y-axis visibility changes)
+    window.addEventListener('resize', function() {
+        clearTimeout(chartResizeTimer);
+        chartResizeTimer = setTimeout(function() {
+            const nowMobile = isMobileChart();
+            if (nowMobile !== lastChartWasMobile) {
+                lastChartWasMobile = nowMobile;
+                if (currentBucketId) {
+                    loadBucketPriceHistory(currentBucketId, currentBucketTimeRange);
+                }
+            }
+        }, 300);
+    });
 }
 
 /**
@@ -510,14 +532,17 @@ function renderBucketPriceChart(historyData, range) {
                 },
                 scales: {
                     y: {
+                        display: !isMobileChart(),  // Hide y-axis on mobile — chart fills full width
                         beginAtZero: false,
                         min: yMin,  // Apply 10% margin below minimum
                         max: yMax,  // Apply 10% margin above maximum
                         grid: {
-                            color: '#f3f4f6',
-                            drawBorder: false
+                            color: isMobileChart() ? 'transparent' : '#f3f4f6',
+                            drawBorder: false,
+                            display: !isMobileChart()
                         },
                         ticks: {
+                            display: !isMobileChart(),
                             font: {
                                 size: 12
                             },

@@ -120,43 +120,30 @@ function renderOrderSeller() {
       </div>
       <div class="osm-stats-bottom">
         <div class="osm-stat-item">
-          <div class="osm-stat-icon"><i class="fa-solid fa-cube"></i></div>
+          <div class="osm-stat-icon"><i class="fa-solid fa-truck"></i></div>
           <div>
-            <div class="osm-stat-label">Fulfillment</div>
-            <div class="osm-stat-value">${fulfillmentPct}</div>
+            <div class="osm-stat-label">Avg. ship time</div>
+            <div class="osm-stat-value">${avgShipTime}</div>
           </div>
         </div>
         <div class="osm-stat-item">
-          <div class="osm-stat-icon green"><i class="fa-solid fa-arrow-trend-up"></i></div>
+          <div class="osm-stat-icon"><i class="fa-regular fa-calendar"></i></div>
           <div>
-            <div class="osm-stat-label">Repeat Buyers</div>
-            <div class="osm-stat-value">${repeatBuyersPct}</div>
+            <div class="osm-stat-label">Member since</div>
+            <div class="osm-stat-value">${memberSince}</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="osm-info-grid">
-      <div class="osm-info-item">
-        <div class="osm-info-icon"><i class="fa-regular fa-calendar"></i></div>
-        <div>
-          <span class="osm-info-label">Member since</span>
-          <span class="osm-info-value">${memberSince}</span>
-        </div>
-      </div>
-      <div class="osm-info-item">
-        <div class="osm-info-icon"><i class="fa-solid fa-truck"></i></div>
-        <div>
-          <span class="osm-info-label">Avg. ship time</span>
-          <span class="osm-info-value">${avgShipTime}</span>
-        </div>
-      </div>
-    </div>
-
-    ${!_osmIsCartContext && orderSellerOrderId != null ? `
+    ${_osmIsCartContext ? `
+    <button class="osm-contact-btn osm-contact-btn--locked" disabled>
+      <i class="fa-solid fa-lock"></i> Buy item to contact seller
+    </button>
+    <p class="osm-contact-locked-note">Seller contacting will be available while order is processing</p>` : (orderSellerOrderId != null ? `
     <button class="osm-contact-btn" onclick="openMessageModal(${orderSellerOrderId}, 'seller'); closeOrderSellerPopup();">
       <i class="fa-regular fa-comment"></i> Contact Seller
-    </button>` : ''}
+    </button>` : '')}
   `;
 }
 

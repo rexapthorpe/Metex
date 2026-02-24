@@ -164,9 +164,10 @@ def get_cart_items(conn):
                 listings.pricing_metal,
                 listings.seller_id,
                 listings.photo_filename,
-                lp.file_path,
+                (SELECT file_path FROM listing_photos WHERE listing_id = listings.id LIMIT 1) AS file_path,
                 listings.graded,
                 listings.grading_service,
+                listings.is_isolated,
                 users.username AS seller_username,
                 categories.id AS category_id,
                 categories.metal,
@@ -191,7 +192,6 @@ def get_cart_items(conn):
             JOIN listings   ON cart.listing_id = listings.id
             JOIN categories ON listings.category_id = categories.id
             JOIN users      ON listings.seller_id = users.id
-            LEFT JOIN listing_photos AS lp ON lp.listing_id = listings.id
             WHERE cart.user_id = ?
               AND listings.active = 1
               AND listings.quantity > 0
@@ -221,9 +221,10 @@ def get_cart_items(conn):
                 listings.pricing_metal,
                 listings.seller_id,
                 listings.photo_filename,
-                lp.file_path,
+                (SELECT file_path FROM listing_photos WHERE listing_id = listings.id LIMIT 1) AS file_path,
                 listings.graded,
                 listings.grading_service,
+                listings.is_isolated,
                 users.username AS seller_username,
                 categories.id AS category_id,
                 categories.metal,
@@ -247,7 +248,6 @@ def get_cart_items(conn):
             FROM listings
             JOIN categories ON listings.category_id = categories.id
             JOIN users      ON listings.seller_id = users.id
-            LEFT JOIN listing_photos AS lp ON lp.listing_id = listings.id
             WHERE listings.id IN ({placeholders})
               AND listings.active = 1
               AND listings.quantity > 0
@@ -300,7 +300,9 @@ def get_cart_data(conn):
                     SELECT ROUND(AVG(rating), 2)
                     FROM ratings
                     WHERE ratee_id = users.id
-                ) AS seller_rating
+                ) AS seller_rating,
+                listings.is_isolated,
+                (SELECT file_path FROM listing_photos WHERE listing_id = listings.id LIMIT 1) AS photo_path
             FROM cart
             JOIN listings ON cart.listing_id = listings.id
             JOIN categories ON listings.category_id = categories.id
@@ -348,7 +350,9 @@ def get_cart_data(conn):
                     SELECT ROUND(AVG(rating), 2)
                     FROM ratings
                     WHERE ratee_id = users.id
-                ) AS seller_rating
+                ) AS seller_rating,
+                listings.is_isolated,
+                (SELECT file_path FROM listing_photos WHERE listing_id = listings.id LIMIT 1) AS photo_path
             FROM listings
             JOIN categories ON listings.category_id = categories.id
             JOIN users ON listings.seller_id = users.id
@@ -368,7 +372,8 @@ def get_cart_data(conn):
         'listings': [],
         'total_qty': 0,
         'total_price': 0.0,
-        'avg_price': 0.0
+        'avg_price': 0.0,
+        'cover_photo_url': None
     })
 
     cart_total = 0.0
@@ -403,6 +408,15 @@ def get_cart_data(conn):
             'finish': row['finish'],
             'grade': row['grade']
         }
+
+        if not bucket['cover_photo_url'] and row.get('is_isolated') and row.get('photo_path'):
+            raw = row['photo_path']
+            if raw.startswith('/'):
+                bucket['cover_photo_url'] = raw
+            elif raw.startswith('static/'):
+                bucket['cover_photo_url'] = '/' + raw
+            else:
+                bucket['cover_photo_url'] = '/static/' + raw
 
         cart_total += line_total
 

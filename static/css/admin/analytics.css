@@ -946,6 +946,40 @@
     }
 }
 
+@media (max-width: 480px) {
+    .analytics-container {
+        padding: 12px 0;
+    }
+
+    .analytics-header .page-title {
+        font-size: 1.5rem;
+    }
+
+    .analytics-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .filter-bar {
+        padding: 14px;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .chart-container {
+        height: 220px;
+    }
+}
+
+@media (max-width: 360px) {
+    .analytics-header .page-title {
+        font-size: 1.25rem;
+    }
+
+    .filter-bar {
+        padding: 10px;
+    }
+}
+
 /* Skeleton Loading States */
 .skeleton {
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);

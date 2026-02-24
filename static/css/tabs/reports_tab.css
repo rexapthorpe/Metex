@@ -548,3 +548,41 @@
     justify-content: center;
   }
 }
+
+@media (max-width: 480px) {
+  .reports-tab .tab-heading {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+  }
+
+  .report-card {
+    padding: 14px;
+  }
+
+  .report-card-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .report-card-icon i {
+    font-size: 16px;
+  }
+
+  .report-card-meta {
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .report-details-modal-content {
+    max-height: 90vh;
+    border-radius: 12px;
+  }
+
+  .report-details-header {
+    padding: 16px 18px;
+  }
+
+  .report-details-body {
+    padding: 16px 18px;
+  }
+}

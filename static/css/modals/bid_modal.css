@@ -415,39 +415,47 @@
   display: flex;
   align-items: center;
   background: #ffffff;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   overflow: hidden;
   margin-top: 4px;
 }
+
 
 #bidModal .bm-price-dollar {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
+  width: 36px;
   align-self: stretch;
   background: #f3f4f6;
   color: #6b7280;
-  font-size: 18px;
+  font-size: 0.875rem;
   font-weight: 600;
-  border-right: 1.5px solid #e5e7eb;
+  border-right: 1px solid #d1d5db;
   flex-shrink: 0;
 }
 
 #bidModal .bm-price-field {
   flex: 1;
-  padding: 0 14px;
-  height: 52px;
-  line-height: 52px;
+  padding: 17px 0.75rem 0;
+  height: 38px;
+  line-height: 1.2;
   border: none;
   background: transparent;
-  font-size: 18px;
+  font-size: 0.875rem;
   font-weight: 500;
   color: #111827;
   outline: none;
+  box-shadow: none;
   -webkit-appearance: none;
   appearance: none;
+}
+
+#bidModal .bm-price-field:focus {
+  outline: none;
+  box-shadow: none;
+  border: none;
 }
 
 #bidModal .bm-price-field::placeholder { color: #9ca3af; font-weight: 400; }

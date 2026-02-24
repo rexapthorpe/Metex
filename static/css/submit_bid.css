@@ -235,6 +235,64 @@ html, body {
     }
 }
 
+/* Phone */
+@media (max-width: 480px) {
+    .submit-bid-wrapper {
+        padding-left: 3vw;
+        padding-right: 3vw;
+    }
+
+    .item-title-left {
+        font-size: 1.4rem;
+    }
+
+    .submit-bid-box {
+        border-radius: 20px;
+    }
+
+    .input-panel {
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .submit-bid-right input,
+    .submit-bid-right select,
+    .submit-bid-right button {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .input-group {
+        width: 100%;
+    }
+
+    .bid-suggestion-row {
+        width: 100%;
+    }
+
+    .price-btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+    }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+    .item-title-left {
+        font-size: 1.2rem;
+    }
+
+    .submit-bid-left,
+    .submit-bid-right {
+        padding: 0.75rem;
+    }
+
+    .back-btn {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.75rem;
+    }
+}
+
 /* ==================== */
 /* Name on Order Styles */
 /* ==================== */

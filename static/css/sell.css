@@ -8,9 +8,12 @@
   grid-template-columns: 1fr 300px;
   gap: 2rem;
   max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
   padding: 2rem;
   align-items: start;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .sell-main-form {
@@ -104,6 +107,12 @@
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* Price wrapper handles focus ring — suppress it on the inner input */
+.price-input-wrapper input:focus {
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .input-group textarea {
@@ -520,26 +529,50 @@
 
 /* Price Input */
 .price-input-wrapper {
-  position: relative;
   display: flex;
   align-items: center;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.price-input-wrapper:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .price-currency {
-  position: absolute;
-  left: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  align-self: stretch;
+  background: #f3f4f6;
   color: #6b7280;
   font-size: 0.875rem;
-  font-weight: 500;
-  pointer-events: none;
-  z-index: 1;
-  top: 50%;
-  transform: translateY(-50%);
-  line-height: 1;
+  font-weight: 600;
+  border-right: 1px solid #d1d5db;
+  flex-shrink: 0;
 }
 
 .price-input-wrapper input {
-  padding-left: 1.5rem !important;
+  flex: 1;
+  padding: 17px 0.75rem 0 !important;
+  height: 38px;
+  line-height: 1.2;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 0.875rem !important;
+  font-weight: 500;
+  font-family: inherit;
+  color: #111827;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 /* Price preview */
@@ -972,8 +1005,15 @@ body.dark-mode .photo-upload-plus {
   color: var(--text-muted);
 }
 
+body.dark-mode .price-input-wrapper {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
 body.dark-mode .price-currency {
+  background: var(--bg-tertiary, #1f2937);
   color: var(--text-secondary);
+  border-right-color: var(--border-color);
 }
 
 body.dark-mode .warning-message {
@@ -1147,5 +1187,53 @@ body.dark-mode .sidebar-add-item-btn:disabled {
   .input-group textarea {
     font-size: 16px; /* prevents iOS zoom */
     padding: 0.625rem 0.75rem;
+  }
+
+  /* Collapse 3-column spot grid to single column */
+  .pm-spot-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Wrap pricing mode tiles so they don't overflow at narrow widths */
+  .pm-tiles {
+    flex-wrap: wrap;
+  }
+
+  .pm-tile {
+    min-width: 0;
+    flex-basis: calc(50% - 6px);
+  }
+}
+
+@media (max-width: 480px) {
+  .sell-page-wrapper {
+    padding: 0.5rem;
+    gap: 0.75rem;
+  }
+
+  /* Stack pricing tiles vertically on small phones */
+  .pm-tiles {
+    flex-direction: column;
+  }
+
+  .pm-tile {
+    flex-basis: auto;
+    width: 100%;
+  }
+
+  /* Reduce sell sidebar inner padding */
+  .sidebar-container {
+    padding: 0.875rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .sell-page-wrapper {
+    padding: 0.25rem;
+  }
+
+  .pm-spot-container {
+    padding: 14px;
   }
 }

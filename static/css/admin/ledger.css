@@ -737,3 +737,34 @@
         gap: 16px;
     }
 }
+
+@media (max-width: 480px) {
+    .ledger-dashboard,
+    .ledger-order-detail {
+        padding: 12px;
+    }
+
+    .ledger-header h1 {
+        font-size: 22px;
+    }
+
+    .ledger-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 360px) {
+    .ledger-dashboard,
+    .ledger-order-detail {
+        padding: 10px 8px;
+    }
+
+    .ledger-header h1 {
+        font-size: 18px;
+    }
+}

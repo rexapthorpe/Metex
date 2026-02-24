@@ -189,3 +189,40 @@
     font-size: 14px;
   }
 }
+
+@media (max-width: 480px) {
+  .empty-state {
+    padding: 40px 16px;
+    min-height: 280px;
+  }
+
+  .empty-state-icon {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 20px;
+  }
+
+  .empty-state-icon i {
+    font-size: 40px;
+    top: 5px;
+  }
+
+  .empty-state-icon::before {
+    width: 100px;
+    height: 100px;
+  }
+
+  .empty-state-title {
+    font-size: 18px;
+  }
+
+  .empty-state-description {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .empty-state-cta {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+}

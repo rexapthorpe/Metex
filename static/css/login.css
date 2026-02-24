@@ -195,3 +195,27 @@ main.container:has(.login-page){ padding-top: 0 !important; }
   .panes{ grid-template-columns: 1fr; }
   .overlay{ display:none; } /* On small screens, stack forms; use inline links to swap */
 }
+
+/* Phone — remove scale transform, tighten spacing */
+@media (max-width: 480px){
+  :root{ --vpad: 10px; }
+  .auth-card{
+    transform: none; /* scale(0.9) still takes layout space; drop it on phones */
+    width: min(var(--auth-max-w), 96vw);
+  }
+  .pane{
+    padding: 24px 18px;
+  }
+  .title{ font-size: 20px; }
+  .subtitle{ font-size: 13px; }
+}
+
+/* Very small phones */
+@media (max-width: 360px){
+  :root{ --vpad: 4px; }
+  .pane{ padding: 18px 12px; }
+  .title{ font-size: 18px; }
+  .subtitle{ font-size: 12px; }
+  .primary-btn{ font-size: 14px; padding: 9px 12px; }
+  .ghost{ padding: 5px 8px; font-size: 12px; }
+}

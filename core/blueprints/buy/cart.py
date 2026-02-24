@@ -96,6 +96,16 @@ def view_cart():
 
         category_id = item['category_id']
         if category_id not in buckets:
+            cover_photo_url = None
+            if item.get('is_isolated') and item.get('file_path'):
+                raw = item['file_path']
+                if raw.startswith('/'):
+                    cover_photo_url = raw
+                elif raw.startswith('static/'):
+                    cover_photo_url = '/' + raw
+                else:
+                    cover_photo_url = '/static/' + raw
+
             buckets[category_id] = {
                 'category': {
                     'metal': item['metal'],
@@ -112,7 +122,8 @@ def view_cart():
                 'listings': [],
                 'total_qty': 0,
                 'total_price': 0.0,
-                'avg_price': 0.0
+                'avg_price': 0.0,
+                'cover_photo_url': cover_photo_url
             }
 
             # Attach grading preference if available

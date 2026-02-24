@@ -46,7 +46,7 @@
         const orderIdEl = document.getElementById('msgOrderId');
         if (orderIdEl) orderIdEl.textContent = formatOrderNumber(orderId);
 
-        // Fetch order details to get bucket_id for the View Order button
+        // Fetch order details to get bucket_id, image, and title for the order bar
         fetch(`/orders/api/${orderId}/details`)
           .then(r => r.ok ? r.json() : null)
           .then(details => {
@@ -59,6 +59,14 @@
               viewBtn.onclick = () => {
                 window.location.href = '/account#orders';
               };
+            }
+            if (details && details.image_url) {
+              const orderImg = document.querySelector('#msgOrderBar .msg-order-img img');
+              if (orderImg) orderImg.src = details.image_url;
+            }
+            if (details && details.title) {
+              const orderTitleEl = document.getElementById('msgOrderTitle');
+              if (orderTitleEl) orderTitleEl.textContent = details.title;
             }
           })
           .catch(() => {
