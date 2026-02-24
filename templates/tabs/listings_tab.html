@@ -110,13 +110,12 @@
 
           <!-- Card Footer Actions -->
           <div class="listing-card-footer">
-            <button
-              type="button"
-              onclick="openEditListingModal({{ listing.listing_id }})"
+            <a
+              href="{{ url_for('sell.sell') }}?edit_listing_id={{ listing.listing_id }}"
               class="listing-footer-btn listing-footer-btn--edit"
             >
               <i class="fas fa-pencil-alt"></i> Edit
-            </button>
+            </a>
 
             <a
               href="{{ url_for('buy.view_bucket', bucket_id=listing.bucket_id) }}"

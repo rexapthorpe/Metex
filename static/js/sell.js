@@ -87,6 +87,8 @@ function setupCustomDropdown(input) {
                 e.preventDefault();
                 input.value = value;
                 hideMenu();
+                // Dispatch change so any listeners (e.g. price preview) update
+                input.dispatchEvent(new Event('change', { bubbles: true }));
             });
 
             menu.appendChild(item);
@@ -120,6 +122,9 @@ function setupCustomDropdown(input) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Debug: output prefill state so we can see what data was received
+    console.log('[SELL PREFILL] sellPrefillData:', window.sellPrefillData, '| sellEditMode:', window.sellEditMode);
+
     // Pre-populate form fields from URL parameters (if coming from bucket page)
     if (window.sellPrefillData) {
         const prefill = window.sellPrefillData;
@@ -134,7 +139,6 @@ document.addEventListener("DOMContentLoaded", () => {
             'mint': 'mint',
             'year': 'year',
             'finish': 'finish',
-            'grade': 'grade',
             'condition_category': 'condition_category',
             'series_variant': 'series_variant'
         };
@@ -142,13 +146,98 @@ document.addEventListener("DOMContentLoaded", () => {
         // Pre-populate each field if it has a value
         Object.entries(fieldMapping).forEach(([fieldId, prefillKey]) => {
             const value = prefill[prefillKey];
-            if (value && value.trim() !== '') {
+            if (value && String(value).trim() !== '') {
                 const field = document.getElementById(fieldId);
                 if (field) {
                     field.value = value;
+                    console.log('[SELL PREFILL] Set', fieldId, '=', value);
+                } else {
+                    console.warn('[SELL PREFILL] Element not found:', fieldId);
                 }
             }
         });
+
+        // Helper to set a field by ID if value is non-null/non-empty
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val != null && String(val).trim() !== '') el.value = val;
+        };
+
+        // ── Edit mode: set listing type radio ──
+        if (window.sellEditMode) {
+            const isIsolated = prefill.is_isolated == 1;
+            const isolatedType = prefill.isolated_type;
+            if (isIsolated && isolatedType === 'set') {
+                const modeSet = document.getElementById('modeSet');
+                if (modeSet) { modeSet.checked = true; modeSet.dispatchEvent(new Event('change')); }
+            } else if (isIsolated) {
+                const modeIsolated = document.getElementById('modeIsolated');
+                if (modeIsolated) { modeIsolated.checked = true; modeIsolated.dispatchEvent(new Event('change')); }
+            }
+            // Standard mode is already selected by default
+        }
+
+        // ── Non-category listing fields ──
+        setVal('listing_title', prefill.listing_title);
+        setVal('listing_description', prefill.listing_description);
+        setVal('quantity', prefill.quantity);
+        setVal('condition_notes', prefill.condition_notes);
+        setVal('actual_year', prefill.actual_year);
+        setVal('packaging_type', prefill.packaging_type);
+        setVal('packaging_notes', prefill.packaging_notes);
+        setVal('item_packaging_type', prefill.packaging_type);
+        setVal('item_packaging_notes', prefill.packaging_notes);
+        setVal('edition_number', prefill.edition_number);
+        setVal('edition_total', prefill.edition_total);
+
+        // ── Pricing mode ──
+        if (prefill.pricing_mode === 'premium_to_spot') {
+            const premEl = document.getElementById('pricing_mode_premium');
+            if (premEl) { premEl.checked = true; premEl.dispatchEvent(new Event('change')); }
+            setVal('spot_premium', prefill.spot_premium);
+            setVal('floor_price', prefill.floor_price);
+            setVal('pricing_metal', prefill.pricing_metal);
+        } else if (prefill.price_per_coin) {
+            setVal('price_per_coin', parseFloat(prefill.price_per_coin).toFixed(2));
+        }
+
+        // ── Existing photos (edit mode only) ──
+        if (window.sellEditMode && prefill.existing_photos && prefill.existing_photos.length) {
+            const keepPhotoIds = document.getElementById('keepPhotoIds');
+            const list = document.getElementById('existingPhotosList');
+            const ids = prefill.existing_photos.map(p => p.id);
+            if (keepPhotoIds) keepPhotoIds.value = ids.join(',');
+
+            if (list) {
+                prefill.existing_photos.forEach(photo => {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;flex-shrink:0;';
+                    wrapper.innerHTML =
+                        '<img src="' + photo.url + '" style="width:100%;height:100%;object-fit:cover;" alt="Existing photo">' +
+                        '<button type="button" style="position:absolute;top:4px;right:4px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:22px;text-align:center;" data-photo-id="' + photo.id + '">\u00d7</button>';
+                    wrapper.querySelector('button').addEventListener('click', function() {
+                        const pid = parseInt(this.dataset.photoId);
+                        wrapper.remove();
+                        if (keepPhotoIds) {
+                            const current = keepPhotoIds.value.split(',').filter(x => x && parseInt(x) !== pid);
+                            keepPhotoIds.value = current.join(',');
+                        }
+                    });
+                    list.appendChild(wrapper);
+                });
+            }
+
+            // Pre-check the photo requirement in the sidebar checklist
+            const checkPhoto = document.getElementById('checkItemPhoto');
+            if (checkPhoto) {
+                const icon = checkPhoto.querySelector('.checklist-icon');
+                if (icon) { icon.classList.remove('incomplete'); icon.classList.add('complete'); }
+            }
+        }
+
+        // Refresh sidebar after all prefill values are set
+        if (typeof window.updateChecklist === 'function') window.updateChecklist();
+        if (typeof window.updateSidebarSummary === 'function') window.updateSidebarSummary();
     }
 
     // NOTE: Form validation is now handled by field_validation_modal.js
@@ -170,6 +259,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Set up premium-to-spot price inputs formatting
     setupPremiumInputs();
+
+    // Eagerly load spot prices so they're ready when the user switches to premium mode
+    loadSpotPricesForPreview();
 });
 
 /**
@@ -399,7 +491,9 @@ function setupPricingModeToggle() {
             if (spotPremium) spotPremium.required = true;
             if (floorPrice) floorPrice.required = true;
 
-            // Load spot prices for preview
+            // Update preview immediately (prices eagerly loaded at page init)
+            updatePricePreview();
+            // Also refresh spot prices in the background
             loadSpotPricesForPreview();
         }
     }
@@ -436,24 +530,58 @@ async function loadSpotPricesForPreview() {
  * Update price preview when premium-to-spot inputs change
  */
 function updatePricePreview() {
-    if (!window.spotPrices) return;
+    const previewDiv = document.getElementById('price_preview');
+    if (!previewDiv) return;
+
+    const loadedDiv = document.getElementById('price_preview_loaded');
+    const noMetalDiv = document.getElementById('price_preview_no_metal');
+
+    // Only show the preview container when premium mode is active
+    const premiumFields = document.getElementById('premium_to_spot_fields');
+    if (!premiumFields || premiumFields.style.display === 'none') return;
+
+    // Always make the preview container visible once premium mode is on
+    previewDiv.style.display = 'block';
+
+    if (!window.spotPrices) {
+        // Spot prices not yet loaded — show loading state
+        if (loadedDiv) loadedDiv.style.display = 'none';
+        if (noMetalDiv) { noMetalDiv.style.display = 'block'; noMetalDiv.querySelector('small').textContent = 'Loading spot prices…'; }
+        return;
+    }
 
     const weightInput = document.getElementById('weight');
     const metalInput = document.getElementById('metal');
     const pricingMetalInput = document.getElementById('pricing_metal');
     const spotPremiumInput = document.getElementById('spot_premium');
     const floorPriceInput = document.getElementById('floor_price');
-    const previewDiv = document.getElementById('price_preview');
-    const previewAmountSpan = document.querySelector('.preview-amount');
-    const spotPriceSpan = document.querySelector('.spot-price');
 
-    if (!previewDiv || !previewAmountSpan || !spotPriceSpan) return;
-
-    // Get pricing metal (use override if set, otherwise category metal)
-    const pricingMetal = pricingMetalInput?.value || metalInput?.value || '';
+    // Always derive pricing metal from the main metal field
+    const pricingMetal = metalInput?.value || '';
     const metalKey = pricingMetal.toLowerCase();
 
-    // Parse weight (assume in oz, extract numeric value from strings like "1 oz")
+    // Sync hidden pricing_metal field
+    if (pricingMetalInput) pricingMetalInput.value = pricingMetal;
+
+    // Get spot price for the metal
+    const spotPrice = window.spotPrices[metalKey];
+
+    if (!spotPrice) {
+        // Metal not filled in or not recognized — prompt user
+        if (loadedDiv) loadedDiv.style.display = 'none';
+        if (noMetalDiv) { noMetalDiv.style.display = 'block'; noMetalDiv.querySelector('small').textContent = 'Select a metal above to see the estimated price.'; }
+        return;
+    }
+
+    // Metal found — show the full calculation
+    if (loadedDiv) loadedDiv.style.display = 'block';
+    if (noMetalDiv) noMetalDiv.style.display = 'none';
+
+    const previewAmountSpan = loadedDiv.querySelector('.preview-amount');
+    const spotPriceSpan = loadedDiv.querySelector('.spot-price');
+    const spotMetalNameSpan = loadedDiv.querySelector('.spot-metal-name');
+
+    // Parse weight
     const weightStr = weightInput?.value || '1';
     const weightMatch = weightStr.match(/[\d.]+/);
     const weight = weightMatch ? parseFloat(weightMatch[0]) : 1.0;
@@ -462,21 +590,12 @@ function updatePricePreview() {
     const premium = parseFloat(spotPremiumInput?.value) || 0;
     const floor = parseFloat(floorPriceInput?.value) || 0;
 
-    // Get spot price for the metal
-    const spotPrice = window.spotPrices[metalKey];
+    const computedPrice = (spotPrice * weight) + premium;
+    const effectivePrice = Math.max(computedPrice, floor);
 
-    if (spotPrice && weight > 0) {
-        // Calculate effective price
-        const computedPrice = (spotPrice * weight) + premium;
-        const effectivePrice = Math.max(computedPrice, floor);
-
-        // Display preview
-        previewAmountSpan.textContent = `$${effectivePrice.toFixed(2)}`;
-        spotPriceSpan.textContent = `$${spotPrice.toFixed(2)}`;
-        previewDiv.style.display = 'block';
-    } else {
-        previewDiv.style.display = 'none';
-    }
+    if (previewAmountSpan) previewAmountSpan.textContent = `$${effectivePrice.toFixed(2)}`;
+    if (spotPriceSpan) spotPriceSpan.textContent = `$${spotPrice.toFixed(2)}`;
+    if (spotMetalNameSpan) spotMetalNameSpan.textContent = pricingMetal.charAt(0).toUpperCase() + pricingMetal.slice(1).toLowerCase();
 }
 
 /**
@@ -516,7 +635,7 @@ function setupPremiumInputs() {
     });
 
     // Update preview when relevant fields change
-    [weightInput, metalInput, pricingMetalInput].forEach(input => {
+    [weightInput, metalInput].forEach(input => {
         if (input) {
             input.addEventListener('input', updatePricePreview);
             input.addEventListener('change', updatePricePreview);

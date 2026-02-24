@@ -85,6 +85,12 @@ function openSellConfirmModal(formData) {
   const priceLabelEl = document.getElementById('confirm-price-label');
   if (priceLabelEl) priceLabelEl.textContent = priceLabel;
 
+  // Update confirm button text for edit vs create mode
+  const confirmBtn = document.getElementById('confirmListingBtn');
+  if (confirmBtn && window.sellEditMode) {
+    confirmBtn.textContent = 'Update Listing \u2192';
+  }
+
   // Show modal
   modal.style.display = 'flex';
   requestAnimationFrame(() => {
@@ -194,20 +200,7 @@ function openSellSuccessModal(data) {
   const purity = listing.purity || '—';
   const mint = listing.mint || '—';
   const year = listing.year || '—';
-  const grade = listing.grade || '—';
   const finish = listing.finish || '—';
-
-  // Get grading information
-  const isGraded = listing.graded === 1 || listing.graded === '1' || listing.graded === true;
-  let gradedText = 'No';
-  if (isGraded) {
-    const gradingService = listing.grading_service || '';
-    if (gradingService) {
-      gradedText = `Yes (${gradingService})`;
-    } else {
-      gradedText = 'Yes';
-    }
-  }
 
   // Get isolated/set/numismatic information from backend response
   const isIsolated = listing.is_isolated === 1 || listing.is_isolated === '1' || listing.is_isolated === true;
@@ -248,9 +241,7 @@ function openSellSuccessModal(data) {
   const purityEl = modal.querySelector('#success-purity');
   const mintEl = modal.querySelector('#success-mint');
   const yearEl = modal.querySelector('#success-year');
-  const gradeEl = modal.querySelector('#success-grade');
   const finishEl = modal.querySelector('#success-finish');
-  const gradedEl = modal.querySelector('#success-graded');
 
   if (metalEl) metalEl.textContent = metal;
   if (productLineEl) productLineEl.textContent = productLine;
@@ -259,9 +250,7 @@ function openSellSuccessModal(data) {
   if (purityEl) purityEl.textContent = purity;
   if (mintEl) mintEl.textContent = mint;
   if (yearEl) yearEl.textContent = year;
-  if (gradeEl) gradeEl.textContent = grade;
   if (finishEl) finishEl.textContent = finish;
-  if (gradedEl) gradedEl.textContent = gradedText;
 
   // Populate listing classification fields
   const listingTypeEl = modal.querySelector('#success-listing-type');
@@ -443,12 +432,37 @@ function handleConfirmListing() {
   const confirmBtn = document.getElementById('confirmListingBtn');
   if (!confirmBtn) return;
 
+  const isEditMode = window.sellEditMode === true;
+
   // Disable button and show loading state
   confirmBtn.disabled = true;
-  confirmBtn.textContent = 'Creating Listing...';
+  confirmBtn.textContent = isEditMode ? 'Updating Listing...' : 'Creating Listing...';
 
-  // Submit via AJAX to sell route
-  fetch('/sell', {
+  // Determine form URL: in edit mode, always use the edit endpoint.
+  // Prefer edit_listing_id from FormData over form action attribute (more reliable).
+  let formUrl;
+  if (isEditMode) {
+    const editId = pendingFormData && pendingFormData.get('edit_listing_id');
+    if (editId) {
+      formUrl = `/listings/edit_listing/${editId}`;
+    } else {
+      formUrl = (pendingListingForm && pendingListingForm.getAttribute('action')) || null;
+    }
+    if (!formUrl) {
+      console.error('[EDIT MODE] No edit_listing_id or form action found — aborting to prevent accidental listing creation');
+      alert('Error: Could not determine edit endpoint. Please refresh the page and try again.');
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Update Listing';
+      }
+      return;
+    }
+  } else {
+    formUrl = (pendingListingForm && pendingListingForm.getAttribute('action')) || '/sell';
+  }
+
+  // Submit via AJAX to the appropriate route
+  fetch(formUrl, {
     method: 'POST',
     body: pendingFormData,
     headers: {
@@ -465,27 +479,38 @@ function handleConfirmListing() {
     })
     .then(data => {
       if (data.success) {
-        // Close confirmation modal, then show success animation
         closeSellConfirmModal();
-        setTimeout(() => {
-          showListingSuccessAnimation();
-        }, 350);
+        if (isEditMode) {
+          // In edit mode: redirect to account page after a short delay
+          setTimeout(() => { window.location.href = '/account'; }, 350);
+        } else {
+          // In create mode: show the success animation (which redirects to /buy)
+          setTimeout(() => {
+            showListingSuccessAnimation();
+          }, 350);
+        }
       } else {
         // Show error
-        alert(data.message || 'Failed to create listing. Please try again.');
+        const errMsg = isEditMode
+          ? (data.message || 'Failed to update listing. Please try again.')
+          : (data.message || 'Failed to create listing. Please try again.');
+        alert(errMsg);
         closeSellConfirmModal();
       }
     })
     .catch(err => {
       console.error('Sell listing error:', err);
-      alert('An error occurred while creating your listing. Please try again.');
+      const errMsg = isEditMode
+        ? 'An error occurred while updating your listing. Please try again.'
+        : 'An error occurred while creating your listing. Please try again.';
+      alert(errMsg);
       closeSellConfirmModal();
     })
     .finally(() => {
       // Reset button
       if (confirmBtn) {
         confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Confirm Listing';
+        confirmBtn.textContent = isEditMode ? 'Update Listing' : 'Confirm Listing';
       }
     });
 }
@@ -506,7 +531,10 @@ function interceptSellForm() {
     e.stopPropagation();
 
     // STEP 1: Validate the form first
-    const validation = window.validateSellForm(sellForm);
+    // In edit mode, use edit-specific validation (no photo upload required)
+    const validation = window.sellEditMode
+      ? window.validateEditListingForm(sellForm)
+      : window.validateSellForm(sellForm);
 
     if (!validation.isValid) {
       // Show validation error modal

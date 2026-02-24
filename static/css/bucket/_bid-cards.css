@@ -81,7 +81,7 @@
 .accept-bids-btn:hover:not(:disabled) { background: #16a34a; }
 .accept-bids-btn:disabled { background: #d1d5db; color: #9ca3af; cursor: not-allowed; }
 
-/* Create a Bid — amber/yellow */
+/* Create a Bid — blue */
 .header-bid-btn {
   display: inline-flex;
   align-items: center;
@@ -93,7 +93,7 @@
   font-weight: 600;
   font-size: 0.9375rem;
   cursor: pointer;
-  background: #f59e0b;
+  background: #3da6ff;
   color: #ffffff;
   text-decoration: none;
   line-height: 1;
@@ -101,7 +101,7 @@
   transition: background 0.15s ease;
   white-space: nowrap;
 }
-.header-bid-btn:hover { background: #d97706; }
+.header-bid-btn:hover { background: #1e74f0; }
 
 /* === Bids grid layout === */
 .bids-list-wrap { }

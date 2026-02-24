@@ -312,8 +312,11 @@
       });
       toggleChecklistItem(checkProductSpecs, productSpecsComplete);
 
-      // 2. Packaging Selected
-      toggleChecklistItem(checkPackaging, packagingInput?.value?.trim());
+      // 2. Packaging Selected (optional in edit mode if listing had no packaging)
+      const packagingOk = window.sellEditMode
+        ? true
+        : packagingInput?.value?.trim();
+      toggleChecklistItem(checkPackaging, packagingOk);
 
       // 3. Item Photo Uploaded (>=1 PNG) - Standard mode uses file inputs
       // Check if any of the standard photo inputs have files OR boxes have images
@@ -324,7 +327,12 @@
       const photoBox2 = document.getElementById('standardPhotoBox2');
       const photoBox3 = document.getElementById('standardPhotoBox3');
 
+      // In edit mode, existing photos (tracked by keep_photo_ids) count as uploaded
+      const hasExistingPhotos = window.sellEditMode &&
+        (document.getElementById('keepPhotoIds')?.value?.length > 0 ||
+         (window.sellPrefillData?.existing_photos?.length > 0));
       const itemPhotoUploaded =
+        hasExistingPhotos ||
         (photo1Input?.files?.length > 0) ||
         (photo2Input?.files?.length > 0) ||
         (photo3Input?.files?.length > 0) ||
@@ -378,9 +386,12 @@
       );
       toggleChecklistItem(checkProductSpecs, productSpecsComplete);
 
-      // 2. Packaging Selected (use item_packaging_type for one-of-a-kind mode)
+      // 2. Packaging Selected (use item_packaging_type for one-of-a-kind mode; optional in edit mode)
       const itemPackagingInput = document.getElementById('item_packaging_type');
-      toggleChecklistItem(checkPackaging, itemPackagingInput?.value?.trim());
+      const itemPackagingOk = window.sellEditMode
+        ? true
+        : itemPackagingInput?.value?.trim();
+      toggleChecklistItem(checkPackaging, itemPackagingOk);
 
       // 3. Item Photo Uploaded (>=1 PNG) - One-of-a-kind uses same photo boxes as standard
       const photo1Input = document.getElementById('item_photo_1');
@@ -390,7 +401,12 @@
       const photoBox2 = document.getElementById('standardPhotoBox2');
       const photoBox3 = document.getElementById('standardPhotoBox3');
 
+      // In edit mode, existing photos (tracked by keep_photo_ids) count as uploaded
+      const hasExistingPhotosIsolated = window.sellEditMode &&
+        (document.getElementById('keepPhotoIds')?.value?.length > 0 ||
+         (window.sellPrefillData?.existing_photos?.length > 0));
       const itemPhotoUploaded =
+        hasExistingPhotosIsolated ||
         (photo1Input?.files?.length > 0) ||
         (photo2Input?.files?.length > 0) ||
         (photo3Input?.files?.length > 0) ||
@@ -475,7 +491,8 @@
         seriesVariant
       );
 
-      const packagingSelected = packagingInput?.value?.trim();
+      // In edit mode, packaging is optional
+      const packagingSelected = window.sellEditMode ? true : packagingInput?.value?.trim();
       // Standard mode uses file inputs (item_photo_1, item_photo_2, item_photo_3)
       const photo1Input = document.getElementById('item_photo_1');
       const photo2Input = document.getElementById('item_photo_2');
@@ -484,7 +501,12 @@
       const photoBox2 = document.getElementById('standardPhotoBox2');
       const photoBox3 = document.getElementById('standardPhotoBox3');
 
+      // In edit mode, existing photos count as uploaded
+      const hasExistingPhotos = window.sellEditMode &&
+        (document.getElementById('keepPhotoIds')?.value?.length > 0 ||
+         (window.sellPrefillData?.existing_photos?.length > 0));
       const itemPhotoUploaded =
+        hasExistingPhotos ||
         (photo1Input?.files?.length > 0) ||
         (photo2Input?.files?.length > 0) ||
         (photo3Input?.files?.length > 0) ||
@@ -548,9 +570,9 @@
         seriesVariant
       );
 
-      // One-of-a-kind mode uses item_packaging_type (product specs)
+      // One-of-a-kind mode uses item_packaging_type (product specs); optional in edit mode
       const itemPackagingInput = document.getElementById('item_packaging_type');
-      const packagingSelected = itemPackagingInput?.value?.trim();
+      const packagingSelected = window.sellEditMode ? true : itemPackagingInput?.value?.trim();
 
       // One-of-a-kind uses same photo boxes as standard mode
       const photo1Input = document.getElementById('item_photo_1');
@@ -560,14 +582,20 @@
       const photoBox2 = document.getElementById('standardPhotoBox2');
       const photoBox3 = document.getElementById('standardPhotoBox3');
 
+      // In edit mode, existing photos count as uploaded
+      const hasExistingPhotosIsolated = window.sellEditMode &&
+        (document.getElementById('keepPhotoIds')?.value?.length > 0 ||
+         (window.sellPrefillData?.existing_photos?.length > 0));
       const itemPhotoUploaded =
+        hasExistingPhotosIsolated ||
         (photo1Input?.files?.length > 0) ||
         (photo2Input?.files?.length > 0) ||
         (photo3Input?.files?.length > 0) ||
         photoBox1?.classList.contains('has-image') ||
         photoBox2?.classList.contains('has-image') ||
         photoBox3?.classList.contains('has-image');
-      const coverPhotoUploaded = coverPhotoInput?.files?.length > 0;
+      // In edit mode, cover photo is optional (existing listing already has photos)
+      const coverPhotoUploaded = window.sellEditMode ? true : (coverPhotoInput?.files?.length > 0);
 
       const pricingMode = document.querySelector('input[name="pricing_mode"]:checked')?.value;
       let pricingComplete = false;
@@ -627,9 +655,11 @@
       sidebarSubmitBtn.disabled = !allRequirementsMet;
     }
 
-    // Update button text based on mode
+    // Update button text based on mode (edit mode overrides all)
     if (sidebarSubmitBtn) {
-      if (window.currentMode === 'set') {
+      if (window.sellEditMode) {
+        sidebarSubmitBtn.textContent = 'Update Listing';
+      } else if (window.currentMode === 'set') {
         sidebarSubmitBtn.textContent = 'Create Set Listing';
       } else if (window.currentMode === 'isolated') {
         sidebarSubmitBtn.textContent = 'Create Listing';

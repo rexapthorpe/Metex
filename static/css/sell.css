@@ -422,8 +422,8 @@
   background: transparent;
   box-shadow: none !important;
   -moz-appearance: textfield;
-  position: static;
-  top: auto;
+  position: relative;
+  top: 7px;
 }
 
 .quantity-stepper input[type="number"]:focus {
@@ -519,7 +519,7 @@
 
 .pm-spot-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 

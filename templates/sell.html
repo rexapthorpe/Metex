@@ -9,17 +9,24 @@
 
   <!-- ========== MAIN FORM ========== -->
   <div class="sell-main-form">
-    <form id="sellForm" method="POST" class="sell-form" enctype="multipart/form-data">
+    <form id="sellForm" method="POST" class="sell-form" enctype="multipart/form-data"
+      {% if edit_listing_id %}action="{{ url_for('listings.edit_listing', listing_id=edit_listing_id) }}"{% endif %}>
 
       <!-- Hidden inputs for mode state (submitted with form) -->
       <input type="hidden" name="is_isolated" id="isIsolatedHidden" value="0">
       <input type="hidden" name="is_set" id="isSetHidden" value="0">
+      {% if edit_listing_id %}
+        <input type="hidden" name="edit_listing_id" value="{{ edit_listing_id }}">
+        <input type="hidden" name="keep_photo_ids" id="keepPhotoIds" value="">
+      {% endif %}
 
       <div class="input-grid">
 
-        <h2 class="sell-header">List an Item</h2>
+        <h2 class="sell-header">{% if edit_listing_id %}Edit Listing{% else %}List an Item{% endif %}</h2>
 
         <!-- ========== LISTING MODE SELECTION ========== -->
+        <!-- Hidden in edit mode (mode is locked to the existing listing type) -->
+        <div style="grid-column: 1 / -1;{% if edit_listing_id %} display:none;{% endif %}">
         <div class="row-divider"></div>
         <h3 class="section-header">Listing Type</h3>
 
@@ -75,6 +82,7 @@
           </label>
 
         </div>
+        </div>{# end wrapper div (hidden in edit mode) #}
 
         <!-- Isolated/Set Warning Banner -->
         <div id="isolatedWarning" class="warning-message" style="display: none; grid-column: 1 / -1;">
@@ -237,20 +245,6 @@
           <small class="example-text">Example: Reverse Proof</small>
         </div>
 
-        <!-- Grade -->
-        <div class="input-group">
-          <label for="grade">Grade</label>
-          <input type="text" name="grade" id="grade"
-            class="validated-datalist custom-dropdown-input"
-            data-list-id="grade_options" autocomplete="off">
-          <datalist id="grade_options">
-            {% for grade in grades %}
-            <option value="{{ grade }}"></option>
-            {% endfor %}
-          </datalist>
-          <small class="example-text">Example: PF-70</small>
-        </div>
-
         <!-- Condition Category -->
         <div class="input-group">
           <label for="condition_category">Condition Category</label>
@@ -277,13 +271,6 @@
             {% endfor %}
           </datalist>
           <small class="example-text">Example: First_Strike</small>
-        </div>
-
-        <!-- Certification Number -->
-        <div class="input-group">
-          <label for="cert_number">Certification Number (optional)</label>
-          <input type="text" name="cert_number" id="cert_number" placeholder="e.g., 12345678">
-          <small class="example-text">Grading certification number</small>
         </div>
 
         <!-- Edition Numbering (Isolated/Set modes only) -->
@@ -346,6 +333,15 @@
         <!-- ========== LISTING SPECIFICATIONS ========== -->
         <div class="row-divider"></div>
         <h3 class="section-header">Listing Specifications</h3>
+
+        {% if edit_listing_id %}
+        <!-- Existing Photos (edit mode only) -->
+        <div id="existingPhotosContainer" class="input-group" style="grid-column: 1 / -1; margin-bottom: 4px;">
+          <label>Existing Photos</label>
+          <div id="existingPhotosList" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;"></div>
+          <small class="example-text">Click × to remove an existing photo. Upload new photos below to add more.</small>
+        </div>
+        {% endif %}
 
         <!-- Standard Photo Container (Standard / One-of-a-Kind modes) -->
         <div id="standardPhotoContainer" style="grid-column: 1 / -1;">
@@ -494,25 +490,16 @@
 
         <!-- Premium to Spot Fields -->
         <div id="premium_to_spot_fields" style="display: none; grid-column: 1 / -1;">
+          <input type="hidden" name="pricing_metal" id="pricing_metal">
           <div class="pm-spot-container">
             <div class="pm-spot-grid">
-              <div class="input-group">
-                <label for="pricing_metal">Pricing Metal <span class="required">*</span></label>
-                <select name="pricing_metal" id="pricing_metal">
-                  <option value="">Select metal</option>
-                  <option value="gold">Gold</option>
-                  <option value="silver">Silver</option>
-                  <option value="platinum">Platinum</option>
-                  <option value="palladium">Palladium</option>
-                </select>
-              </div>
               <div class="input-group">
                 <label for="spot_premium">Premium Above Spot <span class="required">*</span></label>
                 <div class="price-input-wrapper">
                   <span class="price-currency">$</span>
                   <input type="text" name="spot_premium" id="spot_premium" inputmode="decimal" placeholder="0.00">
                 </div>
-                <small class="example-text">$ or % above spot price</small>
+                <small class="example-text">$ price above spot price</small>
               </div>
               <div class="input-group">
                 <label for="floor_price">Floor Price <span class="required">*</span></label>
@@ -525,9 +512,14 @@
             </div>
           </div>
           <div class="price-preview" id="price_preview" style="display: none; margin-top: 1rem;">
-            <strong>Current Preview Price:</strong>
-            <span class="preview-amount">$0.00</span>
-            <small>Based on spot: <span class="spot-price">$0.00</span>/oz</small>
+            <div id="price_preview_loaded">
+              <strong>Current Preview Price:</strong>
+              <span class="preview-amount">$0.00</span>
+              <small>Based on <span class="spot-metal-name"></span> spot: <span class="spot-price">$0.00</span>/oz</small>
+            </div>
+            <div id="price_preview_no_metal" style="display:none;">
+              <small style="color:#6b7280;">Select a metal above to see the estimated price.</small>
+            </div>
           </div>
         </div>
 
@@ -657,7 +649,7 @@
       <div class="sidebar-section" style="border-bottom: none;">
         <button type="button" id="sidebarSubmitBtn" class="btn submit-btn full-width-button" disabled
                 onclick="document.getElementById('sellForm').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}))">
-          List Item
+          {% if edit_listing_id %}Update Listing{% else %}List Item{% endif %}
         </button>
         <p style="font-size: 0.75rem; color: #9ca3af; text-align: center; margin-top: 8px;">
           Complete all requirements above to publish
@@ -683,6 +675,7 @@
 <!-- Pass prefill data to JS -->
 <script>
   window.sellPrefillData = {{ (prefill if prefill is defined else {}) | tojson }};
+  window.sellEditMode = {{ 'true' if edit_listing_id else 'false' }};
 </script>
 
 <!-- Standard Photo Box Setup (must run before mode_controller) -->
@@ -744,16 +737,16 @@
 </script>
 
 <!-- Core sell JS (custom dropdowns, pricing mode toggle) -->
-<script src="{{ url_for('static', filename='js/sell.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sell.js') }}?v=2"></script>
 
 <!-- Mode controller (3-mode switching logic) -->
-<script src="{{ url_for('static', filename='js/sell/mode_controller.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sell/mode_controller.js') }}?v=2"></script>
 
 <!-- Sidebar controller (checklist, summary, submit button) -->
-<script src="{{ url_for('static', filename='js/sell/sidebar_controller.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sell/sidebar_controller.js') }}?v=2"></script>
 
 <!-- Sell confirmation modals -->
-<script src="{{ url_for('static', filename='js/modals/sell_listing_modals.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/modals/sell_listing_modals.js') }}?v=2"></script>
 
 <!-- Field validation modal -->
 <script src="{{ url_for('static', filename='js/modals/field_validation_modal.js') }}"></script>

@@ -1,5 +1,17 @@
 /* account.css */
 
+/* Expand main.container to full viewport width for the account page.
+   base.css sets width:90vw + overflow-x:hidden, which clips the layout edges.
+   padding-top:90px is for header+subheader; account page has no subheader,
+   so we use the exact header height (64px) to avoid a gap below the header. */
+main {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-top: 0 !important;
+}
+
 /* ===== Layout ===== */
 .account-layout {
   display: flex;
@@ -7,11 +19,14 @@
   transition: all 0.3s ease;
   min-height: 100vh; /* Full viewport height */
   position: relative;
-  padding: 0;
-  margin-top: -45px;
-  margin-bottom: -90px; /* ✅ Pull footer up to eliminate bottom gap (compensate container + footer margin) */
-  margin-left: -5vw; /* Reach left edge (compensate container centering) */
-  margin-right: -5vw; /* Reach right edge */
+  padding-top: 64px; /* Push content below the fixed header (64px) */
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: -30px; /* Compensate for main's padding-bottom from .container */
+  margin-left: 0;
+  margin-right: 0;
 }
 
 /* ===== Main Sidebar ===== */
@@ -21,10 +36,10 @@
   border-right: 1px solid #e2e8f0;
   padding: 24px 0 16px;
   position: sticky;
-  top: 60px;
+  top: 64px;
   align-self: flex-start;
-  height: calc(100vh - 60px);
-  max-height: calc(100vh - 60px);
+  height: calc(100vh - 64px);
+  max-height: calc(100vh - 64px);
   overflow-y: auto;
   z-index: 100;
   flex-shrink: 0;
@@ -40,9 +55,9 @@
   padding-top: 24px;
   padding-bottom: 20px;
   position: sticky;
-  top: 60px;
+  top: 64px;
   align-self: flex-start;
-  height: calc(100vh - 60px);
+  height: calc(100vh - 64px);
   max-height: calc(100vh - 60px);
   overflow-y: auto;
   z-index: 99;

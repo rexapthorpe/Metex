@@ -74,13 +74,14 @@ def get_bucket_sellers(bucket_id):
         num_reviews = seller_data.get('num_reviews') or 0
         seller_data['is_verified'] = rating >= 4.7 and num_reviews > 100
 
-        # Get transaction count
+        # Get transaction count: only orders confirmed as delivered
         transaction_result = conn.execute('''
             SELECT COUNT(DISTINCT o.id) as transaction_count
             FROM orders o
             JOIN order_items oi ON o.id = oi.order_id
             JOIN listings l ON oi.listing_id = l.id
             WHERE l.seller_id = ?
+              AND o.status IN ('Delivered', 'Complete')
         ''', (seller_id,)).fetchone()
         seller_data['transaction_count'] = transaction_result['transaction_count'] if transaction_result else 0
 

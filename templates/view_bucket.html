@@ -3,7 +3,6 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}?v=v11-col-reorder"/>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bucket_ID_sellers_modal.css') }}?v=bucket-v2"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pricing_badges.css') }}?v=1"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bucket_price_chart.css') }}?v=1"/>
 
@@ -229,10 +228,10 @@
       <div class="sellers-cta">
         {% if is_isolated %}
           <div class="sellers-kicker">See seller information</div>
-          <button id="openSellersBtn" class="btn sellers-btn" type="button">View Seller</button>
+          <button class="btn sellers-btn" type="button" onclick="openBucketSellerPopup({{ bucket['bucket_id'] }})">View Seller</button>
         {% else %}
           <div class="sellers-kicker">See all available sellers</div>
-          <button id="openSellersBtn" class="btn sellers-btn" type="button">View All Sellers</button>
+          <button class="btn sellers-btn" type="button" onclick="openBucketSellerPopup({{ bucket['bucket_id'] }})">View All Sellers</button>
           <div class="sellers-foot">
             <a href="/sell?metal={{ bucket.metal or '' }}&product_line={{ bucket.product_line or '' }}&product_type={{ bucket.product_type or '' }}&weight={{ bucket.weight or '' }}&purity={{ bucket.purity or '' }}&mint={{ bucket.mint or '' }}&year={{ bucket.year or '' }}&finish={{ bucket.finish or '' }}&grade={{ bucket.grade or '' }}&condition_category={{ bucket.condition_category or '' }}&series_variant={{ bucket.series_variant or '' }}" class="sellers-foot-link">List this item?</a>
           </div>
@@ -326,46 +325,70 @@
             <div style="padding: 12px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px;">
               <div style="font-weight: 600; font-size: 13px; color: #6b7280; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Specific Packaging Types</div>
 
-              <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
-                <label class="packaging-checkbox-label">
-                  <input type="checkbox" class="packaging-type-checkbox" value="Loose" {% if 'Loose' in packaging_filters_list %}checked{% endif %}>
-                  <span class="packaging-checkbox-text">Loose</span>
-                </label>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="pkg-toggle-row">
+                  <span class="pkg-toggle-text">Loose</span>
+                  <label class="toggle">
+                    <input type="checkbox" class="packaging-type-checkbox" value="Loose" autocomplete="off" {% if 'Loose' in packaging_filters_list %}checked{% endif %}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
 
-                <label class="packaging-checkbox-label">
-                  <input type="checkbox" class="packaging-type-checkbox" value="Capsule" {% if 'Capsule' in packaging_filters_list %}checked{% endif %}>
-                  <span class="packaging-checkbox-text">Capsule</span>
-                </label>
+                <div class="pkg-toggle-row">
+                  <span class="pkg-toggle-text">Capsule</span>
+                  <label class="toggle">
+                    <input type="checkbox" class="packaging-type-checkbox" value="Capsule" autocomplete="off" {% if 'Capsule' in packaging_filters_list %}checked{% endif %}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
 
-                <label class="packaging-checkbox-label">
-                  <input type="checkbox" class="packaging-type-checkbox" value="OGP" {% if 'OGP' in packaging_filters_list %}checked{% endif %}>
-                  <span class="packaging-checkbox-text">OGP (Original Government Packaging)</span>
-                </label>
+                <div class="pkg-toggle-row">
+                  <span class="pkg-toggle-text">OGP (Original Government Packaging)</span>
+                  <label class="toggle">
+                    <input type="checkbox" class="packaging-type-checkbox" value="OGP" autocomplete="off" {% if 'OGP' in packaging_filters_list %}checked{% endif %}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
 
-                <label class="packaging-checkbox-label">
-                  <input type="checkbox" class="packaging-type-checkbox" value="Tube_Full" {% if 'Tube_Full' in packaging_filters_list %}checked{% endif %}>
-                  <span class="packaging-checkbox-text">Tube - Full</span>
-                </label>
+                <div class="pkg-toggle-row">
+                  <span class="pkg-toggle-text">Tube - Full</span>
+                  <label class="toggle">
+                    <input type="checkbox" class="packaging-type-checkbox" value="Tube_Full" autocomplete="off" {% if 'Tube_Full' in packaging_filters_list %}checked{% endif %}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
 
-                <label class="packaging-checkbox-label">
-                  <input type="checkbox" class="packaging-type-checkbox" value="Tube_Partial" {% if 'Tube_Partial' in packaging_filters_list %}checked{% endif %}>
-                  <span class="packaging-checkbox-text">Tube - Partial</span>
-                </label>
+                <div class="pkg-toggle-row">
+                  <span class="pkg-toggle-text">Tube - Partial</span>
+                  <label class="toggle">
+                    <input type="checkbox" class="packaging-type-checkbox" value="Tube_Partial" autocomplete="off" {% if 'Tube_Partial' in packaging_filters_list %}checked{% endif %}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
 
-                <label class="packaging-checkbox-label">
-                  <input type="checkbox" class="packaging-type-checkbox" value="MonsterBox_Full" {% if 'MonsterBox_Full' in packaging_filters_list %}checked{% endif %}>
-                  <span class="packaging-checkbox-text">Monster Box - Full</span>
-                </label>
+                <div class="pkg-toggle-row">
+                  <span class="pkg-toggle-text">Monster Box - Full</span>
+                  <label class="toggle">
+                    <input type="checkbox" class="packaging-type-checkbox" value="MonsterBox_Full" autocomplete="off" {% if 'MonsterBox_Full' in packaging_filters_list %}checked{% endif %}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
 
-                <label class="packaging-checkbox-label">
-                  <input type="checkbox" class="packaging-type-checkbox" value="MonsterBox_Partial" {% if 'MonsterBox_Partial' in packaging_filters_list %}checked{% endif %}>
-                  <span class="packaging-checkbox-text">Monster Box - Partial</span>
-                </label>
+                <div class="pkg-toggle-row">
+                  <span class="pkg-toggle-text">Monster Box - Partial</span>
+                  <label class="toggle">
+                    <input type="checkbox" class="packaging-type-checkbox" value="MonsterBox_Partial" autocomplete="off" {% if 'MonsterBox_Partial' in packaging_filters_list %}checked{% endif %}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
 
-                <label class="packaging-checkbox-label">
-                  <input type="checkbox" class="packaging-type-checkbox" value="Assay_Card" {% if 'Assay_Card' in packaging_filters_list %}checked{% endif %}>
-                  <span class="packaging-checkbox-text">Assay Card</span>
-                </label>
+                <div class="pkg-toggle-row">
+                  <span class="pkg-toggle-text">Assay Card</span>
+                  <label class="toggle">
+                    <input type="checkbox" class="packaging-type-checkbox" value="Assay_Card" autocomplete="off" {% if 'Assay_Card' in packaging_filters_list %}checked{% endif %}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -806,7 +829,7 @@
 </section>
 
 <!-- ============ Sellers Modal Markup ============ -->
-{% include 'modals/bucket_ID_sellers_modal.html' %}
+{% include 'modals/order_sellers_modal.html' %}
 
 <!-- ============ Bid Bidder Modal ============ -->
 {% include 'modals/bid_bidder_modal.html' %}
@@ -1040,7 +1063,7 @@
     document.getElementById(tpgTargetId).value = tpgValue;
   }
 </script>
-<script src="{{ url_for('static', filename='js/modals/bucket_ID_sellers_modal.js') }}?v=bucket-v2"></script>
+<script src="{{ url_for('static', filename='js/modals/order_sellers_modal.js') }}?v=bucket-v1"></script>
 <script src="{{ url_for('static', filename='js/modals/bid_bidder_modal.js') }}?v=osm-style-1"></script>
 <script src="{{ url_for('static', filename='js/view_bucket.js') }}?v=bucket-v6"></script>
 <script src="{{ url_for('static', filename='js/modals/bid_modal_steps.js') }}?v=wizard-2"></script>

@@ -201,7 +201,12 @@ def edit_listing(listing_id):
                 listing_name = None
                 listing_description = None
                 if listing['is_isolated'] == 1:
-                    listing_name = request.form.get('listing_name', '').strip() or None
+                    # Accept both 'listing_name' (edit modal) and 'listing_title' (sell page form)
+                    listing_name = (
+                        request.form.get('listing_name', '').strip() or
+                        request.form.get('listing_title', '').strip() or
+                        None
+                    )
                     listing_description = request.form.get('listing_description', '').strip() or None
 
                 # ---- Extract edition/issue numbering fields ----
@@ -253,7 +258,7 @@ def edit_listing(listing_id):
                             conn.execute('DELETE FROM listing_photos WHERE id = ?', (photo['id'],))
                             print(f"[INFO] Deleted photo {photo['id']} from listing {listing_id}")
 
-                # Handle multiple new item photos
+                # Handle multiple new item photos (modal format: 'item_photos')
                 new_photos = request.files.getlist('item_photos')
                 for photo_file in new_photos:
                     if photo_file and photo_file.filename:
@@ -267,6 +272,21 @@ def edit_listing(listing_id):
                                 (listing_id, session['user_id'], file_path)
                             )
                             print(f"[INFO] Added new photo to listing {listing_id}: {file_path}")
+
+                # Also handle sell-page-format photo inputs (item_photo_1, item_photo_2, item_photo_3)
+                for i in range(1, 4):
+                    photo_file = request.files.get(f'item_photo_{i}')
+                    if photo_file and photo_file.filename:
+                        file_path = save_uploaded_photo(photo_file)
+                        if file_path:
+                            conn.execute(
+                                '''
+                                INSERT INTO listing_photos (listing_id, uploader_id, file_path)
+                                VALUES (?, ?, ?)
+                                ''',
+                                (listing_id, session['user_id'], file_path)
+                            )
+                            print(f"[INFO] Added sell-page photo {i} to listing {listing_id}: {file_path}")
 
                 # Handle cover photo for isolated listings (single file)
                 cover_photo = request.files.get('cover_photo')
@@ -574,7 +594,7 @@ def edit_listing(listing_id):
                 # Return success response
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify(response_data), 200
-                return redirect(url_for('listings.my_listings'))
+                return redirect(url_for('account.account'))
 
             except Exception as e:
                 # context manager will roll back automatically on exception

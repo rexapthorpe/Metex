@@ -254,8 +254,8 @@ def _register_blueprints(app):
     """Register all application blueprints."""
     # Import blueprints from routes/ (current location)
     from routes.auth_routes import auth_bp
-    from routes.sell_routes import sell_bp
-    from routes.listings_routes import listings_bp
+    from core.blueprints.sell import sell_bp
+    from core.blueprints.listings import listings_bp
     from routes.buy_routes import buy_bp
     from routes.account_routes import account_bp
     from routes.checkout_routes import checkout_bp

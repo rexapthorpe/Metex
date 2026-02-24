@@ -173,9 +173,38 @@ function openCartSellerPopup(bucketId) {
     });
 }
 
+function openBucketSellerPopup(bucketId) {
+  _osmIsCartContext = true;
+  orderSellerOrderId = null;
+  fetch(`/api/bucket/${bucketId}/sellers`)
+    .then(res => {
+      if (!res.ok) throw new Error('Could not load sellers');
+      return res.json();
+    })
+    .then(data => {
+      if (!Array.isArray(data) || data.length === 0) {
+        alert('No sellers found for this item.');
+        return;
+      }
+      orderSellerData = data;
+      orderSellerIndex = 0;
+      const titleEl = document.querySelector('#orderSellersModal .osm-title');
+      if (titleEl) titleEl.textContent = data.length > 1 ? 'Available Sellers' : 'Seller Information';
+      renderOrderSeller();
+      const overlay = document.getElementById('orderSellersModal');
+      overlay.style.display = 'flex';
+      overlay.addEventListener('click', _osmOutsideClick);
+    })
+    .catch(err => {
+      console.error(err);
+      alert(err.message);
+    });
+}
+
 // expose globally
 window.openOrderSellerPopup = openOrderSellerPopup;
 window.openCartSellerPopup = openCartSellerPopup;
+window.openBucketSellerPopup = openBucketSellerPopup;
 window.closeOrderSellerPopup = closeOrderSellerPopup;
 window.prevOrderSeller = prevOrderSeller;
 window.nextOrderSeller = nextOrderSeller;

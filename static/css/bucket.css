@@ -775,7 +775,7 @@
   font-weight: 600;
   font-size: 0.9375rem;
   cursor: pointer;
-  background: #f59e0b;
+  background: #3da6ff;
   color: #ffffff;
   text-decoration: none;
   line-height: 1;
@@ -783,7 +783,7 @@
   transition: background 0.15s ease;
   white-space: nowrap;
 }
-.header-bid-btn:hover { background: #d97706; }
+.header-bid-btn:hover { background: #1e74f0; }
 
 /* === MY ACTIVE BIDS (account section) ===
    Styled to match the standard bid cards.
@@ -1062,47 +1062,23 @@
 }
 
 /* ==============================
-   PACKAGING FILTER CHECKBOXES
+   PACKAGING FILTER TOGGLES
    ============================== */
-.packaging-checkbox-label {
+.pkg-toggle-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 10px 12px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
 }
 
-.packaging-checkbox-label:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
-}
-
-.packaging-checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  margin-right: 10px;
-  cursor: pointer;
-  accent-color: #1877ff;
-  flex-shrink: 0;
-}
-
-.packaging-checkbox-text {
+.pkg-toggle-text {
   font-size: 14px;
   font-weight: 500;
   color: #374151;
   flex: 1;
-}
-
-.packaging-checkbox-label input[type="checkbox"]:checked ~ .packaging-checkbox-text {
-  color: #111827;
-  font-weight: 600;
-}
-
-.packaging-checkbox-label input[type="checkbox"]:checked {
-  background-color: #1877ff;
+  margin-right: 12px;
 }
 
