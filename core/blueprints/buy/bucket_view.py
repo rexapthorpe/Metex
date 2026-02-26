@@ -70,6 +70,7 @@ def view_bucket(bucket_id):
         'Weight'             : take('weight'),
         'Year'               : take('year'),
         'Mint'               : take('mint'),
+        'Purity'             : take('purity'),
         'Finish'             : take('finish'),
         'Condition Category' : take('condition_category'),
         'Series Variant'     : take('series_variant'),
