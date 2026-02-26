@@ -165,6 +165,22 @@
   color: #374151;
 }
 
+/* Set item sub-navigation (arrow nav inside a set listing's specs section) */
+.oim-set-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.oim-set-title-row .oim-specs-title {
+  margin-bottom: 0;
+}
+.oim-set-subnav {
+  display: none;
+  align-items: center;
+  gap: 10px;
+}
+
 /* Specifications section */
 .oim-specs-section {
   background: #f8f9fa;

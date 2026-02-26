@@ -307,64 +307,40 @@
 }
 
 /* ==========================================================================
-   Set Navigation - Tab bar for switching between set items
+   Set Navigation - Arrow buttons for switching between set items
    ========================================================================== */
 
 #listingItemsModal .lim-set-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
   margin-bottom: 16px;
 }
 
-#listingItemsModal .lim-set-nav-tabs {
-  display: flex;
-  gap: 8px;
-  padding: 4px;
-  background: #f3f4f6;
-  border-radius: 10px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #d1d5db transparent;
-}
-
-#listingItemsModal .lim-set-nav-tabs::-webkit-scrollbar {
-  height: 4px;
-}
-
-#listingItemsModal .lim-set-nav-tabs::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-#listingItemsModal .lim-set-nav-tabs::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 2px;
-}
-
-#listingItemsModal .lim-set-nav-tab {
-  flex: 1;
-  min-width: 80px;
-  padding: 10px 16px;
-  border: none;
-  background: transparent;
-  color: #6b7280;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
-
-#listingItemsModal .lim-set-nav-tab:hover {
-  background: #e5e7eb;
-  color: #1a2b4a;
-}
-
-#listingItemsModal .lim-set-nav-tab.active {
+#listingItemsModal .lim-nav-arrow {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 50%;
   background: #fff;
-  color: #1a2b4a;
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #374151;
+  transition: background 0.2s;
+}
+
+#listingItemsModal .lim-nav-arrow:disabled { visibility: hidden; }
+#listingItemsModal .lim-nav-arrow:hover:not(:disabled) { background: #f3f4f6; }
+
+#listingItemsModal .lim-nav-counter {
+  font-size: 0.85rem;
+  color: #6b7280;
+  min-width: 80px;
+  text-align: center;
 }
 
 /* Responsive */
@@ -393,9 +369,7 @@
     grid-template-columns: 1fr;
   }
 
-  #listingItemsModal .lim-set-nav-tab {
-    min-width: 70px;
-    padding: 8px 12px;
+  #listingItemsModal .lim-nav-counter {
     font-size: 0.8rem;
   }
 }

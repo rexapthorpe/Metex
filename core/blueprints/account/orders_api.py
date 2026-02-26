@@ -373,6 +373,7 @@ def order_items(order_id):
 
           l.graded,
           l.grading_service,
+          l.isolated_type,
           u.username AS seller_username,
 
           lp.file_path
@@ -451,6 +452,10 @@ def order_items(order_id):
 
             # image for the group
             "image_url"      : first.get("image_url"),
+
+            # set listing metadata (for set item arrow navigation in modal)
+            "listing_id"     : first.get("listing_id"),
+            "isolated_type"  : first.get("isolated_type"),
 
             # raw items if you ever want them
             "items"          : [

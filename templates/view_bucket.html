@@ -507,8 +507,12 @@
             <button type="submit" class="btn buy-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Buy Item</button>
           </form>
 
-          <!-- Bid button still active -->
+          <!-- Bid button: disabled for isolated/set (one-of-a-kind) own listings -->
+          {% if is_isolated %}
+          <button type="button" class="btn bid-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Make a Bid</button>
+          {% else %}
           <button type="button" class="btn bid-btn" onclick="openBidModal({{ bucket['id'] }})">Make a Bid</button>
+          {% endif %}
 
           <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
             <button type="submit" class="btn add-cart-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Add to Cart</button>
@@ -550,7 +554,11 @@
         type="button"
         id="outOfStockBidBtn"
         class="btn bid-btn"
-        onclick="openBidModal({{ bucket['id'] }})"
+        {% if is_isolated and availability.get('all_listings_are_users', False) and session.get('user_id') %}
+          disabled style="opacity: 0.5; cursor: not-allowed;"
+        {% else %}
+          onclick="openBidModal({{ bucket['id'] }})"
+        {% endif %}
         {% if in_stock %}style="display:none"{% endif %}
       >
         Make a Bid
@@ -733,9 +741,15 @@
             <i class="fa-solid fa-check"></i> Accept Selected
           </button>
         {% endif %}
+        {% if is_isolated and availability.get('all_listings_are_users', False) and session.get('user_id') %}
+        <button type="button" class="btn header-bid-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+          + Create a Bid
+        </button>
+        {% else %}
         <button type="button" class="btn header-bid-btn" onclick="openBidModal({{ bucket['id'] }})">
           + Create a Bid
         </button>
+        {% endif %}
       </div>
     </div>
 
@@ -1118,37 +1132,62 @@
 
 <!-- ============ Max Cart Reached Modal ============ -->
 <div id="maxReachedModal"
-     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9990; align-items:center; justify-content:center;"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9990; align-items:center; justify-content:center;"
      role="dialog" aria-modal="true" aria-labelledby="mr-title">
-  <div style="background:#fff; border-radius:12px; padding:28px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
-    <h3 id="mr-title" style="margin:0 0 8px; font-size:1.1rem; color:#111827;">Cart Limit Reached</h3>
-    <p style="color:#6b7280; font-size:0.88rem; margin:0 0 18px; line-height:1.5;">
+  <div style="background:#fff; border-radius:16px; padding:28px 28px 24px; max-width:420px; width:90%; box-shadow:0 24px 64px rgba(0,0,0,0.18); position:relative;">
+
+    <!-- Close button -->
+    <button type="button" id="mrCancelBtn"
+            aria-label="Close"
+            style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:1.2rem; color:#9ca3af; cursor:pointer; line-height:1; padding:4px 6px;">
+      ×
+    </button>
+
+    <!-- Header -->
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
+      <div style="width:48px; height:48px; background:#fff7ed; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <i class="fa-regular fa-circle-exclamation" style="font-size:1.3rem; color:#f97316;"></i>
+      </div>
+      <h3 id="mr-title" style="margin:0; font-size:1.2rem; font-weight:700; color:#111827;">Cart Limit Reached</h3>
+    </div>
+
+    <!-- Description -->
+    <p style="color:#6b7280; font-size:0.88rem; margin:0 0 20px; line-height:1.6;">
       You already have the maximum available quantity from this listing in your cart.
     </p>
-    <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin-bottom:20px; font-size:0.85rem;">
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+
+    <!-- Grading comparison card -->
+    <div style="border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; margin-bottom:20px; font-size:0.875rem;">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 16px;">
         <span style="color:#6b7280;">3rd-party grading (cart):</span>
-        <span id="mrCurrentGrading" style="font-weight:600; color:#111827;">—</span>
+        <span id="mrCurrentGrading" style="font-weight:700; color:#111827;">—</span>
       </div>
-      <div style="display:flex; justify-content:space-between;">
+      <div style="height:1px; background:#f3f4f6; margin:0 16px;"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 16px;">
         <span style="color:#6b7280;">3rd-party grading (new):</span>
-        <span id="mrNewGrading" style="font-weight:600; color:#059669;">—</span>
+        <span id="mrNewGrading" style="font-weight:700; color:#059669;">—</span>
       </div>
     </div>
+
+    <!-- Actions -->
     <div style="display:flex; flex-direction:column; gap:10px;">
       <button type="button" id="mrReplaceBtn"
-              style="padding:10px 16px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:0.9rem; font-weight:600; cursor:pointer;">
+              style="display:flex; align-items:center; justify-content:center; gap:8px; padding:13px 16px; background:#1a2744; color:#fff; border:none; border-radius:10px; font-size:0.9rem; font-weight:600; cursor:pointer; letter-spacing:0.01em;">
         Replace Existing Selection
+        <i class="fa-solid fa-arrow-right" style="font-size:0.85rem;"></i>
       </button>
       <a href="/view_cart" id="mrViewCartBtn"
-         style="display:block; padding:10px 16px; background:#f3f4f6; color:#374151; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; font-weight:600; text-align:center; text-decoration:none;">
+         style="display:flex; align-items:center; justify-content:center; gap:8px; padding:13px 16px; background:#fff; color:#374151; border:1px solid #e5e7eb; border-radius:10px; font-size:0.9rem; font-weight:600; text-align:center; text-decoration:none;">
+        <i class="fa-solid fa-cart-shopping" style="font-size:0.9rem;"></i>
         View Cart
       </a>
-      <button type="button" id="mrCancelBtn"
-              style="padding:10px 16px; background:#fff; color:#6b7280; border:1px solid #e5e7eb; border-radius:8px; font-size:0.9rem; cursor:pointer;">
+      <button type="button"
+              onclick="document.getElementById('maxReachedModal').style.display='none'"
+              style="padding:10px 16px; background:none; border:none; color:#9ca3af; font-size:0.9rem; cursor:pointer;">
         Cancel
       </button>
     </div>
+
   </div>
 </div>
 {% endblock %}

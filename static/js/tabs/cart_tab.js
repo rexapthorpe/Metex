@@ -76,18 +76,21 @@ function attachQtyDial(group) {
  */
 function handleQuantityChange(e) {
   const input = e.target;
-  const [, bucketId] = input.id.split('-'); // id is "quantity-<bucket_id>"
+  // bucket_key may contain underscores (e.g. "42_g0"); read integer category_id from data attr
+  const qtyGroup = input.closest('.cart-qty');
+  const categoryId = qtyGroup ? qtyGroup.dataset.categoryId : input.id.replace('quantity-', '');
+  const requiresGrading = qtyGroup ? parseInt(qtyGroup.dataset.requiresGrading || '0', 10) : 0;
   let qty = parseInt(input.value, 10);
   if (isNaN(qty) || qty < 1) qty = 1;
   input.value = qty;
 
-  fetch(`/cart/update_bucket_quantity/${bucketId}`, {
+  fetch(`/cart/update_bucket_quantity/${categoryId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Requested-With': 'XMLHttpRequest'
     },
-    body: JSON.stringify({ quantity: qty })
+    body: JSON.stringify({ quantity: qty, requires_grading: requiresGrading })
   })
     .then(res => {
       if (!res.ok) throw new Error('Failed to update quantity');

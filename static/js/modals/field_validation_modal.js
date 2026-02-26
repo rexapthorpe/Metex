@@ -163,9 +163,8 @@ function validateSellForm(form) {
 
     if (isSetMode) {
       requiredFields.push('cover_photo');
-    } else {
-      requiredFields.push('item_photo_1');
     }
+    // Photo presence is validated separately below (any of the 3 slots counts).
   }
 
   // Add pricing-mode-specific required fields (always required)
@@ -178,7 +177,31 @@ function validateSellForm(form) {
     requiredFields.push('price_per_coin');
   }
 
-  return validateForm(form, requiredFields);
+  const result = validateForm(form, requiredFields);
+
+  // Photo requirement for standard/isolated modes: at least one of the three slots
+  // must have a file selected OR already have an image (edit mode with existing photos).
+  if (!isSetMode) {
+    const p1 = form.elements['item_photo_1'];
+    const p2 = form.elements['item_photo_2'];
+    const p3 = form.elements['item_photo_3'];
+    const b1 = document.getElementById('standardPhotoBox1');
+    const b2 = document.getElementById('standardPhotoBox2');
+    const b3 = document.getElementById('standardPhotoBox3');
+    const hasPhoto =
+      (p1 && p1.files && p1.files.length > 0) ||
+      (p2 && p2.files && p2.files.length > 0) ||
+      (p3 && p3.files && p3.files.length > 0) ||
+      (b1 && b1.classList.contains('has-image')) ||
+      (b2 && b2.classList.contains('has-image')) ||
+      (b3 && b3.classList.contains('has-image'));
+    if (!hasPhoto) {
+      result.errors.push('Item Photo is required');
+      result.isValid = false;
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -189,38 +212,55 @@ function validateSellForm(form) {
 function validateEditListingForm(form) {
   if (!form) return { isValid: true, errors: [] };
 
-  // Base required fields (always required regardless of pricing mode)
-  const baseRequiredFields = [
-    'metal',
-    'product_line',
-    'product_type',
-    'weight',
-    'purity',
-    'mint',
-    'year',
-    'finish',
-    'quantity'
-    // Note: photo is not required for editing
-  ];
+  const isSetMode = window.currentMode === 'set';
+  const isIsolatedMode = window.currentMode === 'isolated';
+  const capturedSetItems = window.setItems || [];
 
-  // Determine pricing mode from the form
-  const pricingModeSelect = form.elements['pricing_mode'];
-  const pricingMode = pricingModeSelect ? pricingModeSelect.value : 'static';
+  // Determine pricing mode from the form (works for both radio buttons and select)
+  const pricingModeEl = form.elements['pricing_mode'];
+  const pricingMode = pricingModeEl ? pricingModeEl.value : 'static';
 
-  let requiredFields = [...baseRequiredFields];
+  let requiredFields;
+
+  if (isSetMode && capturedSetItems.length >= 2) {
+    // Set mode with 2+ items: spec fields not required; cover photo checked separately below
+    requiredFields = [];
+  } else {
+    // Standard, isolated, or set with <2 items: validate all spec fields
+    requiredFields = [
+      'metal', 'product_line', 'product_type', 'weight',
+      'purity', 'mint', 'year', 'finish'
+    ];
+    // Quantity only required for standard mode
+    if (!isSetMode && !isIsolatedMode) {
+      requiredFields.push('quantity');
+    }
+  }
 
   // Add pricing-mode-specific required fields
   if (pricingMode === 'premium_to_spot') {
-    // Premium-to-spot mode: require premium and floor
     requiredFields.push('spot_premium');
     requiredFields.push('floor_price');
-    // pricing_metal is auto-filled, not required from user
   } else {
-    // Static mode: require Price Per Coin
     requiredFields.push('price_per_coin');
   }
 
-  return validateForm(form, requiredFields);
+  const result = validateForm(form, requiredFields);
+
+  // Cover photo required for set mode; existing cover photo counts (has-image class)
+  if (isSetMode) {
+    const coverInput = form.elements['cover_photo'];
+    const coverBox = document.getElementById('coverPhotoUploadBox');
+    const hasCoverPhoto =
+      (coverInput && coverInput.files && coverInput.files.length > 0) ||
+      (coverBox && coverBox.classList.contains('has-image'));
+    if (!hasCoverPhoto) {
+      result.errors.push('Cover Photo is required');
+      result.isValid = false;
+    }
+  }
+
+  return result;
 }
 
 /**

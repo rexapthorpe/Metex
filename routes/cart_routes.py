@@ -629,6 +629,7 @@ def update_bucket_quantity(category_id):
 
     data = request.get_json()
     target_qty = data.get('quantity', 1)
+    requires_grading = int(data.get('requires_grading', 0))
 
     if not isinstance(target_qty, int) or target_qty < 1:
         return jsonify({'error': 'Invalid quantity'}), 400
@@ -640,15 +641,16 @@ def update_bucket_quantity(category_id):
     from utils.cart_utils import validate_and_refill_cart
     validate_and_refill_cart(conn, user_id)
 
-    # 1) Get current cart items for this category
+    # 1) Get current cart items for this category+grading bucket only
     current_items = cursor.execute('''
-        SELECT cart.listing_id, cart.quantity, listings.price_per_coin
+        SELECT cart.id, cart.listing_id, cart.quantity, listings.price_per_coin
           FROM cart
           JOIN listings ON cart.listing_id = listings.id
          WHERE cart.user_id = ?
            AND listings.category_id = ?
+           AND cart.third_party_grading_requested = ?
          ORDER BY listings.price_per_coin ASC
-    ''', (user_id, category_id)).fetchall()
+    ''', (user_id, category_id, requires_grading)).fetchall()
 
     current_qty = sum(item['quantity'] for item in current_items)
 
@@ -660,6 +662,7 @@ def update_bucket_quantity(category_id):
     # 3) If we need to add more items
     if target_qty > current_qty:
         needed = target_qty - current_qty
+        grading_pref_str = 'ANY' if requires_grading else 'NONE'
 
         # Get all available listings for this category (excluding user's own), sorted by price
         available = cursor.execute('''
@@ -675,27 +678,32 @@ def update_bucket_quantity(category_id):
             if needed <= 0:
                 break
 
-            # Check if already in cart
-            existing = cursor.execute(
-                'SELECT quantity FROM cart WHERE user_id = ? AND listing_id = ?',
+            # Total units of this listing already in cart across all grading states
+            total_in_cart_row = cursor.execute(
+                'SELECT COALESCE(SUM(quantity), 0) FROM cart WHERE user_id = ? AND listing_id = ?',
                 (user_id, listing['id'])
             ).fetchone()
+            total_in_cart = total_in_cart_row[0]
+            available_to_add = listing['quantity'] - total_in_cart
 
-            # How much we can take from this listing
-            in_cart = existing['quantity'] if existing else 0
-            available_to_add = listing['quantity'] - in_cart
+            # Row in cart matching this listing + grading state
+            existing = cursor.execute(
+                'SELECT id, quantity FROM cart WHERE user_id = ? AND listing_id = ? AND third_party_grading_requested = ?',
+                (user_id, listing['id'], requires_grading)
+            ).fetchone()
+
             take = min(needed, available_to_add)
 
             if take > 0:
                 if existing:
                     cursor.execute(
-                        'UPDATE cart SET quantity = ? WHERE user_id = ? AND listing_id = ?',
-                        (in_cart + take, user_id, listing['id'])
+                        'UPDATE cart SET quantity = ? WHERE id = ?',
+                        (existing['quantity'] + take, existing['id'])
                     )
                 else:
                     cursor.execute(
-                        'INSERT INTO cart (user_id, listing_id, quantity) VALUES (?, ?, ?)',
-                        (user_id, listing['id'], take)
+                        'INSERT INTO cart (user_id, listing_id, quantity, third_party_grading_requested, grading_preference) VALUES (?, ?, ?, ?, ?)',
+                        (user_id, listing['id'], take, requires_grading, grading_pref_str)
                     )
                 needed -= take
 
@@ -703,31 +711,25 @@ def update_bucket_quantity(category_id):
     else:
         to_remove = current_qty - target_qty
 
-        # Remove from most expensive first (reverse order)
+        # Remove from most expensive first (reverse order), only touching this grading bucket
         for item in reversed(current_items):
             if to_remove <= 0:
                 break
 
-            listing_id = item['listing_id']
+            cart_row_id = item['id']
             in_cart = item['quantity']
             remove_from_this = min(to_remove, in_cart)
 
             new_qty = in_cart - remove_from_this
             if new_qty <= 0:
-                cursor.execute(
-                    'DELETE FROM cart WHERE user_id = ? AND listing_id = ?',
-                    (user_id, listing_id)
-                )
+                cursor.execute('DELETE FROM cart WHERE id = ?', (cart_row_id,))
             else:
-                cursor.execute(
-                    'UPDATE cart SET quantity = ? WHERE user_id = ? AND listing_id = ?',
-                    (new_qty, user_id, listing_id)
-                )
+                cursor.execute('UPDATE cart SET quantity = ? WHERE id = ?', (new_qty, cart_row_id))
             to_remove -= remove_from_this
 
     conn.commit()
 
-    # Get updated category data for frontend display
+    # Get updated category data for this grading bucket only
     from services.pricing_service import get_effective_price
 
     updated_items = cursor.execute('''
@@ -746,7 +748,8 @@ def update_bucket_quantity(category_id):
         JOIN categories ON listings.category_id = categories.id
         WHERE cart.user_id = ?
           AND categories.id = ?
-    ''', (user_id, category_id)).fetchall()
+          AND cart.third_party_grading_requested = ?
+    ''', (user_id, category_id, requires_grading)).fetchall()
 
     # Calculate new total quantity and average price
     new_total_qty = 0
@@ -761,11 +764,15 @@ def update_bucket_quantity(category_id):
 
     new_avg_price = new_total_price / new_total_qty if new_total_qty > 0 else 0.0
 
+    from config import GRADING_FEE_PER_UNIT
+    grading_fee = round(GRADING_FEE_PER_UNIT * new_total_qty, 2) if requires_grading else 0.0
+
     conn.close()
 
     return jsonify({
         'success': True,
         'quantity': new_total_qty,
         'avg_price': round(new_avg_price, 2),
-        'total_price': round(new_total_price, 2)
+        'total_price': round(new_total_price, 2),
+        'grading_fee': grading_fee,
     })

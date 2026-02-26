@@ -739,21 +739,29 @@
 
   // ========== FUNCTION TO CHECK IF ADD ITEM BUTTON SHOULD BE ENABLED ==========
   function updateAddItemButtonState() {
-    if (!sidebarAddSetItemBtn || window.currentMode !== 'set') return;
+    if (window.currentMode !== 'set') return;
 
     const specs = captureSpecValues();
-    let canAdd = false;
 
-    // All set items require: all specs + photo + quantity
+    // All set items require: all specs + photo
     const hasAllSpecs = !!(specs.metal && specs.product_line && specs.product_type &&
                            specs.weight && specs.purity && specs.mint && specs.year &&
                            specs.finish && specs.series_variant);
     // Handle both photo arrays (multi-photo) and single photos
     const hasPhoto = Array.isArray(specs.photo) ? specs.photo.length > 0 : !!specs.photo;
 
-    canAdd = hasAllSpecs && hasPhoto;
+    const canAdd = hasAllSpecs && hasPhoto;
 
-    sidebarAddSetItemBtn.disabled = !canAdd;
+    if (sidebarAddSetItemBtn) {
+      sidebarAddSetItemBtn.disabled = !canAdd;
+      sidebarAddSetItemBtn.classList.toggle('set-item-ready', canAdd);
+    }
+
+    const addItemBtn = document.getElementById('addSetItemBtn');
+    if (addItemBtn) {
+      addItemBtn.disabled = !canAdd;
+      addItemBtn.classList.toggle('set-item-ready', canAdd);
+    }
   }
 
   // ========== WIRE UP SIDEBAR SET BUTTON TO EXISTING LOGIC ==========

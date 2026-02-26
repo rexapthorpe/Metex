@@ -7,7 +7,7 @@ Checkout routes: checkout page, order confirmation.
 from flask import render_template, redirect, url_for, request, session, flash, jsonify
 from database import get_db_connection
 from services.order_service import create_order
-from utils.cart_utils import get_cart_items
+from utils.cart_utils import build_cart_summary
 from services.notification_service import notify_listing_sold, notify_order_confirmed
 from services.pricing_service import get_effective_price, create_price_lock
 from utils.auth_utils import frozen_check
@@ -192,15 +192,15 @@ def checkout():
             # Check if this is an AJAX request (from Buy Item button)
             is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-            # Capture grading preference from the Buy Item form
-            buy_grading = (request.form.get('grading_preference', 'NONE') or 'NONE').strip()
+            # Capture grading toggle from the Buy Item form — canonical boolean (0/1 int).
+            buy_tpg_int = int(request.form.get('third_party_grading', 0) or 0)
 
             if is_ajax:
                 # Return JSON for AJAX requests (so modal can be shown before redirect)
                 print(f"[CHECKOUT] AJAX request. user_listings_skipped={user_listings_skipped}, items_selected={len(selected)}")
                 # Store selection in session for when user is redirected
                 session['checkout_items'] = selected
-                session['checkout_grading_preference'] = buy_grading
+                session['checkout_tpg'] = buy_tpg_int
                 conn.close()
                 return jsonify({
                     'success': True,
@@ -216,7 +216,7 @@ def checkout():
 
                 # Keep the selection in session for the GET render and final POST
                 session['checkout_items'] = selected
-                session['checkout_grading_preference'] = buy_grading
+                session['checkout_tpg'] = buy_tpg_int
                 conn.close()
                 return redirect(url_for('checkout.checkout'))
 
@@ -231,40 +231,27 @@ def checkout():
                     data = request.get_json()
                     shipping_address = data.get('shipping_address', 'Default Address')
 
-                    # Get cart items with pricing fields for effective price calculation
-                    cart_items = conn.execute('''
-                        SELECT cart.id, cart.quantity, cart.listing_id,
-                               cart.third_party_grading_requested,
-                               cart.grading_preference,
-                               listings.price_per_coin, listings.pricing_mode,
-                               listings.spot_premium, listings.floor_price, listings.pricing_metal,
-                               categories.metal, categories.weight, categories.product_type
-                        FROM cart
-                        JOIN listings ON cart.listing_id = listings.id
-                        JOIN categories ON listings.category_id = categories.id
-                        WHERE cart.user_id = ?
-                          AND listings.active = 1
-                          AND listings.quantity > 0
-                    ''', (user_id,)).fetchall()
+                    # Use the authoritative cart summary (same source as cart page + account tab)
+                    summary = build_cart_summary(conn, user_id)
 
-                    if not cart_items:
+                    if not summary['buckets']:
                         conn.close()
                         return jsonify({
                             'success': False,
                             'message': 'Your cart is empty or items are no longer available'
                         })
 
-                    # Calculate effective prices for cart items
-                    cart_data = []
-                    for item in cart_items:
-                        item_dict = dict(item)
-                        effective_price = get_effective_price(item_dict)
-                        cart_data.append({
-                            'listing_id': item['listing_id'],
-                            'quantity': item['quantity'],
-                            'price_each': effective_price,
-                            'grading_preference': item['grading_preference'] or 'NONE',
-                        })
+                    # Flatten buckets → per-listing cart_data for order creation
+                    cart_data = [
+                        {
+                            'listing_id': listing['listing_id'],
+                            'quantity': listing['quantity'],
+                            'price_each': listing['effective_price'],
+                            'requires_grading': listing['requires_grading'],
+                        }
+                        for bucket in summary['buckets'].values()
+                        for listing in bucket['listings']
+                    ]
 
                     # Create order
                     order_id = create_order(user_id, cart_data, shipping_address)
@@ -272,9 +259,9 @@ def checkout():
                     # Create ledger records for this order
                     _create_ledger_for_order(user_id, order_id, cart_data, conn)
 
-                    # Calculate totals for response
+                    # Calculate totals for response (items + grading, no insurance)
                     total_items = sum(item['quantity'] for item in cart_data)
-                    order_total = sum(item['quantity'] * item['price_each'] for item in cart_data)
+                    order_total = summary['subtotal'] + summary['grading_fee']
 
                     # Collect notification data (will send after commit to avoid database locking)
                     notifications_to_send = []
@@ -373,40 +360,28 @@ def checkout():
 
             # Prefer direct-bucket selection if present
             session_items = session.pop('checkout_items', None)
+            # checkout_tpg is the canonical boolean (0/1 int) stored by the bucket POST.
+            buy_tpg = bool(session.pop('checkout_tpg', 0))
             if session_items:
                 cart_data = [{
                     'listing_id': item['listing_id'],
                     'quantity': item['quantity'],
-                    'price_each': item['price_each']
+                    'price_each': item['price_each'],
+                    'requires_grading': buy_tpg,
                 } for item in session_items]
             else:
-                # Fallback to the user's cart - get with pricing fields
-                cart_items = conn.execute('''
-                    SELECT cart.id, cart.quantity, cart.listing_id,
-                           cart.third_party_grading_requested,
-                           cart.grading_preference,
-                           listings.price_per_coin, listings.pricing_mode,
-                           listings.spot_premium, listings.floor_price, listings.pricing_metal,
-                           categories.metal, categories.weight, categories.product_type
-                    FROM cart
-                    JOIN listings ON cart.listing_id = listings.id
-                    JOIN categories ON listings.category_id = categories.id
-                    WHERE cart.user_id = ?
-                      AND listings.active = 1
-                      AND listings.quantity > 0
-                ''', (user_id,)).fetchall()
-
-                # Calculate effective prices
-                cart_data = []
-                for item in cart_items:
-                    item_dict = dict(item)
-                    effective_price = get_effective_price(item_dict)
-                    cart_data.append({
-                        'listing_id': item['listing_id'],
-                        'quantity': item['quantity'],
-                        'price_each': effective_price,
-                        'grading_preference': item['grading_preference'] or 'NONE',
-                    })
+                # Fallback to the user's cart via the authoritative summary
+                _summary = build_cart_summary(conn, user_id)
+                cart_data = [
+                    {
+                        'listing_id': listing['listing_id'],
+                        'quantity': listing['quantity'],
+                        'price_each': listing['effective_price'],
+                        'requires_grading': listing['requires_grading'],
+                    }
+                    for bucket in _summary['buckets'].values()
+                    for listing in bucket['listings']
+                ]
 
             if not cart_data:
                 flash("Your cart is empty or items are no longer available.")
@@ -467,9 +442,15 @@ def checkout():
 
             # Send buyer notification AFTER commit
             try:
-                # Calculate totals
+                # Calculate totals (items + grading, no insurance)
+                from config import GRADING_FEE_PER_UNIT as _GFU
+                from services.order_service import _item_requires_grading
                 total_items = sum(item['quantity'] for item in cart_data)
-                order_total = sum(item['quantity'] * item['price_each'] for item in cart_data)
+                order_total = round(
+                    sum(item['quantity'] * item['price_each'] for item in cart_data) +
+                    sum(_GFU * item['quantity'] for item in cart_data if _item_requires_grading(item)),
+                    2
+                )
 
                 # Get unique item types for description
                 conn_temp = get_db_connection()
@@ -509,14 +490,15 @@ def checkout():
         # IMPORTANT: do NOT pop here; we still need the selection for the final POST
         session_items = session.get('checkout_items')
 
-        raw_cart_items = []
-        subtotal = 0
-        cart_tpg = False  # TPG preference from cart items (used when not a direct bucket buy)
-
         if session_items:
-            # Items from direct bucket purchase
-            # Grading preference was stored in session when the Buy Item form was submitted
-            buy_grading = (session.get('checkout_grading_preference', 'NONE') or 'NONE').strip()
+            # ── Direct bucket-purchase display ────────────────────────────────
+            # Items and grading were chosen on the bucket page and stored in session.
+            # checkout_tpg is the canonical boolean (0/1 int) stored by the bucket POST.
+            buy_tpg = bool(session.get('checkout_tpg', 0))
+            buy_grading = 'ANY' if buy_tpg else 'NONE'
+
+            raw_cart_items = []
+            subtotal = 0.0
             for item in session_items:
                 listing = conn.execute('''
                     SELECT listings.id, listings.price_per_coin, listings.quantity as available_qty,
@@ -543,117 +525,97 @@ def checkout():
                     listing_dict['grading_preference'] = buy_grading
                     subtotal += listing_dict['total_price']
                     raw_cart_items.append(listing_dict)
+
+            # Group session items by bucket_id for display
+            bucket_groups = {}
+            for item in raw_cart_items:
+                bid = item.get('bucket_id') or item.get('category_id')
+                if bid not in bucket_groups:
+                    bucket_groups[bid] = {
+                        'metal': item['metal'],
+                        'product_type': item['product_type'],
+                        'product_line': item.get('product_line'),
+                        'weight': item['weight'],
+                        'year': item['year'],
+                        'mint': item.get('mint'),
+                        'finish': item.get('finish'),
+                        'grade': item.get('grade'),
+                        'purity': item.get('purity'),
+                        'photo_path': item.get('photo_path'),
+                        'quantity': 0,
+                        'total_price': 0.0,
+                        'price_per_coin': 0.0,
+                        'sellers': set(),
+                        'listing_ids': [],
+                        'grading_preference': buy_grading,
+                    }
+                g = bucket_groups[bid]
+                g['quantity'] += item['quantity']
+                g['total_price'] += item['total_price']
+                g['sellers'].add(item.get('seller_username', 'Seller'))
+                g['listing_ids'].append(item.get('listing_id') or item.get('id'))
+                if not g['photo_path'] and item.get('photo_path'):
+                    g['photo_path'] = item['photo_path']
+
+            cart_items = []
+            for bid, g in bucket_groups.items():
+                g['price_per_coin'] = g['total_price'] / g['quantity'] if g['quantity'] else 0
+                sellers_list = list(g['sellers'])
+                g['seller_username'] = sellers_list[0] if len(sellers_list) == 1 else f"{len(sellers_list)} sellers"
+                del g['sellers']
+                cart_items.append(g)
+
+            item_count = sum(i['quantity'] for i in cart_items)
+            grading_fee = round(GRADING_FEE_PER_UNIT * item_count, 2) if buy_tpg else 0.0
+            insurance = round(subtotal * 0.01, 2)
+            cart_total = round(subtotal + insurance + grading_fee, 2)
+
         else:
-            # Items from cart
-            raw_items = conn.execute('''
-                SELECT cart.id, cart.quantity, cart.listing_id,
-                       cart.third_party_grading_requested,
-                       cart.grading_preference,
-                       listings.price_per_coin, listings.pricing_mode,
-                       listings.spot_premium, listings.floor_price, listings.pricing_metal,
-                       listings.seller_id, listings.category_id,
-                       categories.metal, categories.product_type, categories.product_line,
-                       categories.weight, categories.purity, categories.mint, categories.year,
-                       categories.finish, categories.grade, categories.bucket_id,
-                       users.username as seller_username,
-                       (SELECT file_path FROM listing_photos WHERE listing_id = listings.id LIMIT 1) as photo_path
-                FROM cart
-                JOIN listings ON cart.listing_id = listings.id
-                JOIN categories ON listings.category_id = categories.id
-                JOIN users ON listings.seller_id = users.id
-                WHERE cart.user_id = ?
-                  AND listings.active = 1
-                  AND listings.quantity > 0
-            ''', (user_id,)).fetchall()
+            # ── Cart checkout display — authoritative summary ─────────────────
+            summary = build_cart_summary(conn, user_id)
 
-            # Check if any cart item has TPG requested
-            cart_tpg = any(row['third_party_grading_requested'] for row in raw_items)
+            if not summary['buckets']:
+                conn.close()
+                flash("Your cart is empty.", "error")
+                return redirect(url_for('buy.view_cart'))
 
-            for row in raw_items:
-                item_dict = dict(row)
-                effective_price = get_effective_price(item_dict)
-                item_dict['price_per_coin'] = effective_price
-                item_dict['total_price'] = item_dict['quantity'] * effective_price
-                subtotal += item_dict['total_price']
-                raw_cart_items.append(item_dict)
+            cart_items = []
+            for bucket in summary['buckets'].values():
+                sellers = {l['seller_username'] for l in bucket['listings']}
+                seller_display = (next(iter(sellers)) if len(sellers) == 1
+                                  else f"{len(sellers)} sellers")
+                cart_items.append({
+                    'metal': bucket['category']['metal'],
+                    'product_type': bucket['category']['product_type'],
+                    'product_line': bucket['category'].get('product_line'),
+                    'weight': bucket['category']['weight'],
+                    'year': bucket['category'].get('year'),
+                    'mint': bucket['category'].get('mint'),
+                    'finish': bucket['category'].get('finish'),
+                    'grade': bucket['category'].get('grade'),
+                    'purity': bucket['category'].get('purity'),
+                    'photo_path': bucket['cover_photo_url'],
+                    'quantity': bucket['total_qty'],
+                    'total_price': bucket['total_price'],
+                    'price_per_coin': bucket['avg_price'],
+                    'seller_username': seller_display,
+                    'grading_preference': bucket['grading_preference'],
+                    'listing_ids': [l['listing_id'] for l in bucket['listings']],
+                })
 
-        # Group items by bucket_id (same bucket should appear as one tile)
-        bucket_groups = {}
-        for item in raw_cart_items:
-            bucket_id = item.get('bucket_id') or item.get('category_id')
-            if bucket_id not in bucket_groups:
-                # Initialize the group with first item's info
-                bucket_groups[bucket_id] = {
-                    'metal': item['metal'],
-                    'product_type': item['product_type'],
-                    'product_line': item['product_line'],
-                    'weight': item['weight'],
-                    'year': item['year'],
-                    'mint': item.get('mint'),
-                    'finish': item.get('finish'),
-                    'grade': item.get('grade'),
-                    'purity': item.get('purity'),
-                    'photo_path': item.get('photo_path'),
-                    'quantity': 0,
-                    'total_price': 0,
-                    'price_per_coin': 0,
-                    'sellers': set(),
-                    'listing_ids': [],
-                    'grading_preference': 'NONE',
-                }
+            item_count = summary['item_count']
+            subtotal = summary['subtotal']
+            grading_fee = summary['grading_fee']
+            insurance = round(subtotal * 0.01, 2)
+            cart_total = round(subtotal + insurance + grading_fee, 2)
 
-            group = bucket_groups[bucket_id]
-            group['quantity'] += item['quantity']
-            group['total_price'] += item['total_price']
-            group['sellers'].add(item.get('seller_username', 'Seller'))
-            group['listing_ids'].append(item.get('id') or item.get('listing_id'))
-            # Use first photo if none yet
-            if not group['photo_path'] and item.get('photo_path'):
-                group['photo_path'] = item['photo_path']
-            # Propagate grading_preference: take first non-NONE value across items in group
-            item_grading = item.get('grading_preference') or 'NONE'
-            if item_grading != 'NONE' and group['grading_preference'] == 'NONE':
-                group['grading_preference'] = item_grading
-
-        # Convert groups to list and calculate average price
-        cart_items = []
-        for bucket_id, group in bucket_groups.items():
-            group['price_per_coin'] = group['total_price'] / group['quantity'] if group['quantity'] > 0 else 0
-            # Format sellers display
-            sellers_list = list(group['sellers'])
-            if len(sellers_list) == 1:
-                group['seller_username'] = sellers_list[0]
-            else:
-                group['seller_username'] = f"{len(sellers_list)} sellers"
-            del group['sellers']  # Remove set before passing to template
-            cart_items.append(group)
-
-        if not cart_items:
-            conn.close()
-            flash("Your cart is empty.", "error")
-            return redirect(url_for('buy.view_cart'))
-
-        # Fetch user info for auto-population
+        # Fetch user info for auto-population (shared by both paths)
         user_info = conn.execute('''
             SELECT first_name, last_name, email, phone
             FROM users WHERE id = ?
         ''', (user_id,)).fetchone()
 
         conn.close()
-
-        # Calculate totals
-        item_count = sum(item['quantity'] for item in cart_items)
-        insurance = round(subtotal * 0.01, 2)  # 1% insurance
-
-        # Grading fee: sum only for items that actually have a non-NONE grading preference.
-        # This correctly reflects per-item grading rather than applying a global flag.
-        grading_fee = round(sum(
-            GRADING_FEE_PER_UNIT * item['quantity']
-            for item in cart_items
-            if item.get('grading_preference', 'NONE') not in ('NONE', '', None)
-        ), 2)
-
-        cart_total = round(subtotal + insurance + grading_fee, 2)
 
         return render_template(
             'checkout_page.html',

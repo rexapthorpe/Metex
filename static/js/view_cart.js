@@ -1,12 +1,12 @@
 // static/js/view_cart.js
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize bucket totals from current summary
-  document.querySelectorAll('.summary-total').forEach(el => {
+  // Initialize bucket totals from per-bucket subtotal elements (includes grading fee)
+  document.querySelectorAll('[id^="summary-total-"]').forEach(el => {
     const bucketId = el.id.replace('summary-total-', '');
-    const match = el.textContent.match(/\$([0-9.]+)/);
+    const match = el.textContent.match(/\$([\d,]+\.?\d*)/);
     if (match) {
-      bucketTotals[bucketId] = parseFloat(match[1]);
+      bucketTotals[bucketId] = parseFloat(match[1].replace(/,/g, ''));
     }
   });
 
@@ -118,19 +118,23 @@ const bucketTotals = {};
 // Update quantity both client-side and backend
 function handleQuantityChange(e) {
   const input = e.target;
-  const [, bucketId] = input.id.split('-');
+  // bucket_key may contain underscores (e.g. "42_g0"), so don't just split on '-'
+  const bucketId = input.id.replace('quantity-', '');
+  const qtyGroup = input.closest('.cart-qty');
+  const categoryId = qtyGroup ? qtyGroup.dataset.categoryId : bucketId;
+  const requiresGrading = qtyGroup ? parseInt(qtyGroup.dataset.requiresGrading || '0', 10) : 0;
   let qty = parseInt(input.value, 10);
   if (isNaN(qty) || qty < 1) qty = 1;
   input.value = qty;
 
   // Persist to backend and update UI dynamically
-  fetch(`/cart/update_bucket_quantity/${bucketId}`, {
+  fetch(`/cart/update_bucket_quantity/${categoryId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Requested-With': 'XMLHttpRequest'
     },
-    body: JSON.stringify({ quantity: qty })
+    body: JSON.stringify({ quantity: qty, requires_grading: requiresGrading })
   })
   .then(res => {
     if (!res.ok) throw new Error('Failed to update quantity');
@@ -144,14 +148,26 @@ function handleQuantityChange(e) {
       // Update order summary for this bucket
       const summaryQtyEl = document.getElementById(`summary-qty-${bucketId}`);
       const summaryTotalEl = document.getElementById(`summary-total-${bucketId}`);
+      const gradingFeeEl   = document.getElementById(`summary-grading-fee-${bucketId}`);
+      const gradingLabelEl = document.getElementById(`summary-grading-label-${bucketId}`);
 
       if (summaryQtyEl) {
         summaryQtyEl.textContent = data.quantity;
       }
 
+      // Update grading fee row
+      if (gradingFeeEl) {
+        gradingFeeEl.textContent = formatPrice(data.grading_fee || 0);
+      }
+      if (gradingLabelEl) {
+        gradingLabelEl.textContent = `3rd Party Grading (×${data.quantity})`;
+      }
+
+      // Subtotal = merchandise + grading fee
+      const bucketSubtotal = data.total_price + (data.grading_fee || 0);
       if (summaryTotalEl) {
-        summaryTotalEl.textContent = formatPrice(data.total_price);
-        bucketTotals[bucketId] = data.total_price;
+        summaryTotalEl.textContent = formatPrice(bucketSubtotal);
+        bucketTotals[bucketId] = bucketSubtotal;
       }
 
       // Update tile price display (average price)
@@ -183,16 +199,16 @@ function handleQuantityChange(e) {
 function updateGrandTotal() {
   let grandTotal = 0;
 
-  // Sum all bucket totals
+  // Sum all bucket totals (each already includes grading fee)
   for (const bucketId in bucketTotals) {
     grandTotal += bucketTotals[bucketId];
   }
 
-  // Update the grand total in the order summary
+  // Update Subtotal and Total rows (both show the same grand total)
+  const subtotalEl  = document.getElementById('cart-subtotal');
   const grandTotalEl = document.querySelector('.summary-total .summary-value');
-  if (grandTotalEl) {
-    grandTotalEl.textContent = formatPrice(grandTotal);
-  }
+  if (subtotalEl)   subtotalEl.textContent   = formatPrice(grandTotal);
+  if (grandTotalEl) grandTotalEl.textContent = formatPrice(grandTotal);
 }
 
 /* ---------------------- Helpers for modal content ---------------------- */

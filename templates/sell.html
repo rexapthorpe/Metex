@@ -697,6 +697,15 @@
 (function() {
   'use strict';
 
+  // Returns the three standard photo slots in order, filtering out any that don't exist in DOM.
+  function getStandardSlots() {
+    return [
+      { box: document.getElementById('standardPhotoBox1'), input: document.getElementById('item_photo_1') },
+      { box: document.getElementById('standardPhotoBox2'), input: document.getElementById('item_photo_2') },
+      { box: document.getElementById('standardPhotoBox3'), input: document.getElementById('item_photo_3') },
+    ].filter(function(s) { return s.box && s.input; });
+  }
+
   function setupStandardPhotoBox(boxId, inputId, previewId, clearBtnId) {
     const box = document.getElementById(boxId);
     const input = document.getElementById(inputId);
@@ -705,10 +714,22 @@
 
     if (!box || !input) return;
 
+    // Clicking any photo box fills the lowest empty slot, not necessarily this one.
     box.addEventListener('click', function(e) {
-      if (!e.target.closest('.close-button') && !box.classList.contains('has-image')) {
-        input.click();
+      if (e.target.closest('.close-button')) return;
+      var slots = getStandardSlots();
+      var emptySlot = null;
+      for (var i = 0; i < slots.length; i++) {
+        if (!slots[i].box.classList.contains('has-image')) {
+          emptySlot = slots[i];
+          break;
+        }
       }
+      if (!emptySlot) {
+        alert('Maximum 3 photos. Remove a photo first to add a new one.');
+        return;
+      }
+      emptySlot.input.click();
     });
 
     input.addEventListener('change', function(e) {

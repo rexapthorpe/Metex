@@ -129,6 +129,8 @@
               type="button"
               class="listing-footer-btn listing-footer-btn--specs"
               onclick="openListingSpecsModal(this)"
+              data-listing-id="{{ listing.listing_id }}"
+              data-isolated-type="{{ listing.isolated_type or '' }}"
               data-metal="{{ listing.metal or '' }}"
               data-product-type="{{ listing.product_type or '' }}"
               data-weight="{{ listing.weight or '' }}"
@@ -207,6 +209,13 @@ window.filterListings = filterListings;
 // ===== Listing Specs Modal =====
 function openListingSpecsModal(btn) {
   const d = btn.dataset;
+
+  // Set listings: use the full listing_items_modal which fetches set items and has arrow nav
+  if (d.isolatedType === 'set' && d.listingId && typeof openListingItemsModal === 'function') {
+    openListingItemsModal(parseInt(d.listingId, 10));
+    return;
+  }
+
   const modal = document.getElementById('listingSpecsModal');
   const subtitle = document.getElementById('lsm-subtitle');
   const body = document.getElementById('lsm-body');

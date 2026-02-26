@@ -473,8 +473,8 @@ def get_listing_details(listing_id):
             FROM listings l
             JOIN categories c ON l.category_id = c.id
             LEFT JOIN listing_photos lp ON lp.listing_id = l.id
-            WHERE l.id = ? AND l.seller_id = ?
-        ''', (listing_id, user_id)).fetchone()
+            WHERE l.id = ?
+        ''', (listing_id,)).fetchone()
 
         if not listing:
             conn.close()

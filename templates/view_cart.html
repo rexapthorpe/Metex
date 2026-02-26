@@ -57,6 +57,12 @@
                 {% if bucket.category.purity %} • {{ bucket.category.purity }}{% endif %}
                 {% if bucket.category.year %} • {{ bucket.category.year }}{% endif %}
               </div>
+              {% if bucket.requires_grading %}
+              <div class="cart-grading-badge">
+                <i class="fa-solid fa-certificate"></i> 3rd-party grading
+                <span style="font-weight:400; opacity:0.85;">+${{ '{:,.2f}'.format(bucket.grading_fee) }}</span>
+              </div>
+              {% endif %}
               <div class="cart-item-seller">
                 Sold by
                 {% if bucket.listings %}
@@ -81,7 +87,9 @@
               <div class="cart-qty"
                    role="group"
                    aria-label="Quantity"
-                   data-bucket-id="{{ bucket_id }}">
+                   data-bucket-id="{{ bucket_id }}"
+                   data-category-id="{{ bucket.category_id }}"
+                   data-requires-grading="{{ '1' if bucket.requires_grading else '0' }}">
                 <button class="cart-qty__btn cart-qty__minus" type="button" aria-label="Decrease quantity">−</button>
                 <input
                   class="cart-qty__value quantity-input"
@@ -99,42 +107,39 @@
             </div>
           </div>
 
-          <!-- View Details expand -->
           <div class="cart-item-footer">
-            <button class="cart-view-details-btn" onclick="this.closest('.cart-item-card').querySelector('.cart-item-details').classList.toggle('hidden')">
-              <i class="fa-solid fa-chevron-down" style="font-size:10px;"></i> View details
-            </button>
             <div class="cart-footer-actions">
-              <button class="cart-footer-btn" onclick="openCartSellerPopup({{ bucket_id }})">
+              <button class="cart-footer-btn" onclick="openCartSellerPopup({{ bucket.category_id }})">
                 <i class="fa-solid fa-user"></i> Sellers
               </button>
-              <button class="cart-footer-btn" onclick="openPriceBreakdown({{ bucket_id }})">
+              <button class="cart-footer-btn" onclick="openPriceBreakdown({{ bucket.category_id }})">
                 <i class="fa-solid fa-list"></i> Items
               </button>
-              <button class="cart-footer-btn cart-footer-btn--remove" onclick="openRemoveItemModal({{ bucket_id }})">
+              <button class="cart-footer-btn cart-footer-btn--remove" onclick="openRemoveItemModal({{ bucket.category_id }})">
                 <i class="fa-solid fa-trash"></i> Remove
               </button>
             </div>
           </div>
+        </div>
+        {% endfor %}
 
-          <!-- Expandable details -->
-          <div class="cart-item-details hidden">
-            <div class="cart-details-grid">
-              <div><span>Metal:</span> {{ bucket.category.metal }}</div>
-              <div><span>Type:</span> {{ bucket.category.product_type }}</div>
-              <div><span>Weight:</span> {{ bucket.category.weight }}</div>
-              <div><span>Purity:</span> {{ bucket.category.purity or '—' }}</div>
-              <div><span>Mint:</span> {{ bucket.category.mint }}</div>
-              <div><span>Year:</span> {{ bucket.category.year }}</div>
-              <div><span>Finish:</span> {{ bucket.category.finish }}</div>
-              {% if bucket.listings %}
-                {% set fl = bucket.listings[0] %}
-                <div><span>Graded:</span> {% if fl.graded %}Yes ({{ fl.grading_service }}){% else %}No{% endif %}</div>
-              {% endif %}
+        <!-- Trust Badges -->
+        <div class="cart-trust-badges">
+          <div class="cart-trust-badge">
+            <i class="fa-solid fa-shield-halved"></i>
+            <div>
+              <div class="cart-trust-title">Buyer Protection</div>
+              <div class="cart-trust-sub">100% Guaranteed</div>
+            </div>
+          </div>
+          <div class="cart-trust-badge">
+            <i class="fa-solid fa-truck-fast"></i>
+            <div>
+              <div class="cart-trust-title">Secure Shipping</div>
+              <div class="cart-trust-sub">Insured Delivery</div>
             </div>
           </div>
         </div>
-        {% endfor %}
       {% else %}
         <div class="empty-cart-container">
           <p class="empty-cart-message">Your cart is empty. Let's find some items!</p>
@@ -160,17 +165,17 @@
           </div>
           <div class="summary-line">
             <span class="summary-label">Average Price:</span>
-            <span class="summary-value">${{ bucket.avg_price|commas }}</span>
+            <span class="summary-value">${{ '{:,.2f}'.format(bucket.avg_price) }}</span>
           </div>
-          {% if third_party_grading %}
+          {% if bucket.requires_grading %}
           <div class="summary-line">
-            <span class="summary-label">3rd Party Grading (×{{ bucket.total_qty }})</span>
-            <span class="summary-value">${{ '{:,.2f}'.format(grading_fee_per_unit * bucket.total_qty) }}</span>
+            <span class="summary-label" id="summary-grading-label-{{ bucket_id }}">3rd Party Grading (×{{ bucket.total_qty }})</span>
+            <span class="summary-value" id="summary-grading-fee-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.grading_fee) }}</span>
           </div>
           {% endif %}
           <div class="summary-line">
             <span class="summary-label">Subtotal:</span>
-            <span class="summary-value" id="summary-total-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price + (grading_fee_per_unit * bucket.total_qty if third_party_grading else 0)) }}</span>
+            <span class="summary-value" id="summary-total-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price + bucket.grading_fee) }}</span>
           </div>
         </div>
       {% endfor %}
@@ -180,7 +185,7 @@
       <!-- Fee rows -->
       <div class="summary-line">
         <span class="summary-label">Subtotal</span>
-        <span class="summary-value">${{ '{:,.2f}'.format(grand_total) }}</span>
+        <span class="summary-value" id="cart-subtotal">${{ '{:,.2f}'.format(grand_total) }}</span>
       </div>
       <div class="summary-line">
         <span class="summary-label">Tax</span>

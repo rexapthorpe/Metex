@@ -405,6 +405,7 @@ class SchemaManager:
 
         # Ensure all columns exist
         self.add_column('cart', 'third_party_grading_requested', 'INTEGER DEFAULT 0')
+        self.add_column('cart', 'grading_preference', "TEXT DEFAULT 'NONE'")
 
     def create_messages_table(self):
         """Create the messages table"""

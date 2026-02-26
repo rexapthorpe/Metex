@@ -30,8 +30,9 @@ main {
   margin-right: 0;
 }
 
-/* Draws the sidebar divider line from top to bottom of the layout,
-   guaranteed to fill the full height regardless of sidebar div height */
+/* Vertical divider lines — position:absolute so they always reach the footer.
+   z-index must be above sidebar (100) and secondary sidebar (99) so lines
+   aren't hidden by their white backgrounds. */
 .account-layout::before {
   content: '';
   position: absolute;
@@ -41,6 +42,19 @@ main {
   width: 1px;
   background-color: #e2e8f0;
   pointer-events: none;
+  z-index: 200;
+}
+
+.account-layout.details-nav-open::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 510px; /* 260px sidebar + 250px sub-nav */
+  width: 1px;
+  background-color: #e2e8f0;
+  pointer-events: none;
+  z-index: 200;
 }
 
 /* ===== Main Sidebar ===== */
@@ -65,12 +79,13 @@ main {
   padding: 24px 0 16px;
   display: flex;
   flex-direction: column;
+  background-color: #ffffff;
 }
 
 /* ===== Secondary Sidebar (Account Details) ===== */
 .account-secondary-sidebar {
   width: 250px;
-  background-color: #f7f7f7;
+  background-color: #ffffff;
   padding-top: 24px;
   padding-bottom: 20px;
   position: sticky;

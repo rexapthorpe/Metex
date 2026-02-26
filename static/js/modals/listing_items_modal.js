@@ -162,18 +162,14 @@ function renderSetListing() {
       ? '--'
       : '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // Build navigation tabs
-  const navTabsHTML = setItems.map((setItem, idx) => {
-    const isActive = idx === currentSetItemIndex;
-    const itemLabel = setItem.item_title || `Item ${idx + 1}`;
-    return `
-      <button class="lim-set-nav-tab ${isActive ? 'active' : ''}"
-              onclick="goToSetItem(${idx})"
-              title="${esc(itemLabel)}">
-        ${esc(itemLabel)}
-      </button>
-    `;
-  }).join('');
+  // Build arrow navigation (prev / counter / next)
+  const navHTML = setItems.length > 1 ? `
+    <div class="lim-set-nav">
+      <button class="lim-nav-arrow" onclick="prevSetItem()" ${currentSetItemIndex === 0 ? 'disabled' : ''} aria-label="Previous item">&#8592;</button>
+      <span class="lim-nav-counter">Item ${currentSetItemIndex + 1} of ${setItems.length}</span>
+      <button class="lim-nav-arrow" onclick="nextSetItem()" ${currentSetItemIndex === setItems.length - 1 ? 'disabled' : ''} aria-label="Next item">&#8594;</button>
+    </div>
+  ` : '';
 
   // Item details from the current set item
   const metal = item.metal ?? listingData.metal ?? null;
@@ -276,11 +272,7 @@ function renderSetListing() {
 
   // Body content with nav bar
   body.innerHTML = `
-    <div class="lim-set-nav">
-      <div class="lim-set-nav-tabs">
-        ${navTabsHTML}
-      </div>
-    </div>
+    ${navHTML}
 
     <div class="lim-item-card">
       <div class="lim-item-image">

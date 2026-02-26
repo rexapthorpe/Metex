@@ -43,6 +43,12 @@
                 {% if bucket.category.purity %} • {{ bucket.category.purity }}{% endif %}
                 {% if bucket.category.year %} • {{ bucket.category.year }}{% endif %}
               </div>
+              {% if bucket.requires_grading %}
+              <div class="cart-grading-badge">
+                <i class="fa-solid fa-certificate"></i> 3rd-party grading
+                <span style="font-weight:400; opacity:0.85;">+${{ '{:,.2f}'.format(bucket.grading_fee) }}</span>
+              </div>
+              {% endif %}
               <div class="cart-item-seller">
                 Sold by
                 {% if bucket.listings %}
@@ -67,7 +73,9 @@
               <div class="cart-qty"
                    role="group"
                    aria-label="Quantity"
-                   data-bucket-id="{{ bucket_id }}">
+                   data-bucket-id="{{ bucket_id }}"
+                   data-category-id="{{ bucket.category_id }}"
+                   data-requires-grading="{{ '1' if bucket.requires_grading else '0' }}">
                 <button class="cart-qty__btn cart-qty__minus" type="button" aria-label="Decrease quantity">−</button>
                 <input
                   class="cart-qty__value quantity-input"
@@ -85,38 +93,17 @@
             </div>
           </div>
 
-          <!-- View Details expand -->
           <div class="cart-item-footer">
-            <button class="cart-view-details-btn" onclick="this.closest('.cart-item-card').querySelector('.cart-item-details').classList.toggle('hidden')">
-              <i class="fa-solid fa-chevron-down" style="font-size:10px;"></i> View details
-            </button>
             <div class="cart-footer-actions">
-              <button class="cart-footer-btn" onclick="openCartSellerPopup({{ bucket_id }})">
+              <button class="cart-footer-btn" onclick="openCartSellerPopup({{ bucket.category_id }})">
                 <i class="fa-solid fa-user"></i> Sellers
               </button>
-              <button class="cart-footer-btn" onclick="openPriceBreakdown({{ bucket_id }})">
+              <button class="cart-footer-btn" onclick="openPriceBreakdown({{ bucket.category_id }})">
                 <i class="fa-solid fa-list"></i> Items
               </button>
-              <button class="cart-footer-btn cart-footer-btn--remove" onclick="openRemoveItemModal({{ bucket_id }})">
+              <button class="cart-footer-btn cart-footer-btn--remove" onclick="openRemoveItemModal({{ bucket.category_id }})">
                 <i class="fa-solid fa-trash"></i> Remove
               </button>
-            </div>
-          </div>
-
-          <!-- Expandable details -->
-          <div class="cart-item-details hidden">
-            <div class="cart-details-grid">
-              <div><span>Metal:</span> {{ bucket.category.metal }}</div>
-              <div><span>Type:</span> {{ bucket.category.product_type }}</div>
-              <div><span>Weight:</span> {{ bucket.category.weight }}</div>
-              <div><span>Purity:</span> {{ bucket.category.purity or '—' }}</div>
-              <div><span>Mint:</span> {{ bucket.category.mint }}</div>
-              <div><span>Year:</span> {{ bucket.category.year }}</div>
-              <div><span>Finish:</span> {{ bucket.category.finish }}</div>
-              {% if bucket.listings %}
-                {% set fl = bucket.listings[0] %}
-                <div><span>Graded:</span> {% if fl.graded %}Yes ({{ fl.grading_service }}){% else %}No{% endif %}</div>
-              {% endif %}
             </div>
           </div>
         </div>
@@ -138,13 +125,7 @@
             <div class="cart-trust-sub">Insured Delivery</div>
           </div>
         </div>
-        <div class="cart-trust-badge">
-          <i class="fa-regular fa-clock"></i>
-          <div>
-            <div class="cart-trust-title">Price Lock</div>
-            <div class="cart-trust-sub">30 min guarantee</div>
-          </div>
-        </div>
+
       </div>
     {% else %}
       <div class="empty-cart-container-car-tab">
@@ -177,9 +158,15 @@
           <span class="summary-label">Average Price:</span>
           <span class="summary-value">${{ '{:,.2f}'.format(bucket.avg_price) }}</span>
         </div>
+        {% if bucket.requires_grading %}
+        <div class="summary-line">
+          <span class="summary-label" id="summary-grading-label-{{ bucket_id }}">3rd Party Grading (×{{ bucket.total_qty }})</span>
+          <span class="summary-value" id="summary-grading-fee-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.grading_fee) }}</span>
+        </div>
+        {% endif %}
         <div class="summary-line">
           <span class="summary-label">Subtotal:</span>
-          <span class="summary-value" id="summary-subtotal-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price) }}</span>
+          <span class="summary-value" id="summary-subtotal-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price + bucket.grading_fee) }}</span>
         </div>
       </div>
     {% endfor %}
@@ -189,7 +176,7 @@
     <!-- Fee rows -->
     <div class="summary-line">
       <span class="summary-label">Subtotal</span>
-      <span class="summary-value" id="cart-subtotal">${{ '{:,.2f}'.format(cart_total) }}</span>
+      <span class="summary-value" id="cart-subtotal">${{ '{:,.2f}'.format(grand_total) }}</span>
     </div>
     <div class="summary-line">
       <span class="summary-label">Tax</span>
@@ -208,7 +195,7 @@
 
     <div class="summary-total-row">
       <span class="summary-total-label">Total</span>
-      <span class="summary-total-value" id="cart-total-all">${{ '{:,.2f}'.format(cart_total) }}</span>
+      <span class="summary-total-value" id="cart-total-all">${{ '{:,.2f}'.format(grand_total) }}</span>
     </div>
 
     {% if session.get('user_id') %}

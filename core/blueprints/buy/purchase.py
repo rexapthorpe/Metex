@@ -29,13 +29,10 @@ def auto_fill_bucket_purchase(bucket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # TPG (Third-Party Grading) service add-on
-    third_party_grading = int(request.form.get('third_party_grading', 0))
-
-    # Grading preference (buyer-selected: NONE, ANY, PCGS, NGC)
-    grading_preference = (request.form.get('grading_preference', 'NONE') or 'NONE').strip()
-    if grading_preference != 'NONE':
-        third_party_grading = 1  # Grading pref implies TPG
+    # TPG (Third-Party Grading) service add-on — canonical boolean source of truth.
+    third_party_grading = int(request.form.get('third_party_grading', 0) or 0)
+    # grading_preference is a derived text artifact; always derive it from the boolean.
+    grading_preference = 'ANY' if third_party_grading else 'NONE'
 
     # Random Year mode and packaging filter
     random_year = request.form.get('random_year') == '1'
@@ -135,18 +132,18 @@ def auto_fill_bucket_purchase(bucket_id):
         if user_id:
             in_cart_row = cursor.execute('''
                 SELECT COALESCE(SUM(cart.quantity), 0) AS in_cart,
-                       MAX(cart.grading_preference) AS current_grading
+                       MAX(cart.third_party_grading_requested) AS current_tpg
                 FROM cart
                 JOIN listings ON cart.listing_id = listings.id
                 JOIN categories ON listings.category_id = categories.id
                 WHERE cart.user_id = ? AND categories.bucket_id = ?
             ''', (user_id, bucket_id)).fetchone()
             in_cart_qty = in_cart_row['in_cart'] if in_cart_row else 0
-            current_grading = in_cart_row['current_grading'] or 'NONE'
+            in_cart_tpg = int(in_cart_row['current_tpg'] or 0)
         else:
             guest_items = session.get('guest_cart', [])
             in_cart_qty = 0
-            current_grading = 'NONE'
+            in_cart_tpg = 0
             if guest_items:
                 listing_ids = [it['listing_id'] for it in guest_items]
                 placeholders = ','.join('?' * len(listing_ids))
@@ -159,7 +156,7 @@ def auto_fill_bucket_purchase(bucket_id):
                 for it in guest_items:
                     if bmap.get(it['listing_id']) == bucket_id:
                         in_cart_qty += it['quantity']
-                        current_grading = it.get('grading_preference', 'NONE') or 'NONE'
+                        in_cart_tpg = int(it.get('third_party_grading_requested', 0) or 0)
 
         if available_qty > 0 and in_cart_qty >= available_qty:
             conn.close()
@@ -169,8 +166,8 @@ def auto_fill_bucket_purchase(bucket_id):
                 'message': 'You already have the maximum available quantity from this bucket in your cart.',
                 'in_cart_qty': in_cart_qty,
                 'available_qty': available_qty,
-                'in_cart_grading': current_grading,
-                'new_grading': grading_preference,
+                'in_cart_tpg': in_cart_tpg,
+                'new_tpg': third_party_grading,
             })
     # ===== END MAX-REACHED CHECK =====
 
@@ -194,17 +191,18 @@ def auto_fill_bucket_purchase(bucket_id):
 
         if user_id:
             # Authenticated user: update DB cart
+            # TPG is part of line-item identity: same listing with different grading = separate rows.
             existing = cursor.execute('''
-                SELECT quantity FROM cart
-                WHERE user_id = ? AND listing_id = ?
-            ''', (user_id, listing['id'])).fetchone()
+                SELECT id, quantity FROM cart
+                WHERE user_id = ? AND listing_id = ? AND third_party_grading_requested = ?
+            ''', (user_id, listing['id'], third_party_grading)).fetchone()
 
             if existing:
                 new_qty = existing['quantity'] + to_add
-                cursor.execute('''
-                    UPDATE cart SET quantity = ?, third_party_grading_requested = ?, grading_preference = ?
-                    WHERE user_id = ? AND listing_id = ?
-                ''', (new_qty, third_party_grading, grading_preference, user_id, listing['id']))
+                cursor.execute(
+                    'UPDATE cart SET quantity = ? WHERE id = ?',
+                    (new_qty, existing['id'])
+                )
                 print(f"[DEBUG] Updated cart: user_id={user_id}, listing_id={listing['id']}, new_qty={new_qty}")
             else:
                 cursor.execute('''
@@ -214,11 +212,11 @@ def auto_fill_bucket_purchase(bucket_id):
                 print(f"[DEBUG] Inserted into cart: user_id={user_id}, listing_id={listing['id']}, quantity={to_add}")
         else:
             # Guest user: use session cart
+            # TPG is part of line-item identity for guest carts too.
             for item in guest_cart:
-                if item['listing_id'] == listing['id']:
+                if (item['listing_id'] == listing['id'] and
+                        int(item.get('third_party_grading_requested', 0)) == third_party_grading):
                     item['quantity'] += to_add
-                    item['third_party_grading_requested'] = third_party_grading
-                    item['grading_preference'] = grading_preference
                     break
             else:
                 guest_cart.append({
@@ -245,6 +243,12 @@ def auto_fill_bucket_purchase(bucket_id):
 
     conn.commit()
     conn.close()
+
+    # Invalidate any stale direct-purchase checkout session snapshot so the next
+    # visit to /checkout will re-read from the live canonical cart (build_cart_summary).
+    if total_filled > 0:
+        session.pop('checkout_items', None)
+        session.pop('checkout_tpg', None)
 
     if total_filled == 0:
         flash("No listings available to fulfill your request.", "error")
@@ -283,8 +287,10 @@ def replace_cart_grading(bucket_id):
     """
     user_id = session.get('user_id')
     data = request.get_json(silent=True) or {}
-    new_grading = (data.get('grading_preference') or request.form.get('grading_preference', 'NONE') or 'NONE').strip()
-    new_tpg = 0 if new_grading == 'NONE' else 1
+    # Canonical boolean: third_party_grading_requested (0/1 int).
+    new_tpg = int(data.get('third_party_grading_requested', 0) or 0)
+    # grading_preference is derived from the boolean for DB writes (backward compat artifact).
+    new_grading = 'ANY' if new_tpg else 'NONE'
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -298,6 +304,36 @@ def replace_cart_grading(bucket_id):
                 WHERE c.bucket_id = ?
             )
         ''', (new_grading, new_tpg, user_id, bucket_id))
+
+        # Coalesce any duplicate (user_id, listing_id, tpg) rows the UPDATE may have created.
+        # This happens when the user had both TPG=0 and TPG=1 rows for the same listing and
+        # Replace sets them all to the same value.
+        dups = cursor.execute('''
+            SELECT listing_id, SUM(quantity) AS total_qty
+            FROM cart
+            WHERE user_id = ?
+              AND listing_id IN (
+                  SELECT l.id FROM listings l
+                  JOIN categories c ON l.category_id = c.id
+                  WHERE c.bucket_id = ?
+              )
+              AND third_party_grading_requested = ?
+            GROUP BY listing_id
+            HAVING COUNT(*) > 1
+        ''', (user_id, bucket_id, new_tpg)).fetchall()
+
+        for dup in dups:
+            lid, total_qty = dup['listing_id'], dup['total_qty']
+            cursor.execute(
+                'DELETE FROM cart WHERE user_id = ? AND listing_id = ? AND third_party_grading_requested = ?',
+                (user_id, lid, new_tpg)
+            )
+            cursor.execute(
+                'INSERT INTO cart (user_id, listing_id, quantity, third_party_grading_requested, grading_preference) '
+                'VALUES (?, ?, ?, ?, ?)',
+                (user_id, lid, total_qty, new_tpg, new_grading)
+            )
+
         conn.commit()
     else:
         guest_cart = session.get('guest_cart', [])
@@ -321,6 +357,11 @@ def replace_cart_grading(bucket_id):
                 session.modified = True
 
     conn.close()
+
+    # Invalidate any stale direct-purchase checkout session snapshot so the next
+    # visit to /checkout will re-read from the live canonical cart (build_cart_summary).
+    session.pop('checkout_items', None)
+    session.pop('checkout_tpg', None)
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({'status': 'OK', 'success': True, 'grading_preference': new_grading})

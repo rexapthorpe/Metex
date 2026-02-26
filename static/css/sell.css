@@ -944,6 +944,21 @@
   cursor: not-allowed;
 }
 
+/* "Add Item to Set" buttons — blue when item specs + photo are complete */
+#addSetItemBtn.set-item-ready,
+#sidebarAddSetItemBtn.set-item-ready {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+#addSetItemBtn.set-item-ready:hover,
+#sidebarAddSetItemBtn.set-item-ready:hover {
+  background: #1d4ed8;
+}
+
 /* ===== DARK MODE ===== */
 body.dark-mode .sell-header {
   color: var(--text-primary);

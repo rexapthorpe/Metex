@@ -4,6 +4,10 @@ let orderItemsData = [];
 let currentItemIndex = 0;
 let currentOrderId = null;
 
+// Set item sub-navigation state (for when an order item is a set listing)
+let _oimSetSubItems = [];
+let _oimSetSubIndex = 0;
+
 let orderItemsOptions = {
   context: 'orders',   // 'orders' | 'cart'
   onRemove: null
@@ -92,11 +96,90 @@ function openCartItemsPopup(items, options = {}) {
 }
 
 function prevOrderItem() {
-  if (currentItemIndex > 0) { currentItemIndex--; renderOrderItem(); }
+  if (currentItemIndex > 0) { currentItemIndex--; _oimSetSubItems = []; _oimSetSubIndex = 0; renderOrderItem(); }
 }
 
 function nextOrderItem() {
-  if (currentItemIndex < orderItemsData.length - 1) { currentItemIndex++; renderOrderItem(); }
+  if (currentItemIndex < orderItemsData.length - 1) { currentItemIndex++; _oimSetSubItems = []; _oimSetSubIndex = 0; renderOrderItem(); }
+}
+
+// ---- Set item sub-navigation (for set listings within an order) ----
+
+function _oimPrevSetSubItem() {
+  if (_oimSetSubIndex > 0) { _oimSetSubIndex--; _oimRenderSetSubItem(); }
+}
+
+function _oimNextSetSubItem() {
+  if (_oimSetSubIndex < _oimSetSubItems.length - 1) { _oimSetSubIndex++; _oimRenderSetSubItem(); }
+}
+
+function _oimLoadSetSubItems(listingId) {
+  const grid = document.getElementById('oim-set-specs-grid');
+  if (grid) grid.innerHTML = '<span style="color:#9ca3af;font-size:0.85rem">Loading set items\u2026</span>';
+
+  fetch(`/api/listings/${listingId}/details`)
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(data => {
+      _oimSetSubItems = data.set_items || [];
+      _oimSetSubIndex = 0;
+      _oimRenderSetSubItem();
+    })
+    .catch(() => {
+      const g = document.getElementById('oim-set-specs-grid');
+      if (g) g.innerHTML = '<span style="color:#9ca3af;font-size:0.85rem">Could not load set items.</span>';
+    });
+}
+
+function _oimRenderSetSubItem() {
+  const item = _oimSetSubItems[_oimSetSubIndex];
+  if (!item) return;
+
+  // Update sub-nav arrows
+  const subnav = document.getElementById('oim-set-subnav');
+  if (subnav) {
+    subnav.style.display = _oimSetSubItems.length > 1 ? 'flex' : 'none';
+    subnav.innerHTML = _oimSetSubItems.length > 1 ? `
+      <button class="oim-nav-arrow" ${_oimSetSubIndex === 0 ? 'disabled' : ''} onclick="_oimPrevSetSubItem()">&#8592;</button>
+      <span class="oim-nav-counter">Set Item ${_oimSetSubIndex + 1} of ${_oimSetSubItems.length}</span>
+      <button class="oim-nav-arrow" ${_oimSetSubIndex === _oimSetSubItems.length - 1 ? 'disabled' : ''} onclick="_oimNextSetSubItem()">&#8594;</button>
+    ` : '';
+  }
+
+  // Build specs grid from set item data
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+  const specRow = (icon, label, value) => {
+    if (value === null || value === undefined || String(value).trim() === '') return '';
+    return `<div class="oim-spec-item">
+      <span class="oim-spec-icon">${icon}</span>
+      <span class="oim-spec-label">${label}:</span>
+      <span class="oim-spec-value">${esc(value)}</span>
+    </div>`;
+  };
+  const purityRaw = item.purity;
+  const purityFmt = (() => {
+    if (purityRaw == null || purityRaw === '') return null;
+    const n = Number(purityRaw);
+    return Number.isNaN(n) ? String(purityRaw) : '.' + String(n).replace(/^0\./, '').replace('.', '');
+  })();
+
+  const specsHtml = [
+    specRow('<i class="fa-solid fa-gem"></i>',                'Metal',        item.metal),
+    specRow('<i class="fa-regular fa-calendar"></i>',         'Year',         item.year),
+    specRow('<i class="fa-solid fa-coins"></i>',              'Product Line', item.product_line),
+    specRow('<i class="fa-solid fa-building-columns"></i>',   'Mint',         item.mint),
+    specRow('<i class="fa-solid fa-tag"></i>',                'Type',         item.product_type),
+    specRow('<i class="fa-solid fa-layer-group"></i>',        'Purity',       purityFmt),
+    specRow('<i class="fa-solid fa-scale-balanced"></i>',     'Weight',       item.weight),
+    specRow('<i class="fa-solid fa-wand-magic-sparkles"></i>','Finish',       item.finish),
+    specRow('<i class="fa-solid fa-box"></i>',                'Packaging',    item.packaging_type),
+    ...(item.graded ? [specRow('<i class="fa-solid fa-certificate"></i>', 'Grading', item.grading_service)] : []),
+    ...(item.condition_notes ? [specRow('<i class="fa-solid fa-info-circle"></i>', 'Condition', item.condition_notes)] : []),
+  ].filter(Boolean).join('');
+
+  const grid = document.getElementById('oim-set-specs-grid');
+  if (grid) grid.innerHTML = specsHtml || '<span style="color:#9ca3af;font-size:0.85rem">No specifications available</span>';
 }
 
 function renderOrderItem() {
@@ -243,6 +326,29 @@ function renderOrderItem() {
     ? `<button class="order-items-remove-btn" type="button">Remove Item</button>`
     : '';
 
+  // Detect set listing for sub-navigation
+  const isSetListing = item.isolated_type === 'set';
+  const setListingId = item.listing_id ?? (item.items && item.items[0] ? item.items[0].listing_id : null);
+
+  const specsSection = isSetListing ? `
+    <div class="oim-specs-section">
+      <div class="oim-set-title-row">
+        <span class="oim-specs-title">Set Items</span>
+        <div class="oim-set-subnav" id="oim-set-subnav" style="display:none;"></div>
+      </div>
+      <div class="oim-specs-grid" id="oim-set-specs-grid">
+        <span style="color:#9ca3af;font-size:0.85rem">Loading\u2026</span>
+      </div>
+    </div>
+  ` : `
+    <div class="oim-specs-section">
+      <div class="oim-specs-title">Specifications</div>
+      <div class="oim-specs-grid">
+        ${specsGrid || `<span style="color:#9ca3af;font-size:0.85rem">No specifications available</span>`}
+      </div>
+    </div>
+  `;
+
   const body = document.getElementById('orderItemsModalContent');
   if (!body) return;
 
@@ -263,12 +369,7 @@ function renderOrderItem() {
       </div>
     </div>
 
-    <div class="oim-specs-section">
-      <div class="oim-specs-title">Specifications</div>
-      <div class="oim-specs-grid">
-        ${specsGrid || `<span style="color:#9ca3af;font-size:0.85rem">No specifications available</span>`}
-      </div>
-    </div>
+    ${specsSection}
 
     <hr class="oim-summary-divider">
 
@@ -297,6 +398,11 @@ function renderOrderItem() {
       btn.addEventListener('click', () => orderItemsOptions.onRemove(item, currentItemIndex));
     }
   }
+
+  // Async load set items for set listings
+  if (isSetListing && setListingId) {
+    _oimLoadSetSubItems(setListingId);
+  }
 }
 
 // Expose globals
@@ -305,3 +411,5 @@ window.openCartItemsPopup   = openCartItemsPopup;
 window.prevOrderItem        = prevOrderItem;
 window.nextOrderItem        = nextOrderItem;
 window.closeOrderItemsPopup = closeOrderItemsPopup;
+window._oimPrevSetSubItem   = _oimPrevSetSubItem;
+window._oimNextSetSubItem   = _oimNextSetSubItem;

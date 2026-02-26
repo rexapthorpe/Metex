@@ -4,6 +4,10 @@ let priceData = [];
 let priceIndex = 0;
 let priceBucketId = null; // track which bucket the modal is showing
 
+// Set item sub-navigation state (for when a cart listing is a set type)
+let _pbSetSubItems = [];
+let _pbSetSubIndex = 0;
+
 function showCartItemsModal() {
   const modal = document.getElementById('priceBreakdownModal');
   if (!modal) return;
@@ -78,6 +82,7 @@ function openPriceBreakdown(bucketId) {
 function prevPriceListing() {
   if (priceIndex > 0) {
     priceIndex--;
+    _pbSetSubItems = []; _pbSetSubIndex = 0;
     renderPriceEntry();
   }
 }
@@ -85,8 +90,86 @@ function prevPriceListing() {
 function nextPriceListing() {
   if (priceIndex < priceData.length - 1) {
     priceIndex++;
+    _pbSetSubItems = []; _pbSetSubIndex = 0;
     renderPriceEntry();
   }
+}
+
+// ---- Set item sub-navigation (for set listings in cart) ----
+
+function _pbPrevSetSubItem() {
+  if (_pbSetSubIndex > 0) { _pbSetSubIndex--; _pbRenderSetSubItem(); }
+}
+
+function _pbNextSetSubItem() {
+  if (_pbSetSubIndex < _pbSetSubItems.length - 1) { _pbSetSubIndex++; _pbRenderSetSubItem(); }
+}
+
+function _pbLoadSetSubItems(listingId) {
+  const grid = document.getElementById('pb-set-specs-grid');
+  if (grid) grid.innerHTML = '<span style="color:#9ca3af;font-size:0.85rem">Loading set items\u2026</span>';
+
+  fetch(`/api/listings/${listingId}/details`)
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(data => {
+      _pbSetSubItems = data.set_items || [];
+      _pbSetSubIndex = 0;
+      _pbRenderSetSubItem();
+    })
+    .catch(() => {
+      const g = document.getElementById('pb-set-specs-grid');
+      if (g) g.innerHTML = '<span style="color:#9ca3af;font-size:0.85rem">Could not load set items.</span>';
+    });
+}
+
+function _pbRenderSetSubItem() {
+  const item = _pbSetSubItems[_pbSetSubIndex];
+  if (!item) return;
+
+  const subnav = document.getElementById('pb-set-subnav');
+  if (subnav) {
+    subnav.style.display = _pbSetSubItems.length > 1 ? 'flex' : 'none';
+    subnav.innerHTML = _pbSetSubItems.length > 1 ? `
+      <button class="oim-nav-arrow" ${_pbSetSubIndex === 0 ? 'disabled' : ''} onclick="_pbPrevSetSubItem()">&#8592;</button>
+      <span class="oim-nav-counter">Set Item ${_pbSetSubIndex + 1} of ${_pbSetSubItems.length}</span>
+      <button class="oim-nav-arrow" ${_pbSetSubIndex === _pbSetSubItems.length - 1 ? 'disabled' : ''} onclick="_pbNextSetSubItem()">&#8594;</button>
+    ` : '';
+  }
+
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+  const specRow = (icon, label, value) => {
+    if (value === null || value === undefined || String(value).trim() === '') return '';
+    return `<div class="oim-spec-item">
+      <span class="oim-spec-icon">${icon}</span>
+      <span class="oim-spec-label">${label}:</span>
+      <span class="oim-spec-value">${esc(value)}</span>
+    </div>`;
+  };
+  const purityRaw = item.purity;
+  const purityFmt = (() => {
+    if (purityRaw == null || purityRaw === '') return null;
+    const n = Number(purityRaw);
+    return Number.isNaN(n) ? String(purityRaw) : '.' + String(n).replace(/^0\./, '').replace('.', '');
+  })();
+
+  const specsHtml = [
+    specRow('<i class="fa-solid fa-gem"></i>',                'Metal',        item.metal),
+    specRow('<i class="fa-regular fa-calendar"></i>',         'Year',         item.year),
+    specRow('<i class="fa-solid fa-coins"></i>',              'Product Line', item.product_line),
+    specRow('<i class="fa-solid fa-building-columns"></i>',   'Mint',         item.mint),
+    specRow('<i class="fa-solid fa-tag"></i>',                'Type',         item.product_type),
+    specRow('<i class="fa-solid fa-layer-group"></i>',        'Purity',       purityFmt),
+    specRow('<i class="fa-solid fa-scale-balanced"></i>',     'Weight',       item.weight),
+    specRow('<i class="fa-solid fa-wand-magic-sparkles"></i>','Finish',       item.finish),
+    specRow('<i class="fa-solid fa-box"></i>',                'Packaging',    item.packaging_type),
+    ...(item.graded ? [specRow('<i class="fa-solid fa-certificate"></i>', 'Grading', item.grading_service)] : []),
+    ...(item.condition_notes ? [specRow('<i class="fa-solid fa-info-circle"></i>', 'Condition', item.condition_notes)] : []),
+  ].filter(Boolean).join('');
+
+  const grid = document.getElementById('pb-set-specs-grid');
+  if (grid) grid.innerHTML = specsHtml || '<span style="color:#9ca3af;font-size:0.85rem">No specifications available</span>';
 }
 
 // ===== UI sync helpers =====
@@ -327,6 +410,29 @@ function renderPriceEntry() {
     specItem('<i class="fa-regular fa-user"></i>',           'Seller',        seller),
   ].filter(Boolean).join('');
 
+  // Detect set listing for sub-navigation
+  const isSetListing = entry.isolated_type === 'set';
+  const setListingId = entry.listing_id ?? null;
+
+  const specsSection = isSetListing ? `
+    <div class="oim-specs-section">
+      <div class="oim-set-title-row">
+        <span class="oim-specs-title">Set Items</span>
+        <div class="oim-set-subnav" id="pb-set-subnav" style="display:none;"></div>
+      </div>
+      <div class="oim-specs-grid" id="pb-set-specs-grid">
+        <span style="color:#9ca3af;font-size:0.85rem">Loading\u2026</span>
+      </div>
+    </div>
+  ` : `
+    <div class="oim-specs-section">
+      <div class="oim-specs-title">Specifications</div>
+      <div class="oim-specs-grid">
+        ${specsGrid || `<span style="color:#9ca3af;font-size:0.85rem">No specifications available</span>`}
+      </div>
+    </div>
+  `;
+
   const body = document.getElementById('pb-modal-content');
   if (!body) return;
 
@@ -345,12 +451,7 @@ function renderPriceEntry() {
       </div>
     </div>
 
-    <div class="oim-specs-section">
-      <div class="oim-specs-title">Specifications</div>
-      <div class="oim-specs-grid">
-        ${specsGrid || `<span style="color:#9ca3af;font-size:0.85rem">No specifications available</span>`}
-      </div>
-    </div>
+    ${specsSection}
 
     <hr class="oim-summary-divider">
 
@@ -385,6 +486,11 @@ function renderPriceEntry() {
     prevBtn.disabled = (priceIndex === 0);
     nextBtn.disabled = (priceIndex === priceData.length - 1);
   }
+
+  // Async load set items for set listings
+  if (isSetListing && setListingId) {
+    _pbLoadSetSubItems(setListingId);
+  }
 }
 
 // expose globals for inline onclicks
@@ -393,3 +499,5 @@ window.closePriceBreakdown  = closePriceBreakdown;
 window.prevPriceListing     = prevPriceListing;
 window.nextPriceListing     = nextPriceListing;
 window.removePriceListing   = removePriceListing;
+window._pbPrevSetSubItem    = _pbPrevSetSubItem;
+window._pbNextSetSubItem    = _pbNextSetSubItem;

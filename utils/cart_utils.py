@@ -169,6 +169,7 @@ def get_cart_items(conn):
                 listings.graded,
                 listings.grading_service,
                 listings.is_isolated,
+                listings.isolated_type,
                 users.username AS seller_username,
                 categories.id AS category_id,
                 categories.metal,
@@ -226,6 +227,7 @@ def get_cart_items(conn):
                 listings.graded,
                 listings.grading_service,
                 listings.is_isolated,
+                listings.isolated_type,
                 users.username AS seller_username,
                 categories.id AS category_id,
                 categories.metal,
@@ -435,3 +437,159 @@ def get_cart_data(conn):
         bucket['total_available'] = result['total_available'] if result and result['total_available'] else 0
 
     return dict(buckets), cart_total
+
+
+def build_cart_summary(conn, user_id=None):
+    """
+    Single authoritative source of truth for cart contents and pricing.
+
+    Groups cart items by category_id, applies effective prices, and computes
+    all totals and grading fees in one place.  Every page that displays cart
+    data (cart page, account cart tab, checkout) should call this function
+    instead of implementing its own pricing logic.
+
+    Grading detection uses BOTH DB columns (third_party_grading_requested and
+    grading_preference) so the result is correct regardless of which code path
+    was used to add the item.
+
+    Grading fee is per-bucket: only buckets where the user requested grading
+    are charged GRADING_FEE_PER_UNIT × qty.  Other buckets are unaffected.
+
+    Returns a dict with:
+        buckets            – dict keyed by category_id
+        item_count         – total units in cart
+        subtotal           – sum of (qty × effective_price) across all buckets
+        grading_fee        – total grading fees across all buckets
+        grand_total        – subtotal + grading_fee
+        has_tpg            – True if any bucket requires grading
+        grading_fee_per_unit – value from config
+    """
+    from services.pricing_service import get_effective_price
+    from config import GRADING_FEE_PER_UNIT
+
+    if user_id is None:
+        from flask import session as _session
+        user_id = _session.get('user_id')
+
+    raw_items = get_cart_items(conn)
+
+    buckets = {}
+    subtotal = 0.0
+    total_grading_fee = 0.0
+
+    for item in raw_items:
+        effective_price = get_effective_price(item)
+        qty = item['quantity']
+        line_total = effective_price * qty
+
+        # Canonical grading: third_party_grading_requested is the sole boolean source of truth.
+        # grading_preference is a derived text artifact written for compatibility but never
+        # used for business-logic decisions.
+        requires_grading = bool(item.get('third_party_grading_requested'))
+        grading_pref_str = 'ANY' if requires_grading else 'NONE'
+
+        category_id = item['category_id']
+        # Bucket key encodes both category and grading configuration so that a listing
+        # added with TPG=1 and the same listing added with TPG=0 appear as separate tiles.
+        bucket_key = f"{category_id}_g{int(requires_grading)}"
+        if bucket_key not in buckets:
+            cover_photo_url = None
+            if item.get('is_isolated') and item.get('file_path'):
+                raw = item['file_path']
+                if raw.startswith('/'):
+                    cover_photo_url = raw
+                elif raw.startswith('static/'):
+                    cover_photo_url = '/' + raw
+                else:
+                    cover_photo_url = '/static/' + raw
+
+            buckets[bucket_key] = {
+                'category_id': category_id,   # integer, used by templates for backend calls
+                'category': {
+                    'metal': item['metal'],
+                    'product_type': item['product_type'],
+                    'weight': item['weight'],
+                    'purity': item.get('purity'),
+                    'mint': item['mint'],
+                    'year': item['year'],
+                    'finish': item['finish'],
+                    'grade': item['grade'],
+                    'product_line': item.get('product_line'),
+                    'is_isolated': item.get('is_isolated', 0),
+                },
+                'listings': [],
+                'total_qty': 0,
+                'total_available': 0,
+                'total_price': 0.0,
+                'avg_price': 0.0,
+                'requires_grading': False,
+                'grading_preference': 'NONE',
+                'grading_fee': 0.0,
+                'cover_photo_url': cover_photo_url,
+            }
+
+        bucket = buckets[bucket_key]
+        bucket['listings'].append({
+            'listing_id': item['listing_id'],
+            'seller_id': item['seller_id'],
+            'seller_username': item['seller_username'],
+            'seller_rating': item.get('seller_rating'),
+            'rating_count': item.get('seller_rating_count'),
+            'quantity': qty,
+            'effective_price': effective_price,
+            'price_each': effective_price,   # alias for backward compat
+            'subtotal': line_total,
+            'requires_grading': requires_grading,
+            'grading_preference': grading_pref_str,
+            'graded': item.get('graded'),
+            'grading_service': item.get('grading_service'),
+            'photos': [item['file_path']] if item.get('file_path') else [],
+        })
+
+        bucket['total_qty'] += qty
+        bucket['total_price'] += line_total
+        if requires_grading:
+            bucket['requires_grading'] = True
+            bucket['grading_preference'] = 'ANY'
+
+        subtotal += line_total
+
+    # Post-loop: avg price, per-bucket grading fee, total_available
+    for bucket in buckets.values():
+        cat_id = bucket['category_id']
+
+        if bucket['total_qty'] > 0:
+            bucket['avg_price'] = round(bucket['total_price'] / bucket['total_qty'], 2)
+
+        if bucket['requires_grading']:
+            bucket['grading_fee'] = round(GRADING_FEE_PER_UNIT * bucket['total_qty'], 2)
+            total_grading_fee += bucket['grading_fee']
+
+        if user_id:
+            result = conn.execute(
+                'SELECT SUM(quantity) as total_available FROM listings '
+                'WHERE category_id = ? AND active = 1 AND seller_id != ?',
+                (cat_id, user_id)
+            ).fetchone()
+        else:
+            result = conn.execute(
+                'SELECT SUM(quantity) as total_available FROM listings '
+                'WHERE category_id = ? AND active = 1',
+                (cat_id,)
+            ).fetchone()
+        bucket['total_available'] = (
+            result['total_available'] if result and result['total_available'] else 0
+        )
+
+    item_count = sum(b['total_qty'] for b in buckets.values())
+    grand_total = round(subtotal + total_grading_fee, 2)
+
+    return {
+        'buckets': buckets,
+        'item_count': item_count,
+        'subtotal': round(subtotal, 2),
+        'grading_fee': round(total_grading_fee, 2),
+        'grand_total': grand_total,
+        'has_tpg': total_grading_fee > 0,
+        'grading_fee_per_unit': GRADING_FEE_PER_UNIT,
+    }

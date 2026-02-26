@@ -128,11 +128,11 @@ function showMaxReachedModal(data, bucketId) {
         return;
     }
 
-    // Populate grading display
+    // Populate grading display — in_cart_tpg / new_tpg are canonical 0/1 booleans
     const currentEl = document.getElementById('mrCurrentGrading');
     const newEl = document.getElementById('mrNewGrading');
-    if (currentEl) currentEl.textContent = _formatGrading(data.in_cart_grading);
-    if (newEl) newEl.textContent = _formatGrading(data.new_grading);
+    if (currentEl) currentEl.textContent = _formatGrading(data.in_cart_tpg);
+    if (newEl) newEl.textContent = _formatGrading(data.new_tpg);
 
     modal.style.display = 'flex';
 
@@ -142,7 +142,7 @@ function showMaxReachedModal(data, bucketId) {
         const newReplace = replaceBtn.cloneNode(true);
         replaceBtn.parentNode.replaceChild(newReplace, replaceBtn);
         newReplace.addEventListener('click', function() {
-            replaceCartGrading(bucketId, data.new_grading);
+            replaceCartGrading(bucketId, data.new_tpg);
         });
     }
 
@@ -168,8 +168,9 @@ function showMaxReachedModal(data, bucketId) {
 
 /**
  * POST to /replace_cart_grading/<bucketId> and redirect to cart on success.
+ * @param {number} newTpg  - Canonical boolean: 1 = grading requested, 0 = not requested.
  */
-function replaceCartGrading(bucketId, newGrading) {
+function replaceCartGrading(bucketId, newTpg) {
     const replaceBtn = document.getElementById('mrReplaceBtn');
     if (replaceBtn) replaceBtn.disabled = true;
 
@@ -179,7 +180,7 @@ function replaceCartGrading(bucketId, newGrading) {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify({ grading_preference: newGrading }),
+        body: JSON.stringify({ third_party_grading_requested: newTpg ? 1 : 0 }),
         credentials: 'same-origin'
     })
     .then(function(r) { return r.json(); })
@@ -201,8 +202,7 @@ function replaceCartGrading(bucketId, newGrading) {
     });
 }
 
-/** Human-readable label for a grading_preference value. */
+/** Human-readable label for the canonical grading boolean (0/1 or falsy/truthy). */
 function _formatGrading(val) {
-    if (!val || val === 'NONE') return 'Not required';
-    return 'Required';
+    return val ? 'Required' : 'Not required';
 }

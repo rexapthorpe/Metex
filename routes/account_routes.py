@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 from database import get_db_connection
-from utils.cart_utils import get_cart_data
+from utils.cart_utils import build_cart_summary, validate_and_refill_cart
 from services.pricing_service import get_effective_price, get_effective_bid_price
 from services.spot_price_service import get_current_spot_prices
 from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
@@ -540,21 +540,13 @@ def account():
 
         sales.append(sale)
 
-    # 6) Cart
-    buckets, _ = get_cart_data(conn)  # Ignore old cart_total, we'll recalculate with effective prices
-    cart_total = 0  # Recalculate with effective prices
-    for bucket in buckets.values():
-        total_qty = sum(item['quantity'] for item in bucket['listings'])
-        bucket['total_quantity'] = total_qty
-        # Calculate effective price for each listing and sum
-        total_cost = 0
-        for item in bucket['listings']:
-            effective_price = get_effective_price(item)
-            item['effective_price'] = effective_price  # Store for template use
-            total_cost += item['quantity'] * effective_price
-        bucket['avg_price'] = (total_cost/total_qty) if total_qty else 0
-        bucket['total_price'] = total_cost  # Update with effective price total
-        cart_total += total_cost  # Add to overall cart total
+    # 6) Cart — single authoritative source for all pricing and totals
+    validate_and_refill_cart(conn, user_id)
+    cart_summary = build_cart_summary(conn, user_id)
+    buckets = cart_summary['buckets']
+    cart_total = cart_summary['subtotal']
+    grand_total = cart_summary['grand_total']
+    has_tpg = cart_summary['has_tpg']
 
     # 7) Conversations
     conv_rows = conn.execute(
@@ -633,6 +625,9 @@ def account():
         sales=sales,
         buckets=buckets,
         cart_total=cart_total,
+        grading_fee_per_unit=cart_summary['grading_fee_per_unit'],
+        third_party_grading=has_tpg,
+        grand_total=grand_total,
         conversations=conversations,
         current_user_id=user_id,
         grading_service_addresses=GRADING_SERVICE_ADDRESSES
