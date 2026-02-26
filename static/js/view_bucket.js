@@ -202,7 +202,7 @@ function updateSelectionSummary() {
     }
   });
   if (count > 0) {
-    summary.textContent = count + ' selected · $' + total.toFixed(2) + ' total';
+    summary.textContent = count + ' selected · ' + formatPrice(total) + ' total';
     summary.style.display = 'inline';
   } else {
     summary.style.display = 'none';

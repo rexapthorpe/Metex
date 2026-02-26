@@ -175,7 +175,7 @@ async function openEditListingConfirmModal(data) {
       console.log('  → currentSpotRow COMPUTED display:', window.getComputedStyle(currentSpotRow).display);
     }
     if (currentSpotEl && currentSpotPrice !== null) {
-      currentSpotEl.textContent = `$${currentSpotPrice.toFixed(2)}/oz`;
+      currentSpotEl.textContent = `${formatPrice(currentSpotPrice)}/oz`;
       console.log('  → currentSpotEl text set to:', currentSpotEl.textContent);
     } else if (currentSpotEl) {
       currentSpotEl.textContent = 'Loading...';
@@ -187,7 +187,7 @@ async function openEditListingConfirmModal(data) {
       console.log('  → premiumRow display set to:', premiumRow.style.display);
     }
     if (premiumEl && data.spotPremium !== undefined && data.spotPremium !== '') {
-      premiumEl.textContent = `$${parseFloat(data.spotPremium).toFixed(2)}`;
+      premiumEl.textContent = formatPrice(parseFloat(data.spotPremium));
       console.log('  → premiumEl text set to:', premiumEl.textContent);
     } else if (premiumEl) {
       premiumEl.textContent = '$0.00';
@@ -198,7 +198,7 @@ async function openEditListingConfirmModal(data) {
       console.log('  → floorRow display set to:', floorRow.style.display);
     }
     if (floorEl && data.floorPrice !== undefined && data.floorPrice !== '') {
-      floorEl.textContent = `$${parseFloat(data.floorPrice).toFixed(2)}`;
+      floorEl.textContent = formatPrice(parseFloat(data.floorPrice));
       console.log('  → floorEl text set to:', floorEl.textContent);
     } else if (floorEl) {
       floorEl.textContent = '$0.00';
@@ -209,7 +209,7 @@ async function openEditListingConfirmModal(data) {
       console.log('  → effectiveRow display set to:', effectiveRow.style.display);
     }
     if (effectiveEl && effectivePrice !== null && !isNaN(effectivePrice)) {
-      effectiveEl.textContent = `$${effectivePrice.toFixed(2)}`;
+      effectiveEl.textContent = formatPrice(effectivePrice);
       console.log('  → effectiveEl text set to:', effectiveEl.textContent);
     } else if (effectiveEl) {
       effectiveEl.textContent = 'Calculating...';
@@ -229,7 +229,7 @@ async function openEditListingConfirmModal(data) {
     // Show static price
     if (staticPriceRow) staticPriceRow.style.display = '';
     if (staticPriceEl && data.pricePerCoin !== undefined && data.pricePerCoin !== '') {
-      staticPriceEl.textContent = `$${parseFloat(data.pricePerCoin).toFixed(2)}`;
+      staticPriceEl.textContent = formatPrice(parseFloat(data.pricePerCoin));
     } else if (staticPriceEl) {
       staticPriceEl.textContent = '$0.00';
     }
@@ -484,7 +484,7 @@ function openEditListingSuccessModal(data) {
     }
 
     if (currentSpotEl && data.currentSpotPrice !== undefined && !isNaN(data.currentSpotPrice)) {
-      currentSpotEl.textContent = `$${parseFloat(data.currentSpotPrice).toFixed(2)}/oz`;
+      currentSpotEl.textContent = `${formatPrice(parseFloat(data.currentSpotPrice))}/oz`;
       console.log('  → currentSpotEl text set to:', currentSpotEl.textContent);
     } else if (currentSpotEl) {
       currentSpotEl.textContent = '—';
@@ -501,7 +501,7 @@ function openEditListingSuccessModal(data) {
       console.log('  → premiumRow computed display:', window.getComputedStyle(premiumRow).display);
     }
     if (premiumEl && data.spotPremium !== undefined && data.spotPremium !== '') {
-      premiumEl.textContent = `$${parseFloat(data.spotPremium).toFixed(2)}`;
+      premiumEl.textContent = formatPrice(parseFloat(data.spotPremium));
       console.log('  → premiumEl text set to:', premiumEl.textContent);
     } else if (premiumEl) {
       premiumEl.textContent = '$0.00';
@@ -514,7 +514,7 @@ function openEditListingSuccessModal(data) {
       console.log('  → floorRow computed display:', window.getComputedStyle(floorRow).display);
     }
     if (floorEl && data.floorPrice !== undefined && data.floorPrice !== '') {
-      floorEl.textContent = `$${parseFloat(data.floorPrice).toFixed(2)}`;
+      floorEl.textContent = formatPrice(parseFloat(data.floorPrice));
       console.log('  → floorEl text set to:', floorEl.textContent);
     } else if (floorEl) {
       floorEl.textContent = '$0.00';
@@ -527,7 +527,7 @@ function openEditListingSuccessModal(data) {
       console.log('  → effectiveRow computed display:', window.getComputedStyle(effectiveRow).display);
     }
     if (effectiveEl && data.effectivePrice !== undefined && !isNaN(data.effectivePrice)) {
-      effectiveEl.textContent = `$${parseFloat(data.effectivePrice).toFixed(2)}`;
+      effectiveEl.textContent = formatPrice(parseFloat(data.effectivePrice));
       console.log('  → effectiveEl text set to:', effectiveEl.textContent);
     } else if (effectiveEl) {
       effectiveEl.textContent = '—';
@@ -550,7 +550,7 @@ function openEditListingSuccessModal(data) {
     // Show static price
     if (staticPriceRow) staticPriceRow.style.display = '';
     if (staticPriceEl && data.pricePerCoin !== undefined && data.pricePerCoin !== '') {
-      staticPriceEl.textContent = `$${parseFloat(data.pricePerCoin).toFixed(2)}`;
+      staticPriceEl.textContent = formatPrice(parseFloat(data.pricePerCoin));
     } else if (staticPriceEl) {
       staticPriceEl.textContent = '$0.00';
     }
@@ -622,10 +622,10 @@ async function fetchAndDisplayEditProceeds(prefix, grossPrice, quantity) {
 
     if (data.success) {
       // Populate proceeds display
-      if (netEl) netEl.textContent = `$${data.net_amount.toFixed(2)}`;
-      if (grossEl) grossEl.textContent = `$${data.gross_price.toFixed(2)}`;
+      if (netEl) netEl.textContent = formatPrice(data.net_amount);
+      if (grossEl) grossEl.textContent = formatPrice(data.gross_price);
       if (feePercentEl) feePercentEl.textContent = data.fee_percent ? data.fee_percent.toFixed(1) : '—';
-      if (feeAmountEl) feeAmountEl.textContent = `−$${data.fee_amount.toFixed(2)}`;
+      if (feeAmountEl) feeAmountEl.textContent = `−${formatPrice(data.fee_amount)}`;
 
       // Show fee indicator if non-default
       if (data.fee_indicator && feeIndicatorRow && feeBadge) {
@@ -647,10 +647,10 @@ async function fetchAndDisplayEditProceeds(prefix, grossPrice, quantity) {
       const feeAmount = Math.round(grossPrice * (defaultFeePercent / 100) * 100) / 100;
       const netAmount = grossPrice - feeAmount;
 
-      if (netEl) netEl.textContent = `$${netAmount.toFixed(2)}`;
-      if (grossEl) grossEl.textContent = `$${grossPrice.toFixed(2)}`;
+      if (netEl) netEl.textContent = formatPrice(netAmount);
+      if (grossEl) grossEl.textContent = formatPrice(grossPrice);
       if (feePercentEl) feePercentEl.textContent = defaultFeePercent.toFixed(1);
-      if (feeAmountEl) feeAmountEl.textContent = `−$${feeAmount.toFixed(2)}`;
+      if (feeAmountEl) feeAmountEl.textContent = `−${formatPrice(feeAmount)}`;
       if (feeIndicatorRow) feeIndicatorRow.style.display = 'none';
     }
   } catch (error) {
@@ -660,10 +660,10 @@ async function fetchAndDisplayEditProceeds(prefix, grossPrice, quantity) {
     const feeAmount = Math.round(grossPrice * (defaultFeePercent / 100) * 100) / 100;
     const netAmount = grossPrice - feeAmount;
 
-    if (netEl) netEl.textContent = `$${netAmount.toFixed(2)}`;
-    if (grossEl) grossEl.textContent = `$${grossPrice.toFixed(2)}`;
+    if (netEl) netEl.textContent = formatPrice(netAmount);
+    if (grossEl) grossEl.textContent = formatPrice(grossPrice);
     if (feePercentEl) feePercentEl.textContent = defaultFeePercent.toFixed(1);
-    if (feeAmountEl) feeAmountEl.textContent = `−$${feeAmount.toFixed(2)}`;
+    if (feeAmountEl) feeAmountEl.textContent = `−${formatPrice(feeAmount)}`;
     if (feeIndicatorRow) feeIndicatorRow.style.display = 'none';
   }
 }

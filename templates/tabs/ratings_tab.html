@@ -37,11 +37,11 @@
   </div>
 
   <!-- Filter tabs -->
-  <div class="rt-filter-bar">
-    <button class="rt-filter-btn rt-filter-active" data-filter="all">All</button>
-    <button class="rt-filter-btn" data-filter="received">Received</button>
-    <button class="rt-filter-btn" data-filter="given">Given</button>
-    <button class="rt-filter-btn" data-filter="pending">Pending</button>
+  <div class="tab-filter-bar">
+    <button class="filter-pill active" data-filter="all">All</button>
+    <button class="filter-pill" data-filter="received">Received</button>
+    <button class="filter-pill" data-filter="given">Given</button>
+    <button class="filter-pill" data-filter="pending">Pending</button>
   </div>
 
   <!-- Rating rows -->
@@ -157,11 +157,11 @@
             </div>
             <div class="rt-pending-item-info">
               <div class="rt-pending-item-name">{{ p["metal"] or '' }} {{ p["product_type"] or '' }}</div>
-              <div class="rt-pending-item-price">${{ '%.0f'|format(p["total_amount"] or 0) }}</div>
+              <div class="rt-pending-item-price">${{ '{:,.0f}'.format(p["total_amount"] or 0) }}</div>
             </div>
           </div>
           {% set item_title = [p['metal'] or '', p['product_type'] or ''] | join(' ') | trim %}
-          {% set item_price = '$%d' | format(p['total_amount'] or 0) %}
+          {% set item_price = "${:,.0f}".format(p['total_amount'] or 0) %}
           {% set item_date = p['completed_at'] if p.get('completed_at') else (p['created_at'] if p.get('created_at') else '') %}
           <button class="rt-rate-btn" onclick='openRateModal({{ p["order_id"] }}, {{ p["user_role"] | tojson }}, {{ {"title": item_title, "price": item_price, "date": item_date} | tojson }})'>
             <i class="fa-regular fa-star"></i> Rate
@@ -178,6 +178,14 @@
       </div>
     {% endif %}
 
+    <div class="tab-filter-empty" id="ratingsFilterEmpty" style="display:none;">
+      <div class="tab-filter-empty-icon-wrap">
+        <i class="fa-regular fa-star tab-filter-empty-icon"></i>
+      </div>
+      <p class="tab-filter-empty-title" id="ratingsFilterEmptyMsg">No ratings yet</p>
+      <p class="tab-filter-empty-sub">Try a different filter to see your ratings.</p>
+    </div>
+
   </div>
 
   <script src="{{ url_for("static", filename="js/tabs/ratings_tab.js") }}"></script>
@@ -185,18 +193,30 @@
   <!-- Filter tab interaction -->
   <script>
     (function () {
-      var btns = document.querySelectorAll(".ratings-tab .rt-filter-btn");
+      var btns = document.querySelectorAll(".ratings-tab .filter-pill");
       var rows = document.querySelectorAll(".ratings-tab .rt-row");
 
       btns.forEach(function (btn) {
         btn.addEventListener("click", function () {
-          btns.forEach(function (b) { b.classList.remove("rt-filter-active"); });
-          this.classList.add("rt-filter-active");
+          btns.forEach(function (b) { b.classList.remove("active"); });
+          this.classList.add("active");
 
           var filter = this.dataset.filter;
           rows.forEach(function (row) {
             row.style.display = (filter === "all" || row.dataset.type === filter) ? "" : "none";
           });
+
+          var emptyEl = document.getElementById("ratingsFilterEmpty");
+          if (emptyEl) {
+            if (filter !== "all") {
+              var anyVisible = Array.from(rows).some(function(r) { return r.style.display !== "none"; });
+              var msgEl = document.getElementById("ratingsFilterEmptyMsg");
+              if (msgEl) msgEl.textContent = "No " + filter + " ratings yet!";
+              emptyEl.style.display = anyVisible ? "none" : "flex";
+            } else {
+              emptyEl.style.display = "none";
+            }
+          }
         });
       });
     })();

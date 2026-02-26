@@ -515,7 +515,9 @@ def account():
                 c.metal, c.product_type,
                 c.special_designation,
                 c.weight, c.mint, c.year, c.finish, c.grade,
-                c.purity, c.product_line, c.coin_series
+                c.purity, c.product_line, c.coin_series,
+                c.condition_category, c.series_variant,
+                l.packaging_type, l.packaging_notes, l.condition_notes
         FROM listings l
         JOIN categories c ON l.category_id = c.id
         WHERE l.seller_id = ?

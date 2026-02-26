@@ -888,6 +888,26 @@ body {
   color: #6b7280;
 }
 
+.checkout-container .summary-item-grading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.checkout-container .summary-item-grading-label {
+  font-size: 12px;
+  color: #6366f1;
+}
+
+.checkout-container .summary-item-grading-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6366f1;
+  white-space: nowrap;
+}
+
 .checkout-container .summary-item-price {
   font-size: 14px;
   font-weight: 600;

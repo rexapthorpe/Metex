@@ -373,18 +373,21 @@ def account():
                 l.spot_premium,
                 l.floor_price,
                 l.pricing_metal,
-                lp.file_path AS photo_path,
+                (SELECT file_path FROM listing_photos WHERE listing_id = l.id ORDER BY id LIMIT 1) AS photo_path,
                 l.graded,
                 l.grading_service,
+                l.isolated_type,
                 c.id AS category_id,
                 c.bucket_id,
+                c.is_isolated,
                 c.metal, c.product_type,
                 c.special_designation,
                 c.weight, c.mint, c.year, c.finish, c.grade,
-                c.purity, c.product_line, c.coin_series
+                c.purity, c.product_line, c.coin_series,
+                c.condition_category, c.series_variant,
+                l.packaging_type, l.packaging_notes, l.condition_notes
         FROM listings l
         JOIN categories c ON l.category_id = c.id
-        LEFT JOIN listing_photos lp ON lp.listing_id = l.id
         WHERE l.seller_id = ?
             AND l.active = 1
             AND l.quantity > 0
@@ -958,6 +961,102 @@ def order_items(order_id):
         })
 
     return jsonify(result)
+
+
+@account_bp.route('/orders/api/<int:order_id>/buyer_info')
+def order_buyer_info(order_id):
+    if 'user_id' not in session:
+        return jsonify(error="Authentication required"), 401
+
+    user_id = session['user_id']
+
+    conn = get_db_connection()
+
+    # Verify user is the seller in this order
+    access = conn.execute("""
+        SELECT 1 FROM orders o
+        JOIN order_items oi ON oi.order_id = o.id
+        JOIN listings l ON oi.listing_id = l.id
+        WHERE o.id = ? AND l.seller_id = ?
+        LIMIT 1
+    """, (order_id, user_id)).fetchone()
+
+    if not access:
+        conn.close()
+        return jsonify(error="You do not have access to this order"), 403
+
+    buyer_row = conn.execute("""
+        SELECT u.id AS buyer_id, u.username, u.first_name, u.last_name, u.created_at
+        FROM orders o
+        JOIN users u ON o.buyer_id = u.id
+        WHERE o.id = ?
+    """, (order_id,)).fetchone()
+
+    if not buyer_row:
+        conn.close()
+        return jsonify(error="Buyer not found"), 404
+
+    buyer_id = buyer_row['buyer_id']
+
+    display_name = f"{buyer_row['first_name'] or ''} {buyer_row['last_name'] or ''}".strip() or buyer_row['username']
+
+    raw_date = buyer_row['created_at']
+    member_since = None
+    if raw_date:
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(str(raw_date).replace('Z', ''))
+            member_since = dt.strftime('%b %Y')
+        except (ValueError, TypeError):
+            member_since = str(raw_date)[:4]
+
+    rating_row = conn.execute("""
+        SELECT COALESCE(AVG(r.rating), 0) AS rating,
+               COUNT(r.id) AS num_reviews
+        FROM ratings r WHERE r.ratee_id = ?
+    """, (buyer_id,)).fetchone()
+
+    tx_row = conn.execute("""
+        SELECT COUNT(DISTINCT o.id) AS transaction_count
+        FROM orders o
+        WHERE o.buyer_id = ? AND o.status IN ('Delivered', 'Complete')
+    """, (buyer_id,)).fetchone()
+
+    sellers_rows = conn.execute("""
+        SELECT l.seller_id, COUNT(DISTINCT o.id) AS order_count
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN listings l ON oi.listing_id = l.id
+        WHERE o.buyer_id = ?
+        GROUP BY l.seller_id
+    """, (buyer_id,)).fetchall()
+    total_sellers = len(sellers_rows)
+    repeat_sellers = sum(1 for s in sellers_rows if s['order_count'] >= 2)
+    repeat_sellers_pct = round((repeat_sellers / total_sellers) * 100) if total_sellers > 0 else 0
+
+    qty_row = conn.execute("""
+        SELECT SUM(oi.quantity) AS quantity
+        FROM order_items oi WHERE oi.order_id = ?
+    """, (order_id,)).fetchone()
+
+    conn.close()
+
+    rating = float(rating_row['rating'] or 0)
+    num_reviews = int(rating_row['num_reviews'] or 0)
+    is_verified = rating >= 4.7 and num_reviews > 100
+
+    return jsonify({
+        'buyer_id': buyer_id,
+        'username': buyer_row['username'],
+        'display_name': display_name,
+        'rating': rating,
+        'num_reviews': num_reviews,
+        'transaction_count': int(tx_row['transaction_count'] or 0),
+        'repeat_sellers_pct': repeat_sellers_pct,
+        'member_since': member_since,
+        'quantity': int(qty_row['quantity'] or 0) if qty_row else 0,
+        'is_verified': is_verified,
+    })
 
 
 # Account Details endpoints

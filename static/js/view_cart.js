@@ -150,14 +150,14 @@ function handleQuantityChange(e) {
       }
 
       if (summaryTotalEl) {
-        summaryTotalEl.textContent = `$${data.total_price.toFixed(2)}`;
+        summaryTotalEl.textContent = formatPrice(data.total_price);
         bucketTotals[bucketId] = data.total_price;
       }
 
       // Update tile price display (average price)
       const tilePrice = document.querySelector(`[data-bucket-id="${bucketId}"] .price`);
       if (tilePrice) {
-        tilePrice.textContent = `$${data.avg_price.toFixed(2)}`;
+        tilePrice.textContent = formatPrice(data.avg_price);
       }
 
       // Recalculate and update grand total
@@ -191,7 +191,7 @@ function updateGrandTotal() {
   // Update the grand total in the order summary
   const grandTotalEl = document.querySelector('.summary-total .summary-value');
   if (grandTotalEl) {
-    grandTotalEl.textContent = `$${grandTotal.toFixed(2)}`;
+    grandTotalEl.textContent = formatPrice(grandTotal);
   }
 }
 

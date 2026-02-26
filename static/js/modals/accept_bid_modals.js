@@ -71,7 +71,7 @@ function showIsolatedBidWarning(bidsData, formData) {
             </div>
             <div class="summary-row">
               <span class="summary-label">Price per item:</span>
-              <span class="summary-value price-highlight">$${price.toFixed(2)} USD</span>
+              <span class="summary-value price-highlight">${formatPrice(price)} USD</span>
             </div>
             <div class="summary-row">
               <span class="summary-label">Quantity:</span>
@@ -79,7 +79,7 @@ function showIsolatedBidWarning(bidsData, formData) {
             </div>
             <div class="summary-row">
               <span class="summary-label">Total value:</span>
-              <span class="summary-value total-highlight">$${total.toFixed(2)} USD</span>
+              <span class="summary-value total-highlight">${formatPrice(total)} USD</span>
             </div>
           </div>
         </div>
@@ -170,7 +170,7 @@ function openAcceptBidConfirmModal(bidsData, formData) {
           </div>
           <div class="summary-row">
             <span class="summary-label">Price per item:</span>
-            <span class="summary-value price-highlight">$${price.toFixed(2)} USD</span>
+            <span class="summary-value price-highlight">${formatPrice(price)} USD</span>
           </div>
           <div class="summary-row">
             <span class="summary-label">Quantity:</span>
@@ -178,7 +178,7 @@ function openAcceptBidConfirmModal(bidsData, formData) {
           </div>
           <div class="summary-row">
             <span class="summary-label">Total value:</span>
-            <span class="summary-value total-highlight">$${total.toFixed(2)} USD</span>
+            <span class="summary-value total-highlight">${formatPrice(total)} USD</span>
           </div>
         </div>
       </div>
@@ -316,7 +316,7 @@ function openAcceptBidSuccessModal(ordersData) {
         <div class="section-content">
           <div class="detail-row">
             <span class="detail-label">Price per item:</span>
-            <span class="detail-value price-highlight">$${price.toFixed(2)} USD</span>
+            <span class="detail-value price-highlight">${formatPrice(price)} USD</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Quantity:</span>
@@ -324,7 +324,7 @@ function openAcceptBidSuccessModal(ordersData) {
           </div>
           <div class="detail-row total-row">
             <span class="detail-label">Total value:</span>
-            <span class="detail-value total-highlight">$${total.toFixed(2)} USD</span>
+            <span class="detail-value total-highlight">${formatPrice(total)} USD</span>
           </div>
         </div>
       </div>

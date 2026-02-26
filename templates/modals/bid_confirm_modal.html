@@ -30,6 +30,10 @@
             <span class="spec-label">Weight:</span>
             <span class="spec-value">—</span>
           </div>
+          <div class="spec-item" id="confirm-spec-condition-category">
+            <span class="spec-label">Condition:</span>
+            <span class="spec-value">—</span>
+          </div>
           <div class="spec-item" id="confirm-spec-year">
             <span class="spec-label">Year:</span>
             <span class="spec-value">—</span>
@@ -46,14 +50,21 @@
             <span class="spec-label">Finish:</span>
             <span class="spec-value">—</span>
           </div>
-        </div>
-
-        <!-- Grading Requirement Section -->
-        <h4>Grading Requirement</h4>
-        <div class="detail-content-box">
-          <div class="detail-row">
-            <span class="detail-label">Requires Grading:</span>
-            <span class="detail-value" id="bid-confirm-grading">—</span>
+          <div class="spec-item" id="confirm-spec-series-variant">
+            <span class="spec-label">Series Variant:</span>
+            <span class="spec-value">—</span>
+          </div>
+          <div class="spec-item" id="confirm-spec-packaging-row" style="display: none;">
+            <span class="spec-label">Packaging:</span>
+            <span class="spec-value" id="confirm-spec-packaging">—</span>
+          </div>
+          <div class="spec-item" id="confirm-spec-packaging-notes-row" style="display: none;">
+            <span class="spec-label">Packaging Notes:</span>
+            <span class="spec-value" id="confirm-spec-packaging-notes">—</span>
+          </div>
+          <div class="spec-item" id="confirm-spec-condition-notes-row" style="display: none;">
+            <span class="spec-label">Condition Notes:</span>
+            <span class="spec-value" id="confirm-spec-condition-notes">—</span>
           </div>
         </div>
 
@@ -100,6 +111,16 @@
           <div class="detail-row">
             <span class="detail-label">Total bid value:</span>
             <span class="detail-value total-highlight" id="bid-confirm-total">—</span>
+          </div>
+
+          <!-- 3rd Party Grading Fee (shown when grading is selected) -->
+          <div class="detail-row" id="bid-confirm-grading-fee-row" style="display: none;">
+            <span class="detail-label">3rd Party Grading Fee:</span>
+            <span class="detail-value" id="bid-confirm-grading-fee">—</span>
+          </div>
+          <div class="detail-row" id="bid-confirm-grading-total-row" style="display: none;">
+            <span class="detail-label">Est. Total (incl. grading):</span>
+            <span class="detail-value total-highlight" id="bid-confirm-grading-total">—</span>
           </div>
         </div>
 
@@ -201,6 +222,16 @@
                 <span class="detail-label">Total Bid Value:</span>
                 <span class="detail-value total-highlight" id="success-bid-total">—</span>
               </div>
+
+              <!-- 3rd Party Grading Fee (shown when grading is selected) -->
+              <div class="detail-row" id="success-grading-fee-row" style="display: none;">
+                <span class="detail-label">3rd Party Grading Fee:</span>
+                <span class="detail-value" id="success-grading-fee">—</span>
+              </div>
+              <div class="detail-row" id="success-grading-total-row" style="display: none;">
+                <span class="detail-label">Est. Total (incl. grading):</span>
+                <span class="detail-value total-highlight" id="success-grading-total">—</span>
+              </div>
           </div>
 
           <!-- Item Details Section -->
@@ -222,6 +253,10 @@
                 <span class="spec-label">Weight:</span>
                 <span class="spec-value">—</span>
               </div>
+              <div class="spec-item" id="success-spec-condition-category">
+                <span class="spec-label">Condition:</span>
+                <span class="spec-value">—</span>
+              </div>
               <div class="spec-item" id="success-spec-year">
                 <span class="spec-label">Year:</span>
                 <span class="spec-value">—</span>
@@ -238,15 +273,22 @@
                 <span class="spec-label">Finish:</span>
                 <span class="spec-value">—</span>
               </div>
-            </div>
-          </div>
-
-          <!-- Grading Requirement Section -->
-          <h4>Grading Requirement</h4>
-          <div class="detail-content-box">
-            <div class="detail-row">
-              <span class="detail-label">Requires Grading:</span>
-              <span class="detail-value" id="success-bid-grading">—</span>
+              <div class="spec-item" id="success-spec-series-variant">
+                <span class="spec-label">Series Variant:</span>
+                <span class="spec-value">—</span>
+              </div>
+              <div class="spec-item" id="success-spec-packaging-row" style="display: none;">
+                <span class="spec-label">Packaging:</span>
+                <span class="spec-value" id="success-spec-packaging">—</span>
+              </div>
+              <div class="spec-item" id="success-spec-packaging-notes-row" style="display: none;">
+                <span class="spec-label">Packaging Notes:</span>
+                <span class="spec-value" id="success-spec-packaging-notes">—</span>
+              </div>
+              <div class="spec-item" id="success-spec-condition-notes-row" style="display: none;">
+                <span class="spec-label">Condition Notes:</span>
+                <span class="spec-value" id="success-spec-condition-notes">—</span>
+              </div>
             </div>
           </div>
 

@@ -103,7 +103,7 @@
             <button
               class="order-quick-action{% if order.already_rated %} order-quick-action--rated{% endif %}"
               {% if not order.already_rated %}
-              onclick='openRateModal({{ order.id }}, "seller", {{ {"title": order_title, "price": "$%d" | format(order.price_each or 0), "date": order.formatted_order_date or ""} | tojson }})'
+              onclick='openRateModal({{ order.id }}, "seller", {{ {"title": order_title, "price": "${:,.0f}".format(order.price_each or 0), "date": order.formatted_order_date or ""} | tojson }})'
               {% endif %}
               {% if order.already_rated %}disabled{% endif %}>
               <i class="{% if order.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
@@ -162,6 +162,13 @@
           </div>
         </div>
       {% endfor %}
+      <div class="tab-filter-empty" id="ordersFilterEmpty" style="display:none;">
+        <div class="tab-filter-empty-icon-wrap">
+          <i class="fa-solid fa-clipboard-list tab-filter-empty-icon"></i>
+        </div>
+        <p class="tab-filter-empty-title" id="ordersFilterEmptyMsg">No orders yet</p>
+        <p class="tab-filter-empty-sub">Try a different filter to see your orders.</p>
+      </div>
     </div>
   {% else %}
     <div class="tab-empty-state">
@@ -183,6 +190,17 @@ function filterOrders(filter) {
     const show = filter === 'all' || f === filter || (filter === 'pending' && ['pending','processing','awaiting-confirmation'].includes(f));
     card.style.display = show ? '' : 'none';
   });
+  const emptyEl = document.getElementById('ordersFilterEmpty');
+  if (emptyEl) {
+    if (filter !== 'all') {
+      const anyVisible = Array.from(document.querySelectorAll('.order-card')).some(c => c.style.display !== 'none');
+      const msgEl = document.getElementById('ordersFilterEmptyMsg');
+      if (msgEl) msgEl.textContent = 'No ' + filter + ' orders yet!';
+      emptyEl.style.display = anyVisible ? 'none' : 'flex';
+    } else {
+      emptyEl.style.display = 'none';
+    }
+  }
 }
 window.filterOrders = filterOrders;
 

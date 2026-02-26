@@ -307,7 +307,7 @@ function initBucketPriceChart(priceHistory) {
           bodyFont: { size: 11 },
           callbacks: {
             label: function(context) {
-              return `${context.dataset.label}: $${context.parsed.y.toFixed(2)}`;
+              return `${context.dataset.label}: ${formatPrice(context.parsed.y)}`;
             }
           }
         }
@@ -347,7 +347,7 @@ function renderBucketDetailContent(data) {
     if (bucket.fee_config.fee_type === 'percent') {
       feeDisplay = `${bucket.fee_config.fee_value}%`;
     } else {
-      feeDisplay = `$${bucket.fee_config.fee_value.toFixed(2)}`;
+      feeDisplay = formatPrice(bucket.fee_config.fee_value);
     }
   }
 
@@ -469,11 +469,11 @@ function renderBucketDetailContent(data) {
           </div>
           <div class="bucket-stat-card">
             <span class="stat-label">Avg Sale Price</span>
-            <span class="stat-value">$${stats.orders.avg_sale_price.toFixed(2)}</span>
+            <span class="stat-value">${formatPrice(stats.orders.avg_sale_price)}</span>
           </div>
           <div class="bucket-stat-card">
             <span class="stat-label">Fees Collected</span>
-            <span class="stat-value">$${stats.orders.total_fees_collected.toFixed(2)}</span>
+            <span class="stat-value">${formatPrice(stats.orders.total_fees_collected)}</span>
           </div>
         </div>
       </div>
@@ -519,7 +519,7 @@ function openBucketFeeModal(bucketId, currentFeeType, currentFeeValue) {
   // Display current fee
   const currentDisplay = document.getElementById('bucketFeeCurrentValue');
   if (currentFeeType && currentFeeValue !== null && !isNaN(currentFeeValue)) {
-    currentDisplay.textContent = currentFeeType === 'percent' ? `${currentFeeValue}%` : `$${currentFeeValue.toFixed(2)}`;
+    currentDisplay.textContent = currentFeeType === 'percent' ? `${currentFeeValue}%` : formatPrice(currentFeeValue);
     document.getElementById('bucketFeeType').value = currentFeeType;
     document.getElementById('bucketFeeValue').value = currentFeeValue;
   } else {

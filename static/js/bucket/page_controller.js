@@ -32,7 +32,9 @@ function requireAuthForBid(bucketId, bidId) {
 // Sync quantity and TPG to form hidden inputs
 function syncQuantityAndTPG(quantityTargetId, tpgTargetId) {
   const quantityValue = document.getElementById('buyQtyValue').textContent;
-  const tpgValue = document.getElementById('tpgInput').value;
+  // Read directly from the checkbox to avoid relying on the change event having fired
+  const tpgToggle = document.getElementById('tpgToggle');
+  const tpgValue = (tpgToggle && tpgToggle.checked) ? '1' : '0';
 
   document.getElementById(quantityTargetId).value = quantityValue;
   document.getElementById(tpgTargetId).value = tpgValue;

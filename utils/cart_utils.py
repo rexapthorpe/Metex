@@ -157,6 +157,7 @@ def get_cart_items(conn):
                 listings.id AS listing_id,
                 cart.quantity,
                 cart.grading_preference,
+                cart.third_party_grading_requested,
                 listings.price_per_coin,
                 listings.pricing_mode,
                 listings.spot_premium,

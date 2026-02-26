@@ -9,11 +9,11 @@
     width: 100%;
     text-decoration: none;
     color: black;
-    transition: transform 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .product-tile:hover {
-    transform: scale(1.05);
+    transform: translateY(-4px);
 }
 
 .image-box {
@@ -126,7 +126,7 @@
     }
 
     .product-tile:hover {
-        transform: scale(1.02); /* Reduce scale effect on touch */
+        transform: translateY(-2px);
     }
 
     .product-title { font-size: 13px; }

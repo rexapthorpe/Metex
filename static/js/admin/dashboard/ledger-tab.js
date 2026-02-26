@@ -79,8 +79,8 @@ function renderLedgerOrders(orders) {
         <td><span class="status-badge ${statusClass}">${formatLedgerStatus(order.order_status)}</span></td>
         <td>${order.item_count}</td>
         <td>${order.seller_count}</td>
-        <td style="font-family: monospace;">$${order.gross_amount.toFixed(2)}</td>
-        <td style="font-family: monospace; color: #dc2626;">$${order.platform_fee_amount.toFixed(2)}</td>
+        <td style="font-family: monospace;">${formatPrice(order.gross_amount)}</td>
+        <td style="font-family: monospace; color: #dc2626;">${formatPrice(order.platform_fee_amount)}</td>
         <td>${order.payment_method || '-'}</td>
         <td style="font-size: 12px; color: #666;">${order.created_at_display}</td>
         <td class="actions-cell">
@@ -200,12 +200,12 @@ function renderLedgerOrderDetails(data) {
         <td>#${item.listing_id}</td>
         <td>@${escapeHtml(item.seller_username)} (${item.seller_id})</td>
         <td>${item.quantity}</td>
-        <td style="font-family: monospace;">$${item.unit_price.toFixed(2)}</td>
-        <td style="font-family: monospace;">$${item.gross_amount.toFixed(2)}</td>
+        <td style="font-family: monospace;">${formatPrice(item.unit_price)}</td>
+        <td style="font-family: monospace;">${formatPrice(item.gross_amount)}</td>
         <td><span style="background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${item.fee_type}</span></td>
         <td>${item.fee_value}${item.fee_type === 'percent' ? '%' : ''}</td>
-        <td style="font-family: monospace; color: #dc2626;">$${item.fee_amount.toFixed(2)}</td>
-        <td style="font-family: monospace; color: #059669;">$${item.seller_net_amount.toFixed(2)}</td>
+        <td style="font-family: monospace; color: #dc2626;">${formatPrice(item.fee_amount)}</td>
+        <td style="font-family: monospace; color: #059669;">${formatPrice(item.seller_net_amount)}</td>
       </tr>
     `;
   });
@@ -218,9 +218,9 @@ function renderLedgerOrderDetails(data) {
       <tr>
         <td>@${escapeHtml(payout.seller_username)} (${payout.seller_id})</td>
         <td><span class="status-badge ${payoutStatusClass}">${formatLedgerStatus(payout.payout_status)}</span></td>
-        <td style="font-family: monospace;">$${payout.seller_gross_amount.toFixed(2)}</td>
-        <td style="font-family: monospace; color: #dc2626;">$${payout.fee_amount.toFixed(2)}</td>
-        <td style="font-family: monospace; color: #059669;">$${payout.seller_net_amount.toFixed(2)}</td>
+        <td style="font-family: monospace;">${formatPrice(payout.seller_gross_amount)}</td>
+        <td style="font-family: monospace; color: #dc2626;">${formatPrice(payout.fee_amount)}</td>
+        <td style="font-family: monospace; color: #059669;">${formatPrice(payout.seller_net_amount)}</td>
         <td>${payout.scheduled_for || '-'}</td>
         <td style="font-size: 10px; color: #888;">${payout.provider_transfer_id || '-'}</td>
       </tr>
@@ -272,15 +272,15 @@ function renderLedgerOrderDetails(data) {
     <div style="display: flex; gap: 32px; margin-bottom: 24px;">
       <div>
         <div style="font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 4px;">Gross Amount</div>
-        <div style="font-size: 24px; font-weight: 600; font-family: monospace;">$${order.gross_amount.toFixed(2)}</div>
+        <div style="font-size: 24px; font-weight: 600; font-family: monospace;">${formatPrice(order.gross_amount)}</div>
       </div>
       <div>
         <div style="font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 4px;">Platform Fee</div>
-        <div style="font-size: 24px; font-weight: 600; font-family: monospace; color: #dc2626;">$${order.platform_fee_amount.toFixed(2)}</div>
+        <div style="font-size: 24px; font-weight: 600; font-family: monospace; color: #dc2626;">${formatPrice(order.platform_fee_amount)}</div>
       </div>
       <div>
         <div style="font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 4px;">Net to Sellers</div>
-        <div style="font-size: 24px; font-weight: 600; font-family: monospace; color: #059669;">$${(order.gross_amount - order.platform_fee_amount).toFixed(2)}</div>
+        <div style="font-size: 24px; font-weight: 600; font-family: monospace; color: #059669;">${formatPrice(order.gross_amount - order.platform_fee_amount)}</div>
       </div>
     </div>
 

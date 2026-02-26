@@ -44,7 +44,7 @@
               <div class="seller-card__meta">
                 <div class="price">
                   {% if 'lowest_price' in cols and s['lowest_price'] is not none %}
-                    ${{ '%.2f'|format(s['lowest_price']) }} / unit
+                    ${{ '{:,.2f}'.format(s['lowest_price']) }} / unit
                   {% else %} — {% endif %}
                 </div>
                 <div class="qty">

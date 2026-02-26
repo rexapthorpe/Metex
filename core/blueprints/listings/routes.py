@@ -194,8 +194,25 @@ def edit_listing(listing_id):
 
                 cur = conn.cursor()
 
-                # Use unified category management - handles bucket_id automatically
-                new_cat_id = get_or_create_category(conn, category_spec)
+                # For isolated (OOK/Set) listings, update the existing isolated category
+                # in-place to preserve is_isolated=1 and the unique bucket_id.
+                # For standard listings, use the shared category pool.
+                if listing['is_isolated'] == 1:
+                    existing_cat_id = listing['category_id']
+                    cur.execute(
+                        '''UPDATE categories SET
+                               metal = ?, product_line = ?, product_type = ?, weight = ?,
+                               purity = ?, mint = ?, year = ?, finish = ?, grade = ?,
+                               condition_category = ?, series_variant = ?, coin_series = ?
+                           WHERE id = ?''',
+                        (metal, product_line, product_type, weight, purity, mint, year,
+                         finish, grade, condition_category, series_variant, coin_series,
+                         existing_cat_id)
+                    )
+                    new_cat_id = existing_cat_id
+                else:
+                    # Use unified category management - handles bucket_id automatically
+                    new_cat_id = get_or_create_category(conn, category_spec)
 
                 # ---- Extract isolated listing fields ----
                 listing_name = None
@@ -289,25 +306,19 @@ def edit_listing(listing_id):
                             print(f"[INFO] Added sell-page photo {i} to listing {listing_id}: {file_path}")
 
                 # Handle cover photo for isolated listings (single file)
+                # Cover photos are stored in listing_photos table; removal handled by keep_photo_ids above
                 cover_photo = request.files.get('cover_photo')
-                clear_cover_photo = request.form.get('clear_cover_photo') == '1'
-
-                if clear_cover_photo and not (cover_photo and cover_photo.filename):
-                    # Clear the cover photo if requested and no new photo uploaded
-                    conn.execute(
-                        'UPDATE listings SET photo_path = NULL WHERE id = ?',
-                        (listing_id,)
-                    )
-                    print(f"[INFO] Cleared cover photo for listing {listing_id}")
-                elif cover_photo and cover_photo.filename:
+                if cover_photo and cover_photo.filename:
                     file_path = save_uploaded_photo(cover_photo)
                     if file_path:
-                        # Update the listing's photo_path directly for cover photos
                         conn.execute(
-                            'UPDATE listings SET photo_path = ? WHERE id = ?',
-                            (file_path, listing_id)
+                            '''
+                            INSERT INTO listing_photos (listing_id, uploader_id, file_path)
+                            VALUES (?, ?, ?)
+                            ''',
+                            (listing_id, session['user_id'], file_path)
                         )
-                        print(f"[INFO] Updated cover photo for listing {listing_id}: {file_path}")
+                        print(f"[INFO] Added cover photo to listing {listing_id}: {file_path}")
 
                 # Backwards compatibility: also handle single item_photo field
                 single_photo = request.files.get('item_photo')
@@ -400,6 +411,88 @@ def edit_listing(listing_id):
                 print(f"[DEBUG] ===== UPDATE COMPLETED =====")
                 print(f"[DEBUG] Updated listing ID: {listing_id}")
                 print(f"[DEBUG] New category ID: {new_cat_id}")
+
+                # ---- Cancel bids on non-pricing change (OOK/Set only) ----
+                if listing['is_isolated'] == 1:
+                    def _norm(v):
+                        return '' if v is None else str(v).strip()
+
+                    old_fields = [
+                        listing['metal'], listing['product_line'], listing['product_type'],
+                        listing['weight'], listing['purity'], listing['mint'],
+                        listing['year'], listing['finish'], listing['grade'],
+                        listing['series_variant'], listing['condition_category'], listing['coin_series'],
+                        listing['quantity'], listing['graded'], listing['grading_service'],
+                        listing['listing_name'], listing['listing_description'],
+                        listing['issue_number'], listing['issue_total'],
+                        listing['edition_number'], listing['edition_total'],
+                        listing['packaging_type'], listing['packaging_notes'],
+                        listing['cert_number'], listing['condition_notes'], listing['actual_year'],
+                    ]
+                    new_fields = [
+                        metal, product_line, product_type,
+                        weight, purity, mint,
+                        year, finish, grade,
+                        series_variant, condition_category, coin_series,
+                        new_quantity, graded, grading_service,
+                        listing_name, listing_description,
+                        issue_number, issue_total,
+                        edition_number, edition_total,
+                        packaging_type, packaging_notes,
+                        cert_number, condition_notes, actual_year,
+                    ]
+
+                    non_pricing_changed = any(
+                        _norm(o) != _norm(n) for o, n in zip(old_fields, new_fields)
+                    )
+
+                    # Photo additions or removals also count as a change
+                    if not non_pricing_changed:
+                        photos_added = (
+                            any(f and f.filename for f in new_photos) or
+                            bool(cover_photo and cover_photo.filename) or
+                            any(
+                                request.files.get(f'item_photo_{i}') and
+                                request.files.get(f'item_photo_{i}').filename
+                                for i in range(1, 4)
+                            )
+                        )
+                        photos_removed = (
+                            bool(keep_photo_ids_str) and
+                            len(keep_photo_ids) < len(current_photos)
+                        )
+                        non_pricing_changed = photos_added or photos_removed
+
+                    if non_pricing_changed:
+                        affected_bids = conn.execute(
+                            '''SELECT id, buyer_id FROM bids
+                               WHERE category_id = ? AND active = 1
+                                 AND status IN ('Open', 'Partially Filled')''',
+                            (listing['category_id'],)
+                        ).fetchall()
+
+                        if affected_bids:
+                            conn.execute(
+                                '''UPDATE bids SET active = 0, status = 'Cancelled'
+                                   WHERE category_id = ? AND active = 1
+                                     AND status IN ('Open', 'Partially Filled')''',
+                                (listing['category_id'],)
+                            )
+                            conn.commit()
+                            print(f"[INFO] Cancelled {len(affected_bids)} bids on listing {listing_id} due to non-pricing edit")
+
+                            try:
+                                from services.notification_service import create_notification
+                                for bid in affected_bids:
+                                    create_notification(
+                                        user_id=bid['buyer_id'],
+                                        notification_type='bid_cancelled',
+                                        title='Bid Cancelled',
+                                        message='Your bid was cancelled because the seller updated the listing details.',
+                                        related_listing_id=listing_id
+                                    )
+                            except Exception as e:
+                                print(f"[WARNING] Failed to send bid cancellation notifications: {e}")
 
                 # ---- Handle set items for set listings ----
                 if listing['is_isolated'] == 1 and listing['isolated_type'] == 'set':

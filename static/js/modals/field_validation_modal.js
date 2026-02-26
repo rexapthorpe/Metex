@@ -137,43 +137,44 @@ function validateSellForm(form) {
   // Determine listing mode
   const isSetMode = window.currentMode === 'set';
   const isIsolatedMode = window.currentMode === 'isolated';
-
-  // Base required fields (always required regardless of pricing mode)
-  const baseRequiredFields = [
-    'metal',
-    'product_line',
-    'product_type',
-    'weight',
-    'purity',
-    'mint',
-    'year',
-    'finish',
-    'quantity'
-  ];
-
-  // Photo requirement depends on mode
-  if (isSetMode) {
-    baseRequiredFields.push('cover_photo');
-  } else {
-    baseRequiredFields.push('item_photo_1');
-  }
+  const capturedSetItems = window.setItems || [];
 
   // Determine pricing mode from the form
   const staticRadio = form.querySelector('#pricing_mode_static');
   const premiumRadio = form.querySelector('#pricing_mode_premium');
 
-  let requiredFields = [...baseRequiredFields];
+  let requiredFields;
 
-  // Add pricing-mode-specific required fields
+  if (isSetMode && capturedSetItems.length >= 2) {
+    // Set mode with 2+ items already added: only validate set-level requirements.
+    // Per-item spec fields (metal, year, etc.) belong to the in-progress item
+    // and are not required for submission once the set is built.
+    requiredFields = ['cover_photo'];
+  } else {
+    // Standard, isolated, or set mode with fewer than 2 items: validate all spec fields
+    requiredFields = [
+      'metal', 'product_line', 'product_type', 'weight',
+      'purity', 'mint', 'year', 'finish'
+    ];
+
+    if (!isSetMode && !isIsolatedMode) {
+      requiredFields.push('quantity');
+    }
+
+    if (isSetMode) {
+      requiredFields.push('cover_photo');
+    } else {
+      requiredFields.push('item_photo_1');
+    }
+  }
+
+  // Add pricing-mode-specific required fields (always required)
   if (staticRadio && staticRadio.checked) {
-    // Static mode: require Price Per Coin
     requiredFields.push('price_per_coin');
   } else if (premiumRadio && premiumRadio.checked) {
-    // Premium-to-spot mode: require premium and floor
     requiredFields.push('spot_premium');
     requiredFields.push('floor_price');
   } else {
-    // Default to static mode if no radio is explicitly checked
     requiredFields.push('price_per_coin');
   }
 

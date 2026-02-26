@@ -78,6 +78,26 @@ def sell():
                 {'id': p['id'], 'url': '/static/' + p['file_path']} for p in photos
                 if p['file_path'] is not None
             ]
+
+            # For set listings, fetch each item with its first photo for display
+            if edit_prefill.get('isolated_type') == 'set':
+                set_items_raw = conn.execute(
+                    '''
+                    SELECT lsi.id, lsi.position_index, lsi.metal, lsi.product_line,
+                           lsi.product_type, lsi.weight, lsi.purity, lsi.mint,
+                           lsi.year, lsi.finish, lsi.grade, lsi.item_title,
+                           lsi.packaging_type, lsi.packaging_notes, lsi.condition_notes,
+                           lsi.edition_number, lsi.edition_total, lsi.quantity,
+                           (SELECT lsip.file_path FROM listing_set_item_photos lsip
+                            WHERE lsip.set_item_id = lsi.id AND lsip.position_index = 1
+                            LIMIT 1) AS first_photo_path
+                    FROM listing_set_items lsi
+                    WHERE lsi.listing_id = ?
+                    ORDER BY lsi.position_index ASC
+                    ''',
+                    (edit_listing_id,)
+                ).fetchall()
+                edit_prefill['set_items'] = [dict(row) for row in set_items_raw]
         else:
             edit_listing_id = None  # not found or unauthorized
 

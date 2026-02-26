@@ -759,6 +759,11 @@
   padding-top: 6px;
 }
 
+#bidModal .bm-review-fee--free {
+  color: #16a34a;
+  font-weight: 600;
+}
+
 #bidModal .bm-review-card--payment {
   display: flex;
   align-items: center;

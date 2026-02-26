@@ -36,7 +36,6 @@ def place_bid(bucket_id):
 
         delivery_address = request.form['delivery_address'].strip()
         requires_grading = request.form.get('requires_grading') == 'yes'
-        preferred_grader = request.form.get('preferred_grader') if requires_grading else None
         random_year = 1 if request.form.get('random_year') == 'on' else 0
 
         # Extract pricing parameters based on mode
@@ -103,11 +102,11 @@ def place_bid(bucket_id):
         '''
         INSERT INTO bids (
             category_id, buyer_id, quantity_requested, price_per_coin,
-            remaining_quantity, active, requires_grading, preferred_grader,
+            remaining_quantity, active, requires_grading,
             delivery_address, status,
             pricing_mode, spot_premium, ceiling_price, pricing_metal,
             recipient_first_name, recipient_last_name, random_year
-        ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?)
         ''',
         (
             bucket_id,
@@ -116,7 +115,6 @@ def place_bid(bucket_id):
             bid_price,
             bid_quantity,
             1 if requires_grading else 0,
-            preferred_grader,
             delivery_address,
             pricing_mode,
             spot_premium,
@@ -167,7 +165,6 @@ def create_bid_unified(bucket_id):
 
         delivery_address = request.form.get('delivery_address', '').strip()
         requires_grading = request.form.get('requires_grading') == 'yes'
-        preferred_grader = request.form.get('preferred_grader') if requires_grading else None
 
         # Extract pricing parameters based on mode
         if pricing_mode == 'premium_to_spot':
@@ -238,11 +235,11 @@ def create_bid_unified(bucket_id):
             '''
             INSERT INTO bids (
                 category_id, buyer_id, quantity_requested, price_per_coin,
-                remaining_quantity, active, requires_grading, preferred_grader,
+                remaining_quantity, active, requires_grading,
                 delivery_address, status,
                 pricing_mode, spot_premium, ceiling_price, pricing_metal,
                 recipient_first_name, recipient_last_name
-            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'Open', ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?)
             ''',
             (
                 bucket_id,
@@ -251,7 +248,6 @@ def create_bid_unified(bucket_id):
                 bid_price,
                 bid_quantity,  # remaining_quantity starts equal to quantity_requested
                 1 if requires_grading else 0,
-                preferred_grader,
                 delivery_address,
                 pricing_mode,
                 spot_premium,

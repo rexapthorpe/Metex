@@ -32,12 +32,17 @@ def auto_fill_bucket_purchase(bucket_id):
     # TPG (Third-Party Grading) service add-on
     third_party_grading = int(request.form.get('third_party_grading', 0))
 
-    # Grading preference from session (if applicable)
-    grading_preference = session.get('grading_preference')
+    # Grading preference (buyer-selected: NONE, ANY, PCGS, NGC)
+    grading_preference = (request.form.get('grading_preference', 'NONE') or 'NONE').strip()
+    if grading_preference != 'NONE':
+        third_party_grading = 1  # Grading pref implies TPG
 
     # Random Year mode and packaging filter
     random_year = request.form.get('random_year') == '1'
     packaging_filter = request.form.get('packaging_filter', '').strip()
+
+    # Check if this is an AJAX request (needed for MAX_REACHED response)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     # --- Random Year aggregation for cart ---
     if random_year:
@@ -121,6 +126,54 @@ def auto_fill_bucket_purchase(bucket_id):
         conn.close()
         return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
+    # ===== MAX-REACHED CHECK =====
+    # For non-random-year mode, check if user already holds all available stock for this bucket.
+    # If so, block the add and return MAX_REACHED so the frontend can show the replace modal.
+    if not random_year and is_ajax:
+        available_qty = sum(l['quantity'] for l in other_listings)
+
+        if user_id:
+            in_cart_row = cursor.execute('''
+                SELECT COALESCE(SUM(cart.quantity), 0) AS in_cart,
+                       MAX(cart.grading_preference) AS current_grading
+                FROM cart
+                JOIN listings ON cart.listing_id = listings.id
+                JOIN categories ON listings.category_id = categories.id
+                WHERE cart.user_id = ? AND categories.bucket_id = ?
+            ''', (user_id, bucket_id)).fetchone()
+            in_cart_qty = in_cart_row['in_cart'] if in_cart_row else 0
+            current_grading = in_cart_row['current_grading'] or 'NONE'
+        else:
+            guest_items = session.get('guest_cart', [])
+            in_cart_qty = 0
+            current_grading = 'NONE'
+            if guest_items:
+                listing_ids = [it['listing_id'] for it in guest_items]
+                placeholders = ','.join('?' * len(listing_ids))
+                bucket_rows = cursor.execute(
+                    f'SELECT l.id AS listing_id, c.bucket_id FROM listings l '
+                    f'JOIN categories c ON l.category_id = c.id WHERE l.id IN ({placeholders})',
+                    listing_ids
+                ).fetchall()
+                bmap = {row['listing_id']: row['bucket_id'] for row in bucket_rows}
+                for it in guest_items:
+                    if bmap.get(it['listing_id']) == bucket_id:
+                        in_cart_qty += it['quantity']
+                        current_grading = it.get('grading_preference', 'NONE') or 'NONE'
+
+        if available_qty > 0 and in_cart_qty >= available_qty:
+            conn.close()
+            return jsonify({
+                'status': 'MAX_REACHED',
+                'success': False,
+                'message': 'You already have the maximum available quantity from this bucket in your cart.',
+                'in_cart_qty': in_cart_qty,
+                'available_qty': available_qty,
+                'in_cart_grading': current_grading,
+                'new_grading': grading_preference,
+            })
+    # ===== END MAX-REACHED CHECK =====
+
     # Fill cart from other sellers' listings only
     total_filled = 0
     guest_cart = session.get('guest_cart', [])
@@ -149,28 +202,30 @@ def auto_fill_bucket_purchase(bucket_id):
             if existing:
                 new_qty = existing['quantity'] + to_add
                 cursor.execute('''
-                    UPDATE cart SET quantity = ?, third_party_grading_requested = ?
+                    UPDATE cart SET quantity = ?, third_party_grading_requested = ?, grading_preference = ?
                     WHERE user_id = ? AND listing_id = ?
-                ''', (new_qty, third_party_grading, user_id, listing['id']))
+                ''', (new_qty, third_party_grading, grading_preference, user_id, listing['id']))
                 print(f"[DEBUG] Updated cart: user_id={user_id}, listing_id={listing['id']}, new_qty={new_qty}")
             else:
                 cursor.execute('''
-                    INSERT INTO cart (user_id, listing_id, quantity, third_party_grading_requested)
-                    VALUES (?, ?, ?, ?)
-                ''', (user_id, listing['id'], to_add, third_party_grading))
+                    INSERT INTO cart (user_id, listing_id, quantity, third_party_grading_requested, grading_preference)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (user_id, listing['id'], to_add, third_party_grading, grading_preference))
                 print(f"[DEBUG] Inserted into cart: user_id={user_id}, listing_id={listing['id']}, quantity={to_add}")
         else:
             # Guest user: use session cart
             for item in guest_cart:
                 if item['listing_id'] == listing['id']:
                     item['quantity'] += to_add
-                    item['third_party_grading_requested'] = third_party_grading  # Update TPG preference
+                    item['third_party_grading_requested'] = third_party_grading
+                    item['grading_preference'] = grading_preference
                     break
             else:
                 guest_cart.append({
                     'listing_id': listing['id'],
                     'quantity': to_add,
-                    'third_party_grading_requested': third_party_grading  # TPG add-on
+                    'third_party_grading_requested': third_party_grading,
+                    'grading_preference': grading_preference,
                 })
 
         total_filled += to_add
@@ -198,13 +253,11 @@ def auto_fill_bucket_purchase(bucket_id):
     if total_filled < quantity_to_buy:
         flash(f"Only {total_filled} units could be added to your cart due to limited stock.", "warning")
 
-    # Check if this is an AJAX request
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-
     if is_ajax:
         # Return JSON for AJAX requests (so modal can be shown before redirect)
         print(f"[DEBUG] AJAX request. user_listings_skipped={user_listings_skipped}, total_filled={total_filled}")
         return jsonify({
+            'status': 'OK',
             'success': True,
             'user_listings_skipped': user_listings_skipped and total_filled > 0,
             'total_filled': total_filled,
@@ -219,6 +272,61 @@ def auto_fill_bucket_purchase(bucket_id):
             print(f"[DEBUG] No user listings skipped. user_listings_skipped={user_listings_skipped}, total_filled={total_filled}")
 
         return redirect(url_for('buy.view_cart'))  # Sends user directly to cart
+
+
+@buy_bp.route('/replace_cart_grading/<int:bucket_id>', methods=['POST'])
+def replace_cart_grading(bucket_id):
+    """
+    Replace the grading_preference for existing cart items under this bucket.
+    Called when user chooses "Replace" from the MAX_REACHED modal.
+    Supports both DB-backed (logged-in) and session (guest) carts.
+    """
+    user_id = session.get('user_id')
+    data = request.get_json(silent=True) or {}
+    new_grading = (data.get('grading_preference') or request.form.get('grading_preference', 'NONE') or 'NONE').strip()
+    new_tpg = 0 if new_grading == 'NONE' else 1
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if user_id:
+        cursor.execute('''
+            UPDATE cart SET grading_preference = ?, third_party_grading_requested = ?
+            WHERE user_id = ? AND listing_id IN (
+                SELECT l.id FROM listings l
+                JOIN categories c ON l.category_id = c.id
+                WHERE c.bucket_id = ?
+            )
+        ''', (new_grading, new_tpg, user_id, bucket_id))
+        conn.commit()
+    else:
+        guest_cart = session.get('guest_cart', [])
+        if guest_cart:
+            listing_ids = [it['listing_id'] for it in guest_cart]
+            placeholders = ','.join('?' * len(listing_ids))
+            bucket_rows = cursor.execute(
+                f'SELECT l.id AS listing_id, c.bucket_id FROM listings l '
+                f'JOIN categories c ON l.category_id = c.id WHERE l.id IN ({placeholders})',
+                listing_ids
+            ).fetchall()
+            bmap = {row['listing_id']: row['bucket_id'] for row in bucket_rows}
+            updated = False
+            for it in guest_cart:
+                if bmap.get(it['listing_id']) == bucket_id:
+                    it['grading_preference'] = new_grading
+                    it['third_party_grading_requested'] = new_tpg
+                    updated = True
+            if updated:
+                session['guest_cart'] = guest_cart
+                session.modified = True
+
+    conn.close()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'status': 'OK', 'success': True, 'grading_preference': new_grading})
+
+    flash('Cart updated with new grading preference.', 'success')
+    return redirect(url_for('buy.view_cart'))
 
 
 @buy_bp.route('/preview_buy/<int:bucket_id>', methods=['POST'])

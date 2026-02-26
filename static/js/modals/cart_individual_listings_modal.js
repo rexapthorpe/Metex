@@ -128,7 +128,7 @@ function updateCartBucketUIFromModalState() {
   const avgEl = tile.querySelector('.avg-price');
   if (avgEl) {
     avgEl.textContent = (newAvg != null && !Number.isNaN(newAvg))
-      ? `$${newAvg.toFixed(2)}`
+      ? formatPrice(newAvg)
       : '--';
   }
 

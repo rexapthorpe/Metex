@@ -170,10 +170,7 @@ function initBidForm() {
 
   // Grading
   const requiresGrading = document.getElementById('requires_grading');  // hidden
-  const preferredHidden = document.getElementById('preferred_grader');  // hidden
-  const swAny  = document.getElementById('grader_any');
-  const swPCGS = document.getElementById('grader_pcgs');
-  const swNGC  = document.getElementById('grader_ngc');
+  const requireTPGToggle = document.getElementById('require_tpg_bid');
 
   // Quantity
   const qtyInput = document.getElementById('qty-input');
@@ -304,31 +301,14 @@ function initBidForm() {
 
   /* ----- Grading toggle logic ----- */
 
-  function updatePrefAndFlags() {
-    if (swAny && swAny.checked) {
-      if (swPCGS) { swPCGS.checked = false; swPCGS.disabled = true; }
-      if (swNGC)  { swNGC.checked  = false; swNGC.disabled  = true; }
-      if (preferredHidden) preferredHidden.value = 'Any';
-    } else {
-      if (swPCGS) swPCGS.disabled = false;
-      if (swNGC)  swNGC.disabled  = false;
-      if (swPCGS && swNGC && swPCGS.checked && swNGC.checked) swNGC.checked = false;
-
-      if (preferredHidden) {
-        if (swPCGS && swPCGS.checked) preferredHidden.value = 'PCGS';
-        else if (swNGC && swNGC.checked) preferredHidden.value = 'NGC';
-        else preferredHidden.value = '';
-      }
+  function syncTPGToggle() {
+    if (requiresGrading) {
+      requiresGrading.value = (requireTPGToggle && requireTPGToggle.checked) ? 'yes' : 'no';
     }
-    const hasChoice = !!(preferredHidden && preferredHidden.value);
-    if (requiresGrading) requiresGrading.value = hasChoice ? 'yes' : 'no';
-
     validateAll();
   }
-  swAny && swAny.addEventListener('change', updatePrefAndFlags);
-  swPCGS && swPCGS.addEventListener('change', updatePrefAndFlags);
-  swNGC && swNGC.addEventListener('change', updatePrefAndFlags);
-  updatePrefAndFlags();
+  requireTPGToggle && requireTPGToggle.addEventListener('change', syncTPGToggle);
+  syncTPGToggle();
 
   /* ----- Pricing Mode Toggle ----- */
   function updatePricingFieldsVisibility() {
@@ -387,8 +367,8 @@ function initBidForm() {
     const spotPrice = Number(spotPriceText) || 0;
     const effective = spotPrice + premium;
 
-    premiumDisplay.textContent = premium.toFixed(2);
-    effectiveBidPrice.textContent = effective.toFixed(2);
+    premiumDisplay.textContent = formatWithCommas(premium, 2);
+    effectiveBidPrice.textContent = formatWithCommas(effective, 2);
   }
 
   if (pricingModeSelect) {
@@ -602,7 +582,7 @@ function initBidForm() {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    try { updatePrefAndFlags && updatePrefAndFlags(); } catch {}
+    try { syncTPGToggle && syncTPGToggle(); } catch {}
 
     validateAll();
     const btn = document.getElementById('eb-confirm');
@@ -617,7 +597,6 @@ function initBidForm() {
     const formData = new FormData(form);
     const pricingMode = formData.get('bid_pricing_mode') || 'static';
     const requiresGrading = formData.get('requires_grading') === 'yes';
-    const preferredGrader = formData.get('preferred_grader') || '';
 
     // Extract pricing fields based on mode
     let bidPrice, bidQuantity, spotPremium, ceilingPrice, pricingMetal;
@@ -696,7 +675,6 @@ function initBidForm() {
     openBidConfirmModal({
       itemDesc: 'Bid item',  // Will be populated by bid_confirm_modal.js
       requiresGrading: requiresGrading,
-      preferredGrader: preferredGrader,
       price: bidPrice,
       quantity: bidQuantity,
       isEdit: isEdit,
@@ -811,7 +789,7 @@ window.submitBidForm = function() {
 
       // Extract bucket specs from form data attributes for Item Details section
       let bucketMetal = '', bucketProductLine = '', bucketProductType = '', bucketWeight = '';
-      let bucketYear = '', bucketMint = '', bucketGrade = '', bucketPurity = '', bucketFinish = '';
+      let bucketYear = '', bucketMint = '', bucketPurity = '', bucketFinish = '';
 
       if (form) {
         bucketMetal = form.dataset.bucketMetal || '';
@@ -820,7 +798,6 @@ window.submitBidForm = function() {
         bucketWeight = form.dataset.bucketWeight || '';
         bucketYear = form.dataset.bucketYear || '';
         bucketMint = form.dataset.bucketMint || '';
-        bucketGrade = form.dataset.bucketGrade || '';
         bucketPurity = form.dataset.bucketPurity || '';
         bucketFinish = form.dataset.bucketFinish || '';
       }
@@ -828,8 +805,6 @@ window.submitBidForm = function() {
       const bidData = {
         quantity: bidQuantity,
         price: bidPrice,
-        requiresGrading: formData.get('requires_grading') === 'yes',
-        preferredGrader: formData.get('preferred_grader'),
         itemDesc: pending.itemDesc || getBucketDescription(),
         pricingMode: pricingMode,
         spotPremium: spotPremium,
@@ -837,6 +812,8 @@ window.submitBidForm = function() {
         pricingMetal: pricingMetal,
         metal: pending.metal || pricingMetal,
         weight: pending.weight,
+        // Grading preference
+        requiresGrading: formData.get('requires_grading') === 'yes',
         // Include server response data (takes priority over client-side calculations)
         effectivePrice: data.effective_price,
         currentSpotPrice: data.current_spot_price,
@@ -849,7 +826,6 @@ window.submitBidForm = function() {
         bucketWeight: bucketWeight,
         bucketYear: bucketYear,
         bucketMint: bucketMint,
-        bucketGrade: bucketGrade,
         bucketPurity: bucketPurity,
         bucketFinish: bucketFinish
       };

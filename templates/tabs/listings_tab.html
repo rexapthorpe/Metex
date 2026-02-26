@@ -45,18 +45,18 @@
 
           <!-- Photo Header -->
           <div class="listing-card-photo">
-            {% if listing.photo_filename %}
-              <img src="{{ url_for('static', filename='uploads/listings/' + listing.photo_filename) }}" alt="Listing photo">
+            {% if listing.photo_path %}
+              <img src="{{ url_for('static', filename=listing.photo_path) }}" alt="Listing photo">
             {% else %}
               <img src="{{ url_for('static', filename='img/placeholder.png') }}" alt="Product">
             {% endif %}
 
             <!-- Type Badge -->
-            <div class="listing-type-badge {% if listing.is_isolated %}listing-type-badge--ooak{% elif listing.is_set %}listing-type-badge--set{% else %}listing-type-badge--standard{% endif %}">
-              {% if listing.is_isolated %}
+            <div class="listing-type-badge {% if listing.isolated_type == 'set' %}listing-type-badge--set{% elif listing.is_isolated %}listing-type-badge--ooak{% else %}listing-type-badge--standard{% endif %}">
+              {% if listing.isolated_type == 'set' %}
+                <i class="fa-solid fa-layer-group"></i> Set
+              {% elif listing.is_isolated %}
                 <i class="fa-solid fa-gem"></i> One-of-a-Kind
-              {% elif listing.is_set %}
-                Set
               {% else %}
                 Standard
               {% endif %}
@@ -83,17 +83,18 @@
                   <i class="fa-solid fa-arrow-trend-up"></i> Variable
                 </div>
                 <div class="listing-price-details">
-                  <div class="listing-price-row">
-                    <span>Current:</span>
-                    <span class="listing-price-value">${{ '%.2f' | format(listing.effective_price) if listing.effective_price else '0.00' }}</span>
+                  <div class="listing-price-current">
+                    ${{ '{:,.2f}'.format(listing.effective_price) if listing.effective_price else '0.00' }}
                   </div>
-                  <div class="listing-price-row">
-                    <span>Premium:</span>
-                    <span class="listing-price-value listing-price-value--green">+${{ '%.2f' | format(listing.spot_premium) if listing.spot_premium else '0.00' }}</span>
-                  </div>
-                  <div class="listing-price-row">
-                    <span>Floor:</span>
-                    <span class="listing-price-value listing-price-value--amber">${{ '%.2f' | format(listing.floor_price) if listing.floor_price else '0.00' }}</span>
+                  <div class="listing-price-meta">
+                    <span class="listing-price-chip listing-price-chip--premium">
+                      <span class="listing-price-chip-label">Premium</span>
+                      <span class="listing-price-chip-val">+${{ '{:,.2f}'.format(listing.spot_premium) if listing.spot_premium else '0.00' }}</span>
+                    </span>
+                    <span class="listing-price-chip listing-price-chip--floor">
+                      <span class="listing-price-chip-label">Floor</span>
+                      <span class="listing-price-chip-val">${{ '{:,.2f}'.format(listing.floor_price) if listing.floor_price else '0.00' }}</span>
+                    </span>
                   </div>
                 </div>
               {% else %}
@@ -101,7 +102,7 @@
                   <i class="fa-solid fa-dollar-sign"></i> Fixed Price
                 </div>
                 <div class="listing-fixed-price">
-                  ${{ '%.2f' | format(listing.price_per_coin) if listing.price_per_coin else '0.00' }}
+                  ${{ '{:,.2f}'.format(listing.price_per_coin) if listing.price_per_coin else '0.00' }}
                 </div>
               {% endif %}
               <div class="listing-qty" id="listing-qty-{{ listing.listing_id }}">Qty: {{ listing.quantity }}</div>
@@ -136,9 +137,15 @@
               data-year="{{ listing.year or '' }}"
               data-finish="{{ listing.finish or '' }}"
               data-product-line="{{ listing.product_line or '' }}"
+              data-condition-category="{{ listing.condition_category or '' }}"
+              data-series-variant="{{ listing.series_variant or '' }}"
+              data-is-isolated="{{ '1' if listing.is_isolated else '0' }}"
+              data-packaging-type="{{ listing.packaging_type or '' }}"
+              data-packaging-notes="{{ listing.packaging_notes or '' }}"
+              data-condition-notes="{{ listing.condition_notes or '' }}"
               data-graded="{{ '1' if listing.graded else '0' }}"
               data-grading-service="{{ listing.grading_service or '' }}"
-              data-photo-filename="{{ listing.photo_filename or '' }}"
+              data-photo-filename="{{ listing.photo_path or '' }}"
               data-quantity="{{ listing.quantity }}"
             >
               <i class="fa-solid fa-list-check"></i> Specs
@@ -154,6 +161,13 @@
           </div>
         </div>
       {% endfor %}
+      <div class="tab-filter-empty" id="listingsFilterEmpty" style="display:none;">
+        <div class="tab-filter-empty-icon-wrap">
+          <i class="fa-solid fa-store tab-filter-empty-icon"></i>
+        </div>
+        <p class="tab-filter-empty-title" id="listingsFilterEmptyMsg">No listings yet</p>
+        <p class="tab-filter-empty-sub">Try a different filter to see your listings.</p>
+      </div>
     </div>
   {% else %}
     <div class="tab-empty-state">
@@ -176,6 +190,17 @@ function filterListings(filter) {
     const cardFilter = card.dataset.listingFilter;
     card.style.display = (filter === 'all' || cardFilter === filter) ? '' : 'none';
   });
+  const emptyEl = document.getElementById('listingsFilterEmpty');
+  if (emptyEl) {
+    if (filter !== 'all') {
+      const anyVisible = Array.from(document.querySelectorAll('.listing-card')).some(c => c.style.display !== 'none');
+      const msgEl = document.getElementById('listingsFilterEmptyMsg');
+      if (msgEl) msgEl.textContent = 'No ' + filter + ' listings yet!';
+      emptyEl.style.display = anyVisible ? 'none' : 'flex';
+    } else {
+      emptyEl.style.display = 'none';
+    }
+  }
 }
 window.filterListings = filterListings;
 
@@ -190,7 +215,7 @@ function openListingSpecsModal(btn) {
   subtitle.textContent = title;
 
   const imgSrc = d.photoFilename
-    ? `/static/uploads/listings/${encodeURIComponent(d.photoFilename)}`
+    ? `/static/${d.photoFilename}`
     : null;
   const imgHtml = imgSrc
     ? `<img class="oim-item-image" src="${imgSrc}" alt="Product image" onerror="this.style.display='none'">`
@@ -206,17 +231,22 @@ function openListingSpecsModal(btn) {
     </div>`;
   };
 
-  const certDisplay = d.graded === '1' ? show(d.gradingService) : null;
   const specsGrid = [
-    specItem('<i class="fa-solid fa-tag"></i>',              'Category',      show(d.productType)),
-    specItem('<i class="fa-solid fa-gem"></i>',              'Metal Type',    show(d.metal)),
-    specItem('<i class="fa-solid fa-coins"></i>',            'Product Line',  show(d.productLine)),
-    specItem('<i class="fa-solid fa-scale-balanced"></i>',   'Weight',        show(d.weight)),
-    specItem('<i class="fa-solid fa-layer-group"></i>',      'Purity',        show(d.purity)),
-    specItem('<i class="fa-solid fa-building-columns"></i>', 'Mint',          show(d.mint)),
-    specItem('<i class="fa-regular fa-calendar"></i>',       'Year',          show(d.year)),
-    specItem('<i class="fa-solid fa-certificate"></i>',      'Finish',        show(d.finish)),
-    specItem('<i class="fa-solid fa-shield-halved"></i>',    'Certification', certDisplay),
+    specItem('<i class="fa-solid fa-gem"></i>',              'Metal',          show(d.metal)),
+    specItem('<i class="fa-solid fa-coins"></i>',            'Product Line',   show(d.productLine)),
+    specItem('<i class="fa-solid fa-tag"></i>',              'Product Type',   show(d.productType)),
+    specItem('<i class="fa-solid fa-scale-balanced"></i>',   'Weight',         show(d.weight)),
+    specItem('<i class="fa-solid fa-circle-check"></i>',     'Condition',      show(d.conditionCategory)),
+    specItem('<i class="fa-regular fa-calendar"></i>',       'Year',           show(d.year)),
+    specItem('<i class="fa-solid fa-building-columns"></i>', 'Mint',           show(d.mint)),
+    specItem('<i class="fa-solid fa-layer-group"></i>',      'Purity',         show(d.purity)),
+    specItem('<i class="fa-solid fa-certificate"></i>',      'Finish',         show(d.finish)),
+    specItem('<i class="fa-solid fa-bookmark"></i>',         'Series Variant', show(d.seriesVariant)),
+    ...(d.isIsolated === '1' ? [
+      specItem('<i class="fa-solid fa-box"></i>',            'Packaging',      show(d.packagingType)),
+      specItem('<i class="fa-regular fa-note-sticky"></i>',  'Packaging Notes', show(d.packagingNotes)),
+      specItem('<i class="fa-solid fa-clipboard-list"></i>', 'Condition Notes', show(d.conditionNotes)),
+    ] : []),
   ].filter(Boolean).join('');
 
   body.innerHTML = `

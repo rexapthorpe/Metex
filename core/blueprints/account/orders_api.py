@@ -464,3 +464,103 @@ def order_items(order_id):
         })
 
     return jsonify(result)
+
+
+@account_bp.route('/orders/api/<int:order_id>/buyer_info')
+def order_buyer_info(order_id):
+    """
+    Get buyer profile stats for a sold order.
+
+    SECURITY: Only the seller of that order can view buyer info.
+    """
+    if 'user_id' not in session:
+        return jsonify(error="Authentication required"), 401
+
+    user_id = session['user_id']
+
+    # SECURITY: Verify user is a seller in this order
+    access_check = _verify_order_access(order_id, user_id)
+    if not access_check:
+        if AUDIT_ENABLED:
+            log_unauthorized_access('order', order_id, 'view_buyer')
+        return jsonify(error="You do not have access to this order"), 403
+
+    conn = get_db_connection()
+
+    # Get buyer info
+    buyer_row = conn.execute('''
+        SELECT u.id AS buyer_id, u.username, u.first_name, u.last_name, u.created_at
+        FROM orders o
+        JOIN users u ON o.buyer_id = u.id
+        WHERE o.id = ?
+    ''', (order_id,)).fetchone()
+
+    if not buyer_row:
+        conn.close()
+        return jsonify(error="Buyer not found"), 404
+
+    buyer_id = buyer_row['buyer_id']
+
+    display_name = f"{buyer_row['first_name'] or ''} {buyer_row['last_name'] or ''}".strip()
+    if not display_name:
+        display_name = buyer_row['username']
+
+    raw_date = buyer_row['created_at']
+    if raw_date:
+        try:
+            dt = datetime.fromisoformat(str(raw_date).replace('Z', ''))
+            member_since = dt.strftime('%b %Y')
+        except (ValueError, TypeError):
+            member_since = str(raw_date)[:4]
+    else:
+        member_since = None
+
+    # Rating and reviews
+    rating_row = conn.execute('''
+        SELECT COALESCE(AVG(r.rating), 0) AS rating,
+               COUNT(r.id) AS num_reviews
+        FROM ratings r WHERE r.ratee_id = ?
+    ''', (buyer_id,)).fetchone()
+
+    # Completed transaction count (as buyer)
+    tx_row = conn.execute('''
+        SELECT COUNT(DISTINCT o.id) AS transaction_count
+        FROM orders o
+        WHERE o.buyer_id = ? AND o.status IN ('Delivered', 'Complete')
+    ''', (buyer_id,)).fetchone()
+
+    # Repeat sellers percentage (sellers they've bought from more than once)
+    sellers_rows = conn.execute('''
+        SELECT l.seller_id, COUNT(DISTINCT o.id) AS order_count
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN listings l ON oi.listing_id = l.id
+        WHERE o.buyer_id = ?
+        GROUP BY l.seller_id
+    ''', (buyer_id,)).fetchall()
+    total_sellers = len(sellers_rows)
+    repeat_sellers = sum(1 for s in sellers_rows if s['order_count'] >= 2)
+    repeat_sellers_pct = round((repeat_sellers / total_sellers) * 100) if total_sellers > 0 else 0
+
+    # Order quantity for this specific order
+    qty_row = conn.execute('''
+        SELECT SUM(oi.quantity) AS quantity
+        FROM order_items oi WHERE oi.order_id = ?
+    ''', (order_id,)).fetchone()
+
+    is_verified = (rating_row['rating'] or 0) >= 4.7 and (rating_row['num_reviews'] or 0) > 100
+
+    conn.close()
+
+    return jsonify({
+        'buyer_id': buyer_id,
+        'username': buyer_row['username'],
+        'display_name': display_name,
+        'rating': float(rating_row['rating'] or 0),
+        'num_reviews': int(rating_row['num_reviews'] or 0),
+        'transaction_count': int(tx_row['transaction_count'] or 0),
+        'repeat_sellers_pct': repeat_sellers_pct,
+        'member_since': member_since,
+        'quantity': int(qty_row['quantity'] or 0) if qty_row else 0,
+        'is_verified': is_verified,
+    })

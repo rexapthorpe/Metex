@@ -123,18 +123,55 @@
 .pricing-mode-badge--variable { background: #dbeafe; color: #1e40af; }
 .pricing-mode-badge--fixed { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 
-.listing-price-details { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
-
-.listing-price-row {
+.listing-price-details {
   display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: #64748b;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
-.listing-price-value { font-weight: 600; color: #0f172a; }
-.listing-price-value--green { color: #16a34a; }
-.listing-price-value--amber { color: #3da6ff; }
+/* Current (effective) price — same weight as fixed price */
+.listing-price-current {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+/* Premium + Floor chip row */
+.listing-price-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.listing-price-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.listing-price-chip-label {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.listing-price-chip--premium {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.listing-price-chip--floor {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
 
 .listing-fixed-price {
   font-size: 22px;

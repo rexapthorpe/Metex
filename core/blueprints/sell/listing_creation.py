@@ -33,6 +33,18 @@ def handle_sell_post():
         Response: JSON response for AJAX or rendered template/redirect for form POST
     """
     try:
+        # Hard safety check: if edit_listing_id is present, this should have gone to
+        # edit_listing() via the dispatcher in routes.py. Refuse to create a new listing.
+        edit_id_str = request.form.get('edit_listing_id', '').strip()
+        if edit_id_str and edit_id_str.isdigit():
+            error_msg = 'Cannot create a new listing when edit_listing_id is present.'
+            print(f"[SAFETY] handle_sell_post called with edit_listing_id={edit_id_str} — refusing to create new listing")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify(success=False, message=error_msg), 400
+            flash(error_msg, 'error')
+            options = get_dropdown_options()
+            return _render_sell_template(options)
+
         print(">>> /sell POST content_length:", request.content_length)
         print(">>> Content-Type:", request.headers.get("Content-Type"))
         print(">>> files keys:", list(request.files.keys()))
@@ -110,7 +122,9 @@ def handle_sell_post():
 
         # Validate and extract pricing parameters based on mode
         try:
-            quantity = int(request.form['quantity'])
+            # Set listings are always 1-of-a-kind (isolated); quantity defaults to 1 if blank
+            raw_quantity = request.form.get('quantity', '').strip()
+            quantity = int(raw_quantity) if raw_quantity else 1 if is_set else int(request.form['quantity'])
 
             if pricing_mode == 'static':
                 # Static mode: require price_per_coin
@@ -524,7 +538,12 @@ def handle_sell_post():
             'is_isolated': 1 if is_isolated else 0,
             'isolated_type': isolated_type,
             'issue_number': issue_number,
-            'issue_total': issue_total
+            'issue_total': issue_total,
+            'condition_category': condition_category,
+            'series_variant': series_variant,
+            'packaging_type': packaging_type,
+            'packaging_notes': packaging_notes,
+            'condition_notes': condition_notes
         }
 
         # Get set items for response if this is a set listing
@@ -644,7 +663,8 @@ def _create_set_items(cursor, conn, listing_id, set_item_indices, options):
         set_finish = request.form.get(f'set_items[{idx}][finish]', '').strip()
         set_grade = request.form.get(f'set_items[{idx}][grade]', '').strip()
         set_coin_series = request.form.get(f'set_items[{idx}][coin_series]', '').strip()
-        set_quantity = int(request.form.get(f'set_items[{idx}][quantity]', '1'))
+        raw_set_qty = request.form.get(f'set_items[{idx}][quantity]', '').strip()
+        set_quantity = int(raw_set_qty) if raw_set_qty else 1
         # Additional item details
         set_packaging_type = request.form.get(f'set_items[{idx}][packaging_type]', '').strip() or None
         set_packaging_notes = request.form.get(f'set_items[{idx}][packaging_notes]', '').strip() or None

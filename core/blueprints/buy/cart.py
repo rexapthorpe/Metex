@@ -12,6 +12,7 @@ from flask import render_template, request, redirect, url_for, session, flash
 from database import get_db_connection
 from services.pricing_service import get_effective_price
 from utils.auth_utils import frozen_check
+from config import GRADING_FEE_PER_UNIT
 
 from . import buy_bp
 
@@ -88,6 +89,7 @@ def view_cart():
     # Organize items into buckets and recalculate effective prices
     buckets = {}
     cart_total = 0
+    has_tpg = False
 
     for item in raw_items:
         # Calculate effective price for this cart item
@@ -129,6 +131,10 @@ def view_cart():
             # Attach grading preference if available
             if 'grading_preference' in item and item['grading_preference']:
                 buckets[category_id]['grading_preference'] = item['grading_preference']
+
+        # Track TPG preference
+        if item.get('third_party_grading_requested'):
+            has_tpg = True
 
         # Use effective price for subtotal
         subtotal = effective_price * item['quantity']
@@ -240,10 +246,20 @@ def view_cart():
 
     conn.close()
 
+    # Compute total item count and grading fee
+    total_item_count = sum(b['total_qty'] for b in buckets.values())
+    grading_fee = round(GRADING_FEE_PER_UNIT * total_item_count, 2) if has_tpg else 0.0
+    grand_total = round(cart_total + grading_fee, 2)
+
     return render_template(
         'view_cart.html',
         buckets=buckets,
         cart_total=round(cart_total, 2),
+        grading_fee=grading_fee,
+        grading_fee_per_unit=GRADING_FEE_PER_UNIT,
+        third_party_grading=has_tpg,
+        item_count=total_item_count,
+        grand_total=grand_total,
         suggested_items=suggested_items,
         session=session
     )

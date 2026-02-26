@@ -84,6 +84,16 @@
   }
 
   function clearCoverPhoto() {
+    // In edit mode, remove the existing photo ID from keepPhotoIds so the backend deletes it
+    if (window.sellEditMode && coverPhotoBox && coverPhotoBox.dataset.existingPhotoId) {
+      const keepEl = document.getElementById('keepPhotoIds');
+      if (keepEl) {
+        const photoId = coverPhotoBox.dataset.existingPhotoId.toString();
+        const ids = keepEl.value.split(',').filter(id => id.trim() !== '' && id.trim() !== photoId);
+        keepEl.value = ids.join(',');
+      }
+      delete coverPhotoBox.dataset.existingPhotoId;
+    }
     coverPhotoPreview.style.display = 'none';
     coverPhotoPreview.src = '';
     coverPhotoClearBtn.style.display = 'none';
@@ -157,19 +167,11 @@
     }
 
     // Update Quantity field visibility
-    if (mode === 'isolated') {
-      // One-of-a-Kind: hide quantity (always 1)
+    if (mode === 'isolated' || mode === 'set') {
+      // One-of-a-Kind and Set: hide quantity (always 1)
       quantityGroup.style.display = 'none';
       quantityInput.removeAttribute('required');
       quantityInput.value = '1'; // Set to 1 implicitly
-    } else if (mode === 'set') {
-      // Set: show quantity (for each individual item in the set)
-      quantityGroup.style.display = 'block';
-      quantityInput.setAttribute('required', 'required');
-      const qtyLabel = quantityGroup.querySelector('label');
-      if (qtyLabel) qtyLabel.innerHTML = 'Quantity (per item) <span class="required">*</span>';
-      const qtyExample = quantityGroup.querySelector('.example-text');
-      if (qtyExample) qtyExample.textContent = 'Number of this specific item in the set';
     } else {
       // Standard: show quantity (number of items)
       quantityGroup.style.display = 'block';
@@ -231,19 +233,17 @@
     }
 
     // Update Set Builder visibility
-    const itemTitleGroup = document.getElementById('itemTitleGroup');
+
     if (mode === 'set') {
       addSetItemBtnContainer.style.display = 'block';
       setItemLabel.style.display = 'block';
       // Update label to show correct item number based on current setItems count
       setItemLabel.textContent = `Set Item #${setItems.length + 1}`;
-      if (itemTitleGroup) itemTitleGroup.style.display = 'block';
       mainItemHeader.textContent = 'Product Specifications';
     } else {
       addSetItemBtnContainer.style.display = 'none';
       setContentsDisplay.style.display = 'none';
       setItemLabel.style.display = 'none';
-      if (itemTitleGroup) itemTitleGroup.style.display = 'none';
       mainItemHeader.textContent = 'Item Specifications';
       // Note: We preserve setItems array when switching modes
     }
@@ -254,14 +254,9 @@
     const multiPhotoLabel = multiPhotoContainer ? multiPhotoContainer.querySelector('label') : null;
 
     if (mode === 'set') {
-      // Set mode: Hide standard photo grid, show set multi-photo grid
+      // Set mode: Hide standard photo grid, show set photo boxes
       if (standardPhotoContainer) standardPhotoContainer.style.display = 'none';
       if (multiPhotoContainer) multiPhotoContainer.style.display = 'block';
-      // Update label for set mode
-      if (multiPhotoLabel) {
-        multiPhotoLabel.textContent = 'Item Photos (1-3 photos, PNG only)';
-      }
-      renderMultiPhotoGrid();
     } else {
       // Standard or Isolated: Show standard photo grid (supports up to 3 photos)
       if (standardPhotoContainer) standardPhotoContainer.style.display = 'block';
@@ -300,6 +295,13 @@
       window.toggleCurrentItemRequiredAttributes();
     }
 
+    // Show/hide the spot-metal selector (set mode + premium-to-spot only)
+    const setSpotMetalGroup = document.getElementById('set_spot_metal_group');
+    if (setSpotMetalGroup) {
+      const pricingMode = document.querySelector('input[name="pricing_mode"]:checked')?.value;
+      setSpotMetalGroup.style.display = (mode === 'set' && pricingMode === 'premium_to_spot') ? 'block' : 'none';
+    }
+
     // Autosave disabled - no longer saving drafts on mode change
     // scheduleAutosave();
   }
@@ -333,149 +335,82 @@
   modeIsolated.addEventListener('change', reinitializeLucide);
   modeSet.addEventListener('change', reinitializeLucide);
 
-  // ========== MULTI-PHOTO MANAGEMENT (Set Items) ==========
+  // ========== MULTI-PHOTO MANAGEMENT (Set Items — 3 static boxes) ==========
   let currentItemPhotos = []; // Array of File objects (max 3)
 
-  function renderMultiPhotoGrid() {
-    const grid = document.getElementById('multiPhotoGrid');
-    if (!grid) return;
-
-    grid.innerHTML = '';
-
-    // Render existing photo thumbnails (using same structure as Set Cover Photo)
-    currentItemPhotos.forEach((photoFile, index) => {
-      const tile = document.createElement('div');
-      tile.className = 'photo-upload-box has-image';
-      tile.style.maxWidth = '300px'; // Match cover photo max-width
-
-      const img = document.createElement('img');
-      img.className = 'photo-preview';
-      img.style.display = 'block';
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(photoFile);
-
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'close-button';
-      removeBtn.innerHTML = '×';
-      removeBtn.setAttribute('aria-label', 'Remove photo');
-      removeBtn.style.display = 'flex';
-      removeBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        removePhoto(index);
-      };
-
-      tile.appendChild(img);
-      tile.appendChild(removeBtn);
-      grid.appendChild(tile);
+  // Rebuild currentItemPhotos from the 3 static set photo inputs
+  function updateCurrentItemPhotos() {
+    currentItemPhotos = [];
+    ['setPhotoInput1', 'setPhotoInput2', 'setPhotoInput3'].forEach(function(id) {
+      const input = document.getElementById(id);
+      if (input && input.files.length > 0) currentItemPhotos.push(input.files[0]);
     });
-
-    // Always render "Add Photo" tile (disabled if at 3 photos)
-    const addTile = document.createElement('div');
-    addTile.className = 'photo-upload-box';
-    addTile.style.maxWidth = '300px'; // Match cover photo max-width
-
-    const plusIcon = document.createElement('span');
-    plusIcon.className = 'photo-upload-plus';
-    plusIcon.textContent = '+';
-    addTile.appendChild(plusIcon);
-
-    if (currentItemPhotos.length < 3) {
-      // Enabled state - clickable
-      addTile.onclick = () => {
-        document.getElementById('multiPhotoInput').click();
-      };
-    } else {
-      // Disabled state - not clickable, visually de-emphasized
-      addTile.classList.add('disabled');
-      addTile.style.opacity = '0.4';
-      addTile.style.cursor = 'not-allowed';
-    }
-
-    grid.appendChild(addTile);
-
-    // Update checklist and button state
-    if (typeof window.updateSidebarChecklist === 'function') {
-      window.updateSidebarChecklist();
-    }
-    if (typeof window.updateAddItemButtonState === 'function') {
-      window.updateAddItemButtonState();
-    }
+    window.currentItemPhotos = currentItemPhotos;
   }
 
-  function removePhoto(index) {
-    currentItemPhotos.splice(index, 1);
-    renderMultiPhotoGrid();
+  function setupSetPhotoBox(boxId, inputId, previewId, clearId) {
+    const box = document.getElementById(boxId);
+    const input = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    const clearBtn = document.getElementById(clearId);
+    if (!box || !input) return;
 
-    // Update checklist and button state when photo is removed
-    if (typeof window.updateChecklist === 'function') {
-      window.updateChecklist();
-    }
-    if (typeof window.updateAddItemButtonState === 'function') {
-      window.updateAddItemButtonState();
+    box.addEventListener('click', function(e) {
+      if (!e.target.closest('.close-button') && !box.classList.contains('has-image')) {
+        input.click();
+      }
+    });
+
+    input.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        if (preview) { preview.src = ev.target.result; preview.style.display = 'block'; }
+        if (clearBtn) clearBtn.style.display = 'flex';
+        box.classList.add('has-image');
+      };
+      reader.readAsDataURL(file);
+      updateCurrentItemPhotos();
+      if (typeof window.updateChecklist === 'function') window.updateChecklist();
+      if (typeof window.updateAddItemButtonState === 'function') window.updateAddItemButtonState();
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        input.value = '';
+        if (preview) { preview.style.display = 'none'; preview.src = ''; }
+        clearBtn.style.display = 'none';
+        box.classList.remove('has-image');
+        updateCurrentItemPhotos();
+        if (typeof window.updateChecklist === 'function') window.updateChecklist();
+        if (typeof window.updateAddItemButtonState === 'function') window.updateAddItemButtonState();
+      });
     }
   }
 
   function clearMultiPhotos() {
-    currentItemPhotos = [];
-    window.currentItemPhotos = currentItemPhotos;  // CRITICAL: Update window reference
-    const multiPhotoInput = document.getElementById('multiPhotoInput');
-    if (multiPhotoInput) multiPhotoInput.value = '';
-    renderMultiPhotoGrid();
-
-    // CRITICAL: Explicitly recompute checklist after clearing photos to ensure "Item photo uploaded" unchecks
-    if (typeof window.updateChecklist === 'function') {
-      window.updateChecklist();
-    }
-  }
-
-  // Multi-photo input handler
-  const multiPhotoInput = document.getElementById('multiPhotoInput');
-  if (multiPhotoInput) {
-    multiPhotoInput.addEventListener('change', function(e) {
-      const files = Array.from(e.target.files || []);
-
-      // Validate PNG only
-      const invalidFiles = files.filter(f => !f.type.includes('png'));
-      if (invalidFiles.length > 0) {
-        alert('Only PNG files are allowed. Please select PNG images only.');
-        e.target.value = '';
-        return;
-      }
-
-      // Validate file sizes (20MB per photo, 100MB total for all photos)
-      const maxFileSize = 20 * 1024 * 1024; // 20MB per file
-      const oversizedFiles = files.filter(f => f.size > maxFileSize);
-      if (oversizedFiles.length > 0) {
-        const sizeMB = (oversizedFiles[0].size / (1024 * 1024)).toFixed(1);
-        alert(`Photo too large: ${oversizedFiles[0].name} is ${sizeMB}MB. Maximum size per photo is 20MB. Please resize or compress the image.`);
-        e.target.value = '';
-        return;
-      }
-
-      // Add photos up to max of 3 total
-      const remainingSlots = 3 - currentItemPhotos.length;
-      const photosToAdd = files.slice(0, remainingSlots);
-
-      currentItemPhotos.push(...photosToAdd);
-      renderMultiPhotoGrid();
-
-      // Clear input for next selection
-      e.target.value = '';
-
-      // Update checklist and button state when photos are added
-      if (typeof window.updateChecklist === 'function') {
-        window.updateChecklist();
-      }
-      if (typeof window.updateAddItemButtonState === 'function') {
-        window.updateAddItemButtonState();
-      }
+    ['1', '2', '3'].forEach(function(n) {
+      const box = document.getElementById('setPhotoBox' + n);
+      const preview = document.getElementById('setPhotoPreview' + n);
+      const clearBtn = document.getElementById('setPhotoClear' + n);
+      const input = document.getElementById('setPhotoInput' + n);
+      if (box) box.classList.remove('has-image');
+      if (preview) { preview.style.display = 'none'; preview.src = ''; }
+      if (clearBtn) clearBtn.style.display = 'none';
+      if (input) input.value = '';
     });
+    currentItemPhotos = [];
+    window.currentItemPhotos = currentItemPhotos;
+    if (typeof window.updateChecklist === 'function') window.updateChecklist();
   }
+
+  // Initialize set photo box handlers
+  setupSetPhotoBox('setPhotoBox1', 'setPhotoInput1', 'setPhotoPreview1', 'setPhotoClear1');
+  setupSetPhotoBox('setPhotoBox2', 'setPhotoInput2', 'setPhotoPreview2', 'setPhotoClear2');
+  setupSetPhotoBox('setPhotoBox3', 'setPhotoInput3', 'setPhotoPreview3', 'setPhotoClear3');
 
   // Capture current spec values from the form
   function captureSpecValues() {
@@ -672,11 +607,6 @@
         alert('First two items require a photo to be uploaded.');
         return;
       }
-
-      if (!specs.quantity || parseInt(specs.quantity) < 1) {
-        alert('Please enter a valid quantity for this item.');
-        return;
-      }
     } else {
       // Items 3+: Only photo required, dropdowns optional
       if (!specs.photo) {
@@ -689,8 +619,8 @@
     setItems.push(specs);
     setItemCount++;
 
-    // Render updated list
-    renderSetItems();
+    // Render updated list (use window.renderSetItems so sidebar hook fires)
+    window.renderSetItems();
 
     // Clear fields for next item
     clearSpecFields();
@@ -705,7 +635,7 @@
       const index = parseInt(e.target.getAttribute('data-index'));
       setItems.splice(index, 1);
       setItemCount--;
-      renderSetItems();
+      window.renderSetItems();
 
       // Update checklist immediately to reflect removed item
       if (typeof window.updateChecklist === 'function') {
@@ -801,7 +731,7 @@
       // Restore set items (without photos)
       if (draft.setItems && draft.setItems.length > 0) {
         setItems = draft.setItems;
-        renderSetItems();
+        window.renderSetItems();
         // Update the label to reflect restored items
         if (setItemLabel) {
           setItemLabel.textContent = `Set Item #${setItems.length + 1}`;

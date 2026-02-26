@@ -48,7 +48,6 @@
   // Current Item checklist elements (for Set mode)
   const checkCurrentSpecs = document.getElementById('checkCurrentSpecs');
   const checkCurrentPhoto = document.getElementById('checkCurrentPhoto');
-  const checkCurrentQuantity = document.getElementById('checkCurrentQuantity');
 
   console.log('[SELL SIDEBAR] CRITICAL - Checklist elements found?', {
     checkProductSpecs: !!checkProductSpecs,
@@ -58,8 +57,7 @@
     checkPricing: !!checkPricing,
     checkQuantity: !!checkQuantity,
     checkCurrentSpecs: !!checkCurrentSpecs,
-    checkCurrentPhoto: !!checkCurrentPhoto,
-    checkCurrentQuantity: !!checkCurrentQuantity
+    checkCurrentPhoto: !!checkCurrentPhoto
   });
 
   // Set Listing checklist elements (for Set mode)
@@ -111,7 +109,7 @@
     if (pricingMode === 'static') {
       const price = pricePerCoinInput?.value?.trim();
       if (price && parseFloat(price) > 0) {
-        priceText = '$' + parseFloat(price).toFixed(2);
+        priceText = formatPrice(parseFloat(price));
       }
     } else if (pricingMode === 'premium_to_spot') {
       const premium = spotPremiumInput?.value?.trim();
@@ -226,11 +224,6 @@
     const hasPhoto = currentPhotos.length > 0;
     toggleChecklistItem(checkCurrentPhoto, hasPhoto);
 
-    // Current Item Quantity Set (in Set mode, quantity is per-item)
-    const qty = quantityInput?.value?.trim();
-    const quantitySet = qty && parseInt(qty) > 0;
-    toggleChecklistItem(checkCurrentQuantity, quantitySet);
-
     // Update "Add Item to Set" button state
     updateAddItemButtonState();
   }
@@ -245,7 +238,10 @@
     toggleChecklistItem(checkSetItems, items.length >= 2);
 
     // Set cover photo uploaded
-    const hasCoverPhoto = coverPhotoInput?.files?.length > 0;
+    const setCoverPhotoBox = document.getElementById('coverPhotoUploadBox');
+    const hasCoverPhoto =
+      coverPhotoInput?.files?.length > 0 ||
+      setCoverPhotoBox?.classList.contains('has-image');
     toggleChecklistItem(checkSetCoverPhoto, hasCoverPhoto);
 
     // Listing title provided
@@ -417,7 +413,10 @@
 
       // 4. Cover Photo Uploaded (PNG required in one-of-a-kind mode)
       checkCoverPhoto.style.display = 'flex';
-      const coverPhotoUploaded = coverPhotoInput?.files?.length > 0;
+      const coverPhotoBox = document.getElementById('coverPhotoUploadBox');
+      const coverPhotoUploaded =
+        coverPhotoInput?.files?.length > 0 ||
+        coverPhotoBox?.classList.contains('has-image');
       toggleChecklistItem(checkCoverPhoto, coverPhotoUploaded);
 
       // 5. Pricing Complete
@@ -643,16 +642,22 @@
         pricingComplete = (premium && floor);
       }
 
+      const setCoverPhotoBoxCTA = document.getElementById('coverPhotoUploadBox');
+      const hasCoverPhotoCTA =
+        coverPhotoInput?.files?.length > 0 ||
+        setCoverPhotoBoxCTA?.classList.contains('has-image');
+
       allRequirementsMet = (
         allItemsHavePhotos &&
         listingTitleInput?.value?.trim() &&
-        coverPhotoInput?.files?.length > 0 &&
+        hasCoverPhotoCTA &&
         pricingComplete
       );
     }
 
     if (sidebarSubmitBtn) {
-      sidebarSubmitBtn.disabled = !allRequirementsMet;
+      // Keep disabled if a submission is in flight (prevents re-submit during redirect)
+      sidebarSubmitBtn.disabled = !allRequirementsMet || (window._sellSubmitting === true);
     }
 
     // Update button text based on mode (edit mode overrides all)
@@ -745,10 +750,8 @@
                            specs.finish && specs.series_variant);
     // Handle both photo arrays (multi-photo) and single photos
     const hasPhoto = Array.isArray(specs.photo) ? specs.photo.length > 0 : !!specs.photo;
-    // Quantity validation (must be positive integer)
-    const hasQuantity = specs.quantity && parseInt(specs.quantity) > 0;
 
-    canAdd = hasAllSpecs && hasPhoto && hasQuantity;
+    canAdd = hasAllSpecs && hasPhoto;
 
     sidebarAddSetItemBtn.disabled = !canAdd;
   }
@@ -762,23 +765,17 @@
       const specs = captureSpecValues();
       console.log('[Add Item] Captured specs:', specs);
 
-      // All set items require: all specs + photo + quantity
+      // All set items require: all specs + photo
       if (!specs.metal || !specs.product_line || !specs.product_type || !specs.weight ||
           !specs.purity || !specs.mint || !specs.year || !specs.finish || !specs.series_variant) {
-        showFieldValidationModal('All Product Specification fields (including Series Variant) must be filled to add this item to the set.');
-        return;
-      }
-
-      // Quantity validation
-      if (!specs.quantity || parseInt(specs.quantity) <= 0) {
-        showFieldValidationModal('Please enter a valid quantity (positive number) for this item.');
+        showFieldValidationModal(['All Product Specification fields (including Series Variant) must be filled to add this item to the set.']);
         return;
       }
 
       // Handle both photo arrays (multi-photo) and single photos
       const hasPhoto = Array.isArray(specs.photo) ? specs.photo.length > 0 : !!specs.photo;
       if (!hasPhoto) {
-        showFieldValidationModal('Please upload at least one photo for this item before adding it to the set.');
+        showFieldValidationModal(['Please upload at least one photo for this item before adding it to the set.']);
         return;
       }
 

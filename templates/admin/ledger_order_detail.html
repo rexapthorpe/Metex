@@ -37,15 +37,15 @@
         <div class="header-amounts">
             <div class="amount-item">
                 <span class="amount-label">Gross Amount</span>
-                <span class="amount-value">${{ "%.2f"|format(order.gross_amount) }}</span>
+                <span class="amount-value">${{ '{:,.2f}'.format(order.gross_amount) }}</span>
             </div>
             <div class="amount-item fee">
                 <span class="amount-label">Platform Fee</span>
-                <span class="amount-value">${{ "%.2f"|format(order.platform_fee_amount) }}</span>
+                <span class="amount-value">${{ '{:,.2f}'.format(order.platform_fee_amount) }}</span>
             </div>
             <div class="amount-item net">
                 <span class="amount-label">Net to Sellers</span>
-                <span class="amount-value">${{ "%.2f"|format(order.gross_amount - order.platform_fee_amount) }}</span>
+                <span class="amount-value">${{ '{:,.2f}'.format(order.gross_amount - order.platform_fee_amount) }}</span>
             </div>
         </div>
     </div>
@@ -75,22 +75,22 @@
                     <td>#{{ item.listing_id }}</td>
                     <td>@{{ item.seller_username }} ({{ item.seller_id }})</td>
                     <td>{{ item.quantity }}</td>
-                    <td>${{ "%.2f"|format(item.unit_price) }}</td>
-                    <td>${{ "%.2f"|format(item.gross_amount) }}</td>
+                    <td>${{ '{:,.2f}'.format(item.unit_price) }}</td>
+                    <td>${{ '{:,.2f}'.format(item.gross_amount) }}</td>
                     <td><span class="fee-type">{{ item.fee_type }}</span></td>
-                    <td>{{ "%.2f"|format(item.fee_value) }}{{ '%' if item.fee_type == 'percent' else '' }}</td>
-                    <td class="fee-amount">${{ "%.2f"|format(item.fee_amount) }}</td>
-                    <td class="seller-net">${{ "%.2f"|format(item.seller_net_amount) }}</td>
+                    <td>{{ '{:,.2f}'.format(item.fee_value) }}{{ '%' if item.fee_type == 'percent' else '' }}</td>
+                    <td class="fee-amount">${{ '{:,.2f}'.format(item.fee_amount) }}</td>
+                    <td class="seller-net">${{ '{:,.2f}'.format(item.seller_net_amount) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr>
                     <td colspan="5"><strong>Total</strong></td>
-                    <td><strong>${{ "%.2f"|format(order.gross_amount) }}</strong></td>
+                    <td><strong>${{ '{:,.2f}'.format(order.gross_amount) }}</strong></td>
                     <td colspan="2"></td>
-                    <td class="fee-amount"><strong>${{ "%.2f"|format(order.platform_fee_amount) }}</strong></td>
-                    <td class="seller-net"><strong>${{ "%.2f"|format(order.gross_amount - order.platform_fee_amount) }}</strong></td>
+                    <td class="fee-amount"><strong>${{ '{:,.2f}'.format(order.platform_fee_amount) }}</strong></td>
+                    <td class="seller-net"><strong>${{ '{:,.2f}'.format(order.gross_amount - order.platform_fee_amount) }}</strong></td>
                 </tr>
             </tfoot>
         </table>
@@ -123,9 +123,9 @@
                             {{ payout.payout_status.replace('_', ' ').title() }}
                         </span>
                     </td>
-                    <td>${{ "%.2f"|format(payout.seller_gross_amount) }}</td>
-                    <td class="fee-amount">${{ "%.2f"|format(payout.fee_amount) }}</td>
-                    <td class="seller-net">${{ "%.2f"|format(payout.seller_net_amount) }}</td>
+                    <td>${{ '{:,.2f}'.format(payout.seller_gross_amount) }}</td>
+                    <td class="fee-amount">${{ '{:,.2f}'.format(payout.fee_amount) }}</td>
+                    <td class="seller-net">${{ '{:,.2f}'.format(payout.seller_net_amount) }}</td>
                     <td>{{ payout.scheduled_for or '-' }}</td>
                     <td class="provider-id">{{ payout.provider_transfer_id or '-' }}</td>
                     <td class="provider-id">{{ payout.provider_payout_id or '-' }}</td>

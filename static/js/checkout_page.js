@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initCardFormatting();
   loadUserInfo();
   loadSavedPaymentMethods();
+  updateOrderSummary();
 });
 
 // Current step tracking
@@ -343,6 +344,37 @@ function loadUserInfo() {
 }
 
 /**
+ * Update the order summary sidebar based on selected payment method.
+ * Processing fee: 2.99% for card, Free for ACH.
+ * Grading fee: injected from server via window.checkoutGradingFee.
+ */
+function updateOrderSummary() {
+  const checkedRadio = document.querySelector('input[name="payment_method"]:checked');
+  const method = checkedRadio ? checkedRadio.value : 'card';
+  const isACH = method === 'ach';
+
+  const subtotal    = window.checkoutSubtotal   || 0;
+  const insurance   = window.checkoutInsurance  || 0;
+  const gradingFee  = window.checkoutGradingFee || 0;
+  const processingFee = isACH ? 0 : (subtotal + insurance + gradingFee) * 0.0299;
+
+  const total = subtotal + insurance + gradingFee + processingFee;
+
+  const feeEl = document.getElementById('summary-processing-fee');
+  if (feeEl) {
+    feeEl.textContent = isACH ? 'Free' : '$' + processingFee.toFixed(2);
+    feeEl.classList.toggle('summary-value-free', isACH);
+  }
+
+  const totalEl = document.getElementById('summary-total');
+  if (totalEl) totalEl.textContent = '$' + total.toFixed(2);
+
+  const placeOrderTotal = document.getElementById('place-order-total');
+  if (placeOrderTotal) placeOrderTotal.textContent = '$' + total.toFixed(2);
+}
+window.updateOrderSummary = updateOrderSummary;
+
+/**
  * Initialize payment method selection
  */
 function initPaymentMethodSelection() {
@@ -365,6 +397,9 @@ function initPaymentMethodSelection() {
 
       if (cardForm) cardForm.style.display = method === 'card' ? 'block' : 'none';
       if (achForm) achForm.style.display = method === 'ach' ? 'block' : 'none';
+
+      // Recalculate order summary totals
+      updateOrderSummary();
     });
   });
 }
@@ -541,6 +576,9 @@ function reinitPaymentSelection() {
         if (achForm) achForm.style.display = 'block';
       }
       // Saved cards don't need a form
+
+      // Recalculate order summary totals
+      updateOrderSummary();
     });
   });
 }

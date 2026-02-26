@@ -132,11 +132,11 @@ function populateOrderSummary(buckets, cartTotal) {
         </div>
         <div class="pricing-row">
           <span class="pricing-label">Average Price:</span>
-          <span class="pricing-value">$${bucket.avg_price.toFixed(2)}</span>
+          <span class="pricing-value">${formatPrice(bucket.avg_price)}</span>
         </div>
         <div class="pricing-row item-total-row">
           <span class="pricing-label">Item Total:</span>
-          <span class="pricing-value">$${bucket.total_price.toFixed(2)}</span>
+          <span class="pricing-value">${formatPrice(bucket.total_price)}</span>
         </div>
       </div>
     `;
@@ -145,7 +145,7 @@ function populateOrderSummary(buckets, cartTotal) {
   });
 
   // Update total
-  totalElement.textContent = `$${cartTotal.toFixed(2)}`;
+  totalElement.textContent = formatPrice(cartTotal);
 }
 
 /**
@@ -296,7 +296,7 @@ function openSuccessModal(data) {
   if (totalItemsEl) totalItemsEl.textContent = data.total_items || '—';
   if (orderTotalEl) {
     orderTotalEl.textContent = data.order_total
-      ? `$${parseFloat(data.order_total).toFixed(2)}`
+      ? formatPrice(parseFloat(data.order_total))
       : '—';
   }
 

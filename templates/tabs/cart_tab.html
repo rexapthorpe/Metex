@@ -59,8 +59,8 @@
             <div class="cart-item-qty-price">
               <!-- Price -->
               <div class="cart-item-price-block">
-                <div class="cart-item-total" id="cart-total-{{ bucket_id }}">${{ '%.2f'|format(bucket.total_price) }}</div>
-                <div class="cart-item-per-unit">${{ '%.2f'|format(bucket.avg_price) }} each</div>
+                <div class="cart-item-total" id="cart-total-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price) }}</div>
+                <div class="cart-item-per-unit">${{ '{:,.2f}'.format(bucket.avg_price) }} each</div>
               </div>
 
               <!-- Qty Stepper (must keep class/id hooks for cart_tab.js) -->
@@ -175,11 +175,11 @@
         </div>
         <div class="summary-line">
           <span class="summary-label">Average Price:</span>
-          <span class="summary-value">${{ '%.2f'|format(bucket.avg_price) }}</span>
+          <span class="summary-value">${{ '{:,.2f}'.format(bucket.avg_price) }}</span>
         </div>
         <div class="summary-line">
           <span class="summary-label">Subtotal:</span>
-          <span class="summary-value" id="summary-subtotal-{{ bucket_id }}">${{ '%.2f'|format(bucket.total_price) }}</span>
+          <span class="summary-value" id="summary-subtotal-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price) }}</span>
         </div>
       </div>
     {% endfor %}
@@ -189,7 +189,7 @@
     <!-- Fee rows -->
     <div class="summary-line">
       <span class="summary-label">Subtotal</span>
-      <span class="summary-value" id="cart-subtotal">${{ '%.2f'|format(cart_total) }}</span>
+      <span class="summary-value" id="cart-subtotal">${{ '{:,.2f}'.format(cart_total) }}</span>
     </div>
     <div class="summary-line">
       <span class="summary-label">Tax</span>
@@ -208,7 +208,7 @@
 
     <div class="summary-total-row">
       <span class="summary-total-label">Total</span>
-      <span class="summary-total-value" id="cart-total-all">${{ '%.2f'|format(cart_total) }}</span>
+      <span class="summary-total-value" id="cart-total-all">${{ '{:,.2f}'.format(cart_total) }}</span>
     </div>
 
     {% if session.get('user_id') %}

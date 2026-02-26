@@ -2,6 +2,65 @@
    Empty State Component - Standardized across all tabs
    ========================================================================== */
 
+/* ── Per-filter empty state (no items match the active filter pill) ── */
+.tab-filter-empty {
+  display: none;          /* shown via JS when filter has no matching items */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 32px;
+  text-align: center;
+  width: 100%;
+  grid-column: 1 / -1;   /* stretch across grid layouts (e.g. listing-grid) */
+  min-height: 280px;
+}
+
+.tab-filter-empty-icon-wrap {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-radius: 50%;
+  position: relative;
+}
+
+.tab-filter-empty-icon-wrap::before {
+  content: '';
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border: 2px dashed #e5e7eb;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.tab-filter-empty-icon {
+  font-size: 1.75rem;
+  color: #9ca3af;
+  position: relative;
+  top: 2px;
+}
+
+.tab-filter-empty-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.01em;
+}
+
+.tab-filter-empty-sub {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin: 0;
+  font-weight: 400;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;

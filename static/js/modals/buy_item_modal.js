@@ -32,21 +32,26 @@ function openBuyItemConfirmModal(itemData) {
   document.getElementById('buy-spec-year').textContent = specs['Year'] || '—';
   document.getElementById('buy-spec-finish').textContent = specs['Finish'] || '—';
   document.getElementById('buy-spec-product-line').textContent = specs['Product line'] || '—';
+  document.getElementById('buy-spec-condition-category').textContent = specs['Condition Category'] || '—';
+  document.getElementById('buy-spec-series-variant').textContent = specs['Series Variant'] || '—';
 
-  // Populate "Requires 3rd Party Grading" field based on buyer's toggle choice
-  // Check the TPG toggle state from the page
-  const tpgToggle = document.getElementById('tpgToggle');
-  const thirdPartyGradingRequested = tpgToggle && tpgToggle.checked;
-  const requiresGrading = thirdPartyGradingRequested ? 'Yes' : 'No';
-  document.getElementById('buy-spec-requires-grading').textContent = requiresGrading;
-
-  // Conditionally show/hide grading service field (only show if listing is already graded)
-  const gradingServiceRow = document.getElementById('buy-spec-grading-service-row');
-  if ((specs.graded === 1 || specs.graded === '1') && specs.grading_service) {
-    document.getElementById('buy-spec-grading-service').textContent = specs.grading_service;
-    gradingServiceRow.style.display = '';
-  } else {
-    gradingServiceRow.style.display = 'none';
+  // Show packaging/condition fields for isolated (one-of-a-kind / set) listings
+  if (window.bucketIsIsolated) {
+    const packagingType = window.bucketPackagingType || '';
+    const packagingNotes = window.bucketPackagingNotes || '';
+    const conditionNotes = window.bucketConditionNotes || '';
+    if (packagingType) {
+      document.getElementById('buy-spec-packaging').textContent = packagingType;
+      document.getElementById('buy-spec-packaging-row').style.display = '';
+    }
+    if (packagingNotes) {
+      document.getElementById('buy-spec-packaging-notes').textContent = packagingNotes;
+      document.getElementById('buy-spec-packaging-notes-row').style.display = '';
+    }
+    if (conditionNotes) {
+      document.getElementById('buy-spec-condition-notes').textContent = conditionNotes;
+      document.getElementById('buy-spec-condition-notes-row').style.display = '';
+    }
   }
 
   // Set loading state for purchase summary
@@ -105,9 +110,9 @@ function openBuyItemConfirmModal(itemData) {
         const gradingFeeTotal = data.grading_fee_total || 0;
         const grandTotal = data.grand_total || totalCost;
 
-        document.getElementById('buy-confirm-price').textContent = `$${avgPrice.toFixed(2)} USD (avg)`;
+        document.getElementById('buy-confirm-price').textContent = `${formatPrice(avgPrice)} USD (avg)`;
         document.getElementById('buy-confirm-quantity').textContent = totalQty;
-        document.getElementById('buy-confirm-total').textContent = `$${totalCost.toFixed(2)} USD`;
+        document.getElementById('buy-confirm-total').textContent = `${formatPrice(totalCost)} USD`;
 
         // Update grading fee display
         const gradingFeeRow = document.getElementById('buy-confirm-grading-fee-row');
@@ -118,14 +123,14 @@ function openBuyItemConfirmModal(itemData) {
         if (thirdPartyGrading && gradingFeeTotal > 0) {
           // Show grading fee row
           if (gradingFeeEl) {
-            gradingFeeEl.textContent = `$${gradingFeeTotal.toFixed(2)} USD`;
+            gradingFeeEl.textContent = `${formatPrice(gradingFeeTotal)} USD`;
           }
           if (gradingFeeRow) {
             gradingFeeRow.style.display = '';
           }
           // Show grand total row
           if (grandTotalEl) {
-            grandTotalEl.textContent = `$${grandTotal.toFixed(2)} USD`;
+            grandTotalEl.textContent = `${formatPrice(grandTotal)} USD`;
           }
           if (grandTotalRow) {
             grandTotalRow.style.display = '';
@@ -286,7 +291,9 @@ function openBuyItemSuccessModal(orderData) {
     'success-buy-spec-year': bucket.year || specs.year || '—',
     'success-buy-spec-mint': bucket.mint || specs.mint || '—',
     'success-buy-spec-purity': bucket.purity || specs.purity || '—',
-    'success-buy-spec-finish': bucket.finish || specs.finish || '—'
+    'success-buy-spec-finish': bucket.finish || specs.finish || '—',
+    'success-buy-spec-condition-category': specs['Condition Category'] || '—',
+    'success-buy-spec-series-variant': specs['Series Variant'] || '—'
   };
 
   Object.entries(specMap).forEach(([id, value]) => {
@@ -297,21 +304,22 @@ function openBuyItemSuccessModal(orderData) {
     }
   });
 
-  // Populate "3rd party graded" status based on buyer's TPG choice
-  // This reflects whether the buyer requested third-party grading service for this order
-  const gradingEl = document.getElementById('success-buy-spec-grading');
-  if (gradingEl) {
-    const gradingValueEl = gradingEl.querySelector('.spec-value');
-    if (gradingValueEl) {
-      // Use orderData.third_party_grading to determine if TPG service was requested
-      const thirdPartyGradingRequested = orderData.third_party_grading || false;
-      if (thirdPartyGradingRequested) {
-        // Buyer requested TPG service
-        gradingValueEl.textContent = 'Yes';
-      } else {
-        // Buyer did not request TPG service
-        gradingValueEl.textContent = 'No';
-      }
+  // Show packaging/condition fields for isolated listings
+  if (window.bucketIsIsolated) {
+    const packagingType = window.bucketPackagingType || '';
+    const packagingNotes = window.bucketPackagingNotes || '';
+    const conditionNotes = window.bucketConditionNotes || '';
+    if (packagingType) {
+      const el = document.getElementById('success-buy-spec-packaging-row');
+      if (el) { el.style.display = ''; document.getElementById('success-buy-spec-packaging').textContent = packagingType; }
+    }
+    if (packagingNotes) {
+      const el = document.getElementById('success-buy-spec-packaging-notes-row');
+      if (el) { el.style.display = ''; document.getElementById('success-buy-spec-packaging-notes').textContent = packagingNotes; }
+    }
+    if (conditionNotes) {
+      const el = document.getElementById('success-buy-spec-condition-notes-row');
+      if (el) { el.style.display = ''; document.getElementById('success-buy-spec-condition-notes').textContent = conditionNotes; }
     }
   }
 
@@ -913,21 +921,25 @@ function openBuyItemConfirmModalWithData(itemData, previewData) {
   document.getElementById('buy-spec-year').textContent = specs['Year'] || '—';
   document.getElementById('buy-spec-finish').textContent = specs['Finish'] || '—';
   document.getElementById('buy-spec-product-line').textContent = specs['Product line'] || '—';
+  document.getElementById('buy-spec-condition-category').textContent = specs['Condition Category'] || '—';
+  document.getElementById('buy-spec-series-variant').textContent = specs['Series Variant'] || '—';
 
-  // Populate "Requires 3rd Party Grading" field based on buyer's toggle choice
-  // Check the TPG toggle state from the page
-  const tpgToggle = document.getElementById('tpgToggle');
-  const thirdPartyGradingRequested = tpgToggle && tpgToggle.checked;
-  const requiresGrading = thirdPartyGradingRequested ? 'Yes' : 'No';
-  document.getElementById('buy-spec-requires-grading').textContent = requiresGrading;
-
-  // Conditionally show/hide grading service field (only show if listing is already graded)
-  const gradingServiceRow = document.getElementById('buy-spec-grading-service-row');
-  if ((specs.graded === 1 || specs.graded === '1') && specs.grading_service) {
-    document.getElementById('buy-spec-grading-service').textContent = specs.grading_service;
-    gradingServiceRow.style.display = '';
-  } else {
-    gradingServiceRow.style.display = 'none';
+  if (window.bucketIsIsolated) {
+    const packagingType = window.bucketPackagingType || '';
+    const packagingNotes = window.bucketPackagingNotes || '';
+    const conditionNotes = window.bucketConditionNotes || '';
+    if (packagingType) {
+      document.getElementById('buy-spec-packaging').textContent = packagingType;
+      document.getElementById('buy-spec-packaging-row').style.display = '';
+    }
+    if (packagingNotes) {
+      document.getElementById('buy-spec-packaging-notes').textContent = packagingNotes;
+      document.getElementById('buy-spec-packaging-notes-row').style.display = '';
+    }
+    if (conditionNotes) {
+      document.getElementById('buy-spec-condition-notes').textContent = conditionNotes;
+      document.getElementById('buy-spec-condition-notes-row').style.display = '';
+    }
   }
 
   // Update modal with actual prices from previewData
@@ -935,9 +947,9 @@ function openBuyItemConfirmModalWithData(itemData, previewData) {
   const totalCost = previewData.total_cost || 0;
   const totalQty = previewData.total_quantity || 0;
 
-  document.getElementById('buy-confirm-price').textContent = `$${avgPrice.toFixed(2)} USD (avg)`;
+  document.getElementById('buy-confirm-price').textContent = `${formatPrice(avgPrice)} USD (avg)`;
   document.getElementById('buy-confirm-quantity').textContent = totalQty;
-  document.getElementById('buy-confirm-total').textContent = `$${totalCost.toFixed(2)} USD`;
+  document.getElementById('buy-confirm-total').textContent = `${formatPrice(totalCost)} USD`;
 
   // Show modal with animation
   modal.style.display = 'flex';

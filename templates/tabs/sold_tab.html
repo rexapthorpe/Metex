@@ -47,8 +47,8 @@
             <!-- Total Sale (right) -->
             <div class="sold-card-total">
               <span class="sold-card-total-label">TOTAL SALE</span>
-              <span class="sold-card-total-value">${{ '%.2f'|format(sale.gross_amount) }}</span>
-              <span class="sold-card-total-breakdown">{{ sale.quantity }} × ${{ '%.2f'|format(sale.price_each) }}</span>
+              <span class="sold-card-total-value">${{ '{:,.2f}'.format(sale.gross_amount) }}</span>
+              <span class="sold-card-total-breakdown">{{ sale.quantity }} × ${{ '{:,.2f}'.format(sale.price_each) }}</span>
             </div>
           </div>
 
@@ -153,6 +153,9 @@
               {{ sale.order_date }}
             </span>
             <div class="sold-footer-actions">
+              <button class="sold-footer-btn" onclick="openOrderBuyerPopup({{ sale.order_id }})">
+                <i class="fa-regular fa-user"></i> Buyer
+              </button>
               <button class="sold-footer-btn" onclick="openOrderItemsPopup({{ sale.order_id }})">
                 <i class="fa-solid fa-list"></i> Item Specs
               </button>
@@ -190,7 +193,7 @@
               <button
                 class="sold-footer-btn{% if sale.already_rated %} sold-footer-btn--rated{% endif %}"
                 {% if not sale.already_rated %}
-                onclick='openRateModal({{ sale.order_id }}, "buyer", {{ {"title": sale_title, "price": "$%d" | format(sale.gross_amount or 0), "date": sale.order_date or ""} | tojson }})'
+                onclick='openRateModal({{ sale.order_id }}, "buyer", {{ {"title": sale_title, "price": "${:,.0f}".format(sale.gross_amount or 0), "date": sale.order_date or ""} | tojson }})'
                 {% endif %}
                 {% if sale.already_rated %}disabled{% endif %}>
                 <i class="{% if sale.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
@@ -212,6 +215,13 @@
 
         </div>
       {% endfor %}
+      <div class="tab-filter-empty" id="soldFilterEmpty" style="display:none;">
+        <div class="tab-filter-empty-icon-wrap">
+          <i class="fa-solid fa-circle-check tab-filter-empty-icon"></i>
+        </div>
+        <p class="tab-filter-empty-title" id="soldFilterEmptyMsg">No sold items yet</p>
+        <p class="tab-filter-empty-sub">Try a different filter to see your sales.</p>
+      </div>
     </div>
   {% else %}
     <div class="tab-empty-state">
@@ -289,6 +299,17 @@ function filterSold(filter) {
       (filter === 'pending' && ['pending','awaiting-confirmation','awaiting confirmation'].includes(f));
     card.style.display = show ? '' : 'none';
   });
+  const emptyEl = document.getElementById('soldFilterEmpty');
+  if (emptyEl) {
+    if (filter !== 'all') {
+      const anyVisible = Array.from(document.querySelectorAll('.sold-card')).some(c => c.style.display !== 'none');
+      const msgEl = document.getElementById('soldFilterEmptyMsg');
+      if (msgEl) msgEl.textContent = 'No ' + filter + ' sales yet!';
+      emptyEl.style.display = anyVisible ? 'none' : 'flex';
+    } else {
+      emptyEl.style.display = 'none';
+    }
+  }
 }
 window.filterSold = filterSold;
 

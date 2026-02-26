@@ -22,7 +22,7 @@ PRICE_LOCK_DURATION_SECONDS = int(os.getenv('PRICE_LOCK_DURATION_SECONDS', '10')
 SPOT_PRICE_CACHE_TTL_MINUTES = int(os.getenv('SPOT_PRICE_CACHE_TTL_MINUTES', '5'))
 
 # Third-Party Grading Service Configuration
-GRADING_FEE_PER_UNIT = 79.00  # Flat fee per coin for third-party grading service
+GRADING_FEE_PER_UNIT = 70.00  # Flat fee per coin for third-party grading service
 GRADING_SERVICE_DEFAULT = 'PCGS'  # Default grading service
 GRADING_SERVICE_OPTIONS = ['PCGS', 'NGC', 'ANACS']  # Available grading services
 

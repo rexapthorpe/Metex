@@ -66,7 +66,7 @@
                                                     <strong>Price Per Unit:</strong>
                                                 </td>
                                                 <td align="right" style="color: #333333; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
-                                                    ${{ "%.2f"|format(price_per_unit) }}
+                                                    ${{ '{:,.2f}'.format(price_per_unit) }}
                                                 </td>
                                             </tr>
                                             <tr>
@@ -74,7 +74,7 @@
                                                     <strong>Total Amount:</strong>
                                                 </td>
                                                 <td align="right" style="color: #667eea; font-size: 20px; font-weight: 700; padding: 12px 0 8px 0;">
-                                                    ${{ "%.2f"|format(total_amount) }}
+                                                    ${{ '{:,.2f}'.format(total_amount) }}
                                                 </td>
                                             </tr>
                                         </table>

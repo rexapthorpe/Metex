@@ -1,4 +1,34 @@
 // ============================================================
+// Sidebar: sticky until footer, then scroll away
+// ============================================================
+(function () {
+  var SIDEBAR_TOP = 64;  // matches CSS top: 64px
+  var GAP = 0;           // flush against footer
+
+  function updateAccountSidebarTop() {
+    // Only applies on desktop (sidebar is a fixed drawer on mobile)
+    if (window.innerWidth <= 768) return;
+
+    var sidebar = document.getElementById('accountSidebar');
+    var footer  = document.getElementById('siteFooter');
+    if (!sidebar || !footer) return;
+
+    var footerTop    = footer.getBoundingClientRect().top;
+    var sidebarH     = sidebar.offsetHeight;
+    var threshold    = SIDEBAR_TOP + sidebarH + GAP;
+
+    if (footerTop < threshold) {
+      sidebar.style.top = (footerTop - sidebarH - GAP) + 'px';
+    } else {
+      sidebar.style.top = SIDEBAR_TOP + 'px';
+    }
+  }
+
+  window.addEventListener('scroll', updateAccountSidebarTop, { passive: true });
+  window.addEventListener('resize', updateAccountSidebarTop, { passive: true });
+})();
+
+// ============================================================
 // Mobile Sidebar: close helper
 // ============================================================
 function closeMobileAccountSidebar() {

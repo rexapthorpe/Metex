@@ -2,61 +2,59 @@
 'use strict';
 
 /**
- * Handle Add to Cart via AJAX to show "own listings skipped" modal before redirect
+ * Handle Add to Cart via AJAX.
+ * - Intercepts the Add to Cart form submit.
+ * - Reads the grading preference from the radio group on the page.
+ * - Handles backend responses: OK, MAX_REACHED, errors.
+ * - MAX_REACHED: shows an inline modal with View Cart / Replace / Cancel actions.
  */
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[BucketPurchaseAJAX] Initializing...');
 
-    // Find all Add to Cart forms and Buy Item forms on the page
     const addToCartForms = document.querySelectorAll('form[action*="purchase_from_bucket"]');
-
-    // Find Buy Item forms (forms with action containing "checkout" that have bucket_id input)
-    const allCheckoutForms = document.querySelectorAll('form[action*="checkout"]');
-    const buyItemForms = Array.from(allCheckoutForms).filter(form =>
-        form.querySelector('input[name="bucket_id"]')
-    );
-
     console.log('[BucketPurchaseAJAX] Found', addToCartForms.length, 'Add to Cart forms');
-    console.log('[BucketPurchaseAJAX] Found', buyItemForms.length, 'Buy Item forms');
 
-    addToCartForms.forEach(form => {
+    addToCartForms.forEach(function(form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             console.log('[AddToCartAJAX] Add to Cart form submitted - intercepting');
 
-            // Sync quantity before submitting
-            const quantityInput = form.querySelector('#cartQuantityInput');
-            if (quantityInput && typeof syncQuantity === 'function') {
-                syncQuantity('cartQuantityInput');
-            }
+            // Read grading preference from toggle (source of truth)
+            const tpgToggle = document.querySelector('#tpgToggle');
+            const isTPG = tpgToggle && tpgToggle.checked;
+            const gradingPref = isTPG ? 'ANY' : 'NONE';
 
-            // Gather form data
+            // Build form data, overriding grading fields from UI state
             const formData = new FormData(form);
+            formData.set('grading_preference', gradingPref);
+            formData.set('third_party_grading', isTPG ? '1' : '0');
+
+            // Extract bucket_id from form action URL (/purchase_from_bucket/<id>)
             const actionUrl = form.action;
+            const bucketId = actionUrl.split('/').pop();
 
-            console.log('[AddToCartAJAX] Sending AJAX POST to:', actionUrl);
+            console.log('[AddToCartAJAX] Sending AJAX POST to:', actionUrl, 'grading:', gradingPref);
 
-            // Send AJAX request
             fetch(actionUrl, {
                 method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: formData,
-                credentials: 'same-origin'  // Include cookies/session
+                credentials: 'same-origin'
             })
-            .then(response => {
+            .then(function(response) {
                 console.log('[AddToCartAJAX] Response status:', response.status);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
+                if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
                 return response.json();
             })
-            .then(data => {
+            .then(function(data) {
                 console.log('[AddToCartAJAX] Response data:', data);
+
+                // Handle max-reached before generic success check
+                if (data.status === 'MAX_REACHED') {
+                    showMaxReachedModal(data, bucketId);
+                    return;
+                }
 
                 if (!data.success) {
                     console.error('[AddToCartAJAX] Server returned success=false:', data.message);
@@ -64,72 +62,147 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
-                // Check if user listings were skipped
+                // Check if user's own listings were skipped
                 if (data.user_listings_skipped === true) {
                     console.log('[AddToCartAJAX] User listings were skipped - showing modal');
 
-                    // Show the modal
                     if (typeof window.showOwnListingsSkippedModalFunc === 'function') {
                         window.showOwnListingsSkippedModalFunc();
 
-                        // Wait for user to click OK, then redirect
-                        // We'll listen for the modal to close
                         const modal = document.getElementById('ownListingsSkippedModal');
                         if (modal) {
                             const okBtn = document.getElementById('ownListingsSkippedOkBtn');
                             if (okBtn) {
-                                // Remove any existing listeners to avoid duplicates
                                 const newOkBtn = okBtn.cloneNode(true);
                                 okBtn.parentNode.replaceChild(newOkBtn, okBtn);
-
-                                // Add new listener that redirects after closing
                                 newOkBtn.addEventListener('click', function() {
-                                    console.log('[AddToCartAJAX] Modal OK clicked - redirecting to cart');
                                     if (typeof window.hideOwnListingsSkippedModalFunc === 'function') {
                                         window.hideOwnListingsSkippedModalFunc();
                                     }
-                                    // Small delay to allow modal to close gracefully
-                                    setTimeout(() => {
-                                        window.location.href = '/view_cart';
-                                    }, 300);
+                                    setTimeout(function() { window.location.href = '/view_cart'; }, 300);
                                 });
                             }
 
-                            // Also handle background click
                             const handleBackgroundClick = function(event) {
                                 if (event.target === modal) {
-                                    console.log('[AddToCartAJAX] Modal background clicked - redirecting to cart');
                                     if (typeof window.hideOwnListingsSkippedModalFunc === 'function') {
                                         window.hideOwnListingsSkippedModalFunc();
                                     }
-                                    setTimeout(() => {
-                                        window.location.href = '/view_cart';
-                                    }, 300);
+                                    setTimeout(function() { window.location.href = '/view_cart'; }, 300);
                                     modal.removeEventListener('click', handleBackgroundClick);
                                 }
                             };
                             modal.addEventListener('click', handleBackgroundClick);
                         }
                     } else {
-                        console.error('[AddToCartAJAX] showOwnListingsSkippedModalFunc function not found!');
-                        // Fallback: redirect immediately
+                        console.error('[AddToCartAJAX] showOwnListingsSkippedModalFunc not found!');
                         window.location.href = '/view_cart';
                     }
                 } else {
-                    // No user listings were skipped - redirect immediately
-                    console.log('[AddToCartAJAX] No user listings skipped - redirecting immediately');
+                    console.log('[AddToCartAJAX] Success - redirecting to cart');
                     window.location.href = '/view_cart';
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('[AddToCartAJAX] Error:', error);
                 alert('An error occurred while adding items to cart. Please try again.');
             });
         });
     });
 
-    // Buy Item forms are handled by buy_item_modal.js
-    // (No interception needed here - modal system handles the flow)
-
     console.log('[AddToCartAJAX] Initialization complete');
 });
+
+// ===== Max Reached Modal =====
+
+/**
+ * Show the MAX_REACHED modal with current/new grading info.
+ * @param {object} data  - Backend response: {in_cart_grading, new_grading, ...}
+ * @param {string} bucketId - The bucket ID string extracted from the form action URL
+ */
+function showMaxReachedModal(data, bucketId) {
+    const modal = document.getElementById('maxReachedModal');
+    if (!modal) {
+        console.error('[MaxReachedModal] Modal element not found in DOM');
+        alert(data.message || 'Cart limit reached.');
+        return;
+    }
+
+    // Populate grading display
+    const currentEl = document.getElementById('mrCurrentGrading');
+    const newEl = document.getElementById('mrNewGrading');
+    if (currentEl) currentEl.textContent = _formatGrading(data.in_cart_grading);
+    if (newEl) newEl.textContent = _formatGrading(data.new_grading);
+
+    modal.style.display = 'flex';
+
+    // Wire Replace button (clone to clear any old listeners)
+    const replaceBtn = document.getElementById('mrReplaceBtn');
+    if (replaceBtn) {
+        const newReplace = replaceBtn.cloneNode(true);
+        replaceBtn.parentNode.replaceChild(newReplace, replaceBtn);
+        newReplace.addEventListener('click', function() {
+            replaceCartGrading(bucketId, data.new_grading);
+        });
+    }
+
+    // Wire Cancel button
+    const cancelBtn = document.getElementById('mrCancelBtn');
+    if (cancelBtn) {
+        const newCancel = cancelBtn.cloneNode(true);
+        cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+        newCancel.addEventListener('click', function() {
+            modal.style.display = 'none';
+        });
+    }
+
+    // Click outside to close
+    function closeOnOutside(e) {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            modal.removeEventListener('click', closeOnOutside);
+        }
+    }
+    modal.addEventListener('click', closeOnOutside);
+}
+
+/**
+ * POST to /replace_cart_grading/<bucketId> and redirect to cart on success.
+ */
+function replaceCartGrading(bucketId, newGrading) {
+    const replaceBtn = document.getElementById('mrReplaceBtn');
+    if (replaceBtn) replaceBtn.disabled = true;
+
+    fetch('/replace_cart_grading/' + bucketId, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ grading_preference: newGrading }),
+        credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        const modal = document.getElementById('maxReachedModal');
+        if (modal) modal.style.display = 'none';
+
+        if (data.success) {
+            window.location.href = '/view_cart';
+        } else {
+            alert(data.message || 'Failed to update cart.');
+            if (replaceBtn) replaceBtn.disabled = false;
+        }
+    })
+    .catch(function(err) {
+        console.error('[replaceCartGrading] Error:', err);
+        alert('An error occurred while updating the cart. Please try again.');
+        if (replaceBtn) replaceBtn.disabled = false;
+    });
+}
+
+/** Human-readable label for a grading_preference value. */
+function _formatGrading(val) {
+    if (!val || val === 'NONE') return 'Not required';
+    return 'Required';
+}

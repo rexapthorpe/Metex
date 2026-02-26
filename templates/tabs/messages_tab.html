@@ -87,6 +87,15 @@
         <p>Messages with buyers and sellers will appear here.</p>
       </div>
     {% endfor %}
+    {% if conversations %}
+    <div class="tab-filter-empty" id="messagesFilterEmpty" style="display:none;">
+      <div class="tab-filter-empty-icon-wrap">
+        <i class="fa-regular fa-message tab-filter-empty-icon"></i>
+      </div>
+      <p class="tab-filter-empty-title" id="messagesFilterEmptyMsg">No messages yet</p>
+      <p class="tab-filter-empty-sub">Try a different filter to see your messages.</p>
+    </div>
+    {% endif %}
   </div>
 </div>
 
@@ -103,6 +112,18 @@ function filterMessages(filter) {
     if (filter === 'orders') show = isOrder;
     tile.style.display = show ? '' : 'none';
   });
+  const emptyEl = document.getElementById('messagesFilterEmpty');
+  if (emptyEl) {
+    if (filter !== 'all') {
+      const anyVisible = Array.from(document.querySelectorAll('.conversation-tile')).some(t => t.style.display !== 'none');
+      const msgEl = document.getElementById('messagesFilterEmptyMsg');
+      const labels = { unread: 'unread messages', orders: 'order messages' };
+      if (msgEl) msgEl.textContent = 'No ' + (labels[filter] || filter + ' messages') + ' yet!';
+      emptyEl.style.display = anyVisible ? 'none' : 'flex';
+    } else {
+      emptyEl.style.display = 'none';
+    }
+  }
 }
 
 function toggleConversation(row) {

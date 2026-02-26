@@ -58,6 +58,10 @@ function renderOrderSeller() {
   const total = orderSellerData.length;
   const esc = _osmEsc;
 
+  // Reset title (may have been changed by openOrderBuyerPopup)
+  const titleEl = document.querySelector('#orderSellersModal .osm-title');
+  if (titleEl) titleEl.textContent = total > 1 ? 'Seller Information' : 'Seller Information';
+
   // Avatar initial
   const initial = (s.display_name || s.username || '?')[0].toUpperCase();
 
@@ -201,8 +205,96 @@ function openBucketSellerPopup(bucketId) {
     });
 }
 
+function openOrderBuyerPopup(orderId) {
+  fetch(`/orders/api/${orderId}/buyer_info`)
+    .then(res => {
+      if (!res.ok) throw new Error('Could not load buyer info');
+      return res.json();
+    })
+    .then(data => {
+      if (data.error) {
+        alert('Error loading buyer information: ' + data.error);
+        return;
+      }
+      const esc = _osmEsc;
+      const initial = (data.display_name || data.username || '?')[0].toUpperCase();
+      const ratingVal = parseFloat(data.rating || 0);
+      let starsHtml = '';
+      for (let i = 1; i <= 5; i++) {
+        starsHtml += `<span class="star${i <= Math.round(ratingVal) ? '' : ' empty'}">&#9733;</span>`;
+      }
+      const verifiedBadge = data.is_verified
+        ? `<span class="osm-verified-badge"><i class="fa-solid fa-shield-halved"></i> Verified Buyer</span>`
+        : '';
+      const transactions = data.transaction_count != null ? Number(data.transaction_count).toLocaleString() : '--';
+      const repeatSellersPct = data.repeat_sellers_pct != null ? `${data.repeat_sellers_pct}%` : '--';
+      const memberSince = data.member_since || '--';
+
+      const titleEl = document.querySelector('#orderSellersModal .osm-title');
+      if (titleEl) titleEl.textContent = 'Buyer Information';
+
+      document.getElementById('orderSellersModalContent').innerHTML = `
+        <div class="osm-identity">
+          <div class="osm-avatar">${initial}</div>
+          <div class="osm-identity-info">
+            <div class="osm-display-name">${esc(data.display_name || data.username)}</div>
+            <div class="osm-username">@${esc(data.username)}</div>
+            ${verifiedBadge}
+          </div>
+        </div>
+
+        <hr class="osm-divider">
+
+        <div class="osm-stats-card">
+          <div class="osm-stats-top">
+            <div class="osm-rating-block">
+              <div class="osm-rating-number">${ratingVal.toFixed(1)}</div>
+              <div class="osm-stars-col">
+                <div class="osm-stars">${starsHtml}</div>
+                <div class="osm-reviews-count">${Number(data.num_reviews || 0).toLocaleString()} ratings</div>
+              </div>
+            </div>
+            <div class="osm-transactions-block">
+              <div class="osm-transactions-num">${transactions}</div>
+              <div class="osm-transactions-label">purchases</div>
+            </div>
+          </div>
+          <div class="osm-stats-bottom">
+            <div class="osm-stat-item">
+              <div class="osm-stat-icon green"><i class="fa-solid fa-arrow-trend-up"></i></div>
+              <div>
+                <div class="osm-stat-label">Repeat Sellers</div>
+                <div class="osm-stat-value">${repeatSellersPct}</div>
+              </div>
+            </div>
+            <div class="osm-stat-item">
+              <div class="osm-stat-icon"><i class="fa-regular fa-calendar"></i></div>
+              <div>
+                <div class="osm-stat-label">Member since</div>
+                <div class="osm-stat-value">${memberSince}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="osm-contact-btn" onclick="openMessageModal(${orderId}, 'buyer'); closeOrderSellerPopup();">
+          <i class="fa-regular fa-comment"></i> Contact Buyer
+        </button>
+      `;
+
+      const overlay = document.getElementById('orderSellersModal');
+      overlay.style.display = 'flex';
+      overlay.addEventListener('click', _osmOutsideClick);
+    })
+    .catch(err => {
+      console.error(err);
+      alert(err.message);
+    });
+}
+
 // expose globally
 window.openOrderSellerPopup = openOrderSellerPopup;
+window.openOrderBuyerPopup = openOrderBuyerPopup;
 window.openCartSellerPopup = openCartSellerPopup;
 window.openBucketSellerPopup = openBucketSellerPopup;
 window.closeOrderSellerPopup = closeOrderSellerPopup;

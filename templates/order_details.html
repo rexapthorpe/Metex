@@ -14,12 +14,12 @@
 <ul>
     {% for item in order_items %}
         <li>
-            {{ item['quantity'] }} × {{ item['metal'] }} {{ item['product_type'] }} at ${{ item['price_each'] }} each
+            {{ item['quantity'] }} × {{ item['metal'] }} {{ item['product_type'] }} at ${{ '{:,.2f}'.format(item['price_each'] or 0) }} each
         </li>
     {% endfor %}
 </ul>
 
-<h3>Total Paid: ${{ order['total_price'] }}</h3>
+<h3>Total Paid: ${{ '{:,.2f}'.format(order['total_price'] or 0) }}</h3>
 
 {% if tracking %}
     <h3>Tracking Information:</h3>

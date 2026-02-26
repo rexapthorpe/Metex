@@ -100,7 +100,14 @@
           </div>
           <div class="form-group">
             <label for="state">State <span class="required">*</span></label>
-            <input type="text" id="state" name="state" placeholder="Your State" required>
+            <select id="state" name="state" required>
+              <option value="">Select State</option>
+              {% for st in ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',
+                            'LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND',
+                            'OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'] %}
+                <option value="{{ st }}">{{ st }}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
 
@@ -332,7 +339,7 @@
         <button type="button" class="btn-back" onclick="goToStep(2)">Back</button>
         <button type="button" class="btn-place-order" id="placeOrderBtn" onclick="placeOrder()">
           <i class="fa-solid fa-lock"></i>
-          Place Order • ${{ '{:,.2f}'.format(cart_total) }}
+          Place Order • <span id="place-order-total">${{ '{:,.2f}'.format(cart_total) }}</span>
         </button>
       </div>
     </div>
@@ -345,6 +352,7 @@
 
       <div class="summary-items">
         {% for item in cart_items %}
+        {% set item_grading = item.grading_preference if item.grading_preference is defined else 'NONE' %}
         <div class="summary-item">
           <div class="summary-item-image">
             <span class="summary-item-qty-badge">{{ item.quantity }}</span>
@@ -362,12 +370,20 @@
           </div>
           <span class="summary-item-price">${{ '{:,.2f}'.format(item.total_price) }}</span>
         </div>
+        {% if item_grading and item_grading != 'NONE' %}
+        <div class="summary-item-grading-row">
+          <span class="summary-item-grading-label">
+            3rd-Party Grading (×{{ item.quantity }})
+          </span>
+          <span class="summary-item-grading-price">${{ '{:,.2f}'.format(grading_fee_per_unit * item.quantity) }}</span>
+        </div>
+        {% endif %}
         {% endfor %}
       </div>
 
       <div class="summary-row">
         <span class="summary-label">Subtotal</span>
-        <span class="summary-value">${{ '{:,.2f}'.format(subtotal) }}</span>
+        <span class="summary-value" id="summary-subtotal">${{ '{:,.2f}'.format(subtotal + grading_fee) }}</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Shipping</span>
@@ -381,12 +397,16 @@
         <span class="summary-label">Tax</span>
         <span class="summary-value">$0.00</span>
       </div>
+      <div class="summary-row" id="processing-fee-row">
+        <span class="summary-label">Processing fee</span>
+        <span class="summary-value" id="summary-processing-fee">$0.00</span>
+      </div>
 
       <div class="summary-divider"></div>
 
       <div class="summary-row summary-total">
         <span class="summary-label">Total</span>
-        <span class="summary-value">${{ '{:,.2f}'.format(cart_total) }}</span>
+        <span class="summary-value" id="summary-total">${{ '{:,.2f}'.format(cart_total) }}</span>
       </div>
 
       <div class="summary-badges">
@@ -413,5 +433,11 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+  window.checkoutSubtotal    = {{ subtotal }};
+  window.checkoutInsurance   = {{ insurance }};
+  window.checkoutGradingFee  = {{ grading_fee }};
+</script>
+<script src="{{ url_for('static', filename='js/format_utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/checkout_page.js') }}"></script>
 {% endblock %}

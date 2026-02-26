@@ -10,6 +10,8 @@
 
 let pendingListingForm = null;
 let pendingFormData = null;
+let _submitting = false; // Submission lock — prevents double-submit
+window._sellSubmitting = false; // Exposed for sidebar_controller to check
 
 /**
  * Open confirmation modal with listing summary
@@ -22,7 +24,6 @@ function openSellConfirmModal(formData) {
   // Core field values
   const metal      = formData.get('metal') || '—';
   const productType = formData.get('product_type') || '—';
-  const mint       = formData.get('mint') || '—';
   const year       = formData.get('year') || '';
   const productLine = formData.get('product_line') || '';
   const qty        = parseInt(formData.get('quantity')) || 1;
@@ -49,9 +50,26 @@ function openSellConfirmModal(formData) {
   const isPremiumToSpot = pricingMode === 'premium_to_spot';
   let pricePerUnit;
   let priceLabel = 'Price per Unit';
+  let spotPremiumDisplay = null;  // for extra rows
+  let spotPriceDisplay   = null;  // for extra rows
   if (isPremiumToSpot) {
-    pricePerUnit = parseFloat(formData.get('floor_price')) || 0;
-    priceLabel = 'Floor Price';
+    const floorPrice   = parseFloat(formData.get('floor_price')) || 0;
+    const spotPremium  = parseFloat(formData.get('spot_premium')) || 0;
+    const pricingMetal = (formData.get('pricing_metal') || '').toLowerCase();
+    const weightStr    = formData.get('weight') || '1';
+    const weightMatch  = weightStr.match(/[\d.]+/);
+    const weight       = weightMatch ? parseFloat(weightMatch[0]) : 1.0;
+
+    // Top card always shows floor price
+    pricePerUnit = floorPrice;
+    priceLabel   = 'Floor Price';
+
+    // Populate extra rows if spot prices are loaded
+    if (window.spotPrices && pricingMetal && window.spotPrices[pricingMetal]) {
+      const spotPrice = window.spotPrices[pricingMetal];
+      spotPremiumDisplay = `+${formatPrice(spotPremium)}`;
+      spotPriceDisplay   = `${formatPrice(spotPrice)}/oz`;
+    }
   } else {
     pricePerUnit = parseFloat(formData.get('price_per_coin')) || 0;
   }
@@ -76,14 +94,25 @@ function openSellConfirmModal(formData) {
   set('confirm-listing-title', listingTitle);
   set('confirm-metal',         metal);
   set('confirm-product-type',  productType);
-  set('confirm-mint',          mint);
-  set('confirm-price',         `$${pricePerUnit.toFixed(2)}`);
+  set('confirm-price',         formatPrice(pricePerUnit));
   set('confirm-quantity',      qty);
-  set('confirm-total-value',   `$${totalValue.toFixed(2)}`);
+  set('confirm-total-value',   formatPrice(totalValue));
   set('confirm-photo-count',   photoCount === 1 ? '1 Photo Uploaded' : `${photoCount} Photos Uploaded`);
 
   const priceLabelEl = document.getElementById('confirm-price-label');
   if (priceLabelEl) priceLabelEl.textContent = priceLabel;
+
+  // Show/hide and populate premium-to-spot extra rows
+  const premiumRowsEl = document.getElementById('confirm-premium-rows');
+  if (premiumRowsEl) {
+    if (isPremiumToSpot && spotPremiumDisplay !== null) {
+      premiumRowsEl.style.display = 'block';
+      set('confirm-spot-premium', spotPremiumDisplay);
+      set('confirm-spot-price',   spotPriceDisplay || '—');
+    } else {
+      premiumRowsEl.style.display = 'none';
+    }
+  }
 
   // Update confirm button text for edit vs create mode
   const confirmBtn = document.getElementById('confirmListingBtn');
@@ -125,10 +154,10 @@ async function fetchAndDisplayProceeds(prefix, grossPrice, quantity) {
 
     if (data.success) {
       // Populate proceeds display
-      if (netEl) netEl.textContent = `$${data.net_amount.toFixed(2)}`;
-      if (grossEl) grossEl.textContent = `$${data.gross_price.toFixed(2)}`;
+      if (netEl) netEl.textContent = formatPrice(data.net_amount);
+      if (grossEl) grossEl.textContent = formatPrice(data.gross_price);
       if (feePercentEl) feePercentEl.textContent = data.fee_percent ? data.fee_percent.toFixed(1) : '—';
-      if (feeAmountEl) feeAmountEl.textContent = `−$${data.fee_amount.toFixed(2)}`;
+      if (feeAmountEl) feeAmountEl.textContent = `−${formatPrice(data.fee_amount)}`;
 
       // Show fee indicator if non-default
       if (data.fee_indicator && feeIndicatorRow && feeBadge) {
@@ -150,10 +179,10 @@ async function fetchAndDisplayProceeds(prefix, grossPrice, quantity) {
       const feeAmount = Math.round(grossPrice * (defaultFeePercent / 100) * 100) / 100;
       const netAmount = grossPrice - feeAmount;
 
-      if (netEl) netEl.textContent = `$${netAmount.toFixed(2)}`;
-      if (grossEl) grossEl.textContent = `$${grossPrice.toFixed(2)}`;
+      if (netEl) netEl.textContent = formatPrice(netAmount);
+      if (grossEl) grossEl.textContent = formatPrice(grossPrice);
       if (feePercentEl) feePercentEl.textContent = defaultFeePercent.toFixed(1);
-      if (feeAmountEl) feeAmountEl.textContent = `−$${feeAmount.toFixed(2)}`;
+      if (feeAmountEl) feeAmountEl.textContent = `−${formatPrice(feeAmount)}`;
       if (feeIndicatorRow) feeIndicatorRow.style.display = 'none';
     }
   } catch (error) {
@@ -163,10 +192,10 @@ async function fetchAndDisplayProceeds(prefix, grossPrice, quantity) {
     const feeAmount = Math.round(grossPrice * (defaultFeePercent / 100) * 100) / 100;
     const netAmount = grossPrice - feeAmount;
 
-    if (netEl) netEl.textContent = `$${netAmount.toFixed(2)}`;
-    if (grossEl) grossEl.textContent = `$${grossPrice.toFixed(2)}`;
+    if (netEl) netEl.textContent = formatPrice(netAmount);
+    if (grossEl) grossEl.textContent = formatPrice(grossPrice);
     if (feePercentEl) feePercentEl.textContent = defaultFeePercent.toFixed(1);
-    if (feeAmountEl) feeAmountEl.textContent = `−$${feeAmount.toFixed(2)}`;
+    if (feeAmountEl) feeAmountEl.textContent = `−${formatPrice(feeAmount)}`;
     if (feeIndicatorRow) feeIndicatorRow.style.display = 'none';
   }
 }
@@ -208,6 +237,8 @@ function openSellSuccessModal(data) {
   const mint = listing.mint || '—';
   const year = listing.year || '—';
   const finish = listing.finish || '—';
+  const condition = listing.condition_category || '—';
+  const seriesVariant = listing.series_variant || '—';
 
   // Get isolated/set/numismatic information from backend response
   const isIsolated = listing.is_isolated === 1 || listing.is_isolated === '1' || listing.is_isolated === true;
@@ -258,6 +289,36 @@ function openSellSuccessModal(data) {
   if (mintEl) mintEl.textContent = mint;
   if (yearEl) yearEl.textContent = year;
   if (finishEl) finishEl.textContent = finish;
+
+  const conditionEl = modal.querySelector('#success-condition');
+  const seriesVariantEl = modal.querySelector('#success-series-variant');
+  if (conditionEl) conditionEl.textContent = condition;
+  if (seriesVariantEl) seriesVariantEl.textContent = seriesVariant;
+
+  // Show packaging/condition fields for isolated (OOK/Set) listings
+  if (isIsolated) {
+    const packagingType = listing.packaging_type || '';
+    const packagingNotes = listing.packaging_notes || '';
+    const conditionNotes = listing.condition_notes || '';
+    if (packagingType) {
+      const row = modal.querySelector('#success-sell-packaging-row');
+      const el = modal.querySelector('#success-sell-packaging');
+      if (row) row.style.display = '';
+      if (el) el.textContent = packagingType;
+    }
+    if (packagingNotes) {
+      const row = modal.querySelector('#success-sell-packaging-notes-row');
+      const el = modal.querySelector('#success-sell-packaging-notes');
+      if (row) row.style.display = '';
+      if (el) el.textContent = packagingNotes;
+    }
+    if (conditionNotes) {
+      const row = modal.querySelector('#success-sell-condition-notes-row');
+      const el = modal.querySelector('#success-sell-condition-notes');
+      if (row) row.style.display = '';
+      if (el) el.textContent = conditionNotes;
+    }
+  }
 
   // Populate listing classification fields
   const listingTypeEl = modal.querySelector('#success-listing-type');
@@ -317,22 +378,22 @@ function openSellSuccessModal(data) {
     if (premiumRow) {
       premiumRow.style.display = 'flex';
       const premiumEl = modal.querySelector('#success-premium');
-      if (premiumEl) premiumEl.textContent = `+$${spotPremium.toFixed(2)} USD per unit above spot`;
+      if (premiumEl) premiumEl.textContent = `+${formatPrice(spotPremium)} USD per unit above spot`;
     }
     if (floorRow) {
       floorRow.style.display = 'flex';
       const floorEl = modal.querySelector('#success-floor');
-      if (floorEl) floorEl.textContent = `$${floorPrice.toFixed(2)} USD minimum`;
+      if (floorEl) floorEl.textContent = `${formatPrice(floorPrice)} USD minimum`;
     }
     if (effectivePriceRow) {
       effectivePriceRow.style.display = 'flex';
       const effectivePriceEl = modal.querySelector('#success-effective-price');
-      if (effectivePriceEl) effectivePriceEl.textContent = `$${effectivePrice.toFixed(2)} USD`;
+      if (effectivePriceEl) effectivePriceEl.textContent = `${formatPrice(effectivePrice)} USD`;
     }
     if (effectiveTotalRow) {
       effectiveTotalRow.style.display = 'flex';
       const effectiveTotalEl = modal.querySelector('#success-effective-total');
-      if (effectiveTotalEl) effectiveTotalEl.textContent = `$${totalValue.toFixed(2)} USD`;
+      if (effectiveTotalEl) effectiveTotalEl.textContent = `${formatPrice(totalValue)} USD`;
     }
   } else {
     // Static mode
@@ -351,12 +412,12 @@ function openSellSuccessModal(data) {
     if (staticPriceRow) {
       staticPriceRow.style.display = 'flex';
       const priceEl = modal.querySelector('#success-price');
-      if (priceEl) priceEl.textContent = `$${pricePerCoin.toFixed(2)} USD`;
+      if (priceEl) priceEl.textContent = `${formatPrice(pricePerCoin)} USD`;
     }
     if (staticTotalRow) {
       staticTotalRow.style.display = 'flex';
       const totalValueEl = modal.querySelector('#success-total-value');
-      if (totalValueEl) totalValueEl.textContent = `$${totalValue.toFixed(2)} USD`;
+      if (totalValueEl) totalValueEl.textContent = `${formatPrice(totalValue)} USD`;
     }
 
     // Hide premium-to-spot rows
@@ -431,6 +492,12 @@ function showListingSuccessAnimation() {
  * Handle confirm listing button click - submit via AJAX
  */
 function handleConfirmListing() {
+  // Submission lock — prevents duplicate AJAX requests if called more than once
+  if (_submitting) {
+    console.warn('[SELL] handleConfirmListing called while already submitting — ignoring');
+    return;
+  }
+
   if (!pendingListingForm || !pendingFormData) {
     console.error('No pending listing data found');
     return;
@@ -441,15 +508,12 @@ function handleConfirmListing() {
 
   const isEditMode = window.sellEditMode === true;
 
-  // Disable button and show loading state
-  confirmBtn.disabled = true;
-  confirmBtn.textContent = isEditMode ? 'Updating Listing...' : 'Creating Listing...';
-
   // Determine form URL: in edit mode, always use the edit endpoint.
   // Prefer edit_listing_id from FormData over form action attribute (more reliable).
   let formUrl;
   if (isEditMode) {
     const editId = pendingFormData && pendingFormData.get('edit_listing_id');
+    console.log('[SELL] Edit mode — edit_listing_id from FormData:', editId);
     if (editId) {
       formUrl = `/listings/edit_listing/${editId}`;
     } else {
@@ -458,15 +522,19 @@ function handleConfirmListing() {
     if (!formUrl) {
       console.error('[EDIT MODE] No edit_listing_id or form action found — aborting to prevent accidental listing creation');
       alert('Error: Could not determine edit endpoint. Please refresh the page and try again.');
-      if (confirmBtn) {
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Update Listing';
-      }
       return;
     }
   } else {
     formUrl = (pendingListingForm && pendingListingForm.getAttribute('action')) || '/sell';
   }
+
+  console.log('[SELL] Submitting to URL:', formUrl, '| isEditMode:', isEditMode);
+
+  // Lock submission and disable button
+  _submitting = true;
+  window._sellSubmitting = true;
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = isEditMode ? 'Updating Listing...' : 'Creating Listing...';
 
   // Submit via AJAX to the appropriate route
   fetch(formUrl, {
@@ -486,6 +554,8 @@ function handleConfirmListing() {
     })
     .then(data => {
       if (data.success) {
+        // _submitting and window._sellSubmitting remain true until redirect
+        // updateCTAButton checks window._sellSubmitting so sidebar button stays locked
         closeSellConfirmModal();
         if (isEditMode) {
           // In edit mode: redirect to account page after a short delay
@@ -497,10 +567,16 @@ function handleConfirmListing() {
           }, 350);
         }
       } else {
-        // Show error
+        // Show error — reset state so user can try again
         const errMsg = isEditMode
           ? (data.message || 'Failed to update listing. Please try again.')
           : (data.message || 'Failed to create listing. Please try again.');
+        _submitting = false;
+        window._sellSubmitting = false;
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = isEditMode ? 'Update Listing \u2192' : 'Confirm Listing \u2192';
+        }
         alert(errMsg);
         closeSellConfirmModal();
       }
@@ -510,16 +586,17 @@ function handleConfirmListing() {
       const errMsg = isEditMode
         ? 'An error occurred while updating your listing. Please try again.'
         : 'An error occurred while creating your listing. Please try again.';
-      alert(errMsg);
-      closeSellConfirmModal();
-    })
-    .finally(() => {
-      // Reset button
+      // Reset state on error so user can try again
+      _submitting = false;
+      window._sellSubmitting = false;
       if (confirmBtn) {
         confirmBtn.disabled = false;
-        confirmBtn.textContent = isEditMode ? 'Update Listing' : 'Confirm Listing';
+        confirmBtn.textContent = isEditMode ? 'Update Listing \u2192' : 'Confirm Listing \u2192';
       }
+      alert(errMsg);
+      closeSellConfirmModal();
     });
+
 }
 
 /**
@@ -554,6 +631,22 @@ function interceptSellForm() {
     pendingListingForm = sellForm;
     pendingFormData = new FormData(sellForm);
 
+    // For set listings: append stored set item photos (File objects stored in memory).
+    // When an item is added to the set, photos are captured into window.setItems[i].photo
+    // and the photo inputs are cleared. FormData(sellForm) won't capture them since
+    // file inputs have no name attribute and are empty by submission time.
+    if (window.currentMode === 'set' && Array.isArray(window.setItems)) {
+      window.setItems.forEach(function(item, index) {
+        const itemIdx = index + 1; // One-indexed to match set_items[N][...] hidden input keys
+        const photos = Array.isArray(item.photo) ? item.photo : (item.photo ? [item.photo] : []);
+        photos.forEach(function(photoFile, photoIdx) {
+          if (photoFile instanceof File) {
+            pendingFormData.append('set_item_photo_' + itemIdx + '_' + (photoIdx + 1), photoFile);
+          }
+        });
+      });
+    }
+
     // Show confirmation modal
     openSellConfirmModal(pendingFormData);
   });
@@ -572,9 +665,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Intercept sell form
   interceptSellForm();
 
-  // Close confirm modal on overlay click
+  // Close confirm modal on overlay click (not while submitting)
   document.getElementById('sellListingConfirmModal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'sellListingConfirmModal') {
+    if (e.target.id === 'sellListingConfirmModal' && !_submitting) {
       closeSellConfirmModal();
     }
   });
@@ -586,10 +679,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Close modals on Escape key
+  // Close modals on Escape key (not while submitting)
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      closeSellConfirmModal();
+      if (!_submitting) closeSellConfirmModal();
       closeSellSuccessModal();
     }
   });

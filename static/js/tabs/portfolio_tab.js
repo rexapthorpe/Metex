@@ -233,7 +233,7 @@ function renderValueChart(historyData) {
                 },
                 color: '#6b7280',
                 callback: function(value) {
-                    return '$' + value.toFixed(0);
+                    return '$' + formatWithCommas(value, 0);
                 }
             }
         };

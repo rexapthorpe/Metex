@@ -771,6 +771,12 @@ body.dark-mode .proceeds-note i {
   color: #d97706;
 }
 
+.confirm-total-value--secondary {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+}
+
 /* Section label */
 .confirm-section-label {
   font-size: 11px;

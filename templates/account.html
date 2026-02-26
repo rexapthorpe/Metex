@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 {% block title %}My Account{% endblock %}
 
+{% block page_css %}
+<style>
+  /* Account page: remove container bottom padding so sidebar fills flush to footer */
+  .container { padding-bottom: 0 !important; }
+  .account-layout { margin-bottom: 0 !important; }
+  /* Remove footer top margin so the sidebar border meets the footer border */
+  #siteFooter { margin-top: 0 !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 
   <script>
@@ -80,6 +90,7 @@
 
     <!-- Main Sidebar -->
     <div class="account-sidebar" id="accountSidebar">
+      <div class="account-sidebar-inner">
       <h2 class="sidebar-title">My Account</h2>
       <div class="sidebar-divider"></div>
       <nav class="sidebar-nav">
@@ -139,6 +150,7 @@
         <i class="fa-solid fa-arrow-right-from-bracket sidebar-icon"></i>
         <span class="sidebar-label">Logout</span>
       </div>
+      </div><!-- /.account-sidebar-inner -->
     </div>
 
     <!-- Secondary Sidebar for Account Details -->

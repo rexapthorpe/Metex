@@ -339,8 +339,8 @@ function initEditBidFormSafe() {
     const spotPrice = Number(spotPriceText) || 0;
     const effective = spotPrice + premium;
 
-    premiumDisplay.textContent = premium.toFixed(2);
-    effectiveBidPrice.textContent = effective.toFixed(2);
+    premiumDisplay.textContent = formatWithCommas(premium, 2);
+    effectiveBidPrice.textContent = formatWithCommas(effective, 2);
   }
 
   // Enforce numeric input and format on blur for premium field

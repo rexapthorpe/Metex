@@ -27,8 +27,8 @@
                     <li class="seller-tile">
                         <p><strong>Seller:</strong> {{ seller.username }}</p>
                         <p><strong>Quantity:</strong> {{ seller.quantity }}</p>
-                        <p><strong>Price Each:</strong> ${{ '%.2f' % seller.price_each }}</p>
-                        <p><strong>Line Total:</strong> ${{ '%.2f' % seller.subtotal }}</p>
+                        <p><strong>Price Each:</strong> ${{ '{:,.2f}'.format(seller.price_each) }}</p>
+                        <p><strong>Line Total:</strong> ${{ '{:,.2f}'.format(seller.subtotal) }}</p>
                         <p><strong>Rating:</strong> 
                             {% if seller.rating %}
                                 {{ seller.rating }} ({{ seller.rating_count }} reviews)
@@ -44,15 +44,15 @@
 
             <p><strong>Total Quantity:</strong> {{ bucket.total_qty }}</p>
             {% if bucket.total_qty > 0 %}
-                <p><strong>Average Price:</strong> ${{ '%.2f' % bucket.avg_price }}</p>
+                <p><strong>Average Price:</strong> ${{ '{:,.2f}'.format(bucket.avg_price) }}</p>
             {% else %}
                 <p><strong>Average Price:</strong> N/A</p>
             {% endif %}
-            <p><strong>Total for This Item:</strong> ${{ '%.2f' % bucket.total_price }}</p>
+            <p><strong>Total for This Item:</strong> ${{ '{:,.2f}'.format(bucket.total_price) }}</p>
         </div>
     {% endfor %}
 
-    <h3>Total for All Items: ${{ '%.2f' % cart_total }}</h3>
+    <h3>Total for All Items: ${{ '{:,.2f}'.format(cart_total) }}</h3>
     <form method="POST" action="{{ url_for('checkout.checkout') }}">
         <button type="submit" class="btn btn-primary">Place Order</button>
     </form>

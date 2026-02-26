@@ -6,6 +6,8 @@
    Shows before final bid submission to confirm details
    ========================================================================== */
 
+const BID_GRADING_FEE_PER_ITEM = 70.00;
+
 /**
  * Open bid confirmation modal with bid details
  * @param {Object} data - Bid data to display
@@ -90,7 +92,7 @@ async function openBidConfirmModal(data) {
 
   // Populate item specs from form data attributes
   const form = document.getElementById('bid-form');
-  let metal = '', productLine = '', productType = '', weight = '', year = '', mint = '', finish = '', grade = '', purity = '';
+  let metal = '', productLine = '', productType = '', weight = '', year = '', mint = '', finish = '', purity = '';
 
   if (form) {
     metal = form.dataset.bucketMetal || '';
@@ -100,7 +102,6 @@ async function openBidConfirmModal(data) {
     year = form.dataset.bucketYear || '';
     mint = form.dataset.bucketMint || '';
     finish = form.dataset.bucketFinish || '';
-    grade = form.dataset.bucketGrade || '';
     purity = form.dataset.bucketPurity || '';
   }
 
@@ -123,14 +124,29 @@ async function openBidConfirmModal(data) {
   if (puritySpec) puritySpec.textContent = purity || '—';
   if (finishSpec) finishSpec.textContent = finish || 'N/A';
 
-  // Populate grading requirement
-  const gradingEl = modal.querySelector('#bid-confirm-grading');
-  if (gradingEl) {
-    if (data.requiresGrading) {
-      const graderText = data.preferredGrader || 'Any';
-      gradingEl.textContent = `Yes (${graderText})`;
-    } else {
-      gradingEl.textContent = 'No';
+  // Condition Category and Series Variant
+  const specs = window.bucketSpecs || {};
+  const condCatSpec = modal.querySelector('#confirm-spec-condition-category .spec-value');
+  const seriesVariantSpec = modal.querySelector('#confirm-spec-series-variant .spec-value');
+  if (condCatSpec) condCatSpec.textContent = specs['Condition Category'] || '—';
+  if (seriesVariantSpec) seriesVariantSpec.textContent = specs['Series Variant'] || '—';
+
+  // Packaging fields (isolated listings only)
+  if (window.bucketIsIsolated) {
+    const packagingType = window.bucketPackagingType || '';
+    const packagingNotes = window.bucketPackagingNotes || '';
+    const conditionNotes = window.bucketConditionNotes || '';
+    if (packagingType) {
+      const row = modal.querySelector('#confirm-spec-packaging-row');
+      if (row) { row.style.display = ''; modal.querySelector('#confirm-spec-packaging').textContent = packagingType; }
+    }
+    if (packagingNotes) {
+      const row = modal.querySelector('#confirm-spec-packaging-notes-row');
+      if (row) { row.style.display = ''; modal.querySelector('#confirm-spec-packaging-notes').textContent = packagingNotes; }
+    }
+    if (conditionNotes) {
+      const row = modal.querySelector('#confirm-spec-condition-notes-row');
+      if (row) { row.style.display = ''; modal.querySelector('#confirm-spec-condition-notes').textContent = conditionNotes; }
     }
   }
 
@@ -191,7 +207,7 @@ async function openBidConfirmModal(data) {
       console.log('  → spotRow display set to:', spotRow.style.display);
     }
     if (spotEl && currentSpotPrice !== null) {
-      spotEl.textContent = `$${currentSpotPrice.toFixed(2)}/oz`;
+      spotEl.textContent = `${formatPrice(currentSpotPrice)}/oz`;
       console.log('  → spotEl text set to:', spotEl.textContent);
     } else {
       spotEl.textContent = 'Loading...';
@@ -202,7 +218,7 @@ async function openBidConfirmModal(data) {
       console.log('  → premiumRow display set to:', premiumRow.style.display);
     }
     if (premiumEl && data.spotPremium !== undefined) {
-      premiumEl.textContent = `$${parseFloat(data.spotPremium).toFixed(2)}`;
+      premiumEl.textContent = formatPrice(parseFloat(data.spotPremium));
       console.log('  → premiumEl text set to:', premiumEl.textContent);
     }
 
@@ -211,7 +227,7 @@ async function openBidConfirmModal(data) {
       console.log('  → ceilingRow display set to:', ceilingRow.style.display);
     }
     if (ceilingEl && data.ceilingPrice !== undefined) {
-      ceilingEl.textContent = `$${parseFloat(data.ceilingPrice).toFixed(2)}`;
+      ceilingEl.textContent = formatPrice(parseFloat(data.ceilingPrice));
       console.log('  → ceilingEl text set to:', ceilingEl.textContent);
     }
 
@@ -221,14 +237,14 @@ async function openBidConfirmModal(data) {
     }
 
     if (priceEl) {
-      priceEl.textContent = `$${effectivePrice.toFixed(2)}`;
+      priceEl.textContent = formatPrice(effectivePrice);
       console.log('  → priceEl (effective) text set to:', priceEl.textContent);
     }
 
     // Calculate total using effective price
     if (totalEl && data.quantity) {
       const total = effectivePrice * parseInt(data.quantity);
-      totalEl.textContent = `$${total.toFixed(2)}`;
+      totalEl.textContent = formatPrice(total);
     }
   } else {
     console.log('ℹ️ [Bid Confirm Modal] Showing static pricing fields');
@@ -244,13 +260,38 @@ async function openBidConfirmModal(data) {
     }
 
     if (priceEl && data.price !== undefined) {
-      priceEl.textContent = `$${parseFloat(data.price).toFixed(2)}`;
+      priceEl.textContent = formatPrice(parseFloat(data.price));
     }
 
     if (totalEl && data.price !== undefined && data.quantity) {
       const total = parseFloat(data.price) * parseInt(data.quantity);
-      totalEl.textContent = `$${total.toFixed(2)}`;
+      totalEl.textContent = formatPrice(total);
     }
+  }
+
+  // Grading fee rows
+  const gradingFeeRow   = modal.querySelector('#bid-confirm-grading-fee-row');
+  const gradingTotalRow = modal.querySelector('#bid-confirm-grading-total-row');
+  const gradingFeeEl    = modal.querySelector('#bid-confirm-grading-fee');
+  const gradingTotalEl  = modal.querySelector('#bid-confirm-grading-total');
+
+  if (data.requiresGrading && gradingFeeRow && gradingTotalRow) {
+    const qty        = parseInt(data.quantity) || 1;
+    const basePrice  = isVariablePricing ? effectivePrice : (parseFloat(data.price) || 0);
+    const feeTotal   = BID_GRADING_FEE_PER_ITEM * qty;
+    const estTotal   = (basePrice * qty) + feeTotal;
+
+    const feeLabel = data.preferredGrader
+      ? `+${formatPrice(BID_GRADING_FEE_PER_ITEM)}/item (${data.preferredGrader})`
+      : `+${formatPrice(BID_GRADING_FEE_PER_ITEM)}/item`;
+
+    if (gradingFeeEl)   gradingFeeEl.textContent   = feeLabel;
+    if (gradingTotalEl) gradingTotalEl.textContent = formatPrice(estTotal);
+    gradingFeeRow.style.display   = 'flex';
+    gradingTotalRow.style.display = 'flex';
+  } else {
+    if (gradingFeeRow)   gradingFeeRow.style.display   = 'none';
+    if (gradingTotalRow) gradingTotalRow.style.display = 'none';
   }
 
   // Parse and populate delivery address
@@ -450,7 +491,6 @@ function getBucketDescription() {
   const year = form.dataset.bucketYear || '';
   const mint = form.dataset.bucketMint || '';
   const finish = form.dataset.bucketFinish || '';
-  const grade = form.dataset.bucketGrade || '';
 
   // Build description from available attributes
   const parts = [];
@@ -462,7 +502,6 @@ function getBucketDescription() {
   if (weight) parts.push(weight);
   if (mint) parts.push(`(${mint})`);
   if (finish && finish !== 'N/A') parts.push(`- ${finish}`);
-  if (grade && grade !== 'N/A') parts.push(`[${grade}]`);
 
   return parts.length > 0 ? parts.join(' ') : 'Item from selected category';
 }
@@ -499,12 +538,6 @@ function openBidSuccessModal(data) {
   // Populate basic fields
   modal.querySelector('#success-bid-quantity').textContent = data.quantity || '—';
 
-  // Populate grading requirement
-  const gradingText = data.requiresGrading
-    ? `Yes${data.preferredGrader ? ` (${data.preferredGrader})` : ''}`
-    : 'No';
-  modal.querySelector('#success-bid-grading').textContent = gradingText;
-
   // Populate item detail spec fields from bucket data
   const metalSpec = modal.querySelector('#success-spec-metal .spec-value');
   const productLineSpec = modal.querySelector('#success-spec-product-line .spec-value');
@@ -524,12 +557,37 @@ function openBidSuccessModal(data) {
   if (puritySpec) puritySpec.textContent = data.bucketPurity || '—';
   if (finishSpec) finishSpec.textContent = data.bucketFinish || 'N/A';
 
+  // Condition Category and Series Variant
+  const successSpecs = window.bucketSpecs || {};
+  const condCatSuccessSpec = modal.querySelector('#success-spec-condition-category .spec-value');
+  const seriesVariantSuccessSpec = modal.querySelector('#success-spec-series-variant .spec-value');
+  if (condCatSuccessSpec) condCatSuccessSpec.textContent = successSpecs['Condition Category'] || '—';
+  if (seriesVariantSuccessSpec) seriesVariantSuccessSpec.textContent = successSpecs['Series Variant'] || '—';
+
+  // Packaging fields (isolated listings only)
+  if (window.bucketIsIsolated) {
+    const packagingType = window.bucketPackagingType || '';
+    const packagingNotes = window.bucketPackagingNotes || '';
+    const conditionNotes = window.bucketConditionNotes || '';
+    if (packagingType) {
+      const row = modal.querySelector('#success-spec-packaging-row');
+      if (row) { row.style.display = ''; modal.querySelector('#success-spec-packaging').textContent = packagingType; }
+    }
+    if (packagingNotes) {
+      const row = modal.querySelector('#success-spec-packaging-notes-row');
+      if (row) { row.style.display = ''; modal.querySelector('#success-spec-packaging-notes').textContent = packagingNotes; }
+    }
+    if (conditionNotes) {
+      const row = modal.querySelector('#success-spec-condition-notes-row');
+      if (row) { row.style.display = ''; modal.querySelector('#success-spec-condition-notes').textContent = conditionNotes; }
+    }
+  }
+
   console.log('✅ [Bid Success Modal] Populated item specs:', {
     metal: data.bucketMetal,
     productLine: data.bucketProductLine,
     productType: data.bucketProductType,
     weight: data.bucketWeight,
-    grade: data.bucketGrade,
     year: data.bucketYear,
     mint: data.bucketMint,
     purity: data.bucketPurity,
@@ -591,7 +649,7 @@ function openBidSuccessModal(data) {
     }
     if (spotEl) {
       if (data.currentSpotPrice != null && !isNaN(data.currentSpotPrice)) {
-        spotEl.textContent = `$${parseFloat(data.currentSpotPrice).toFixed(2)}/oz`;
+        spotEl.textContent = `${formatPrice(parseFloat(data.currentSpotPrice))}/oz`;
         console.log('  → spotEl text set to:', spotEl.textContent);
       } else {
         spotEl.textContent = '—';
@@ -605,7 +663,7 @@ function openBidSuccessModal(data) {
     }
     if (premiumEl) {
       if (data.spotPremium != null && !isNaN(data.spotPremium)) {
-        premiumEl.textContent = `$${parseFloat(data.spotPremium).toFixed(2)}`;
+        premiumEl.textContent = formatPrice(parseFloat(data.spotPremium));
         console.log('  → premiumEl text set to:', premiumEl.textContent);
       } else {
         premiumEl.textContent = '—';
@@ -619,7 +677,7 @@ function openBidSuccessModal(data) {
     }
     if (successCeilingEl) {
       if (data.ceilingPrice != null && !isNaN(data.ceilingPrice)) {
-        successCeilingEl.textContent = `$${parseFloat(data.ceilingPrice).toFixed(2)}`;
+        successCeilingEl.textContent = formatPrice(parseFloat(data.ceilingPrice));
         console.log('  → successCeilingEl text set to:', successCeilingEl.textContent);
       } else {
         successCeilingEl.textContent = '—';
@@ -633,7 +691,7 @@ function openBidSuccessModal(data) {
     }
     if (effectiveEl) {
       if (data.effectivePrice != null && !isNaN(data.effectivePrice)) {
-        effectiveEl.textContent = `$${parseFloat(data.effectivePrice).toFixed(2)}`;
+        effectiveEl.textContent = formatPrice(parseFloat(data.effectivePrice));
         console.log('  → effectiveEl text set to:', effectiveEl.textContent);
       } else {
         effectiveEl.textContent = '—';
@@ -648,7 +706,7 @@ function openBidSuccessModal(data) {
     if (totalEl) {
       if (data.effectivePrice != null && !isNaN(data.effectivePrice) && data.quantity) {
         const total = parseFloat(data.effectivePrice) * parseInt(data.quantity);
-        totalEl.textContent = `$${total.toFixed(2)}`;
+        totalEl.textContent = formatPrice(total);
       } else {
         totalEl.textContent = '—';
         console.warn('Cannot calculate total - effective price or quantity invalid:', {
@@ -671,14 +729,41 @@ function openBidSuccessModal(data) {
     if (priceRow) priceRow.style.display = '';
     if (priceLabel) priceLabel.textContent = 'Price per Item:';
     if (priceEl && data.price !== undefined) {
-      priceEl.textContent = `$${parseFloat(data.price).toFixed(2)}`;
+      priceEl.textContent = formatPrice(parseFloat(data.price));
     }
 
     // Calculate total using static price
     if (totalEl && data.price !== undefined && data.quantity) {
       const total = parseFloat(data.price) * parseInt(data.quantity);
-      totalEl.textContent = `$${total.toFixed(2)}`;
+      totalEl.textContent = formatPrice(total);
     }
+  }
+
+  // Grading fee rows
+  const successGradingFeeRow   = modal.querySelector('#success-grading-fee-row');
+  const successGradingTotalRow = modal.querySelector('#success-grading-total-row');
+  const successGradingFeeEl    = modal.querySelector('#success-grading-fee');
+  const successGradingTotalEl  = modal.querySelector('#success-grading-total');
+
+  if (data.requiresGrading && successGradingFeeRow && successGradingTotalRow) {
+    const qty       = parseInt(data.quantity) || 1;
+    const basePrice = isVariablePricing
+      ? (parseFloat(data.effectivePrice) || 0)
+      : (parseFloat(data.price) || 0);
+    const feeTotal  = BID_GRADING_FEE_PER_ITEM * qty;
+    const estTotal  = (basePrice * qty) + feeTotal;
+
+    const feeLabel = data.preferredGrader
+      ? `+${formatPrice(BID_GRADING_FEE_PER_ITEM)}/item (${data.preferredGrader})`
+      : `+${formatPrice(BID_GRADING_FEE_PER_ITEM)}/item`;
+
+    if (successGradingFeeEl)   successGradingFeeEl.textContent   = feeLabel;
+    if (successGradingTotalEl) successGradingTotalEl.textContent = formatPrice(estTotal);
+    successGradingFeeRow.style.display   = 'flex';
+    successGradingTotalRow.style.display = 'flex';
+  } else {
+    if (successGradingFeeRow)   successGradingFeeRow.style.display   = 'none';
+    if (successGradingTotalRow) successGradingTotalRow.style.display = 'none';
   }
 
   // Parse and display delivery address

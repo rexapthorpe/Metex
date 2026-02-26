@@ -92,10 +92,10 @@
                     <span class="bid-price">${{ '{:,.2f}'.format(bid.bid_effective_price or 0) }}/unit</span>
                     <span class="bid-vs-spot bid-vs-spot--down">
                       <i class="fa-solid fa-arrow-trend-down"></i>
-                      -${{ '%.2f'|format(bid.spot_premium or 0) }} vs spot
+                      -${{ '{:,.2f}'.format(bid.spot_premium or 0) }} vs spot
                     </span>
                   {% else %}
-                    <span class="bid-price">${{ '%.2f'|format(bid.price_per_coin or 0) }}/unit</span>
+                    <span class="bid-price">${{ '{:,.2f}'.format(bid.price_per_coin or 0) }}/unit</span>
                   {% endif %}
                 </div>
               </div>
@@ -203,6 +203,13 @@
           </div>
         </div>
       {% endfor %}
+      <div class="tab-filter-empty" id="bidsFilterEmpty" style="display:none;">
+        <div class="tab-filter-empty-icon-wrap">
+          <i class="fa-solid fa-bullseye tab-filter-empty-icon"></i>
+        </div>
+        <p class="tab-filter-empty-title" id="bidsFilterEmptyMsg">No bids yet</p>
+        <p class="tab-filter-empty-sub">Try a different filter to see your bids.</p>
+      </div>
     </div>
   {% else %}
     <div class="tab-empty-state">
@@ -226,6 +233,17 @@ function filterBids(filter) {
     const cardFilter = card.dataset.bidFilter;
     card.style.display = (filter === 'all' || cardFilter === filter) ? '' : 'none';
   });
+  const emptyEl = document.getElementById('bidsFilterEmpty');
+  if (emptyEl) {
+    if (filter !== 'all') {
+      const anyVisible = Array.from(document.querySelectorAll('.bid-card')).some(c => c.style.display !== 'none');
+      const msgEl = document.getElementById('bidsFilterEmptyMsg');
+      if (msgEl) msgEl.textContent = 'No ' + filter + ' bids yet!';
+      emptyEl.style.display = anyVisible ? 'none' : 'flex';
+    } else {
+      emptyEl.style.display = 'none';
+    }
+  }
 }
 
 function toggleBidDetails(btn) {

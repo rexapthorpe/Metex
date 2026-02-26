@@ -35,6 +35,19 @@
         <span class="confirm-total-label">Total Listing Value</span>
         <span class="confirm-total-value" id="confirm-total-value">—</span>
       </div>
+      <!-- Premium-to-spot extra rows (hidden for fixed price) -->
+      <div id="confirm-premium-rows" style="display:none;">
+        <div class="confirm-price-divider"></div>
+        <div class="confirm-total-row">
+          <span class="confirm-total-label">Premium Above Spot</span>
+          <span class="confirm-total-value confirm-total-value--secondary" id="confirm-spot-premium">—</span>
+        </div>
+        <div class="confirm-price-divider"></div>
+        <div class="confirm-total-row">
+          <span class="confirm-total-label">Spot Price</span>
+          <span class="confirm-total-value confirm-total-value--secondary" id="confirm-spot-price">—</span>
+        </div>
+      </div>
     </div>
 
     <!-- Item Details -->
@@ -53,14 +66,6 @@
         <div class="confirm-detail-text">
           <span class="confirm-detail-key">Metal Type</span>
           <span class="confirm-detail-val" id="confirm-metal">—</span>
-        </div>
-      </div>
-      <div class="confirm-detail-divider"></div>
-      <div class="confirm-detail-row">
-        <i class="fa-solid fa-landmark confirm-detail-icon"></i>
-        <div class="confirm-detail-text">
-          <span class="confirm-detail-key">Mint</span>
-          <span class="confirm-detail-val" id="confirm-mint">—</span>
         </div>
       </div>
     </div>
@@ -126,20 +131,40 @@
               <span class="spec-value" id="success-weight">—</span>
             </div>
             <div class="spec-item">
-              <span class="spec-label">Purity:</span>
-              <span class="spec-value" id="success-purity">—</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Mint:</span>
-              <span class="spec-value" id="success-mint">—</span>
+              <span class="spec-label">Condition:</span>
+              <span class="spec-value" id="success-condition">—</span>
             </div>
             <div class="spec-item">
               <span class="spec-label">Year:</span>
               <span class="spec-value" id="success-year">—</span>
             </div>
             <div class="spec-item">
+              <span class="spec-label">Mint:</span>
+              <span class="spec-value" id="success-mint">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Purity:</span>
+              <span class="spec-value" id="success-purity">—</span>
+            </div>
+            <div class="spec-item">
               <span class="spec-label">Finish:</span>
               <span class="spec-value" id="success-finish">—</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Series Variant:</span>
+              <span class="spec-value" id="success-series-variant">—</span>
+            </div>
+            <div class="spec-item" id="success-sell-packaging-row" style="display: none;">
+              <span class="spec-label">Packaging:</span>
+              <span class="spec-value" id="success-sell-packaging">—</span>
+            </div>
+            <div class="spec-item" id="success-sell-packaging-notes-row" style="display: none;">
+              <span class="spec-label">Packaging Notes:</span>
+              <span class="spec-value" id="success-sell-packaging-notes">—</span>
+            </div>
+            <div class="spec-item" id="success-sell-condition-notes-row" style="display: none;">
+              <span class="spec-label">Condition Notes:</span>
+              <span class="spec-value" id="success-sell-condition-notes">—</span>
             </div>
           </div>
         </div>

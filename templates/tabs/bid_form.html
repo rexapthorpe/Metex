@@ -13,8 +13,7 @@
 
   {# ── Hidden inputs (managed by JS) ── #}
   {% if bid %}<input type="hidden" name="bid_id" value="{{ bid.id }}">{% endif %}
-  <input type="hidden" name="requires_grading" id="requires_grading" value="no">
-  <input type="hidden" name="preferred_grader" id="preferred_grader" value="">
+  <input type="hidden" name="requires_grading" id="requires_grading" value="{{ 'yes' if bid and bid.requires_grading else 'no' }}">
   <input type="hidden" name="payment_method" id="payment_method" value="credit_card">
 
   <div class="bm-wizard">
@@ -162,11 +161,11 @@
             Current <span id="spot-metal-name">{{ bucket.metal if bucket else 'Metal' }}</span> Spot Price
           </div>
           <div id="current-spot-price" class="bm-spot-price">
-            {% if current_spot_price %}${{ '%.2f'|format(current_spot_price) }}{% else %}Loading...{% endif %}
+            {% if current_spot_price %}${{ '{:,.2f}'.format(current_spot_price) }}{% else %}Loading...{% endif %}
           </div>
           <div class="bm-spot-calc">
-            Your bid: Spot + $<span id="premium-display">{{ '%.2f'|format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}</span>
-            = $<span id="effective-bid-price">{{ '%.2f'|format((current_spot_price or 0) + (bid.spot_premium or 0)) }}</span>
+            Your bid: Spot + $<span id="premium-display">{{ '{:,.2f}'.format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}</span>
+            = $<span id="effective-bid-price">{{ '{:,.2f}'.format((current_spot_price or 0) + (bid.spot_premium or 0)) }}</span>
           </div>
         </div>
       </div>
@@ -188,30 +187,15 @@
         </label>
       </div>
 
-      <div class="bm-section-heading">Third Party Grading</div>
-
-      <div class="bm-toggle-group">
-        <div class="bm-toggle-row bm-toggle-row--bordered">
-          <div class="bm-toggle-title">Any Grader</div>
-          <label class="bm-switch">
-            <input type="checkbox" id="grader_any" {% if bid and bid.preferred_grader == 'Any' %}checked{% endif %}>
-            <span class="bm-slider"></span>
-          </label>
+      <div class="bm-toggle-row">
+        <div class="bm-toggle-left">
+          <div class="bm-toggle-title">Require 3rd-party grading</div>
+          <div class="bm-toggle-desc">Only match listings that are professionally graded (+$70/item)</div>
         </div>
-        <div class="bm-toggle-row bm-toggle-row--bordered">
-          <div class="bm-toggle-title">PCGS</div>
-          <label class="bm-switch">
-            <input type="checkbox" id="grader_pcgs" {% if bid and bid.preferred_grader == 'PCGS' %}checked{% endif %}>
-            <span class="bm-slider"></span>
-          </label>
-        </div>
-        <div class="bm-toggle-row bm-toggle-row--bordered">
-          <div class="bm-toggle-title">NGC</div>
-          <label class="bm-switch">
-            <input type="checkbox" id="grader_ngc" {% if bid and bid.preferred_grader == 'NGC' %}checked{% endif %}>
-            <span class="bm-slider"></span>
-          </label>
-        </div>
+        <label class="bm-switch">
+          <input type="checkbox" id="require_tpg_bid" {% if bid and bid.requires_grading %}checked{% endif %}>
+          <span class="bm-slider"></span>
+        </label>
       </div>
     </div>
 
@@ -296,40 +280,20 @@
         <label class="bm-payment-opt" data-value="credit_card">
           <div class="bm-pm-icon"><i class="fa-regular fa-credit-card"></i></div>
           <div class="bm-pm-info">
-            <div class="bm-pm-name">Credit Card</div>
-            <div class="bm-pm-detail">Visa, Mastercard, Amex</div>
+            <div class="bm-pm-name">Credit / Debit Card</div>
+            <div class="bm-pm-detail">2.99% fee</div>
           </div>
           <input type="radio" name="payment_method_radio" value="credit_card" style="display:none">
-          <div class="bm-radio-vis"></div>
-        </label>
-
-        <label class="bm-payment-opt" data-value="paypal">
-          <div class="bm-pm-icon"><i class="fa-brands fa-paypal"></i></div>
-          <div class="bm-pm-info">
-            <div class="bm-pm-name">PayPal</div>
-            <div class="bm-pm-detail">Pay with your PayPal account</div>
-          </div>
-          <input type="radio" name="payment_method_radio" value="paypal" style="display:none">
           <div class="bm-radio-vis"></div>
         </label>
 
         <label class="bm-payment-opt" data-value="bank_transfer">
           <div class="bm-pm-icon"><i class="fa-solid fa-building-columns"></i></div>
           <div class="bm-pm-info">
-            <div class="bm-pm-name">Bank Transfer</div>
-            <div class="bm-pm-detail">Direct bank payment</div>
+            <div class="bm-pm-name">ACH Bank Transfer</div>
+            <div class="bm-pm-detail">Free</div>
           </div>
           <input type="radio" name="payment_method_radio" value="bank_transfer" style="display:none">
-          <div class="bm-radio-vis"></div>
-        </label>
-
-        <label class="bm-payment-opt" data-value="crypto">
-          <div class="bm-pm-icon"><i class="fa-brands fa-bitcoin"></i></div>
-          <div class="bm-pm-info">
-            <div class="bm-pm-name">Cryptocurrency</div>
-            <div class="bm-pm-detail">Bitcoin, Ethereum, etc.</div>
-          </div>
-          <input type="radio" name="payment_method_radio" value="crypto" style="display:none">
           <div class="bm-radio-vis"></div>
         </label>
 
@@ -352,6 +316,10 @@
         <div class="bm-review-line">
           <span>Quantity</span>
           <span id="rv-qty">×1</span>
+        </div>
+        <div class="bm-review-line" id="rv-grading-row" style="display:none;">
+          <span id="rv-grading-label">3rd Party Grading</span>
+          <span id="rv-grading">$0.00</span>
         </div>
         <div class="bm-review-sep"></div>
         <div class="bm-review-line">

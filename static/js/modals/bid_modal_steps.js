@@ -5,10 +5,8 @@
 
   /* Payment method display labels */
   const PM_LABELS = {
-    credit_card:   { name: 'Credit Card',     icon: 'fa-regular fa-credit-card' },
-    paypal:        { name: 'PayPal',           icon: 'fa-brands fa-paypal' },
-    bank_transfer: { name: 'Bank Transfer',    icon: 'fa-solid fa-building-columns' },
-    crypto:        { name: 'Cryptocurrency',   icon: 'fa-brands fa-bitcoin' },
+    credit_card:   { name: 'Credit / Debit Card', icon: 'fa-regular fa-credit-card' },
+    bank_transfer: { name: 'ACH Bank Transfer',   icon: 'fa-solid fa-building-columns' },
   };
 
   const TOTAL_STEPS = 5;
@@ -59,9 +57,6 @@
 
     /* ── Pricing mode switcher ── */
     initPricingModeToggle();
-
-    /* ── Grading toggles (mutual exclusivity) ── */
-    initGradingToggles();
 
     /* ── Payment option selection ── */
     initPaymentOptions();
@@ -210,16 +205,44 @@
 
     const subtotal = price * qty;
     const tax      = subtotal * 0.0825;
-    const fee      = subtotal > 0 ? 0.65 : 0;
-    const total    = subtotal + tax + fee;
+
+    // Processing fee: free for ACH bank transfer, 2.99% of subtotal for credit/debit card
+    const isACH = selectedPaymentMethod === 'bank_transfer';
+    const fee   = isACH ? 0 : subtotal * 0.0299;
+
+    // 3rd party grading fee: $70/item when grading is requested
+    const reqEl  = document.getElementById('requires_grading');
+    const hasGrading = reqEl && reqEl.value === 'yes';
+    const gradingFee = hasGrading ? 70.00 * qty : 0;
+
+    const total = subtotal + tax + fee + gradingFee;
 
     setText('rv-price-label', priceLabel);
     setText('rv-price-val',   fmt(price));
     setText('rv-qty',         '×' + qty);
     setText('rv-subtotal',    fmt(subtotal));
     setText('rv-tax',         fmt(tax));
-    setText('rv-fee',         fmt(fee));
-    setText('rv-total',       fmt(total));
+
+    // Processing fee — green "Free" for ACH
+    const feeEl = document.getElementById('rv-fee');
+    if (feeEl) {
+      feeEl.textContent = isACH ? 'Free' : fmt(fee);
+      feeEl.classList.toggle('bm-review-fee--free', isACH);
+    }
+
+    // Grading fee row (lives in the top/inputs section)
+    const gradingRow = document.getElementById('rv-grading-row');
+    if (gradingRow) {
+      if (hasGrading) {
+        setText('rv-grading-label', `3rd Party Grading ×${qty}`);
+        setText('rv-grading', fmt(gradingFee));
+        gradingRow.style.display = '';
+      } else {
+        gradingRow.style.display = 'none';
+      }
+    }
+
+    setText('rv-total', fmt(total));
 
     /* Payment method */
     const pm = PM_LABELS[selectedPaymentMethod] || PM_LABELS['credit_card'];
@@ -257,36 +280,6 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     GRADING TOGGLES (mutual-exclusivity handled by initBidForm too,
-     but we also wire it here so step 2 feels responsive)
-     ══════════════════════════════════════════════════════════════ */
-  function initGradingToggles() {
-    const anyEl  = document.getElementById('grader_any');
-    const pcgsEl = document.getElementById('grader_pcgs');
-    const ngcEl  = document.getElementById('grader_ngc');
-    const reqEl  = document.getElementById('requires_grading');
-    const prefEl = document.getElementById('preferred_grader');
-
-    if (!anyEl || !pcgsEl || !ngcEl) return;
-
-    [anyEl, pcgsEl, ngcEl].forEach(cb => {
-      cb.addEventListener('change', function () {
-        if (this.checked) {
-          [anyEl, pcgsEl, ngcEl].forEach(other => { if (other !== this) other.checked = false; });
-          if (reqEl)  reqEl.value  = 'yes';
-          if (prefEl) prefEl.value = this === anyEl ? 'Any' : this === pcgsEl ? 'PCGS' : 'NGC';
-        } else {
-          const anyChecked = [anyEl, pcgsEl, ngcEl].some(c => c.checked);
-          if (!anyChecked) {
-            if (reqEl)  reqEl.value  = 'no';
-            if (prefEl) prefEl.value = '';
-          }
-        }
-      });
-    });
-  }
-
-  /* ══════════════════════════════════════════════════════════════
      PAYMENT OPTIONS
      ══════════════════════════════════════════════════════════════ */
   function initPaymentOptions() {
@@ -317,7 +310,7 @@
      HELPERS
      ══════════════════════════════════════════════════════════════ */
   function fmt(n) {
-    return '$' + (Math.round(n * 100) / 100).toFixed(2);
+    return formatPrice(Math.round(n * 100) / 100);
   }
 
   function setText(id, val) {

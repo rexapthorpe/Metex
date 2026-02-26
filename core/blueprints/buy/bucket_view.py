@@ -64,23 +64,20 @@ def view_bucket(bucket_id):
         return None
 
     specs = {
-        'Metal'          : take('metal'),
-        'Product line'   : take('product_line', 'coin_series'),
-        'Product type'   : take('product_type'),
-        'Weight'         : take('weight'),
-        'Year'           : take('year'),
-        'Mint'           : take('mint'),
-        'Purity'         : take('purity'),
-        'Finish'         : take('finish'),
-        'Series variant' : take('series_variant'),
+        'Metal'              : take('metal'),
+        'Product line'       : take('product_line', 'coin_series'),
+        'Product type'       : take('product_type'),
+        'Weight'             : take('weight'),
+        'Year'               : take('year'),
+        'Mint'               : take('mint'),
+        'Finish'             : take('finish'),
+        'Condition Category' : take('condition_category'),
+        'Series Variant'     : take('series_variant'),
     }
     # Don't convert None to '--' here - let the frontend handle empty values
     # This allows JavaScript to properly use its own fallback values
     # specs = {k: (('--' if (v is None or str(v).strip() == '') else v)) for k, v in specs.items()}
 
-    # Add graded and grading_service fields directly from bucket (preserving original values)
-    specs['graded'] = bucket['graded'] if 'graded' in cols else 0
-    specs['grading_service'] = bucket['grading_service'] if 'grading_service' in cols else ''
 
     images = []
 

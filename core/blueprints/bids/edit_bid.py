@@ -115,9 +115,6 @@ def update_bid():
         delivery_address = (request.form.get('delivery_address') or '').strip()
 
         requires_grading = (request.form.get('requires_grading') == 'yes')
-        preferred_grader = request.form.get('preferred_grader')
-        if not requires_grading:
-            preferred_grader = None
 
         # Extract pricing parameters based on mode
         if pricing_mode == 'premium_to_spot':
@@ -164,7 +161,7 @@ def update_bid():
     if bid_quantity < 1:
         errors['bid_quantity'] = "Quantity must be at least 1."
     if requires_grading and not delivery_address:
-        errors['delivery_address'] = "Delivery address is required when grading is selected."
+        errors['delivery_address'] = "Delivery address is required when 3rd-party grading is selected."
     if errors:
         return jsonify(success=False, errors=errors), 400
 
@@ -216,7 +213,7 @@ def update_bid():
                quantity_requested  = ?,
                remaining_quantity  = ?,
                requires_grading    = ?,
-               preferred_grader    = ?,
+               preferred_grader    = NULL,
                delivery_address    = ?,
                pricing_mode        = ?,
                spot_premium        = ?,
@@ -233,7 +230,6 @@ def update_bid():
             bid_quantity,
             bid_quantity - quantity_fulfilled,  # remaining = total - already fulfilled
             1 if requires_grading else 0,
-            preferred_grader,
             new_address,
             pricing_mode,
             spot_premium,

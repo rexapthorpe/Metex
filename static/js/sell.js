@@ -207,23 +207,102 @@ document.addEventListener("DOMContentLoaded", () => {
             const ids = prefill.existing_photos.map(p => p.id);
             if (keepPhotoIds) keepPhotoIds.value = ids.join(',');
 
-            // Populate standard photo boxes with existing photos
             const boxIds     = ['standardPhotoBox1', 'standardPhotoBox2', 'standardPhotoBox3'];
             const previewIds = ['standardPhotoPreview1', 'standardPhotoPreview2', 'standardPhotoPreview3'];
             const clearIds   = ['standardPhotoClear1', 'standardPhotoClear2', 'standardPhotoClear3'];
 
-            prefill.existing_photos.slice(0, 3).forEach(function(photo, i) {
-                const box     = document.getElementById(boxIds[i]);
-                const preview = document.getElementById(previewIds[i]);
-                const clearBtn = document.getElementById(clearIds[i]);
-                if (box && preview) {
-                    preview.src = photo.url;
-                    preview.style.display = 'block';
-                    if (clearBtn) clearBtn.style.display = 'flex';
-                    box.classList.add('has-image');
-                    box.dataset.existingPhotoId = photo.id;
+            const isSet = prefill.is_isolated == 1 && prefill.isolated_type === 'set';
+            const isOOK = prefill.is_isolated == 1 && prefill.isolated_type !== 'set';
+
+            if (isSet) {
+                // Set listings: cover photo goes to coverPhotoUploadBox
+                const coverPhoto = prefill.existing_photos[0];
+                if (coverPhoto) {
+                    const coverBox      = document.getElementById('coverPhotoUploadBox');
+                    const coverPreview  = document.getElementById('coverPhotoPreview');
+                    const coverClearBtn = document.getElementById('coverPhotoClearBtn');
+                    if (coverBox && coverPreview) {
+                        coverPreview.src = coverPhoto.url;
+                        coverPreview.style.display = 'block';
+                        if (coverClearBtn) coverClearBtn.style.display = 'flex';
+                        coverBox.classList.add('has-image');
+                        coverBox.dataset.existingPhotoId = coverPhoto.id;
+                    }
                 }
+            } else if (isOOK) {
+                // OOK listings: first photo is the cover photo
+                const coverPhoto = prefill.existing_photos[0];
+                if (coverPhoto) {
+                    const coverBox     = document.getElementById('coverPhotoUploadBox');
+                    const coverPreview = document.getElementById('coverPhotoPreview');
+                    const coverClearBtn = document.getElementById('coverPhotoClearBtn');
+                    if (coverBox && coverPreview) {
+                        coverPreview.src = coverPhoto.url;
+                        coverPreview.style.display = 'block';
+                        if (coverClearBtn) coverClearBtn.style.display = 'flex';
+                        coverBox.classList.add('has-image');
+                        coverBox.dataset.existingPhotoId = coverPhoto.id;
+                    }
+                }
+                // Any additional photos go into the standard photo boxes
+                prefill.existing_photos.slice(1, 4).forEach(function(photo, i) {
+                    const box     = document.getElementById(boxIds[i]);
+                    const preview = document.getElementById(previewIds[i]);
+                    const clearBtn = document.getElementById(clearIds[i]);
+                    if (box && preview) {
+                        preview.src = photo.url;
+                        preview.style.display = 'block';
+                        if (clearBtn) clearBtn.style.display = 'flex';
+                        box.classList.add('has-image');
+                        box.dataset.existingPhotoId = photo.id;
+                    }
+                });
+            } else {
+                // Standard listings: populate photo boxes 1-3
+                prefill.existing_photos.slice(0, 3).forEach(function(photo, i) {
+                    const box     = document.getElementById(boxIds[i]);
+                    const preview = document.getElementById(previewIds[i]);
+                    const clearBtn = document.getElementById(clearIds[i]);
+                    if (box && preview) {
+                        preview.src = photo.url;
+                        preview.style.display = 'block';
+                        if (clearBtn) clearBtn.style.display = 'flex';
+                        box.classList.add('has-image');
+                        box.dataset.existingPhotoId = photo.id;
+                    }
+                });
+            }
+        }
+
+        // ── Set listing edit: restore existing items as display tiles ──
+        if (window.sellEditMode && prefill.isolated_type === 'set' &&
+                Array.isArray(prefill.set_items) && prefill.set_items.length > 0) {
+            prefill.set_items.forEach(function(item) {
+                var restoredItem = {
+                    metal:          item.metal          || '',
+                    product_line:   item.product_line   || '',
+                    product_type:   item.product_type   || '',
+                    weight:         item.weight         || '',
+                    purity:         item.purity         || '',
+                    mint:           item.mint           || '',
+                    year:           item.year           || '',
+                    finish:         item.finish         || '',
+                    grade:          item.grade          || '',
+                    item_title:     item.item_title     || '',
+                    packaging_type: item.packaging_type || '',
+                    packaging_notes: item.packaging_notes || '',
+                    condition_notes: item.condition_notes || '',
+                    edition_number: item.edition_number || '',
+                    edition_total:  item.edition_total  || '',
+                    quantity:       item.quantity       || 1,
+                    // No File object — existing photo tracked by URL only
+                    photo:    null,
+                    photoURL: item.first_photo_path ? '/static/' + item.first_photo_path : ''
+                };
+                window.setItems.push(restoredItem);
             });
+            // Render tiles (renderSetItems is patched by sidebar_controller to also update sidebar)
+            if (typeof window.renderSetItems === 'function') window.renderSetItems();
         }
 
         // Refresh sidebar after all prefill values are set
@@ -463,6 +542,7 @@ function setupPricingModeToggle() {
     function handlePricingModeChange() {
         const isStatic = staticRadio.checked;
 
+        const setSpotMetalGroup = document.getElementById('set_spot_metal_group');
         if (isStatic) {
             // Show static price, hide premium fields
             staticGroup.style.display = 'block';
@@ -472,6 +552,9 @@ function setupPricingModeToggle() {
             pricePerCoin.required = true;
             if (spotPremium) spotPremium.required = false;
             if (floorPrice) floorPrice.required = false;
+
+            // Hide spot metal selector
+            if (setSpotMetalGroup) setSpotMetalGroup.style.display = 'none';
         } else {
             // Hide static price, show premium fields
             staticGroup.style.display = 'none';
@@ -481,6 +564,11 @@ function setupPricingModeToggle() {
             pricePerCoin.required = false;
             if (spotPremium) spotPremium.required = true;
             if (floorPrice) floorPrice.required = true;
+
+            // Show spot metal selector only in set mode
+            if (setSpotMetalGroup) {
+                setSpotMetalGroup.style.display = (window.currentMode === 'set') ? 'block' : 'none';
+            }
 
             // Update preview immediately (prices eagerly loaded at page init)
             updatePricePreview();
@@ -547,8 +635,11 @@ function updatePricePreview() {
     const spotPremiumInput = document.getElementById('spot_premium');
     const floorPriceInput = document.getElementById('floor_price');
 
-    // Always derive pricing metal from the main metal field
-    const pricingMetal = metalInput?.value || '';
+    // In set mode use the explicit spot-metal selector; otherwise auto-derive from metal field
+    const setSpotMetalSelect = document.getElementById('set_spot_metal_select');
+    const pricingMetal = (window.currentMode === 'set' && setSpotMetalSelect)
+        ? (setSpotMetalSelect.value || '')
+        : (metalInput?.value || '');
     const metalKey = pricingMetal.toLowerCase();
 
     // Sync hidden pricing_metal field
@@ -584,8 +675,8 @@ function updatePricePreview() {
     const computedPrice = (spotPrice * weight) + premium;
     const effectivePrice = Math.max(computedPrice, floor);
 
-    if (previewAmountSpan) previewAmountSpan.textContent = `$${effectivePrice.toFixed(2)}`;
-    if (spotPriceSpan) spotPriceSpan.textContent = `$${spotPrice.toFixed(2)}`;
+    if (previewAmountSpan) previewAmountSpan.textContent = formatPrice(effectivePrice);
+    if (spotPriceSpan) spotPriceSpan.textContent = formatPrice(spotPrice);
     if (spotMetalNameSpan) spotMetalNameSpan.textContent = pricingMetal.charAt(0).toUpperCase() + pricingMetal.slice(1).toLowerCase();
 }
 
@@ -632,6 +723,12 @@ function setupPremiumInputs() {
             input.addEventListener('change', updatePricePreview);
         }
     });
+
+    // Set mode: update preview when the explicit spot-metal dropdown changes
+    const setSpotMetalSelectEl = document.getElementById('set_spot_metal_select');
+    if (setSpotMetalSelectEl) {
+        setSpotMetalSelectEl.addEventListener('change', updatePricePreview);
+    }
 
     function formatPremiumValue(input) {
         let value = input.value.trim();

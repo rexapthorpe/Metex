@@ -13,6 +13,7 @@ main {
 }
 
 /* ===== Layout ===== */
+
 .account-layout {
   display: flex;
   font-family: Arial, sans-serif;
@@ -29,21 +30,39 @@ main {
   margin-right: 0;
 }
 
+/* Draws the sidebar divider line from top to bottom of the layout,
+   guaranteed to fill the full height regardless of sidebar div height */
+.account-layout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 260px;
+  width: 1px;
+  background-color: #e2e8f0;
+  pointer-events: none;
+}
+
 /* ===== Main Sidebar ===== */
+/* Outer shell: stretches full height of the layout so the column fills to the footer */
 .account-sidebar {
   width: 260px;
   background-color: #ffffff;
-  border-right: 1px solid #e2e8f0;
-  padding: 24px 0 16px;
+  align-self: stretch;
+  flex-shrink: 0;
+  z-index: 100;
+  margin: 0;
+  padding: 0;
+}
+
+/* Inner wrapper: sticky within the outer shell so nav stays visible while scrolling */
+.account-sidebar-inner {
   position: sticky;
   top: 64px;
-  align-self: flex-start;
   height: calc(100vh - 64px);
   max-height: calc(100vh - 64px);
   overflow-y: auto;
-  z-index: 100;
-  flex-shrink: 0;
-  margin: 0;
+  padding: 24px 0 16px;
   display: flex;
   flex-direction: column;
 }
@@ -376,6 +395,11 @@ main {
     min-height: 0;
   }
 
+  /* Hide the desktop sidebar rule on mobile */
+  .account-layout::before {
+    display: none;
+  }
+
   /* Sidebar slides in from right, anchored at subheader bottom via JS */
   .account-sidebar {
     position: fixed;
@@ -385,10 +409,19 @@ main {
     width: 260px;
     max-width: 85vw;
     z-index: 998; /* below subheader (999) so subheader always shows above sidebar */
-    padding-top: 16px; /* breathing room so title isn't flush with top edge */
+    padding-top: 0;
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
     transition: right 0.3s ease;
     overflow-y: auto;
+  }
+
+  /* On mobile the outer shell is the scroll container; inner wrapper reverts to normal flow */
+  .account-sidebar-inner {
+    position: static;
+    height: auto;
+    max-height: none;
+    overflow-y: visible;
+    padding-top: 16px;
   }
 
   .account-sidebar.mobile-open {

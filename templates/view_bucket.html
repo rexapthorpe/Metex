@@ -143,13 +143,14 @@
             <div class="spec-row"><span class="spec-label">Product line</span><span class="spec-value">{{ specs['Product line'] or '--' }}</span></div>
             <div class="spec-row"><span class="spec-label">Product type</span><span class="spec-value">{{ specs['Product type'] or '--' }}</span></div>
             <div class="spec-row"><span class="spec-label">Weight</span><span class="spec-value">{{ specs['Weight'] or '--' }}</span></div>
-            <div class="spec-row"><span class="spec-label">Grade</span><span class="spec-value">{{ specs['Grading'] or '--' }}</span></div>
+            <div class="spec-row"><span class="spec-label">Condition</span><span class="spec-value">{{ specs['Condition Category'] or '--' }}</span></div>
           </div>
           <div class="spec-col">
             <div class="spec-row"><span class="spec-label">Year</span><span class="spec-value">{{ specs['Year'] or '--' }}</span></div>
             <div class="spec-row"><span class="spec-label">Mint</span><span class="spec-value">{{ specs['Mint'] or '--' }}</span></div>
             <div class="spec-row"><span class="spec-label">Purity</span><span class="spec-value">{{ specs['Purity'] or '--' }}</span></div>
             <div class="spec-row"><span class="spec-label">Finish</span><span class="spec-value">{{ specs['Finish'] or '--' }}</span></div>
+            <div class="spec-row"><span class="spec-label">Series Variant</span><span class="spec-value">{{ specs['Series Variant'] or '--' }}</span></div>
           </div>
         </div>
 
@@ -159,6 +160,29 @@
             {{ listing_description if listing_description else 'No description provided.' }}
           </p>
         </div>
+
+        {% if is_isolated %}
+          <div class="subsection" style="margin-top: 1rem;">
+            {% if listing_edition_number and listing_edition_total %}
+            <div class="spec-row">
+              <span class="spec-label">Edition</span>
+              <span class="spec-value">#{{ listing_edition_number }} of {{ listing_edition_total }}</span>
+            </div>
+            {% endif %}
+            <div class="spec-row">
+              <span class="spec-label">Packaging</span>
+              <span class="spec-value">{{ listing_packaging_type or '--' }}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Packaging Notes</span>
+              <span class="spec-value">{{ listing_packaging_notes or '--' }}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Condition Notes</span>
+              <span class="spec-value">{{ listing_condition_notes or '--' }}</span>
+            </div>
+          </div>
+        {% endif %}
 
         <!-- Set Items Display (for set listings) -->
         {% if set_items and set_items|length > 0 %}
@@ -179,15 +203,15 @@
                     <div class="spec-row"><span class="spec-label">Product line</span><span class="spec-value">{{ item['product_line'] or '--' }}</span></div>
                     <div class="spec-row"><span class="spec-label">Product type</span><span class="spec-value">{{ item['product_type'] or '--' }}</span></div>
                     <div class="spec-row"><span class="spec-label">Weight</span><span class="spec-value">{{ item['weight'] or '--' }}</span></div>
-                    {% if item['graded'] %}
-                      <div class="spec-row"><span class="spec-label">Grading</span><span class="spec-value">{{ item['grading_service'] }}</span></div>
-                    {% endif %}
                   </div>
                   <div class="spec-col">
                     <div class="spec-row"><span class="spec-label">Year</span><span class="spec-value">{{ item['year'] or '--' }}</span></div>
                     <div class="spec-row"><span class="spec-label">Mint</span><span class="spec-value">{{ item['mint'] or '--' }}</span></div>
                     <div class="spec-row"><span class="spec-label">Purity</span><span class="spec-value">{{ item['purity'] or '--' }}</span></div>
                     <div class="spec-row"><span class="spec-label">Finish</span><span class="spec-value">{{ item['finish'] or '--' }}</span></div>
+                    {% if item['edition_number'] and item['edition_total'] %}
+                    <div class="spec-row"><span class="spec-label">Edition</span><span class="spec-value">#{{ item['edition_number'] }} of {{ item['edition_total'] }}</span></div>
+                    {% endif %}
                   </div>
                 </div>
               </div>
@@ -215,12 +239,6 @@
         <p class="title-soft">Minted from the {{ specs['Mint'] }}</p>
       {% endif %}
 
-      <!-- Fee Indicator (shown for non-default fees) -->
-      {% if fee_indicator %}
-      <div class="bucket-fee-indicator fee-{{ fee_indicator }}">
-        <i class="fa-solid fa-tag"></i> {{ fee_display }}
-      </div>
-      {% endif %}
 
       <hr class="divider">
 
@@ -296,6 +314,7 @@
 
 
       <!-- ===================== Packaging filter tile (collapsible) ===================== -->
+      {% if not is_isolated %}
       <section class="grading-tile" id="packagingTile" aria-label="Filter by Packaging Type" style="margin-top: 16px;">
         <div class="soft grading-kicker">Filter by packaging type</div>
         <button type="button" id="packagingToggleBtn" class="btn grading-toggle-btn" aria-expanded="false" aria-controls="packagingPanel">
@@ -394,8 +413,10 @@
           </div>
         </div>
       </section>
+      {% endif %}
 
       <!-- ===================== Random Year toggle ===================== -->
+      {% if not is_isolated %}
       <section class="grading-tile" id="randomYearTile" aria-label="Random Year Mode" style="margin-top: 16px;">
         <div class="soft grading-kicker">Aggregate across years</div>
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
@@ -409,6 +430,7 @@
           </label>
         </div>
       </section>
+      {% endif %}
 
       <hr class="divider">
 
@@ -455,17 +477,19 @@
           <span class="qty-available" id="qtyAvailable">Only {{ availability['total_available'] }} left</span>
         </div>
 
-        <!-- Third-Party Grading Add-On (buyer-side service) -->
-        <div class="tpg-addon-row" style="margin-top: 16px; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
-          <div style="flex: 1;">
-            <div style="font-weight: 600; font-size: 14px; color: #111827; margin-bottom: 4px;">Add Third-Party Grading Service</div>
-            <div style="font-size: 13px; color: #6b7280;">Professional authentication and grading (+$30/item)</div>
+        <!-- Grading Preference Toggle -->
+        <section class="grading-tile" aria-label="Third-Party Grading" style="margin-top: 16px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
+            <div style="flex: 1;">
+              <div style="font-weight: 600; font-size: 14px; color: #111827;">Require 3rd-party grading</div>
+              <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Professional certification (+$70/item)</div>
+            </div>
+            <label class="toggle" style="margin-left: 16px;">
+              <input type="checkbox" id="tpgToggle" autocomplete="off">
+              <span class="slider"></span>
+            </label>
           </div>
-          <label class="toggle" style="margin-left: 16px;">
-            <input type="checkbox" id="tpgToggle" autocomplete="off">
-            <span class="slider"></span>
-          </label>
-        </div>
+        </section>
 
         <input type="hidden" id="quantityInput" name="quantity" value="1">
         <input type="hidden" id="tpgInput" name="third_party_grading" value="0">
@@ -494,7 +518,9 @@
           <form method="POST" action="{{ url_for('checkout.checkout') }}" class="action-buttons">
             <input type="hidden" name="bucket_id" value="{{ bucket['bucket_id'] }}">
             <input type="hidden" name="quantity" id="buyQuantityInput">
-            <input type="hidden" name="third_party_grading" id="buyTPG">
+            <input type="hidden" name="third_party_grading" id="buyTPG" value="0">
+            <input type="hidden" name="grading_preference" id="buyGradingPref" value="NONE">
+            <!-- grading_preference synced by syncQuantityAndTPG -->
             <!-- Random Year mode -->
             <input type="hidden" name="random_year" id="buyRandomYear" value="{{ '1' if random_year else '0' }}">
             <button type="submit" class="btn buy-btn" onclick="syncQuantityAndTPG('buyQuantityInput', 'buyTPG')">Buy Item</button>
@@ -508,7 +534,8 @@
 
           <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
             <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
-            <input type="hidden" name="third_party_grading" id="cartTPG">
+            <input type="hidden" name="third_party_grading" id="cartTPG" value="0">
+            <input type="hidden" name="grading_preference" id="cartGradingPref" value="NONE">
             <button type="submit" class="btn add-cart-btn" onclick="syncQuantityAndTPG('cartQuantityInput', 'cartTPG')">Add to Cart</button>
           </form>
         {% endif %}
@@ -647,18 +674,9 @@
               </div>
             </div>
 
-            <!-- Bottom: Grading + Date -->
+            <!-- Bottom: Date -->
             <div class="bid-bottom-section">
               <div class="bid-bottom-left">
-                <div class="bid-grading-row">
-                  {% if bid['requires_grading'] %}
-                    <div class="grading-icon required"><i class="fa-solid fa-check"></i></div>
-                    <span>Requires {{ bid['preferred_grader'] or '' }} grading</span>
-                  {% else %}
-                    <div class="grading-icon not-required"></div>
-                    <span>No grading required</span>
-                  {% endif %}
-                </div>
                 {% if bid['created_at'] %}
                 <div class="bid-date-row">
                   <i class="fa-regular fa-clock"></i>
@@ -772,18 +790,9 @@
                     </div>
                   </div>
 
-                  <!-- Bottom: Grading + Date + Dial -->
+                  <!-- Bottom: Date + Dial -->
                   <div class="bid-bottom-section">
                     <div class="bid-bottom-left">
-                      <div class="bid-grading-row">
-                        {% if bid['requires_grading'] %}
-                          <div class="grading-icon required"><i class="fa-solid fa-check"></i></div>
-                          <span>Requires {{ bid['preferred_grader'] or '' }} grading</span>
-                        {% else %}
-                          <div class="grading-icon not-required"></div>
-                          <span>No grading required</span>
-                        {% endif %}
-                      </div>
                       {% if bid['created_at'] %}
                       <div class="bid-date-row">
                         <i class="fa-regular fa-clock"></i>
@@ -880,6 +889,9 @@
   window.allBids       = {{ (bids or []) | tojson }};
   window.lowestPrice   = {{ availability.lowest_price if availability and availability.lowest_price else 0 }};
   window.bucketIsIsolated = {{ 'true' if is_isolated else 'false' }};
+  window.bucketPackagingType  = {{ (listing_packaging_type or '') | tojson }};
+  window.bucketPackagingNotes = {{ (listing_packaging_notes or '') | tojson }};
+  window.bucketConditionNotes = {{ (listing_condition_notes or '') | tojson }};
 
   {% if is_isolated and images %}
   // Isolated listing gallery: sync thumbnail border highlight with active carousel image
@@ -911,14 +923,21 @@
   });
   {% endif %}
 
-  // TPG toggle handler
+  // Grading preference toggle – syncs TPG hidden inputs whenever toggle changes
   document.addEventListener('DOMContentLoaded', function() {
     const tpgToggle = document.getElementById('tpgToggle');
-    const tpgInput = document.getElementById('tpgInput');
-
-    if (tpgToggle && tpgInput) {
+    if (tpgToggle) {
       tpgToggle.addEventListener('change', function() {
-        tpgInput.value = this.checked ? '1' : '0';
+        const tpg = this.checked ? '1' : '0';
+        const gradPref = this.checked ? 'ANY' : 'NONE';
+        ['tpgInput', 'buyTPG', 'cartTPG'].forEach(function(id) {
+          const el = document.getElementById(id);
+          if (el) el.value = tpg;
+        });
+        const buyGrading = document.getElementById('buyGradingPref');
+        if (buyGrading) buyGrading.value = gradPref;
+        const cartGrading = document.getElementById('cartGradingPref');
+        if (cartGrading) cartGrading.value = gradPref;
       });
     }
 
@@ -1054,13 +1073,23 @@
     }
   });
 
-  // Sync quantity and TPG to form hidden inputs
+  // Sync quantity, TPG, and grading preference to form hidden inputs
   function syncQuantityAndTPG(quantityTargetId, tpgTargetId) {
     const quantityValue = document.getElementById('buyQtyValue').textContent;
-    const tpgValue = document.getElementById('tpgInput').value;
+    // Read from grading toggle
+    const tpgToggle = document.getElementById('tpgToggle');
+    const isTPG = tpgToggle && tpgToggle.checked;
+    const tpgValue = isTPG ? '1' : '0';
+    const gradingPref = isTPG ? 'ANY' : 'NONE';
 
     document.getElementById(quantityTargetId).value = quantityValue;
     document.getElementById(tpgTargetId).value = tpgValue;
+
+    // Sync grading_preference hidden inputs for both forms
+    const buyGrading = document.getElementById('buyGradingPref');
+    if (buyGrading) buyGrading.value = gradingPref;
+    const cartGrading = document.getElementById('cartGradingPref');
+    if (cartGrading) cartGrading.value = gradingPref;
   }
 </script>
 <script src="{{ url_for('static', filename='js/modals/order_sellers_modal.js') }}?v=bucket-v1"></script>
@@ -1086,4 +1115,40 @@
     }
   });
 </script>
+
+<!-- ============ Max Cart Reached Modal ============ -->
+<div id="maxReachedModal"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9990; align-items:center; justify-content:center;"
+     role="dialog" aria-modal="true" aria-labelledby="mr-title">
+  <div style="background:#fff; border-radius:12px; padding:28px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <h3 id="mr-title" style="margin:0 0 8px; font-size:1.1rem; color:#111827;">Cart Limit Reached</h3>
+    <p style="color:#6b7280; font-size:0.88rem; margin:0 0 18px; line-height:1.5;">
+      You already have the maximum available quantity from this listing in your cart.
+    </p>
+    <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin-bottom:20px; font-size:0.85rem;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="color:#6b7280;">3rd-party grading (cart):</span>
+        <span id="mrCurrentGrading" style="font-weight:600; color:#111827;">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:#6b7280;">3rd-party grading (new):</span>
+        <span id="mrNewGrading" style="font-weight:600; color:#059669;">—</span>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button type="button" id="mrReplaceBtn"
+              style="padding:10px 16px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:0.9rem; font-weight:600; cursor:pointer;">
+        Replace Existing Selection
+      </button>
+      <a href="/view_cart" id="mrViewCartBtn"
+         style="display:block; padding:10px 16px; background:#f3f4f6; color:#374151; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; font-weight:600; text-align:center; text-decoration:none;">
+        View Cart
+      </a>
+      <button type="button" id="mrCancelBtn"
+              style="padding:10px 16px; background:#fff; color:#6b7280; border:1px solid #e5e7eb; border-radius:8px; font-size:0.9rem; cursor:pointer;">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
 {% endblock %}
