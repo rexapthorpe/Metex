@@ -600,6 +600,47 @@ function handleConfirmListing() {
 }
 
 /**
+ * Validate only the set-level fields (cover photo + pricing) for a Set listing
+ * with 2+ items already built.  Spec fields (metal, year, etc.) are intentionally
+ * excluded because they belong to the in-progress item panel, not to the set itself.
+ * @param {HTMLFormElement} form
+ * @returns {{isValid: boolean, errors: string[]}}
+ */
+function validateSetLevelFields(form) {
+  const errors = [];
+
+  // Cover photo — required for all set listings
+  const coverInput = form.elements['cover_photo'];
+  const coverBox = document.getElementById('coverPhotoUploadBox');
+  const hasCoverPhoto =
+    (coverInput && coverInput.files && coverInput.files.length > 0) ||
+    (coverBox && coverBox.classList.contains('has-image')) ||
+    (coverBox && coverBox.dataset.existingPhotoId);
+  if (!hasCoverPhoto) {
+    errors.push('Cover Photo is required');
+  }
+
+  // Pricing — detect mode via radio buttons or hidden pricing_mode field
+  const staticRadio  = form.querySelector('#pricing_mode_static');
+  const premiumRadio = form.querySelector('#pricing_mode_premium');
+  const pricingModeEl = form.elements['pricing_mode'];
+  const isPremium = (premiumRadio && premiumRadio.checked) ||
+                    (pricingModeEl && pricingModeEl.value === 'premium_to_spot');
+
+  if (isPremium) {
+    const spotPremiumVal = (form.elements['spot_premium'] ? form.elements['spot_premium'].value : '').trim();
+    const floorPriceVal  = (form.elements['floor_price']  ? form.elements['floor_price'].value  : '').trim();
+    if (!spotPremiumVal) errors.push('Premium above spot is required');
+    if (!floorPriceVal)  errors.push('"No lower than" price is required');
+  } else {
+    const priceVal = (form.elements['price_per_coin'] ? form.elements['price_per_coin'].value : '').trim();
+    if (!priceVal) errors.push('Price Per Coin is required');
+  }
+
+  return { isValid: errors.length === 0, errors };
+}
+
+/**
  * Intercept sell form submission to validate first, then show confirmation modal
  */
 function interceptSellForm() {
@@ -614,11 +655,33 @@ function interceptSellForm() {
     e.preventDefault();
     e.stopPropagation();
 
-    // STEP 1: Validate the form first
-    // In edit mode, use edit-specific validation (no photo upload required)
-    const validation = window.sellEditMode
-      ? window.validateEditListingForm(sellForm)
-      : window.validateSellForm(sellForm);
+    // STEP 1: Validate the form
+    //
+    // SET MODE FAST PATH: when 2+ items are already built, spec-field validation
+    // is completely bypassed. We read isSetHidden directly from the DOM as the
+    // authoritative source (window.currentMode can lag on first render).
+    const isSetHiddenEl = document.getElementById('isSetHidden');
+    const isSetByHidden  = !!(isSetHiddenEl && isSetHiddenEl.value === '1');
+    const isSetByMode    = window.currentMode === 'set';
+    const isSetMode      = isSetByHidden || isSetByMode;
+    const setItemsCount  = Array.isArray(window.setItems) ? window.setItems.length : 0;
+
+    console.log('[SELL v7] Submit intercepted | isSetByHidden:', isSetByHidden,
+      '| isSetByMode:', isSetByMode, '| setItemsCount:', setItemsCount,
+      '| editMode:', !!window.sellEditMode);
+
+    let validation;
+    if (isSetMode && setItemsCount >= 2) {
+      console.log('[SELL v7] SET MODE BYPASS — using validateSetLevelFields only');
+      // Only validate things that belong to the set-level form, not per-item spec fields
+      validation = validateSetLevelFields(sellForm);
+    } else {
+      console.log('[SELL v7] FULL VALIDATION — isSetMode:', isSetMode, 'setItemsCount:', setItemsCount);
+      // Standard / isolated / set with <2 items: full spec+photo validation
+      validation = window.sellEditMode
+        ? window.validateEditListingForm(sellForm)
+        : window.validateSellForm(sellForm);
+    }
 
     if (!validation.isValid) {
       // Show validation error modal
@@ -635,7 +698,8 @@ function interceptSellForm() {
     // When an item is added to the set, photos are captured into window.setItems[i].photo
     // and the photo inputs are cleared. FormData(sellForm) won't capture them since
     // file inputs have no name attribute and are empty by submission time.
-    if (window.currentMode === 'set' && Array.isArray(window.setItems)) {
+    const isSetForPhotos = isSetMode || window.currentMode === 'set';
+    if (isSetForPhotos && Array.isArray(window.setItems)) {
       window.setItems.forEach(function(item, index) {
         const itemIdx = index + 1; // One-indexed to match set_items[N][...] hidden input keys
         const photos = Array.isArray(item.photo) ? item.photo : (item.photo ? [item.photo] : []);

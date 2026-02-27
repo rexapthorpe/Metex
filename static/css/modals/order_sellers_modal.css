@@ -369,3 +369,30 @@
   color: #9ca3af;
   margin: 6px 0 0 0;
 }
+
+/* Remove seller button (cart context) */
+.osm-remove-seller-btn {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s, border-color 0.2s;
+  margin-bottom: 8px;
+}
+.osm-remove-seller-btn:hover:not(:disabled) {
+  background: #ffefef;
+  border-color: #f3bcbc;
+}
+.osm-remove-seller-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

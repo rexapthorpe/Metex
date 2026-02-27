@@ -185,12 +185,28 @@ def edit_listing(listing_id):
                 }
 
                 # Backend validation - ensure all values are from allowed dropdown options
+                # EXCEPTION: For set listings with 2+ items already in set_items array,
+                # skip main form spec validation. The set items carry their own specs;
+                # the main form fields are intentionally empty (cleared after each item is added).
+                # This mirrors the same logic in listing_creation.py for the create path.
                 valid_options = get_dropdown_options()
-                is_valid, error_msg = validate_category_specification(category_spec, valid_options)
-                if not is_valid:
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return jsonify({'message': error_msg}), 400
-                    return error_msg, 400
+                _skip_main_validation = False
+                if listing['is_isolated'] == 1 and listing['isolated_type'] == 'set':
+                    import re as _re
+                    _set_item_indices = set()
+                    for _key in request.form.keys():
+                        _m = _re.match(r'set_items\[(\d+)\]\[', _key)
+                        if _m:
+                            _set_item_indices.add(int(_m.group(1)))
+                    if len(_set_item_indices) >= 2:
+                        _skip_main_validation = True
+                        print(f"[EDIT VALIDATION] Skipping main form validation — {len(_set_item_indices)} set items present")
+                if not _skip_main_validation:
+                    is_valid, error_msg = validate_category_specification(category_spec, valid_options)
+                    if not is_valid:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'message': error_msg}), 400
+                        return error_msg, 400
 
                 cur = conn.cursor()
 
@@ -267,6 +283,22 @@ def edit_listing(listing_id):
                     'SELECT id FROM listing_photos WHERE listing_id = ?',
                     (listing_id,)
                 ).fetchall()
+
+                # Server-side cover photo enforcement for set listings.
+                # A set listing must have a cover photo at all times.
+                # It satisfies this if: a new cover photo is being uploaded OR at least one
+                # existing photo survives (i.e. is in keep_photo_ids, or no deletions requested).
+                if listing['is_isolated'] == 1 and listing['isolated_type'] == 'set':
+                    new_cover = request.files.get('cover_photo')
+                    has_new_cover = bool(new_cover and new_cover.filename)
+                    if keep_photo_ids_str:
+                        surviving_count = len(keep_photo_ids)
+                    else:
+                        surviving_count = len(current_photos)
+                    if not has_new_cover and surviving_count == 0:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'message': 'Set listings require a cover photo. Please upload a cover photo.'}), 400
+                        return 'Set listings require a cover photo.', 400
 
                 # Delete photos that are not in the keep list (if keep list was provided)
                 if keep_photo_ids_str is not None and keep_photo_ids_str != '':

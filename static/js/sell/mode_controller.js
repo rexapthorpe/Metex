@@ -517,20 +517,18 @@
 
       const summary = `${item.weight || '?'} ${item.metal || '?'} ${item.product_line || '?'} ${item.year || '?'}`;
 
-      // Create thumbnail if photo exists (use first photo if array)
+      // Create thumbnail from photoURL (string URL or data URL) or photo (File object)
       let thumbnailHTML = '';
       let primaryPhoto = null;
-      if (item.photo) {
-        // Handle both single photo (File) and multiple photos (Array<File>)
-        primaryPhoto = Array.isArray(item.photo) ? item.photo[0] : item.photo;
+      const directPhotoURL = item.photoURL || null;
 
+      if (directPhotoURL) {
+        // Existing items (restored from DB) or sidebar-added items have a URL/data-URL ready
+        thumbnailHTML = `<img class="item-thumbnail" src="${directPhotoURL}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 12px;" alt="Item photo">`;
+      } else if (item.photo) {
+        // Newly added items carry File objects — use FileReader to generate preview
+        primaryPhoto = Array.isArray(item.photo) ? item.photo[0] : item.photo;
         if (primaryPhoto) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const thumb = itemDiv.querySelector('.item-thumbnail');
-            if (thumb) thumb.src = e.target.result;
-          };
-          reader.readAsDataURL(primaryPhoto);
           thumbnailHTML = '<img class="item-thumbnail" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 12px;" alt="Item photo">';
         }
       }
@@ -553,10 +551,12 @@
         </div>
       `;
 
-      // Re-read the photo for thumbnail (since we just set innerHTML)
+      // For File-based photos: read asynchronously and populate thumbnail + cache as photoURL
       if (primaryPhoto) {
+        const capturedItem = item; // Closure capture for async callback
         const reader = new FileReader();
         reader.onload = (e) => {
+          capturedItem.photoURL = e.target.result; // Cache so future re-renders use URL directly
           const thumb = itemDiv.querySelector('.item-thumbnail');
           if (thumb) thumb.src = e.target.result;
         };
@@ -624,6 +624,12 @@
 
     // Clear fields for next item
     clearSpecFields();
+
+    // Update checklist so toggleCurrentItemRequiredAttributes fires immediately
+    // (ensures HTML required attributes are removed from spec fields when 2+ items exist)
+    if (typeof window.updateChecklist === 'function') {
+      window.updateChecklist();
+    }
 
     // Focus first field
     document.getElementById('metal').focus();
@@ -862,21 +868,28 @@
       return false;
     }
 
-    // Validate set has at least 2 items (main + saved items)
-    if (isSet && setItems.length < 1) {
+    // Validate set has at least 2 items committed to the array
+    if (isSet && setItems.length < 2) {
       e.preventDefault();
-      alert('A set listing must contain at least 2 items. Please add at least one additional item to the set.');
+      alert('A set listing must contain at least 2 items. Please add at least 2 items to the set before submitting.');
       return false;
     }
 
     // Validate cover photo for One-of-a-Kind and Set listings
+    // Recognises both a newly selected file AND an already-attached existing photo
+    // (tracked by the has-image class or dataset.existingPhotoId set during edit-mode prefill).
     const needsCoverPhoto = (window.currentMode === 'isolated' || window.currentMode === 'set');
-    if (needsCoverPhoto && coverPhotoInput && !coverPhotoInput.files.length) {
-      e.preventDefault();
-      const modeLabel = window.currentMode === 'set' ? 'set' : 'one-of-a-kind';
-      alert(`Please upload a cover photo for your ${modeLabel} listing.`);
-      coverPhotoInput.focus();
-      return false;
+    if (needsCoverPhoto) {
+      const hasCoverPhoto = (coverPhotoInput && coverPhotoInput.files.length > 0) ||
+                            (coverPhotoBox && coverPhotoBox.classList.contains('has-image')) ||
+                            (coverPhotoBox && coverPhotoBox.dataset.existingPhotoId);
+      if (!hasCoverPhoto) {
+        e.preventDefault();
+        const modeLabel = window.currentMode === 'set' ? 'set' : 'one-of-a-kind';
+        alert(`Please upload a cover photo for your ${modeLabel} listing.`);
+        coverPhotoInput.focus();
+        return false;
+      }
     }
 
     // Validate listing title for One-of-a-Kind and Set listings

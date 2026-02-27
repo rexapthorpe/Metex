@@ -9,7 +9,7 @@
 
   <!-- ========== MAIN FORM ========== -->
   <div class="sell-main-form">
-    <form id="sellForm" method="POST" class="sell-form" enctype="multipart/form-data"
+    <form id="sellForm" method="POST" class="sell-form" enctype="multipart/form-data" novalidate
       {% if edit_listing_id %}action="{{ url_for('listings.edit_listing', listing_id=edit_listing_id) }}"{% endif %}>
 
       <!-- Hidden inputs for mode state (submitted with form) -->
@@ -786,15 +786,15 @@
 <script src="{{ url_for('static', filename='js/sell.js') }}?v=2"></script>
 
 <!-- Mode controller (3-mode switching logic) -->
-<script src="{{ url_for('static', filename='js/sell/mode_controller.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/sell/mode_controller.js') }}?v=5"></script>
 
 <!-- Sidebar controller (checklist, summary, submit button) -->
-<script src="{{ url_for('static', filename='js/sell/sidebar_controller.js') }}?v=5"></script>
+<script src="{{ url_for('static', filename='js/sell/sidebar_controller.js') }}?v=6"></script>
 
 <!-- Sell confirmation modals -->
-<script src="{{ url_for('static', filename='js/modals/sell_listing_modals.js') }}?v=6"></script>
+<script src="{{ url_for('static', filename='js/modals/sell_listing_modals.js') }}?v=8"></script>
 
 <!-- Field validation modal -->
-<script src="{{ url_for('static', filename='js/modals/field_validation_modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modals/field_validation_modal.js') }}?v=2"></script>
 
 {% endblock %}

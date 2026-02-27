@@ -2,6 +2,7 @@ let orderSellerData = [];
 let orderSellerIndex = 0;
 let orderSellerOrderId = null;
 let _osmIsCartContext = false;
+let _osmBucketId = null;
 
 function _osmEsc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
@@ -141,18 +142,41 @@ function renderOrderSeller() {
     </div>
 
     ${_osmIsCartContext ? `
-    <button class="osm-contact-btn osm-contact-btn--locked" disabled>
-      <i class="fa-solid fa-lock"></i> Buy item to contact seller
-    </button>
-    <p class="osm-contact-locked-note">Seller contacting will be available while order is processing</p>` : (orderSellerOrderId != null ? `
+    <button class="osm-remove-seller-btn" id="osm-remove-seller-btn" type="button" disabled>
+      <i class="fa-solid fa-trash"></i> Checking availability\u2026
+    </button>` : (orderSellerOrderId != null ? `
     <button class="osm-contact-btn" onclick="openMessageModal(${orderSellerOrderId}, 'seller'); closeOrderSellerPopup();">
       <i class="fa-regular fa-comment"></i> Contact Seller
     </button>` : '')}
   `;
+
+  // In cart context, check if this seller can be refilled then enable the remove button
+  if (_osmIsCartContext && _osmBucketId != null) {
+    const sellerId = s.seller_id;
+    fetch(`/cart/api/bucket/${_osmBucketId}/can_refill/${sellerId}`)
+      .then(res => res.json())
+      .then(data => {
+        const btn = document.getElementById('osm-remove-seller-btn');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-trash"></i> Remove Seller';
+          btn.onclick = () => openRemoveSellerConfirmation(_osmBucketId, sellerId, data.canRefill);
+        }
+      })
+      .catch(() => {
+        const btn = document.getElementById('osm-remove-seller-btn');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-trash"></i> Remove Seller';
+          btn.onclick = () => openRemoveSellerConfirmation(_osmBucketId, sellerId, false);
+        }
+      });
+  }
 }
 
 function openCartSellerPopup(bucketId) {
   _osmIsCartContext = true;
+  _osmBucketId = bucketId;
   orderSellerOrderId = null;
   fetch(`/cart/api/bucket/${bucketId}/cart_sellers`)
     .then(res => {

@@ -11,7 +11,7 @@
 (function() {
   'use strict';
 
-  console.log('[SELL SIDEBAR] Script loaded v3', new Date().toISOString());
+  console.log('[SELL SIDEBAR] Script loaded v6', new Date().toISOString());
 
   // Sidebar elements
   const sidebarSubmitBtn = document.getElementById('sidebarSubmitBtn');
@@ -708,6 +708,22 @@
           <button type="button" class="sidebar-set-tile-btn remove" data-index="${index}" title="Remove">×</button>
         </div>
       `;
+
+      // If no photoURL but the item carries a File object, generate a data URL on-the-fly
+      if (!photoURL && item.photo) {
+        const photos = Array.isArray(item.photo) ? item.photo : [item.photo];
+        const firstPhoto = photos[0];
+        if (firstPhoto instanceof File) {
+          const capturedItem = item; // Capture for async callback
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            capturedItem.photoURL = e.target.result; // Cache so future re-renders use it directly
+            const img = tile.querySelector('.sidebar-set-tile-thumb');
+            if (img) { img.src = e.target.result; img.style.display = 'block'; }
+          };
+          reader.readAsDataURL(firstPhoto);
+        }
+      }
 
       sidebarSetItemsList.appendChild(tile);
     });

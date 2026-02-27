@@ -134,40 +134,38 @@ function validateForm(form, requiredFields) {
 function validateSellForm(form) {
   if (!form) return { isValid: true, errors: [] };
 
-  // Determine listing mode
-  const isSetMode = window.currentMode === 'set';
-  const isIsolatedMode = window.currentMode === 'isolated';
+  // Belt-and-suspenders: check both the runtime flag AND the hidden form input
+  const isSetHidden = document.getElementById('isSetHidden');
+  const isSetMode = window.currentMode === 'set' || (isSetHidden && isSetHidden.value === '1');
+  const isIsolatedHidden = document.getElementById('isIsolatedHidden');
+  const isIsolatedMode = window.currentMode === 'isolated' ||
+    (!isSetMode && isIsolatedHidden && isIsolatedHidden.value === '1');
   const capturedSetItems = window.setItems || [];
 
-  // Determine pricing mode from the form
+  // STRICT MODE GATE: Set mode requires 2+ items — no other errors shown until this passes
+  if (isSetMode && capturedSetItems.length < 2) {
+    return { isValid: false, errors: ['Add at least 2 items to publish this set.'] };
+  }
+
   const staticRadio = form.querySelector('#pricing_mode_static');
   const premiumRadio = form.querySelector('#pricing_mode_premium');
 
   let requiredFields;
 
-  if (isSetMode && capturedSetItems.length >= 2) {
-    // Set mode with 2+ items already added: only validate set-level requirements.
-    // Per-item spec fields (metal, year, etc.) belong to the in-progress item
-    // and are not required for submission once the set is built.
-    requiredFields = ['cover_photo'];
+  if (isSetMode) {
+    // 2+ items (gate passed above): spec fields belong to in-progress item, not required
+    requiredFields = [];
   } else {
-    // Standard, isolated, or set mode with fewer than 2 items: validate all spec fields
     requiredFields = [
       'metal', 'product_line', 'product_type', 'weight',
       'purity', 'mint', 'year', 'finish'
     ];
-
-    if (!isSetMode && !isIsolatedMode) {
+    if (!isIsolatedMode) {
       requiredFields.push('quantity');
     }
-
-    if (isSetMode) {
-      requiredFields.push('cover_photo');
-    }
-    // Photo presence is validated separately below (any of the 3 slots counts).
   }
 
-  // Add pricing-mode-specific required fields (always required)
+  // Pricing always required
   if (staticRadio && staticRadio.checked) {
     requiredFields.push('price_per_coin');
   } else if (premiumRadio && premiumRadio.checked) {
@@ -179,8 +177,23 @@ function validateSellForm(form) {
 
   const result = validateForm(form, requiredFields);
 
-  // Photo requirement for standard/isolated modes: at least one of the three slots
-  // must have a file selected OR already have an image (edit mode with existing photos).
+  // Cover photo required for set mode
+  // Three signals: new file selected, has-image class (UI state), or existingPhotoId dataset
+  // attribute (set during edit-mode prefill, cleared only when user explicitly removes photo).
+  if (isSetMode) {
+    const coverInput = form.elements['cover_photo'];
+    const coverBox = document.getElementById('coverPhotoUploadBox');
+    const hasCoverPhoto =
+      (coverInput && coverInput.files && coverInput.files.length > 0) ||
+      (coverBox && coverBox.classList.contains('has-image')) ||
+      (coverBox && coverBox.dataset.existingPhotoId);
+    if (!hasCoverPhoto) {
+      result.errors.push('Cover Photo is required');
+      result.isValid = false;
+    }
+  }
+
+  // Item photo required for standard/isolated modes (any slot counts)
   if (!isSetMode) {
     const p1 = form.elements['item_photo_1'];
     const p2 = form.elements['item_photo_2'];
@@ -212,9 +225,18 @@ function validateSellForm(form) {
 function validateEditListingForm(form) {
   if (!form) return { isValid: true, errors: [] };
 
-  const isSetMode = window.currentMode === 'set';
-  const isIsolatedMode = window.currentMode === 'isolated';
+  // Belt-and-suspenders: check both the runtime flag AND the hidden form input
+  const isSetHiddenEl = document.getElementById('isSetHidden');
+  const isSetMode = window.currentMode === 'set' || (isSetHiddenEl && isSetHiddenEl.value === '1');
+  const isIsolatedHiddenEl = document.getElementById('isIsolatedHidden');
+  const isIsolatedMode = window.currentMode === 'isolated' ||
+    (!isSetMode && isIsolatedHiddenEl && isIsolatedHiddenEl.value === '1');
   const capturedSetItems = window.setItems || [];
+
+  // STRICT MODE GATE: Set mode requires 2+ items — no other errors shown until this passes
+  if (isSetMode && capturedSetItems.length < 2) {
+    return { isValid: false, errors: ['Add at least 2 items to publish this set.'] };
+  }
 
   // Determine pricing mode from the form (works for both radio buttons and select)
   const pricingModeEl = form.elements['pricing_mode'];
@@ -222,8 +244,8 @@ function validateEditListingForm(form) {
 
   let requiredFields;
 
-  if (isSetMode && capturedSetItems.length >= 2) {
-    // Set mode with 2+ items: spec fields not required; cover photo checked separately below
+  if (isSetMode) {
+    // 2+ items (gate passed above): spec fields are for the in-progress item, not required
     requiredFields = [];
   } else {
     // Standard, isolated, or set with <2 items: validate all spec fields
@@ -247,13 +269,16 @@ function validateEditListingForm(form) {
 
   const result = validateForm(form, requiredFields);
 
-  // Cover photo required for set mode; existing cover photo counts (has-image class)
+  // Cover photo required for set mode
+  // Three signals: new file selected, has-image class (UI state), or existingPhotoId dataset
+  // attribute (set during edit-mode prefill, cleared only when user explicitly removes photo).
   if (isSetMode) {
     const coverInput = form.elements['cover_photo'];
     const coverBox = document.getElementById('coverPhotoUploadBox');
     const hasCoverPhoto =
       (coverInput && coverInput.files && coverInput.files.length > 0) ||
-      (coverBox && coverBox.classList.contains('has-image'));
+      (coverBox && coverBox.classList.contains('has-image')) ||
+      (coverBox && coverBox.dataset.existingPhotoId);
     if (!hasCoverPhoto) {
       result.errors.push('Cover Photo is required');
       result.isValid = false;
