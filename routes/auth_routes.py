@@ -95,6 +95,17 @@ def login():
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['id']
 
+            # Notify the user of the new login (after session is set, non-blocking)
+            try:
+                from services.notification_types import notify_new_login
+                notify_new_login(
+                    user['id'],
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent', '')[:200],
+                )
+            except Exception:
+                pass
+
             guest_cart = session.pop('guest_cart', [])
             for item in guest_cart:
                 existing = conn.execute(

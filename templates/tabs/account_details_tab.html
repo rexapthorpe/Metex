@@ -1,5 +1,37 @@
 <div class="account-details-tab">
 
+  <!-- Mobile sub-nav (visible only on ≤768px; replaces the hidden secondary sidebar) -->
+  <div class="details-mobile-subnav" id="detailsMobileSubnav">
+    <div class="details-mobile-subnav-heading">Account Details</div>
+    <p class="details-mobile-subnav-subtitle">Manage your account settings and preferences</p>
+    <div class="details-mobile-subnav-inner">
+      <button class="details-mobile-nav-item active" onclick="showDetailsSection('overview')">
+        <i class="fa-solid fa-user"></i>
+        <span>Account Overview</span>
+      </button>
+      <button class="details-mobile-nav-item" onclick="showDetailsSection('personal')">
+        <i class="fa-solid fa-pen"></i>
+        <span>Personal Info</span>
+      </button>
+      <button class="details-mobile-nav-item" onclick="showDetailsSection('payment')">
+        <i class="fa-solid fa-credit-card"></i>
+        <span>Payment Methods</span>
+      </button>
+      <button class="details-mobile-nav-item" onclick="showDetailsSection('shipping')">
+        <i class="fa-solid fa-location-dot"></i>
+        <span>Shipping Addresses</span>
+      </button>
+      <button class="details-mobile-nav-item" onclick="showDetailsSection('security')">
+        <i class="fa-solid fa-shield"></i>
+        <span>Security &amp; Login</span>
+      </button>
+      <button class="details-mobile-nav-item" onclick="showDetailsSection('notifications')">
+        <i class="fa-solid fa-bell"></i>
+        <span>Notification Settings</span>
+      </button>
+    </div>
+  </div>
+
   <div class="details-content">
       <!-- Account Overview -->
       <div class="details-section active" id="section-overview">
@@ -141,83 +173,148 @@
       <!-- Notification Settings -->
       <div class="details-section" id="section-notifications">
         <h3>Notification Settings</h3>
-        <p class="section-description">Choose how you would like to be notified about important events.</p>
+        <p class="section-description">Choose which in-app notifications you want to receive. Changes save instantly.</p>
 
-        <div class="notification-settings-container">
-          <!-- Email Notifications -->
-          <div class="notification-category">
-            <h4 class="category-heading">Email Notifications</h4>
-            <p class="category-description">Receive updates via email</p>
-
-            <div class="notification-rows">
-              <div class="notification-row">
-                <div class="notification-label">
-                  <strong>Listing Sold</strong>
-                  <span class="notification-sublabel">Get notified when someone purchases your listing</span>
-                </div>
-                <label class="toggle">
-                  <input type="checkbox" id="email_listing_sold"
-                         {% if not user_preferences or user_preferences.email_listing_sold %}checked{% endif %}
-                         autocomplete="off">
-                  <span class="slider"></span>
-                </label>
-              </div>
-
-              <div class="notification-row">
-                <div class="notification-label">
-                  <strong>Bid Accepted</strong>
-                  <span class="notification-sublabel">Get notified when your bid is accepted by a seller</span>
-                </div>
-                <label class="toggle">
-                  <input type="checkbox" id="email_bid_filled"
-                         {% if not user_preferences or user_preferences.email_bid_filled %}checked{% endif %}
-                         autocomplete="off">
-                  <span class="slider"></span>
-                </label>
-              </div>
-            </div>
+        {% macro notif_row(key, label, sublabel) %}
+        <div class="notification-row">
+          <div class="notification-label">
+            <strong>{{ label }}</strong>
+            <span class="notification-sublabel">{{ sublabel }}</span>
           </div>
-
-          <!-- In-App Notifications -->
-          <div class="notification-category">
-            <h4 class="category-heading">In-App Notifications</h4>
-            <p class="category-description">Receive updates within the application</p>
-
-            <div class="notification-rows">
-              <div class="notification-row">
-                <div class="notification-label">
-                  <strong>Listing Sold</strong>
-                  <span class="notification-sublabel">See notifications when someone purchases your listing</span>
-                </div>
-                <label class="toggle">
-                  <input type="checkbox" id="inapp_listing_sold"
-                         {% if not user_preferences or user_preferences.inapp_listing_sold %}checked{% endif %}
-                         autocomplete="off">
-                  <span class="slider"></span>
-                </label>
-              </div>
-
-              <div class="notification-row">
-                <div class="notification-label">
-                  <strong>Bid Accepted</strong>
-                  <span class="notification-sublabel">See notifications when your bid is accepted by a seller</span>
-                </div>
-                <label class="toggle">
-                  <input type="checkbox" id="inapp_bid_filled"
-                         {% if not user_preferences or user_preferences.inapp_bid_filled %}checked{% endif %}
-                         autocomplete="off">
-                  <span class="slider"></span>
-                </label>
-              </div>
-            </div>
-          </div>
+          <label class="toggle">
+            <input type="checkbox"
+                   class="notif-setting-toggle"
+                   data-notif-type="{{ key }}"
+                   {% if notification_settings.get(key, true) %}checked{% endif %}
+                   autocomplete="off">
+            <span class="slider"></span>
+          </label>
         </div>
+        {% endmacro %}
+
+        <div class="notification-settings-container" id="notifSettingsContainer">
+
+          <!-- Listings -->
+          <div class="notification-category">
+            <h4 class="category-heading"><i class="fa-solid fa-tag"></i> Listings</h4>
+            <div class="notification-rows">
+              {{ notif_row('listing_created_success', 'Listing Published',   'Confirm when your listing goes live') }}
+              {{ notif_row('listing_delisted',        'Listing Removed',     'Notify when a listing is removed') }}
+              {{ notif_row('listing_expired',         'Listing Expired',     'Notify when a listing expires') }}
+              {{ notif_row('listing_edited',          'Listing Updated',     'Confirm each time you edit a listing (off by default)') }}
+            </div>
+          </div>
+
+          <!-- Bids -->
+          <div class="notification-category">
+            <h4 class="category-heading"><i class="fa-solid fa-gavel"></i> Bids</h4>
+            <div class="notification-rows">
+              {{ notif_row('bid_placed_success',      'Bid Placed',          'Confirm when your bid is submitted') }}
+              {{ notif_row('bid_received',            'Bid Received',        'Notify when someone bids on your listing') }}
+              {{ notif_row('bid_fully_filled',        'Bid Filled',          'Notify when your bid is fully accepted') }}
+              {{ notif_row('bid_partially_accepted',  'Bid Partially Filled','Notify when your bid is partially filled') }}
+              {{ notif_row('outbid',                  'Outbid',              'Notify when another buyer places a higher bid') }}
+              {{ notif_row('bid_withdrawn',           'Bid Withdrawn',       'Confirm when you withdraw a bid') }}
+              {{ notif_row('bid_rejected_or_expired', 'Bid Expired',         'Notify when a bid expires unfilled') }}
+              {{ notif_row('bid_now_leading',         'Bid Now Leading',     'Notify each time your bid becomes the best offer (off by default)') }}
+            </div>
+          </div>
+
+          <!-- Orders (buyer) -->
+          <div class="notification-category">
+            <h4 class="category-heading"><i class="fa-solid fa-box"></i> Orders</h4>
+            <div class="notification-rows">
+              {{ notif_row('order_created',           'Order Placed',        'Confirm when your purchase is created') }}
+              {{ notif_row('order_status_updated',    'Order Status Update', 'Notify when your order status changes') }}
+              {{ notif_row('order_shipped',           'Order Shipped',       'Notify when the seller ships your order') }}
+              {{ notif_row('delivered_confirmed',     'Order Delivered',     'Notify when your order is marked delivered') }}
+              {{ notif_row('cancellation_requested',  'Cancellation Request','Confirm when you request a cancellation') }}
+              {{ notif_row('cancellation_denied',     'Cancellation Denied', 'Notify when a seller denies your cancellation') }}
+              {{ notif_row('cancellation_approved',   'Cancellation Approved','Notify when your cancellation is approved') }}
+              {{ notif_row('tracking_updated',        'Tracking Updated',    'Notify on every tracking number change (off by default)') }}
+            </div>
+          </div>
+
+          <!-- Sales (seller) -->
+          <div class="notification-category">
+            <h4 class="category-heading"><i class="fa-solid fa-store"></i> Sales</h4>
+            <div class="notification-rows">
+              {{ notif_row('seller_order_received',                'New Sale',                  'Notify when a buyer purchases your listing') }}
+              {{ notif_row('seller_cancellation_request_received', 'Cancellation Requested',    'Notify when a buyer requests to cancel') }}
+              {{ notif_row('seller_cancellation_finalized',        'Cancellation Finalized',    'Notify when a cancellation is fully resolved') }}
+              {{ notif_row('seller_fulfillment_needed',            'Fulfillment Reminder',      'Periodic reminder to ship pending orders (off by default)') }}
+            </div>
+          </div>
+
+          <!-- Messages -->
+          <div class="notification-category">
+            <h4 class="category-heading"><i class="fa-regular fa-comment"></i> Messages</h4>
+            <div class="notification-rows">
+              {{ notif_row('new_order_message',  'Order Message',  'Notify when you receive a message about an order') }}
+              {{ notif_row('new_direct_message', 'Direct Message', 'Notify when you receive a direct message') }}
+            </div>
+          </div>
+
+          <!-- Ratings -->
+          <div class="notification-category">
+            <h4 class="category-heading"><i class="fa-regular fa-star"></i> Ratings</h4>
+            <div class="notification-rows">
+              {{ notif_row('rating_received',          'Rating Received',       'Notify when someone rates you') }}
+              {{ notif_row('rating_to_leave_reminder', 'Leave a Rating Reminder','Periodic reminder to rate completed orders (off by default)') }}
+            </div>
+          </div>
+
+          <!-- Account & Security -->
+          <div class="notification-category">
+            <h4 class="category-heading"><i class="fa-solid fa-shield-halved"></i> Account &amp; Security</h4>
+            <div class="notification-rows">
+              {{ notif_row('new_login',        'New Login Detected', 'Notify on each new login to your account') }}
+              {{ notif_row('password_changed', 'Password Changed',   'Notify when your password is changed') }}
+              {{ notif_row('email_changed',    'Email Changed',      'Notify when your account email is updated') }}
+            </div>
+          </div>
+
+        </div><!-- /notifSettingsContainer -->
 
         <div class="notification-save-status" id="notificationSaveStatus" style="display: none;">
           <span class="save-icon">✓</span>
           <span class="save-text">Preferences saved</span>
         </div>
       </div>
+
+      <script>
+      (function () {
+        // Auto-save each toggle immediately on change
+        document.querySelectorAll('.notif-setting-toggle').forEach(function (chk) {
+          chk.addEventListener('change', function () {
+            var type = chk.dataset.notifType;
+            var payload = {};
+            payload[type] = chk.checked;
+            fetch('/notifications/settings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.success) {
+                  var status = document.getElementById('notificationSaveStatus');
+                  if (status) {
+                    status.style.display = 'flex';
+                    clearTimeout(status._hideTimer);
+                    status._hideTimer = setTimeout(function () {
+                      status.style.display = 'none';
+                    }, 2000);
+                  }
+                }
+              })
+              .catch(function (err) {
+                console.error('[Notif Settings] Save failed:', err);
+              });
+          });
+        });
+      })();
+      </script>
 
     </div>
 </div>

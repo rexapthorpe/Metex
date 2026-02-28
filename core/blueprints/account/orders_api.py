@@ -370,10 +370,18 @@ def order_items(order_id):
           c.purity,
           c.finish,
           c.grade,
+          c.series_variant,
+          c.coin_series,
 
           l.graded,
           l.grading_service,
+          l.is_isolated,
           l.isolated_type,
+          l.packaging_type,
+          l.packaging_notes,
+          l.edition_number,
+          l.edition_total,
+          l.condition_notes,
           u.username AS seller_username,
 
           lp.file_path
@@ -447,6 +455,8 @@ def order_items(order_id):
             "purity"         : first.get("purity"),
             "finish"         : first.get("finish"),
             "grade"          : first.get("grade"),
+            "series_variant" : first.get("series_variant"),
+            "coin_series"    : first.get("coin_series"),
             "grading_service": grading_service,
             "seller_username": first.get("seller_username"),
 
@@ -455,7 +465,13 @@ def order_items(order_id):
 
             # set listing metadata (for set item arrow navigation in modal)
             "listing_id"     : first.get("listing_id"),
+            "is_isolated"    : first.get("is_isolated"),
             "isolated_type"  : first.get("isolated_type"),
+            "packaging_type" : first.get("packaging_type"),
+            "packaging_notes": first.get("packaging_notes"),
+            "edition_number" : first.get("edition_number"),
+            "edition_total"  : first.get("edition_total"),
+            "condition_notes": first.get("condition_notes"),
 
             # raw items if you ever want them
             "items"          : [

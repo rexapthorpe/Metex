@@ -558,6 +558,19 @@ def handle_sell_post():
 
         conn.close()
 
+        # Notify seller that their listing was published
+        try:
+            from services.notification_types import notify_listing_created
+            item_desc = ' '.join(filter(None, [
+                str(weight) if weight else '',
+                str(metal) if metal else '',
+                str(product_line) if product_line else '',
+                str(product_type) if product_type else '',
+            ])).strip() or 'item'
+            notify_listing_created(session['user_id'], listing_id, item_desc)
+        except Exception as _notif_err:
+            print(f'[NOTIFICATION WARNING] listing_created_success failed: {_notif_err}')
+
         # Check if AJAX request
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify(

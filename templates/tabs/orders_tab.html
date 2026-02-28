@@ -71,6 +71,17 @@
             </div>
             {% endif %}
 
+            <!-- Cancellation Denial Banner -->
+            {% if order.cancel_status == 'denied' and not is_canceled %}
+            <div class="order-denial-bar">
+              <i class="fa-solid fa-circle-xmark"></i>
+              <div>
+                <div class="order-denial-bar-title">Cancellation Request Denied</div>
+                <div class="order-denial-bar-sub">A seller declined your request — this order will proceed as normal.</div>
+              </div>
+            </div>
+            {% endif %}
+
             <!-- Meta Row -->
             <div class="order-card-meta">
               <span class="order-meta-item">
@@ -136,9 +147,9 @@
                   <i class="fa-regular fa-clock"></i> Cancellation Pending
                 </div>
               {% elif order.cancel_status == 'denied' %}
-                <div class="order-cancel-status order-cancel-status--denied">
-                  <i class="fa-solid fa-xmark"></i> Request Denied
-                </div>
+                <button class="order-action-cancel order-action-cancel--locked" disabled>
+                  <i class="fa-solid fa-lock"></i> Cancel Order
+                </button>
               {% elif order.cancel_status != 'approved' %}
                 {% if order.tracking_number %}
                   <button class="order-action-cancel order-action-cancel--shipped"

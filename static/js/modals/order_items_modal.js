@@ -215,6 +215,14 @@ function renderOrderItem() {
   const grade       = item.grade ?? null;
   const purityRaw   = item.purity ?? item.fineness ?? null;
   const certSvc     = item.grading_service ?? null;
+  const seriesVariant  = item.series_variant ?? null;
+  const isIsolated     = item.is_isolated === 1 || item.is_isolated === '1' || item.is_isolated === true;
+  const isolatedType   = item.isolated_type ?? null;
+  const packagingType  = item.packaging_type ?? null;
+  const packagingNotes = item.packaging_notes ?? null;
+  const editionNumber  = item.edition_number ?? null;
+  const editionTotal   = item.edition_total ?? null;
+  const conditionNotes = item.condition_notes ?? null;
 
   // Weight
   let weightDisplay = null;
@@ -308,17 +316,24 @@ function renderOrderItem() {
   const seller      = item.seller_username ?? item.seller_name ?? null;
 
   const specsGrid = [
-    specItem('<i class="fa-solid fa-tag"></i>',               'Category',     productType),
-    specItem('<i class="fa-solid fa-gem"></i>',               'Metal Type',   metal),
-    specItem('<i class="fa-solid fa-coins"></i>',             'Product Line', productLine),
-    specItem('<i class="fa-solid fa-scale-balanced"></i>',    'Weight',       weightDisplay),
-    specItem('<i class="fa-solid fa-layer-group"></i>',       'Purity',       purity),
-    specItem('<i class="fa-solid fa-building-columns"></i>',  'Mint',         mint),
-    specItem('<i class="fa-regular fa-calendar"></i>',        'Year',         year),
-    specItem('<i class="fa-solid fa-certificate"></i>',       'Finish',       finish),
-    specItem('<i class="fa-solid fa-medal"></i>',             'Grade',        grade),
-    specItem('<i class="fa-solid fa-shield-halved"></i>',     'Certification', certDisplay),
-    specItem('<i class="fa-regular fa-user"></i>',            'Seller',       seller),
+    specItem('<i class="fa-solid fa-tag"></i>',               'Category',       productType),
+    specItem('<i class="fa-solid fa-gem"></i>',               'Metal Type',     metal),
+    specItem('<i class="fa-solid fa-coins"></i>',             'Product Line',   productLine),
+    specItem('<i class="fa-solid fa-scale-balanced"></i>',    'Weight',         weightDisplay),
+    specItem('<i class="fa-solid fa-layer-group"></i>',       'Purity',         purity),
+    specItem('<i class="fa-solid fa-building-columns"></i>',  'Mint',           mint),
+    specItem('<i class="fa-regular fa-calendar"></i>',        'Year',           year),
+    specItem('<i class="fa-solid fa-certificate"></i>',       'Finish',         finish),
+    specItem('<i class="fa-solid fa-medal"></i>',             'Grade',          grade),
+    specItem('<i class="fa-solid fa-shield-halved"></i>',     'Certification',  certDisplay),
+    specItem('<i class="fa-solid fa-star"></i>',              'Series',         seriesVariant),
+    ...(isIsolated && isolatedType !== 'set' ? [
+      specItem('<i class="fa-solid fa-box"></i>',             'Packaging',      packagingType ? packagingType.replace(/_/g, ' ') : null),
+      specItem('<i class="fa-solid fa-clipboard"></i>',       'Pkg. Notes',     packagingNotes),
+      specItem('<i class="fa-solid fa-hashtag"></i>',         'Edition',        (editionNumber && editionTotal) ? `#${editionNumber} of ${editionTotal}` : null),
+      specItem('<i class="fa-solid fa-info-circle"></i>',     'Condition',      conditionNotes),
+    ] : []),
+    specItem('<i class="fa-regular fa-user"></i>',            'Seller',         seller),
   ].filter(Boolean).join('');
 
   // Remove button (cart context only)

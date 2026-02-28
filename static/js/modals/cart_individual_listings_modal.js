@@ -391,9 +391,16 @@ function renderPriceEntry() {
     `;
   };
 
-  const productLine  = entry.product_line ?? entry.series ?? entry.coin_series ?? null;
-  const seriesVariant = entry.series_variant ?? null;
-  const seller       = entry.seller_username ?? entry.seller_name ?? null;
+  const productLine    = entry.product_line ?? entry.series ?? entry.coin_series ?? null;
+  const seriesVariant  = entry.series_variant ?? null;
+  const seller         = entry.seller_username ?? entry.seller_name ?? null;
+  const isIsolated     = entry.is_isolated === 1 || entry.is_isolated === '1' || entry.is_isolated === true;
+  const isolatedType   = entry.isolated_type ?? null;
+  const packagingType  = entry.packaging_type ?? null;
+  const packagingNotes = entry.packaging_notes ?? null;
+  const editionNumber  = entry.edition_number ?? null;
+  const editionTotal   = entry.edition_total ?? null;
+  const conditionNotes = entry.condition_notes ?? null;
 
   const specsGrid = [
     specItem('<i class="fa-solid fa-tag"></i>',              'Category',      productType),
@@ -407,6 +414,12 @@ function renderPriceEntry() {
     specItem('<i class="fa-solid fa-medal"></i>',            'Grade',         grade),
     specItem('<i class="fa-solid fa-shield-halved"></i>',    'Certification', certDisplay),
     specItem('<i class="fa-solid fa-star"></i>',             'Series',        seriesVariant),
+    ...(isIsolated && isolatedType !== 'set' ? [
+      specItem('<i class="fa-solid fa-box"></i>',            'Packaging',     packagingType ? packagingType.replace(/_/g, ' ') : null),
+      specItem('<i class="fa-solid fa-clipboard"></i>',      'Pkg. Notes',    packagingNotes),
+      specItem('<i class="fa-solid fa-hashtag"></i>',        'Edition',       (editionNumber && editionTotal) ? `#${editionNumber} of ${editionTotal}` : null),
+      specItem('<i class="fa-solid fa-info-circle"></i>',    'Condition',     conditionNotes),
+    ] : []),
     specItem('<i class="fa-regular fa-user"></i>',           'Seller',        seller),
   ].filter(Boolean).join('');
 

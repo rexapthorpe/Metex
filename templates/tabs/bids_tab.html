@@ -26,7 +26,7 @@
     {% if filled > 0 %}
       {% set total_filled_units.val = total_filled_units.val + filled %}
     {% endif %}
-    {% set total_value.val = total_value.val + ((bid.price_per_coin or 0) * (bid.quantity_requested or 0)) %}
+    {% set total_value.val = total_value.val + ((bid.bid_effective_price or bid.price_per_coin or 0) * (bid.quantity_requested or 0)) %}
   {% endfor %}
   {% set fill_rate_pct = ((total_filled_units.val / total_requested_units.val * 100) | int) if total_requested_units.val > 0 else 0 %}
 
@@ -167,7 +167,7 @@
               </div>
               <div class="bid-detail-item">
                 <span class="bid-detail-label">Total Value</span>
-                <span class="bid-detail-value">${{ '{:,.2f}'.format((bid.price_per_coin or 0) * (bid.quantity_requested or 0)) }}</span>
+                <span class="bid-detail-value">${{ '{:,.2f}'.format((bid.bid_effective_price or bid.price_per_coin or 0) * (bid.quantity_requested or 0)) }}</span>
               </div>
             </div>
 

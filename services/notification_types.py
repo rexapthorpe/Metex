@@ -1,644 +1,632 @@
 """
-Notification Types - Specific notification creation functions.
+Notification Types
+==================
+Convenience wrappers that build the right title/body/metadata for each
+event type, then call notify() from notification_service so that:
 
-Each function creates a notification for a specific event type:
-- notify_bid_filled: Buyer's bid was filled
-- notify_order_confirmed: Buyer's order confirmed
-- notify_listing_sold: Seller's listing was sold
-- notify_new_message: User received a message
-- notify_bid_placed: Bidder's bid was placed
-- notify_bid_on_bucket: Seller received bid on their bucket
-- notify_rating_received: User received a rating
-- notify_report_submitted: User's report was submitted
-- notify_cancel_request_submitted: User's cancel request was submitted
-- notify_rating_submitted: User's rating was submitted
+  1. User notification_settings are checked automatically.
+  2. All inserts go through a single code path.
 
-Extracted from notification_service.py during refactor - NO BEHAVIOR CHANGE.
+Add a new event by writing a small notify_<event>() function here.
 """
 
-from database import get_db_connection
-from services.email_service import send_bid_filled_email, send_listing_sold_email
-from .notification_service import create_notification
+import database as _db_module
+from services.notification_service import notify
 
 
-def notify_bid_filled(buyer_id, order_id, bid_id, item_description, quantity_filled,
-                      price_per_unit, total_amount, is_partial=False, remaining_quantity=0):
-    """
-    Notify a buyer that their bid has been filled
+def _get_conn():
+    return _db_module.get_db_connection()
 
-    Args:
-        buyer_id: ID of the buyer
-        order_id: ID of the created order
-        bid_id: ID of the bid that was filled
-        item_description: Description of the item
-        quantity_filled: How many units were filled
-        price_per_unit: Price per unit
-        total_amount: Total amount for this fill
-        is_partial: Whether this is a partial fill
-        remaining_quantity: Remaining quantity if partial
 
-    Returns:
-        bool: True if notification created successfully
-    """
-    # Get buyer info and preferences
-    conn = get_db_connection()
-    buyer = conn.execute('SELECT username, email FROM users WHERE id = ?', (buyer_id,)).fetchone()
+# ---------------------------------------------------------------------------
+# ── Listings ────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 
-    # Get user notification preferences (default to enabled if not set)
-    prefs = conn.execute('SELECT * FROM user_preferences WHERE user_id = ?', (buyer_id,)).fetchone()
-    conn.close()
+def notify_listing_created(seller_id, listing_id, item_description):
+    """Confirm to a seller that their listing was published."""
+    return notify(
+        user_id=seller_id,
+        notification_type='listing_created_success',
+        title='Listing Published',
+        body=f'Your listing for {item_description} is now live.',
+        related_listing_id=listing_id,
+        metadata={'item_description': item_description},
+    )
 
-    if not buyer:
-        print(f"[NOTIFICATION ERROR] Buyer {buyer_id} not found")
-        return False
 
-    # Determine what notifications to send based on preferences
-    send_email = True if not prefs else bool(prefs['email_bid_filled'])
-    send_inapp = True if not prefs else bool(prefs['inapp_bid_filled'])
+def notify_listing_edited(seller_id, listing_id, item_description):
+    """Confirm to a seller that their listing was updated."""
+    return notify(
+        user_id=seller_id,
+        notification_type='listing_edited',
+        title='Listing Updated',
+        body=f'Your listing for {item_description} has been updated.',
+        related_listing_id=listing_id,
+        metadata={'item_description': item_description},
+    )
 
-    # If both are disabled, skip notification
-    if not send_email and not send_inapp:
-        print(f"[NOTIFICATION] User {buyer_id} has disabled all bid_filled notifications")
-        return False  # No notifications sent
 
-    # Create in-app notification if enabled
-    notification_id = None
-    if send_inapp:
-        if is_partial:
-            title = f"Bid Partially Filled - {quantity_filled} Units!"
-            message = f"Your bid for {item_description} has been partially filled. {quantity_filled} units purchased at ${price_per_unit:.2f} each (${total_amount:.2f} total). {remaining_quantity} units still pending."
-        else:
-            title = f"Bid Filled - {quantity_filled} Units!"
-            message = f"Your bid for {item_description} has been filled! {quantity_filled} units purchased at ${price_per_unit:.2f} each (${total_amount:.2f} total). Check your Orders tab for details."
+def notify_listing_delisted(seller_id, listing_id, item_description):
+    """Notify a seller that their listing has been removed / cancelled."""
+    return notify(
+        user_id=seller_id,
+        notification_type='listing_delisted',
+        title='Listing Removed',
+        body=f'Your listing for {item_description} has been removed.',
+        related_listing_id=listing_id,
+        metadata={'item_description': item_description},
+    )
 
-        metadata = {
+
+def notify_listing_expired(seller_id, listing_id, item_description):
+    """Notify a seller that their listing expired (stub – no expiration system yet)."""
+    return notify(
+        user_id=seller_id,
+        notification_type='listing_expired',
+        title='Listing Expired',
+        body=f'Your listing for {item_description} has expired.',
+        related_listing_id=listing_id,
+        metadata={'item_description': item_description},
+    )
+
+
+# ---------------------------------------------------------------------------
+# ── Bids ────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def notify_bid_placed(bidder_id, bid_id, bucket_id, item_description, quantity, price_per_unit):
+    """Confirm to a bidder that their bid was placed."""
+    total = quantity * price_per_unit
+    return notify(
+        user_id=bidder_id,
+        notification_type='bid_placed_success',
+        title='Bid Placed Successfully',
+        body=(
+            f'Your bid for {quantity} unit(s) of {item_description} at '
+            f'${price_per_unit:.2f}/unit (${total:.2f} total) has been placed.'
+        ),
+        related_bid_id=bid_id,
+        metadata={
+            'bucket_id': bucket_id,
+            'quantity': quantity,
+            'price_per_unit': price_per_unit,
+            'total_amount': total,
+            'item_description': item_description,
+        },
+    )
+
+
+def notify_bid_received(seller_id, bidder_username, bid_id, bucket_id,
+                        item_description, bid_price, quantity):
+    """Notify a seller that a bid was received on their listing."""
+    total = quantity * bid_price
+    return notify(
+        user_id=seller_id,
+        notification_type='bid_received',
+        title='New Bid Received',
+        body=(
+            f'{bidder_username} placed a bid for {quantity} unit(s) of '
+            f'{item_description} at ${bid_price:.2f}/unit (${total:.2f} total).'
+        ),
+        related_bid_id=bid_id,
+        metadata={
+            'bucket_id': bucket_id,
+            'bidder_username': bidder_username,
+            'quantity': quantity,
+            'bid_price': bid_price,
+            'total_amount': total,
+            'item_description': item_description,
+        },
+    )
+
+
+def notify_outbid(previous_bidder_id, bid_id, item_description, old_price, new_price):
+    """Notify a bidder that they have been outbid."""
+    return notify(
+        user_id=previous_bidder_id,
+        notification_type='outbid',
+        title="You've Been Outbid",
+        body=(
+            f'Your bid on {item_description} at ${old_price:.2f} was outbid '
+            f'— the current best offer is ${new_price:.2f}.'
+        ),
+        related_bid_id=bid_id,
+        metadata={
+            'item_description': item_description,
+            'old_price': old_price,
+            'new_price': new_price,
+        },
+    )
+
+
+def notify_bid_withdrawn(bidder_id, bid_id, item_description):
+    """Confirm to a bidder that their bid was withdrawn."""
+    return notify(
+        user_id=bidder_id,
+        notification_type='bid_withdrawn',
+        title='Bid Withdrawn',
+        body=f'Your bid for {item_description} has been withdrawn.',
+        related_bid_id=bid_id,
+        metadata={'item_description': item_description},
+    )
+
+
+def notify_bid_on_bucket(seller_id, bidder_username, bucket_id,
+                         item_description, bid_price, quantity):
+    """Notify a seller that a bid was placed on a bucket containing their listing (legacy alias)."""
+    bid_id = None
+    return notify(
+        user_id=seller_id,
+        notification_type='bid_on_bucket',
+        title='New Bid on Your Listing',
+        body=(
+            f'{bidder_username} placed a bid for {quantity} unit(s) of '
+            f'{item_description} at ${bid_price:.2f}/unit. '
+            f'The bid will auto-fill if it meets your price.'
+        ),
+        metadata={
+            'bucket_id': bucket_id,
+            'bidder_username': bidder_username,
+            'quantity': quantity,
+            'bid_price': bid_price,
+            'item_description': item_description,
+        },
+    )
+
+
+def notify_bid_accepted(buyer_id, order_id, bid_id, item_description,
+                        quantity_filled, price_per_unit, total_amount,
+                        is_partial=False, remaining_quantity=0):
+    """Notify a buyer that their bid was accepted (full or partial)."""
+    ntype = 'bid_partially_accepted' if is_partial else 'bid_fully_filled'
+    if is_partial:
+        title = f'Bid Partially Filled – {quantity_filled} Unit(s)'
+        body = (
+            f'Your bid for {item_description} was partially filled. '
+            f'{quantity_filled} unit(s) at ${price_per_unit:.2f} each '
+            f'(${total_amount:.2f} total). {remaining_quantity} unit(s) still pending.'
+        )
+    else:
+        title = f'Bid Filled – {quantity_filled} Unit(s)'
+        body = (
+            f'Your bid for {item_description} was filled! '
+            f'{quantity_filled} unit(s) at ${price_per_unit:.2f} each '
+            f'(${total_amount:.2f} total). Check your Orders tab.'
+        )
+    return notify(
+        user_id=buyer_id,
+        notification_type=ntype,
+        title=title,
+        body=body,
+        related_order_id=order_id,
+        related_bid_id=bid_id,
+        metadata={
             'quantity': quantity_filled,
             'price_per_unit': price_per_unit,
             'total_amount': total_amount,
             'item_description': item_description,
             'is_partial': is_partial,
-            'remaining_quantity': remaining_quantity
-        }
-
-        notification_id = create_notification(
-            user_id=buyer_id,
-            notification_type='bid_filled',
-            title=title,
-            message=message,
-            related_order_id=order_id,
-            related_bid_id=bid_id,
-            metadata=metadata
-        )
-
-    # Send email notification if enabled
-    if send_email and buyer['email']:
-        try:
-            # Build full URL for orders page
-            base_url = 'http://127.0.0.1:5000'  # TODO: Get from config or request
-            orders_url = f"{base_url}/account#orders"
-
-            send_bid_filled_email(
-                to_email=buyer['email'],
-                username=buyer['username'],
-                item_description=item_description,
-                quantity=quantity_filled,
-                price_per_unit=price_per_unit,
-                total_amount=total_amount,
-                partial=is_partial,
-                remaining_quantity=remaining_quantity,
-                orders_url=orders_url
-            )
-        except Exception as e:
-            print(f"[EMAIL ERROR] Failed to send bid filled email: {e}")
-
-    return True
+            'remaining_quantity': remaining_quantity,
+        },
+    )
 
 
-def notify_order_confirmed(buyer_id, order_id, item_description, quantity_purchased,
-                           price_per_unit, total_amount):
+def notify_bid_rejected_or_expired(bidder_id, bid_id, item_description):
+    """Notify a bidder that their bid expired or was rejected."""
+    return notify(
+        user_id=bidder_id,
+        notification_type='bid_rejected_or_expired',
+        title='Bid Expired',
+        body=f'Your bid for {item_description} has expired without being filled.',
+        related_bid_id=bid_id,
+        metadata={'item_description': item_description},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Legacy alias – many callers use notify_bid_filled
+# ---------------------------------------------------------------------------
+
+def notify_bid_filled(buyer_id, order_id, bid_id, item_description, quantity_filled,
+                      price_per_unit, total_amount, is_partial=False, remaining_quantity=0):
     """
-    Notify a buyer that their order has been confirmed (for normal purchases, not bid fills)
-
-    Args:
-        buyer_id: ID of the buyer
-        order_id: ID of the created order
-        item_description: Description of the item
-        quantity_purchased: How many units were purchased
-        price_per_unit: Price per unit
-        total_amount: Total amount for the purchase
-
-    Returns:
-        bool: True if notification created successfully
+    Notify a buyer that their bid has been filled.
+    Thin wrapper around notify_bid_accepted that also fires the legacy
+    'bid_filled' type so existing notification rows keep working.
     """
-    # Get buyer info and preferences
-    conn = get_db_connection()
-    buyer = conn.execute('SELECT username, email FROM users WHERE id = ?', (buyer_id,)).fetchone()
+    return notify(
+        user_id=buyer_id,
+        notification_type='bid_filled',
+        title=(
+            f'Bid Partially Filled – {quantity_filled} Unit(s)!'
+            if is_partial else
+            f'Bid Filled – {quantity_filled} Unit(s)!'
+        ),
+        body=(
+            f'Your bid for {item_description} was partially filled. '
+            f'{quantity_filled} unit(s) at ${price_per_unit:.2f} each '
+            f'(${total_amount:.2f} total). {remaining_quantity} unit(s) still pending.'
+            if is_partial else
+            f'Your bid for {item_description} was filled! '
+            f'{quantity_filled} unit(s) at ${price_per_unit:.2f} each '
+            f'(${total_amount:.2f} total). Check your Orders tab.'
+        ),
+        related_order_id=order_id,
+        related_bid_id=bid_id,
+        metadata={
+            'quantity': quantity_filled,
+            'price_per_unit': price_per_unit,
+            'total_amount': total_amount,
+            'item_description': item_description,
+            'is_partial': is_partial,
+            'remaining_quantity': remaining_quantity,
+        },
+    )
 
-    # Get user notification preferences (default to enabled if not set)
-    # For now, we'll use the bid_filled preferences as a base
-    # TODO: Add separate order_confirmed preferences in future migration
-    prefs = conn.execute('SELECT * FROM user_preferences WHERE user_id = ?', (buyer_id,)).fetchone()
-    conn.close()
 
-    if not buyer:
-        print(f"[NOTIFICATION ERROR] Buyer {buyer_id} not found")
-        return False
+# ---------------------------------------------------------------------------
+# ── Orders (buyer) ──────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 
-    # Use bid_filled preferences as default for order notifications
-    # This ensures buyers who want notifications for purchases will get them
-    send_email = True if not prefs else bool(prefs['email_bid_filled'])
-    send_inapp = True if not prefs else bool(prefs['inapp_bid_filled'])
+def notify_order_created(buyer_id, order_id, item_description,
+                         quantity, price_per_unit, total_amount):
+    """Notify a buyer that their order was placed."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='order_created',
+        title='Order Placed',
+        body=(
+            f'Your order for {quantity} unit(s) of {item_description} '
+            f'(${total_amount:.2f} total) was placed successfully.'
+        ),
+        related_order_id=order_id,
+        metadata={
+            'quantity': quantity,
+            'price_per_unit': price_per_unit,
+            'total_amount': total_amount,
+            'item_description': item_description,
+        },
+    )
 
-    # If both are disabled, skip notification
-    if not send_email and not send_inapp:
-        print(f"[NOTIFICATION] User {buyer_id} has disabled all purchase notifications")
-        return False
 
-    # Create in-app notification if enabled
-    notification_id = None
-    if send_inapp:
-        title = f"Order Confirmed - {quantity_purchased} Units!"
-        message = f"Your purchase of {item_description} has been confirmed! {quantity_purchased} units at ${price_per_unit:.2f} each (${total_amount:.2f} total). Check your Orders tab for details."
-
-        metadata = {
+def notify_order_confirmed(buyer_id, order_id, item_description,
+                           quantity_purchased, price_per_unit, total_amount):
+    """Legacy alias for notify_order_created."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='order_confirmed',
+        title=f'Order Confirmed – {quantity_purchased} Unit(s)!',
+        body=(
+            f'Your purchase of {item_description} was confirmed! '
+            f'{quantity_purchased} unit(s) at ${price_per_unit:.2f} each '
+            f'(${total_amount:.2f} total). Check your Orders tab.'
+        ),
+        related_order_id=order_id,
+        metadata={
             'quantity': quantity_purchased,
             'price_per_unit': price_per_unit,
             'total_amount': total_amount,
-            'item_description': item_description
-        }
+            'item_description': item_description,
+        },
+    )
 
-        notification_id = create_notification(
-            user_id=buyer_id,
-            notification_type='order_confirmed',
-            title=title,
-            message=message,
-            related_order_id=order_id,
-            metadata=metadata
+
+def notify_order_shipped(buyer_id, order_id, item_description, tracking_number=None):
+    """Notify a buyer that their order has shipped."""
+    body = f'Your order for {item_description} has been shipped.'
+    if tracking_number:
+        body += f' Tracking: {tracking_number}.'
+    return notify(
+        user_id=buyer_id,
+        notification_type='order_shipped',
+        title='Order Shipped',
+        body=body,
+        related_order_id=order_id,
+        metadata={'item_description': item_description, 'tracking_number': tracking_number},
+    )
+
+
+def notify_tracking_updated(buyer_id, order_id, item_description, tracking_number):
+    """Notify a buyer that tracking info was updated."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='tracking_updated',
+        title='Tracking Updated',
+        body=f'Tracking for your order ({item_description}) was updated: {tracking_number}.',
+        related_order_id=order_id,
+        metadata={'item_description': item_description, 'tracking_number': tracking_number},
+    )
+
+
+def notify_order_status_updated(buyer_id, order_id, item_description, new_status):
+    """Notify a buyer that their order status changed."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='order_status_updated',
+        title='Order Status Updated',
+        body=f'Your order for {item_description} is now: {new_status}.',
+        related_order_id=order_id,
+        metadata={'item_description': item_description, 'status': new_status},
+    )
+
+
+def notify_delivered_confirmed(buyer_id, order_id, item_description):
+    """Notify a buyer that their order has been delivered."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='delivered_confirmed',
+        title='Order Delivered',
+        body=f'Your order for {item_description} has been delivered.',
+        related_order_id=order_id,
+        metadata={'item_description': item_description},
+    )
+
+
+# ---------------------------------------------------------------------------
+# ── Cancellations ────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def notify_cancel_request_submitted(requester_id, order_id, item_description):
+    """Notify a buyer that their cancellation request was submitted."""
+    return notify(
+        user_id=requester_id,
+        notification_type='cancel_request_submitted',
+        title='Cancellation Request Submitted',
+        body=(
+            f'Your cancellation request for order #{order_id} ({item_description}) '
+            f'was submitted. The seller(s) will be notified.'
+        ),
+        related_order_id=order_id,
+        metadata={'order_id': order_id, 'item_description': item_description},
+    )
+
+
+def notify_cancellation_requested_seller(seller_id, order_id, item_description, reason=''):
+    """Notify a seller that a buyer requested cancellation."""
+    body = f'A buyer requested cancellation for order #{order_id} ({item_description}).'
+    if reason:
+        body += f' Reason: {reason}'
+    return notify(
+        user_id=seller_id,
+        notification_type='seller_cancellation_request_received',
+        title='Cancellation Request Received',
+        body=body,
+        related_order_id=order_id,
+        metadata={'order_id': order_id, 'item_description': item_description, 'reason': reason},
+    )
+
+
+def notify_cancellation_denied(buyer_id, order_id, item_description):
+    """Notify a buyer that their cancellation was denied."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='cancellation_denied',
+        title='Cancellation Request Denied',
+        body=(
+            f'Your cancellation request for order #{order_id} ({item_description}) '
+            f'was denied. The order will proceed as normal.'
+        ),
+        related_order_id=order_id,
+        metadata={'order_id': order_id, 'item_description': item_description},
+    )
+
+
+def notify_cancellation_approved(buyer_id, order_id, item_description):
+    """Notify a buyer that their cancellation was approved."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='cancellation_approved',
+        title='Order Cancelled',
+        body=(
+            f'Your cancellation request for order #{order_id} ({item_description}) '
+            f'was approved. The order has been cancelled.'
+        ),
+        related_order_id=order_id,
+        metadata={'order_id': order_id, 'item_description': item_description},
+    )
+
+
+def notify_seller_cancellation_finalized(seller_id, order_id, item_description, approved):
+    """Notify a seller that a cancellation request was finalized."""
+    outcome = 'approved' if approved else 'denied'
+    title = f'Cancellation {outcome.capitalize()}'
+    body = (
+        f'The cancellation for order #{order_id} ({item_description}) '
+        f'has been {outcome}.'
+    )
+    return notify(
+        user_id=seller_id,
+        notification_type='seller_cancellation_finalized',
+        title=title,
+        body=body,
+        related_order_id=order_id,
+        metadata={'order_id': order_id, 'item_description': item_description, 'outcome': outcome},
+    )
+
+
+# ---------------------------------------------------------------------------
+# ── Sales (seller) ──────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def notify_seller_order_received(seller_id, order_id, listing_id,
+                                  item_description, quantity_sold,
+                                  price_per_unit, total_amount, shipping_address=''):
+    """Notify a seller that an order was received for their listing."""
+    return notify(
+        user_id=seller_id,
+        notification_type='seller_order_received',
+        title='New Order Received',
+        body=(
+            f'You sold {quantity_sold} unit(s) of {item_description} '
+            f'for ${total_amount:.2f}. Please ship to the buyer soon!'
+        ),
+        related_order_id=order_id,
+        related_listing_id=listing_id,
+        metadata={
+            'quantity': quantity_sold,
+            'price_per_unit': price_per_unit,
+            'total_amount': total_amount,
+            'item_description': item_description,
+            'shipping_address': shipping_address,
+        },
+    )
+
+
+def notify_listing_sold(seller_id, order_id, listing_id, item_description,
+                        quantity_sold, price_per_unit, total_amount, shipping_address,
+                        is_partial=False, remaining_quantity=0):
+    """Legacy alias for notify_seller_order_received."""
+    if is_partial:
+        title = f'Listing Partially Sold – {quantity_sold} Unit(s)!'
+        body = (
+            f'Your listing for {item_description} was partially sold. '
+            f'{quantity_sold} unit(s) at ${price_per_unit:.2f} each '
+            f'(${total_amount:.2f} total). {remaining_quantity} unit(s) remain.'
         )
-
-    # Send email notification if enabled
-    # For now, we'll use a simplified email approach
-    # TODO: Create dedicated order_confirmed email template in future
-    if send_email and buyer['email']:
-        try:
-            # Build full URL for orders page
-            base_url = 'http://127.0.0.1:5000'  # TODO: Get from config or request
-            orders_url = f"{base_url}/account#orders"
-
-            # For now, reuse bid_filled email format with adjusted text
-            # This can be replaced with a dedicated email template later
-            send_bid_filled_email(
-                to_email=buyer['email'],
-                username=buyer['username'],
-                item_description=item_description,
-                quantity=quantity_purchased,
-                price_per_unit=price_per_unit,
-                total_amount=total_amount,
-                partial=False,
-                remaining_quantity=0,
-                orders_url=orders_url
-            )
-        except Exception as e:
-            print(f"[EMAIL ERROR] Failed to send order confirmed email: {e}")
-
-    return True
-
-
-def notify_listing_sold(seller_id, order_id, listing_id, item_description, quantity_sold,
-                        price_per_unit, total_amount, shipping_address, is_partial=False,
-                        remaining_quantity=0):
-    """
-    Notify a seller that their listing has been sold
-
-    Args:
-        seller_id: ID of the seller
-        order_id: ID of the created order
-        listing_id: ID of the listing that was sold
-        item_description: Description of the item
-        quantity_sold: How many units were sold
-        price_per_unit: Price per unit
-        total_amount: Total sale amount
-        shipping_address: Where to ship the items
-        is_partial: Whether this is a partial sale
-        remaining_quantity: Remaining quantity in listing if partial
-
-    Returns:
-        bool: True if notification created successfully
-    """
-    # Get seller info and preferences
-    conn = get_db_connection()
-    seller = conn.execute('SELECT username, email FROM users WHERE id = ?', (seller_id,)).fetchone()
-
-    # Get user notification preferences (default to enabled if not set)
-    prefs = conn.execute('SELECT * FROM user_preferences WHERE user_id = ?', (seller_id,)).fetchone()
-    conn.close()
-
-    if not seller:
-        print(f"[NOTIFICATION ERROR] Seller {seller_id} not found")
-        return False
-
-    # Determine what notifications to send based on preferences
-    send_email = True if not prefs else bool(prefs['email_listing_sold'])
-    send_inapp = True if not prefs else bool(prefs['inapp_listing_sold'])
-
-    # If both are disabled, skip notification
-    if not send_email and not send_inapp:
-        print(f"[NOTIFICATION] User {seller_id} has disabled all listing_sold notifications")
-        return False  # No notifications sent
-
-    # Create in-app notification if enabled
-    notification_id = None
-    if send_inapp:
-        if is_partial:
-            title = f"Listing Partially Sold - {quantity_sold} Units!"
-            message = f"Your listing for {item_description} has been partially sold. {quantity_sold} units sold at ${price_per_unit:.2f} each (${total_amount:.2f} total). {remaining_quantity} units remain available. Please ship to the buyer soon!"
-        else:
-            title = f"Listing Sold - {quantity_sold} Units!"
-            message = f"Your listing for {item_description} has been sold! {quantity_sold} units sold at ${price_per_unit:.2f} each (${total_amount:.2f} total). Please ship to the buyer soon!"
-
-        metadata = {
+    else:
+        title = f'Listing Sold – {quantity_sold} Unit(s)!'
+        body = (
+            f'Your listing for {item_description} was sold! '
+            f'{quantity_sold} unit(s) at ${price_per_unit:.2f} each '
+            f'(${total_amount:.2f} total). Please ship soon!'
+        )
+    return notify(
+        user_id=seller_id,
+        notification_type='listing_sold',
+        title=title,
+        body=body,
+        related_order_id=order_id,
+        related_listing_id=listing_id,
+        metadata={
             'quantity': quantity_sold,
             'price_per_unit': price_per_unit,
             'total_amount': total_amount,
             'item_description': item_description,
             'shipping_address': shipping_address,
             'is_partial': is_partial,
-            'remaining_quantity': remaining_quantity
-        }
+            'remaining_quantity': remaining_quantity,
+        },
+    )
 
-        notification_id = create_notification(
-            user_id=seller_id,
-            notification_type='listing_sold',
-            title=title,
-            message=message,
-            related_order_id=order_id,
-            related_listing_id=listing_id,
-            metadata=metadata
-        )
 
-    # Send email notification if enabled
-    if send_email and seller['email']:
-        try:
-            # Build full URL for sold tab
-            base_url = 'http://127.0.0.1:5000'  # TODO: Get from config or request
-            sold_tab_url = f"{base_url}/account#sold"
-
-            send_listing_sold_email(
-                to_email=seller['email'],
-                username=seller['username'],
-                item_description=item_description,
-                quantity=quantity_sold,
-                price_per_unit=price_per_unit,
-                total_amount=total_amount,
-                shipping_address=shipping_address,
-                partial=is_partial,
-                remaining_quantity=remaining_quantity,
-                sold_tab_url=sold_tab_url
-            )
-        except Exception as e:
-            print(f"[EMAIL ERROR] Failed to send listing sold email: {e}")
-
-    return True
-
+# ---------------------------------------------------------------------------
+# ── Messages ────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 
 def notify_new_message(receiver_id, sender_id, order_id, message_preview):
-    """
-    Notify a user that they received a new message
-
-    Args:
-        receiver_id: ID of the message recipient
-        sender_id: ID of the message sender
-        order_id: ID of the related order
-        message_preview: Short preview of the message content
-
-    Returns:
-        bool: True if notification created successfully
-    """
-    # Get receiver info and preferences
-    conn = get_db_connection()
-    receiver = conn.execute('SELECT username FROM users WHERE id = ?', (receiver_id,)).fetchone()
+    """Notify a user that they received a new order message."""
+    conn = _get_conn()
     sender = conn.execute('SELECT username FROM users WHERE id = ?', (sender_id,)).fetchone()
-
-    # Get user notification preferences (default to enabled if not set)
-    prefs = conn.execute('SELECT * FROM user_preferences WHERE user_id = ?', (receiver_id,)).fetchone()
     conn.close()
+    sender_username = sender['username'] if sender else 'Someone'
 
-    if not receiver or not sender:
-        print(f"[NOTIFICATION ERROR] Receiver {receiver_id} or sender {sender_id} not found")
-        return False
-
-    # Check if in-app message notifications are enabled
-    send_inapp = True if not prefs else bool(prefs['inapp_messages']) if 'inapp_messages' in prefs.keys() else True
-
-    if not send_inapp:
-        print(f"[NOTIFICATION] User {receiver_id} has disabled message notifications")
-        return False
-
-    # Create in-app notification
-    # Truncate message preview if too long
     if len(message_preview) > 100:
         message_preview = message_preview[:97] + '...'
 
-    title = f"New message from {sender['username']}"
-    message = message_preview if message_preview else "You have a new message"
-
-    metadata = {
-        'sender_id': sender_id,
-        'sender_username': sender['username'],
-        'order_id': order_id
-    }
-
-    notification_id = create_notification(
+    ntype = 'new_order_message' if order_id else 'new_direct_message'
+    return notify(
         user_id=receiver_id,
-        notification_type='new_message',
-        title=title,
-        message=message,
+        notification_type=ntype,
+        title=f'New message from {sender_username}',
+        body=message_preview or 'You have a new message.',
         related_order_id=order_id,
-        metadata=metadata
+        metadata={
+            'sender_id': sender_id,
+            'sender_username': sender_username,
+            'order_id': order_id,
+        },
     )
 
-    return notification_id is not None
 
-
-def notify_bid_placed(bidder_id, bid_id, bucket_id, item_description, quantity, price_per_unit):
-    """
-    Notify a bidder that their bid has been placed successfully
-
-    Args:
-        bidder_id: ID of the bidder
-        bid_id: ID of the created bid
-        bucket_id: ID of the bucket being bid on
-        item_description: Description of the item
-        quantity: Number of units bid for
-        price_per_unit: Price per unit offered
-
-    Returns:
-        bool: True if notification created successfully
-    """
-    conn = get_db_connection()
-    bidder = conn.execute('SELECT username FROM users WHERE id = ?', (bidder_id,)).fetchone()
-    prefs = conn.execute('SELECT * FROM user_preferences WHERE user_id = ?', (bidder_id,)).fetchone()
-    conn.close()
-
-    if not bidder:
-        print(f"[NOTIFICATION ERROR] Bidder {bidder_id} not found")
-        return False
-
-    # Check if in-app notifications are enabled (default to True)
-    send_inapp = True if not prefs else bool(prefs.get('inapp_bid_filled', 1))
-
-    if not send_inapp:
-        print(f"[NOTIFICATION] User {bidder_id} has disabled bid notifications")
-        return False
-
-    total_amount = quantity * price_per_unit
-    title = "Bid Placed Successfully"
-    message = f"Your bid for {quantity} units of {item_description} at ${price_per_unit:.2f}/unit (${total_amount:.2f} total) has been placed. You'll be notified when it's filled."
-
-    metadata = {
-        'bucket_id': bucket_id,
-        'quantity': quantity,
-        'price_per_unit': price_per_unit,
-        'total_amount': total_amount,
-        'item_description': item_description
-    }
-
-    notification_id = create_notification(
-        user_id=bidder_id,
-        notification_type='bid_placed',
-        title=title,
-        message=message,
-        related_bid_id=bid_id,
-        metadata=metadata
-    )
-
-    return notification_id is not None
-
-
-def notify_bid_on_bucket(seller_id, bidder_username, bucket_id, item_description, bid_price, quantity):
-    """
-    Notify a seller that a bid was placed on a bucket containing their listing
-
-    Args:
-        seller_id: ID of the seller
-        bidder_username: Username of the bidder
-        bucket_id: ID of the bucket
-        item_description: Description of the item
-        bid_price: Price per unit offered
-        quantity: Number of units being bid for
-
-    Returns:
-        bool: True if notification created successfully
-    """
-    conn = get_db_connection()
-    seller = conn.execute('SELECT username FROM users WHERE id = ?', (seller_id,)).fetchone()
-    prefs = conn.execute('SELECT * FROM user_preferences WHERE user_id = ?', (seller_id,)).fetchone()
-    conn.close()
-
-    if not seller:
-        print(f"[NOTIFICATION ERROR] Seller {seller_id} not found")
-        return False
-
-    # Check if in-app notifications are enabled (default to True)
-    send_inapp = True if not prefs else bool(prefs.get('inapp_listing_sold', 1))
-
-    if not send_inapp:
-        print(f"[NOTIFICATION] User {seller_id} has disabled listing notifications")
-        return False
-
-    total_amount = quantity * bid_price
-    title = "New Bid on Your Listing"
-    message = f"{bidder_username} placed a bid for {quantity} units of {item_description} at ${bid_price:.2f}/unit (${total_amount:.2f} total). The bid will auto-fill if it meets your price."
-
-    metadata = {
-        'bucket_id': bucket_id,
-        'bidder_username': bidder_username,
-        'quantity': quantity,
-        'bid_price': bid_price,
-        'total_amount': total_amount,
-        'item_description': item_description
-    }
-
-    notification_id = create_notification(
-        user_id=seller_id,
-        notification_type='bid_on_bucket',
-        title=title,
-        message=message,
-        metadata=metadata
-    )
-
-    return notification_id is not None
-
+# ---------------------------------------------------------------------------
+# ── Ratings ─────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 
 def notify_rating_received(user_id, rater_username, rating_value, order_id):
-    """
-    Notify a user that they received a rating
-
-    Args:
-        user_id: ID of the user being rated
-        rater_username: Username of the person who rated them
-        rating_value: The rating value (1-5)
-        order_id: ID of the related order
-
-    Returns:
-        bool: True if notification created successfully
-    """
-    conn = get_db_connection()
-    user = conn.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
-    prefs = conn.execute('SELECT * FROM user_preferences WHERE user_id = ?', (user_id,)).fetchone()
-    conn.close()
-
-    if not user:
-        print(f"[NOTIFICATION ERROR] User {user_id} not found")
-        return False
-
-    # Check if in-app notifications are enabled (default to True)
-    send_inapp = True if not prefs else bool(prefs.get('inapp_bid_filled', 1))
-
-    if not send_inapp:
-        print(f"[NOTIFICATION] User {user_id} has disabled notifications")
-        return False
-
-    # Create star display
+    """Notify a user that they received a rating."""
     stars = '★' * rating_value + '☆' * (5 - rating_value)
-    title = f"New Rating Received - {stars}"
-    message = f"{rater_username} rated you {rating_value}/5 stars. Check your Ratings tab to view the full review."
-
-    metadata = {
-        'rater_username': rater_username,
-        'rating_value': rating_value,
-        'order_id': order_id
-    }
-
-    notification_id = create_notification(
+    return notify(
         user_id=user_id,
         notification_type='rating_received',
-        title=title,
-        message=message,
+        title=f'New Rating Received – {stars}',
+        body=f'{rater_username} rated you {rating_value}/5 stars.',
         related_order_id=order_id,
-        metadata=metadata
+        metadata={
+            'rater_username': rater_username,
+            'rating_value': rating_value,
+            'order_id': order_id,
+        },
     )
-
-    return notification_id is not None
-
-
-def notify_report_submitted(reporter_id, reported_username, report_id):
-    """
-    Notify a user that their report was submitted successfully
-
-    Args:
-        reporter_id: ID of the user who submitted the report
-        reported_username: Username of the reported user
-        report_id: ID of the report
-
-    Returns:
-        bool: True if notification created successfully
-    """
-    conn = get_db_connection()
-    reporter = conn.execute('SELECT username FROM users WHERE id = ?', (reporter_id,)).fetchone()
-    conn.close()
-
-    if not reporter:
-        print(f"[NOTIFICATION ERROR] Reporter {reporter_id} not found")
-        return False
-
-    title = "Report Submitted"
-    message = f"Your report against {reported_username} has been submitted and is under review. An admin will review it shortly."
-
-    metadata = {
-        'reported_username': reported_username,
-        'report_id': report_id
-    }
-
-    notification_id = create_notification(
-        user_id=reporter_id,
-        notification_type='report_submitted',
-        title=title,
-        message=message,
-        metadata=metadata
-    )
-
-    return notification_id is not None
-
-
-def notify_cancel_request_submitted(requester_id, order_id, item_description):
-    """
-    Notify a user that their cancellation request was submitted
-
-    Args:
-        requester_id: ID of the user who submitted the request
-        order_id: ID of the order being cancelled
-        item_description: Description of the item in the order
-
-    Returns:
-        bool: True if notification created successfully
-    """
-    conn = get_db_connection()
-    requester = conn.execute('SELECT username FROM users WHERE id = ?', (requester_id,)).fetchone()
-    conn.close()
-
-    if not requester:
-        print(f"[NOTIFICATION ERROR] Requester {requester_id} not found")
-        return False
-
-    title = "Cancellation Request Submitted"
-    message = f"Your cancellation request for order #{order_id} ({item_description}) has been submitted. The other party will be notified and can accept or decline."
-
-    metadata = {
-        'order_id': order_id,
-        'item_description': item_description
-    }
-
-    notification_id = create_notification(
-        user_id=requester_id,
-        notification_type='cancel_request_submitted',
-        title=title,
-        message=message,
-        related_order_id=order_id,
-        metadata=metadata
-    )
-
-    return notification_id is not None
 
 
 def notify_rating_submitted(rater_id, ratee_username, rating_value, order_id):
-    """
-    Notify a user that their rating was successfully submitted
-
-    Args:
-        rater_id: ID of the user who submitted the rating
-        ratee_username: Username of the person they rated
-        rating_value: The rating value (1-5)
-        order_id: ID of the related order
-
-    Returns:
-        bool: True if notification created successfully
-    """
-    conn = get_db_connection()
-    rater = conn.execute('SELECT username FROM users WHERE id = ?', (rater_id,)).fetchone()
-    conn.close()
-
-    if not rater:
-        print(f"[NOTIFICATION ERROR] Rater {rater_id} not found")
-        return False
-
+    """Confirm to a user that their rating was submitted."""
     stars = '★' * rating_value + '☆' * (5 - rating_value)
-    title = "Rating Submitted Successfully"
-    message = f"Your {rating_value}-star rating ({stars}) for {ratee_username} has been submitted. Thank you for your feedback!"
-
-    metadata = {
-        'ratee_username': ratee_username,
-        'rating_value': rating_value,
-        'order_id': order_id
-    }
-
-    notification_id = create_notification(
+    return notify(
         user_id=rater_id,
         notification_type='rating_submitted',
-        title=title,
-        message=message,
+        title='Rating Submitted',
+        body=f'Your {rating_value}-star rating ({stars}) for {ratee_username} was submitted.',
         related_order_id=order_id,
-        metadata=metadata
+        metadata={
+            'ratee_username': ratee_username,
+            'rating_value': rating_value,
+            'order_id': order_id,
+        },
     )
 
-    return notification_id is not None
+
+# ---------------------------------------------------------------------------
+# ── Account / Security ────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def notify_new_login(user_id, ip_address=None, user_agent=None):
+    """Notify a user of a new login to their account."""
+    body = 'A new login to your account was detected.'
+    if ip_address:
+        body += f' IP: {ip_address}.'
+    return notify(
+        user_id=user_id,
+        notification_type='new_login',
+        title='New Login Detected',
+        body=body,
+        metadata={'ip_address': ip_address, 'user_agent': user_agent},
+    )
+
+
+def notify_password_changed(user_id):
+    """Notify a user that their password was changed."""
+    return notify(
+        user_id=user_id,
+        notification_type='password_changed',
+        title='Password Changed',
+        body='Your account password was changed. If this was not you, contact support immediately.',
+    )
+
+
+def notify_email_changed(user_id, new_email):
+    """Notify a user that their email was changed."""
+    return notify(
+        user_id=user_id,
+        notification_type='email_changed',
+        title='Email Address Changed',
+        body=f'Your account email was updated to {new_email}.',
+        metadata={'new_email': new_email},
+    )
+
+
+# ---------------------------------------------------------------------------
+# ── Reports ─────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def notify_report_submitted(reporter_id, reported_username, report_id):
+    """Notify a user that their report was submitted."""
+    return notify(
+        user_id=reporter_id,
+        notification_type='report_submitted',
+        title='Report Submitted',
+        body=(
+            f'Your report against {reported_username} was submitted and is under review.'
+        ),
+        metadata={'reported_username': reported_username, 'report_id': report_id},
+    )

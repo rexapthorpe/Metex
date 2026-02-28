@@ -716,6 +716,19 @@ def edit_listing(listing_id):
                     # Static pricing
                     response_data['pricePerCoin'] = updated_listing['price_per_coin']
 
+                # Notify seller that their listing was edited
+                try:
+                    from services.notification_types import notify_listing_edited
+                    _ed_desc = ' '.join(filter(None, [
+                        str(updated_listing['weight'] or ''),
+                        str(updated_listing['metal'] or ''),
+                        str(updated_listing['product_line'] or ''),
+                        str(updated_listing['product_type'] or ''),
+                    ])).strip() or 'item'
+                    notify_listing_edited(session['user_id'], listing_id, _ed_desc)
+                except Exception as _ne:
+                    print(f'[NOTIFICATION WARNING] listing_edited failed: {_ne}')
+
                 # Return success response
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify(response_data), 200
@@ -860,13 +873,14 @@ def cancel_listing(listing_id):
     listing = conn.execute('SELECT seller_id FROM listings WHERE id = ?', (listing_id,)).fetchone()
 
     if listing and listing['seller_id'] == session['user_id']:
-        # Get bucket_id before deactivating
-        bucket_id_row = conn.execute('''
-            SELECT c.bucket_id
+        # Get bucket_id and description before deactivating
+        listing_detail = conn.execute('''
+            SELECT c.bucket_id, c.metal, c.weight, c.product_line, c.product_type
             FROM listings l
             JOIN categories c ON l.category_id = c.id
             WHERE l.id = ?
         ''', (listing_id,)).fetchone()
+        bucket_id_row = listing_detail
 
         conn.execute('UPDATE listings SET active = 0 WHERE id = ?', (listing_id,))
         conn.commit()
@@ -879,6 +893,19 @@ def cancel_listing(listing_id):
             except Exception as e:
                 # Don't fail the deactivation if price tracking fails
                 print(f"[WARNING] Failed to update bucket price: {e}")
+
+        # Notify seller that their listing was removed
+        try:
+            from services.notification_types import notify_listing_delisted
+            _dl_desc = ' '.join(filter(None, [
+                str(listing_detail['weight'] or '') if listing_detail else '',
+                str(listing_detail['metal'] or '') if listing_detail else '',
+                str(listing_detail['product_line'] or '') if listing_detail else '',
+                str(listing_detail['product_type'] or '') if listing_detail else '',
+            ])).strip() or 'item'
+            notify_listing_delisted(session['user_id'], listing_id, _dl_desc)
+        except Exception as _ne:
+            print(f'[NOTIFICATION WARNING] listing_delisted failed: {_ne}')
 
     conn.close()
     # if this is an AJAX request, just return 204 No Content

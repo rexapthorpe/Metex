@@ -41,6 +41,10 @@ def account():
         (user_id,)
     ).fetchone()
 
+    # Load per-type notification settings for Account Details section
+    from services.notification_service import get_user_notification_settings
+    notification_settings = get_user_notification_settings(user_id)
+
     # 2) Bids (with category details and pricing info)
     bids_raw = conn.execute(
         """SELECT
@@ -630,7 +634,8 @@ def account():
         grand_total=grand_total,
         conversations=conversations,
         current_user_id=user_id,
-        grading_service_addresses=GRADING_SERVICE_ADDRESSES
+        grading_service_addresses=GRADING_SERVICE_ADDRESSES,
+        notification_settings=notification_settings,
     )
 
 
@@ -1065,6 +1070,11 @@ def update_personal_info():
     conn = get_db_connection()
 
     try:
+        new_email = request.form.get('email')
+        # Check if email is being changed
+        old_user = conn.execute('SELECT email FROM users WHERE id = ?', (user_id,)).fetchone()
+        email_changed = old_user and new_email and old_user['email'] != new_email
+
         conn.execute('''
             UPDATE users
             SET first_name = ?, last_name = ?, phone = ?, email = ?
@@ -1073,11 +1083,17 @@ def update_personal_info():
             request.form.get('first_name', ''),
             request.form.get('last_name', ''),
             request.form.get('phone', ''),
-            request.form.get('email'),
+            new_email,
             user_id
         ))
         conn.commit()
         conn.close()
+        if email_changed:
+            try:
+                from services.notification_types import notify_email_changed
+                notify_email_changed(user_id, new_email)
+            except Exception:
+                pass
         return jsonify({'success': True})
     except Exception as e:
         conn.close()
@@ -1113,6 +1129,11 @@ def change_password():
         conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
         conn.commit()
         conn.close()
+        try:
+            from services.notification_types import notify_password_changed
+            notify_password_changed(user_id)
+        except Exception:
+            pass
         return jsonify({'success': True})
     except Exception as e:
         conn.close()

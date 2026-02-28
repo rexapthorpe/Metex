@@ -42,8 +42,6 @@ def auto_match_bid_to_listings(bid_id, cursor):
     category_id = bid['category_id']
     buyer_id = bid['buyer_id']
     delivery_address = bid['delivery_address']
-    requires_grading = bid['requires_grading']
-    preferred_grader = bid['preferred_grader']
     quantity_needed = bid['remaining_quantity']
     recipient_first_name = bid['recipient_first_name']
     recipient_last_name = bid['recipient_last_name']
@@ -61,40 +59,52 @@ def auto_match_bid_to_listings(bid_id, cursor):
     # This is the maximum price the buyer will pay
     bid_price = effective_bid_price
 
-    # Query matching listings - fetch ALL fields needed for effective price calculation
-    # We'll filter by effective price in Python after calculating it for each listing
-    # IMPORTANT: Exclude listings from the same user (no self-trades)
-    if requires_grading and preferred_grader:
-        # Bid requires specific grader
-        listings = cursor.execute('''
+    # Query matching listings - fetch ALL fields needed for effective price calculation.
+    # We'll filter by effective price in Python after calculating it for each listing.
+    # IMPORTANT: Exclude listings from the same user (no self-trades).
+    # Grading is NOT used as an eligibility constraint.
+    random_year = bid_dict.get('random_year', 0)
+
+    if random_year:
+        # Random Year ON: match listings from any category with the same specs except year.
+        # Fetch bid's category specs to use for cross-year matching.
+        bid_cat = cursor.execute('''
+            SELECT metal, product_line, product_type, weight, purity, mint, finish
+            FROM categories WHERE id = ?
+        ''', (category_id,)).fetchone()
+
+        # Find all category IDs that share the same specs but any year.
+        # Use IS for NULL-safe equality (SQLite: NULL IS NULL = TRUE).
+        matching_cats = cursor.execute('''
+            SELECT id FROM categories
+            WHERE metal IS ?
+              AND product_line IS ?
+              AND product_type IS ?
+              AND weight IS ?
+              AND purity IS ?
+              AND mint IS ?
+              AND finish IS ?
+        ''', (
+            bid_cat['metal'], bid_cat['product_line'], bid_cat['product_type'],
+            bid_cat['weight'], bid_cat['purity'], bid_cat['mint'], bid_cat['finish']
+        )).fetchall()
+
+        cat_ids = [row['id'] for row in matching_cats] or [category_id]
+        placeholders = ','.join('?' * len(cat_ids))
+
+        listings = cursor.execute(f'''
             SELECT l.id, l.seller_id, l.quantity, l.price_per_coin, l.grading_service,
                    l.pricing_mode, l.spot_premium, l.floor_price, l.pricing_metal,
                    c.metal, c.weight
             FROM listings l
             JOIN categories c ON l.category_id = c.id
-            WHERE l.category_id = ?
+            WHERE l.category_id IN ({placeholders})
               AND l.seller_id != ?
               AND l.active = 1
               AND l.quantity > 0
-              AND l.graded = 1
-              AND l.grading_service = ?
-        ''', (category_id, buyer_id, preferred_grader)).fetchall()
-    elif requires_grading:
-        # Bid requires any grader
-        listings = cursor.execute('''
-            SELECT l.id, l.seller_id, l.quantity, l.price_per_coin, l.grading_service,
-                   l.pricing_mode, l.spot_premium, l.floor_price, l.pricing_metal,
-                   c.metal, c.weight
-            FROM listings l
-            JOIN categories c ON l.category_id = c.id
-            WHERE l.category_id = ?
-              AND l.seller_id != ?
-              AND l.active = 1
-              AND l.quantity > 0
-              AND l.graded = 1
-        ''', (category_id, buyer_id)).fetchall()
+        ''', cat_ids + [buyer_id]).fetchall()
     else:
-        # No grading requirement
+        # Standard exact category match (Random Year OFF or unset).
         listings = cursor.execute('''
             SELECT l.id, l.seller_id, l.quantity, l.price_per_coin, l.grading_service,
                    l.pricing_mode, l.spot_premium, l.floor_price, l.pricing_metal,
@@ -285,9 +295,10 @@ def auto_match_listing_to_bids(listing_id, cursor):
     Returns:
         dict with 'filled_quantity', 'orders_created', 'message', 'notifications'
     """
-    # Load the listing with all fields
+    # Load the listing with all fields including extra category specs for random_year matching.
     listing = cursor.execute('''
-        SELECT l.*, c.metal, c.weight, c.product_type, c.bucket_id
+        SELECT l.*, c.metal, c.weight, c.product_type, c.bucket_id,
+               c.product_line, c.purity, c.mint, c.finish
         FROM listings l
         JOIN categories c ON l.category_id = c.id
         WHERE l.id = ?
@@ -308,17 +319,43 @@ def auto_match_listing_to_bids(listing_id, cursor):
     listing_dict = dict(listing)
     effective_listing_price = get_effective_price(listing_dict, spot_prices=spot_prices)
 
-    # Query active bids for the same category (exclude bids from the listing's seller)
+    # Query active bids: exact category match OR random_year=1 bids whose category
+    # shares the same specs (metal, product_line, product_type, weight, purity, mint, finish)
+    # as this listing's category, regardless of year.
+    listing_metal = listing_dict.get('metal')
+    listing_product_line = listing_dict.get('product_line')
+    listing_product_type = listing_dict.get('product_type')
+    listing_weight = listing_dict.get('weight')
+    listing_purity = listing_dict.get('purity')
+    listing_mint = listing_dict.get('mint')
+    listing_finish = listing_dict.get('finish')
+
     bids = cursor.execute('''
         SELECT b.*, c.metal, c.weight, c.product_type
         FROM bids b
         JOIN categories c ON b.category_id = c.id
-        WHERE b.category_id = ?
-          AND b.buyer_id != ?
+        WHERE b.buyer_id != ?
           AND b.active = 1
           AND b.remaining_quantity > 0
+          AND (
+            b.category_id = ?
+            OR (
+              b.random_year = 1
+              AND c.metal IS ?
+              AND c.product_line IS ?
+              AND c.product_type IS ?
+              AND c.weight IS ?
+              AND c.purity IS ?
+              AND c.mint IS ?
+              AND c.finish IS ?
+            )
+          )
         ORDER BY b.created_at ASC
-    ''', (category_id, seller_id)).fetchall()
+    ''', (
+        seller_id, category_id,
+        listing_metal, listing_product_line, listing_product_type,
+        listing_weight, listing_purity, listing_mint, listing_finish
+    )).fetchall()
 
     if not bids:
         return {'filled_quantity': 0, 'orders_created': 0, 'message': 'No matching bids found', 'notifications': []}

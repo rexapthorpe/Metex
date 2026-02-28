@@ -255,22 +255,24 @@
 /* Remove button */
 #priceBreakdownModal .cart-items-remove-btn {
   width: 100%;
-  padding: 12px;
+  padding: 15px;
   background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  color: #374151;
-  font-size: 0.9rem;
+  border: 1.5px solid #fca5a5;
+  border-radius: 10px;
+  color: #dc2626;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   transition: background 0.2s, border-color 0.2s;
+  margin-bottom: 8px;
 }
 #priceBreakdownModal .cart-items-remove-btn:hover {
-  background: #ffefef;
-  border-color: #f3bcbc;
+  background: #fff7f7;
+  border-color: #f87171;
 }
 
 /* Loading / Error states */

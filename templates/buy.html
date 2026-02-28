@@ -3,8 +3,120 @@
 
 {% block title %}Browse Available Listings{% endblock %}
 
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/hero.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="container">
+
+<!-- ═══════════════════════════════════════════
+     Market Hero
+     ═══════════════════════════════════════════ -->
+<section class="market-hero">
+  <div class="market-hero-inner">
+
+    <!-- ── Left: Value Proposition ── -->
+    <div class="market-hero-left">
+      <div class="market-hero-eyebrow">Precious Metals Exchange</div>
+      <h1 class="market-hero-headline">Trade at Real<br>Market Value</h1>
+      <p class="market-hero-subhead">
+        MetEx connects buyers and sellers directly. Prices are anchored to live spot —
+        no dealer spreads, no hidden markups. Competitive bidding and listing
+        drive transparent price discovery.
+      </p>
+      <div class="market-hero-actions">
+        <a href="#listings" class="market-hero-btn market-hero-btn--primary">
+          <i class="fa-solid fa-magnifying-glass"></i> Browse Market
+        </a>
+        <a href="{{ url_for('sell.sell') }}" class="market-hero-btn market-hero-btn--ghost">
+          Start Selling
+        </a>
+      </div>
+      <div class="market-hero-props">
+        <div class="market-hero-prop-item">
+          <i class="fa-solid fa-chart-line"></i>
+          Spot-anchored pricing
+        </div>
+        <div class="market-hero-prop-item">
+          <i class="fa-solid fa-scale-balanced"></i>
+          Buyer bids meet seller asks
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Right: Spot Prices + Market Mechanics ── -->
+    <div class="market-hero-right">
+
+      <!-- Spot Price Card -->
+      <div class="market-spot-card">
+        <div class="market-spot-card-header">
+          <span class="market-spot-card-label">Live Spot</span>
+          <span class="market-spot-card-unit">USD / troy oz</span>
+        </div>
+        <div class="market-spot-rows">
+          <div class="market-spot-row">
+            <div class="market-spot-meta">
+              <span class="market-spot-dot market-spot-dot--gold"></span>
+              <span class="market-spot-name">Gold</span>
+              <span class="market-spot-ticker">XAU</span>
+            </div>
+            <span class="market-spot-val" id="hero-spot-gold">—</span>
+          </div>
+          <div class="market-spot-row">
+            <div class="market-spot-meta">
+              <span class="market-spot-dot market-spot-dot--silver"></span>
+              <span class="market-spot-name">Silver</span>
+              <span class="market-spot-ticker">XAG</span>
+            </div>
+            <span class="market-spot-val" id="hero-spot-silver">—</span>
+          </div>
+          <div class="market-spot-row">
+            <div class="market-spot-meta">
+              <span class="market-spot-dot market-spot-dot--platinum"></span>
+              <span class="market-spot-name">Platinum</span>
+              <span class="market-spot-ticker">XPT</span>
+            </div>
+            <span class="market-spot-val" id="hero-spot-platinum">—</span>
+          </div>
+        </div>
+        <div class="market-spot-card-footer" id="hero-spot-updated">Fetching prices…</div>
+      </div>
+
+      <!-- Market Mechanics Card -->
+      <div class="market-mechanics-card">
+        <div class="market-mechanics-label">How Trades Execute</div>
+        <div class="market-mechanics-steps">
+          <div class="market-mechanics-step">
+            <div class="market-mechanics-num">1</div>
+            <div>
+              <div class="market-mechanics-title">Sellers list inventory</div>
+              <div class="market-mechanics-desc">At their price, anchored to spot</div>
+            </div>
+          </div>
+          <div class="market-mechanics-connector"></div>
+          <div class="market-mechanics-step">
+            <div class="market-mechanics-num">2</div>
+            <div>
+              <div class="market-mechanics-title">Buyers bid or buy</div>
+              <div class="market-mechanics-desc">Fixed price or premium-to-spot</div>
+            </div>
+          </div>
+          <div class="market-mechanics-connector"></div>
+          <div class="market-mechanics-step">
+            <div class="market-mechanics-num">3</div>
+            <div>
+              <div class="market-mechanics-title">Platform executes</div>
+              <div class="market-mechanics-desc">When bid price ≥ ask price</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="container" id="listings">
 
 
     {% with messages = get_flashed_messages() %}
@@ -31,13 +143,6 @@
                         <span style="background-color: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">ONE-OF-A-KIND</span>
                     {% endif %}
                 </div>
-
-                <!-- Fee Indicator Badge -->
-                {% if bucket.get('fee_indicator') %}
-                <div class="fee-indicator-badge fee-{{ bucket.fee_indicator }}">
-                    {{ bucket.fee_display }}
-                </div>
-                {% endif %}
 
                 <div class="image-box">
                     {% if bucket.get('tile_image_url') %}
@@ -83,13 +188,6 @@
                     <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">SET</span>
                 </div>
 
-                <!-- Fee Indicator Badge -->
-                {% if bucket.get('fee_indicator') %}
-                <div class="fee-indicator-badge fee-{{ bucket.fee_indicator }}">
-                    {{ bucket.fee_display }}
-                </div>
-                {% endif %}
-
                 <div class="image-box">
                     {% if bucket.get('tile_image_url') %}
                         <img src="{{ bucket.tile_image_url }}" alt="Item" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
@@ -129,13 +227,6 @@
         <div class="grid">
             {% for bucket in standard_buckets %}
             <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
-                <!-- Fee Indicator Badge -->
-                {% if bucket.get('fee_indicator') %}
-                <div class="fee-indicator-badge fee-{{ bucket.fee_indicator }}">
-                    {{ bucket.fee_display }}
-                </div>
-                {% endif %}
-
                 <div class="image-box">
                     <span>Item image</span>  <!-- Placeholder text; image can go here later -->
                 </div>
@@ -167,4 +258,37 @@
         <p class="empty-message">No active listings available right now.</p>
     {% endif %}
 </div>
+
+<script>
+(function () {
+  function fmtSpot(n) {
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function loadHeroSpot() {
+    fetch('/api/spot-prices')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.success || !data.prices) return;
+        var p = data.prices;
+        var goldEl  = document.getElementById('hero-spot-gold');
+        var silvEl  = document.getElementById('hero-spot-silver');
+        var platEl  = document.getElementById('hero-spot-platinum');
+        var tsEl    = document.getElementById('hero-spot-updated');
+        if (goldEl && p.gold)     goldEl.textContent = fmtSpot(p.gold);
+        if (silvEl && p.silver)   silvEl.textContent = fmtSpot(p.silver);
+        if (platEl && p.platinum) platEl.textContent = fmtSpot(p.platinum);
+        if (tsEl) {
+          var now = new Date();
+          var t = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          tsEl.textContent = (data.is_stale ? 'Cached · ' : 'Updated ') + t;
+        }
+      })
+      .catch(function () { /* spot is supplementary — fail silently */ });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadHeroSpot);
+  setInterval(loadHeroSpot, 300000); /* refresh every 5 minutes */
+}());
+</script>
 {% endblock %}

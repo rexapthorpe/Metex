@@ -131,6 +131,14 @@ function positionMobileAccountSidebar() {
 
   // Overlay greys out everything below the header (including account mobile header)
   if (overlay) overlay.style.top = headerBottom + 'px';
+
+  // Keep account-layout padding and account-mobile-header sticky-top in sync
+  // with the actual header height (CSS provides a fallback; JS corrects it exactly)
+  var layout = document.querySelector('.account-layout');
+  if (layout) layout.style.paddingTop = headerBottom + 'px';
+
+  var mobileAccountHeader = document.querySelector('.account-mobile-header');
+  if (mobileAccountHeader) mobileAccountHeader.style.top = headerBottom + 'px';
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -68,7 +68,7 @@
   /* ══════════════════════════════════════════════════════════════
      STEP NAVIGATION
      ══════════════════════════════════════════════════════════════ */
-  function goToStep(n) {
+  async function goToStep(n) {
     if (n < 1 || n > TOTAL_STEPS) return;
 
     /* Update step content */
@@ -102,7 +102,7 @@
     if (btnSubmit)   btnSubmit.style.display   = n === TOTAL_STEPS ? 'inline-flex' : 'none';
 
     /* Populate review on step 5 */
-    if (n === TOTAL_STEPS) populateReview();
+    if (n === TOTAL_STEPS) await populateReview();
 
     currentStep = n;
   }
@@ -187,7 +187,7 @@
   /* ══════════════════════════════════════════════════════════════
      REVIEW STEP — populate summary
      ══════════════════════════════════════════════════════════════ */
-  function populateReview() {
+  async function populateReview() {
     const modeEl  = document.getElementById('bid-pricing-mode');
     const mode    = modeEl ? modeEl.value : 'static';
 
@@ -198,9 +198,35 @@
       qty   = parseInt(document.getElementById('qty-input')?.value) || 1;
       priceLabel = 'Fixed Price';
     } else {
-      price = parseFloat(document.getElementById('bid-ceiling-price')?.value) || 0;
-      qty   = parseInt(document.getElementById('qty-input-premium')?.value) || 1;
-      priceLabel = 'Max Price (ceiling)';
+      const ceilingPrice = parseFloat(document.getElementById('bid-ceiling-price')?.value) || 0;
+      const spotPremium  = parseFloat(document.getElementById('bid-spot-premium')?.value) || 0;
+      qty = parseInt(document.getElementById('qty-input-premium')?.value) || 1;
+
+      // Determine metal and weight from the form's data attributes
+      const form      = document.getElementById('bid-form');
+      const metalEl   = document.getElementById('bid-pricing-metal');
+      const metal     = (metalEl ? metalEl.value : (form ? form.dataset.bucketMetal : '')) || '';
+      const weightStr = (form ? form.dataset.bucketWeight : '1') || '1';
+      const weightMatch = weightStr.toString().match(/[\d.]+/);
+      const weight    = weightMatch ? parseFloat(weightMatch[0]) : 1.0;
+
+      // Fetch live spot price and calculate effective price = min(spot*weight + premium, ceiling)
+      try {
+        const response = await fetch('/api/spot-prices');
+        const spotData = await response.json();
+        if (spotData.success && spotData.prices && metal && spotData.prices[metal.toLowerCase()]) {
+          const spotPrice  = spotData.prices[metal.toLowerCase()];
+          const calculated = (spotPrice * weight) + spotPremium;
+          price      = ceilingPrice > 0 ? Math.min(calculated, ceilingPrice) : calculated;
+          priceLabel = 'Effective Bid Price';
+        } else {
+          price      = ceilingPrice;
+          priceLabel = 'Max Price (ceiling)';
+        }
+      } catch (e) {
+        price      = ceilingPrice;
+        priceLabel = 'Max Price (ceiling)';
+      }
     }
 
     const subtotal = price * qty;

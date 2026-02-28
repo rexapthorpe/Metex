@@ -99,11 +99,11 @@
             </div>
             <div class="cancel-request-bar-actions">
               <button class="cancel-bar-btn decline"
-                      onclick="openSellerCancelResponseModal({{ sale.order_id }}, 'deny', {{ sale.cancel_reason | tojson }})">
+                      onclick='openSellerCancelResponseModal({{ sale.order_id }}, "deny", {{ sale.cancel_reason | tojson }})'>
                 <i class="fa-solid fa-xmark"></i> Decline
               </button>
               <button class="cancel-bar-btn accept"
-                      onclick="openSellerCancelResponseModal({{ sale.order_id }}, 'approve', {{ sale.cancel_reason | tojson }})">
+                      onclick='openSellerCancelResponseModal({{ sale.order_id }}, "approve", {{ sale.cancel_reason | tojson }})'>
                 <i class="fa-solid fa-check"></i> Accept
               </button>
             </div>

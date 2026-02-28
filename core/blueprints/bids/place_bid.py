@@ -10,7 +10,8 @@ Routes:
 
 from flask import request, redirect, url_for, session, flash, jsonify
 from database import get_db_connection
-from services.notification_service import notify_bid_filled, notify_bid_placed, notify_bid_on_bucket
+from services.notification_service import notify_bid_filled
+from services.notification_types import notify_bid_placed, notify_bid_on_bucket
 from services.pricing_service import get_effective_bid_price
 from utils.auth_utils import frozen_check
 
@@ -165,6 +166,7 @@ def create_bid_unified(bucket_id):
 
         delivery_address = request.form.get('delivery_address', '').strip()
         requires_grading = request.form.get('requires_grading') == 'yes'
+        random_year = 1 if request.form.get('random_year') == 'on' else 0
 
         # Extract pricing parameters based on mode
         if pricing_mode == 'premium_to_spot':
@@ -238,8 +240,8 @@ def create_bid_unified(bucket_id):
                 remaining_quantity, active, requires_grading,
                 delivery_address, status,
                 pricing_mode, spot_premium, ceiling_price, pricing_metal,
-                recipient_first_name, recipient_last_name
-            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?)
+                recipient_first_name, recipient_last_name, random_year
+            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?)
             ''',
             (
                 bucket_id,
@@ -254,7 +256,8 @@ def create_bid_unified(bucket_id):
                 ceiling_price,
                 pricing_metal,
                 recipient_first,
-                recipient_last
+                recipient_last,
+                random_year
             )
         )
         new_bid_id = cursor.lastrowid
@@ -292,17 +295,23 @@ def create_bid_unified(bucket_id):
               AND l.seller_id != ?
         ''', (bucket_id, session['user_id'])).fetchall()
 
+        # Fetch spot prices from DB *before* closing the connection so that
+        # effective_price uses the same authoritative prices as auto_match.
+        spot_prices_rows = conn.execute(
+            'SELECT metal, price_usd_per_oz FROM spot_prices'
+        ).fetchall()
+        db_spot_prices = {row['metal'].lower(): row['price_usd_per_oz'] for row in spot_prices_rows}
+
         conn.close()
 
-        # Calculate effective bid price
+        # Calculate effective bid price: min(spot + premium, ceiling).
+        # Pass the DB spot prices explicitly to avoid falling back to the external
+        # spot-price service (which may be unavailable and would return ceiling instead).
         bid_dict = dict(created_bid) if created_bid else {}
-        effective_price = get_effective_bid_price(bid_dict) if created_bid else bid_price
+        effective_price = get_effective_bid_price(bid_dict, spot_prices=db_spot_prices) if created_bid else bid_price
 
-        # Get current spot price if variable pricing
-        current_spot_price = None
-        if pricing_mode == 'premium_to_spot' and pricing_metal:
-            from services.spot_price_service import get_spot_price
-            current_spot_price = get_spot_price(pricing_metal)
+        # Expose the current spot price for the success modal display
+        current_spot_price = db_spot_prices.get(pricing_metal.lower()) if pricing_metal else None
 
         # Build item description from bucket info
         item_desc_parts = []

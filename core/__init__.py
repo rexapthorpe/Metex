@@ -261,7 +261,7 @@ def _register_blueprints(app):
     from routes.checkout_routes import checkout_bp
     from routes.messages_routes import messages_bp
     from routes.cart_routes import cart_bp
-    from routes.bid_routes import bid_bp
+    from core.blueprints.bids import bid_bp
     from routes.ratings_routes import ratings_bp
     from routes.api_routes import api_bp
     from routes.notification_routes import notification_bp

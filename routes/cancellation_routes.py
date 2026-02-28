@@ -476,8 +476,15 @@ def respond_to_cancellation(order_id):
             WHERE request_id = ?
         """, (cancel_request['id'],)).fetchall()
 
-        all_approved = all(r['response'] == 'approved' for r in all_responses if r['response'])
-        all_responded = all(r['response'] is not None for r in all_responses)
+        # Guard: must have response rows for all expected sellers (prevents vacuous-truth approval)
+        all_approved = (
+            len(all_responses) >= len(seller_ids) > 0 and
+            all(r['response'] == 'approved' for r in all_responses)
+        )
+        all_responded = (
+            len(all_responses) >= len(seller_ids) > 0 and
+            all(r['response'] is not None for r in all_responses)
+        )
 
         if all_approved and all_responded:
             # All sellers approved - cancel the order

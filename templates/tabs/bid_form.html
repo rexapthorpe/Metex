@@ -176,6 +176,7 @@
        ══════════════════════════════════════════ #}
     <div class="bm-step-content" id="bm-step-2">
 
+      {% if not bucket.is_isolated %}
       <div class="bm-toggle-row">
         <div class="bm-toggle-left">
           <div class="bm-toggle-title">Random Year Bid</div>
@@ -186,6 +187,7 @@
           <span class="bm-slider"></span>
         </label>
       </div>
+      {% endif %}
 
       <div class="bm-toggle-row">
         <div class="bm-toggle-left">

@@ -170,6 +170,11 @@ def get_cart_items(conn):
                 listings.grading_service,
                 listings.is_isolated,
                 listings.isolated_type,
+                listings.packaging_type,
+                listings.packaging_notes,
+                listings.edition_number,
+                listings.edition_total,
+                listings.condition_notes,
                 users.username AS seller_username,
                 categories.id AS category_id,
                 categories.metal,
@@ -181,6 +186,8 @@ def get_cart_items(conn):
                 categories.finish,
                 categories.grade,
                 categories.purity,
+                categories.series_variant,
+                categories.coin_series,
                 (
                     SELECT ROUND(AVG(rating), 2)
                     FROM ratings
@@ -228,6 +235,11 @@ def get_cart_items(conn):
                 listings.grading_service,
                 listings.is_isolated,
                 listings.isolated_type,
+                listings.packaging_type,
+                listings.packaging_notes,
+                listings.edition_number,
+                listings.edition_total,
+                listings.condition_notes,
                 users.username AS seller_username,
                 categories.id AS category_id,
                 categories.metal,
@@ -239,6 +251,8 @@ def get_cart_items(conn):
                 categories.finish,
                 categories.grade,
                 categories.purity,
+                categories.series_variant,
+                categories.coin_series,
                 (
                     SELECT ROUND(AVG(rating), 2)
                     FROM ratings

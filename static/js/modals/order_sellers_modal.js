@@ -4,6 +4,13 @@ let orderSellerOrderId = null;
 let _osmIsCartContext = false;
 let _osmBucketId = null;
 
+function _osmHandleRemoveSeller(bucketId, sellerId) {
+  fetch(`/cart/api/bucket/${bucketId}/can_refill/${sellerId}`)
+    .then(res => res.json())
+    .then(data => openRemoveSellerConfirmation(bucketId, sellerId, data.canRefill))
+    .catch(() => openRemoveSellerConfirmation(bucketId, sellerId, false));
+}
+
 function _osmEsc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
@@ -12,6 +19,7 @@ function _osmEsc(s) {
 
 function openOrderSellerPopup(orderId) {
   _osmIsCartContext = false;
+  _osmBucketId = null;
   orderSellerOrderId = orderId;
   fetch(`/orders/api/${orderId}/order_sellers`)
     .then(res => {
@@ -95,6 +103,23 @@ function renderOrderSeller() {
   const memberSince = s.member_since || '--';
   const avgShipTime = s.avg_ship_time || '--';
 
+  const sellerId = s.seller_id;
+  const removeHtml = _osmIsCartContext && _osmBucketId != null ? `
+    <button class="osm-contact-btn osm-contact-btn--remove" type="button"
+            onclick="_osmHandleRemoveSeller(${_osmBucketId}, ${sellerId})">
+      <i class="fa-solid fa-user-minus"></i> Remove Seller
+    </button>` : '';
+
+  const contactHtml = orderSellerOrderId != null ? `
+    <button class="osm-contact-btn" onclick="openMessageModal(${orderSellerOrderId}, 'seller'); closeOrderSellerPopup();">
+      <i class="fa-regular fa-comment"></i> Contact Seller
+    </button>` : `
+    <button class="osm-contact-btn osm-contact-btn--locked" type="button" disabled>
+      <i class="fa-solid fa-lock"></i> Contact Seller
+    </button>
+    <p class="osm-contact-locked-note">Buy this item to contact the seller</p>`;
+
+
   document.getElementById('orderSellersModalContent').innerHTML = `
     ${navHtml}
 
@@ -141,37 +166,9 @@ function renderOrderSeller() {
       </div>
     </div>
 
-    ${_osmIsCartContext ? `
-    <button class="osm-remove-seller-btn" id="osm-remove-seller-btn" type="button" disabled>
-      <i class="fa-solid fa-trash"></i> Checking availability\u2026
-    </button>` : (orderSellerOrderId != null ? `
-    <button class="osm-contact-btn" onclick="openMessageModal(${orderSellerOrderId}, 'seller'); closeOrderSellerPopup();">
-      <i class="fa-regular fa-comment"></i> Contact Seller
-    </button>` : '')}
+    ${removeHtml}
+    ${contactHtml}
   `;
-
-  // In cart context, check if this seller can be refilled then enable the remove button
-  if (_osmIsCartContext && _osmBucketId != null) {
-    const sellerId = s.seller_id;
-    fetch(`/cart/api/bucket/${_osmBucketId}/can_refill/${sellerId}`)
-      .then(res => res.json())
-      .then(data => {
-        const btn = document.getElementById('osm-remove-seller-btn');
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fa-solid fa-trash"></i> Remove Seller';
-          btn.onclick = () => openRemoveSellerConfirmation(_osmBucketId, sellerId, data.canRefill);
-        }
-      })
-      .catch(() => {
-        const btn = document.getElementById('osm-remove-seller-btn');
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fa-solid fa-trash"></i> Remove Seller';
-          btn.onclick = () => openRemoveSellerConfirmation(_osmBucketId, sellerId, false);
-        }
-      });
-  }
 }
 
 function openCartSellerPopup(bucketId) {
@@ -202,7 +199,8 @@ function openCartSellerPopup(bucketId) {
 }
 
 function openBucketSellerPopup(bucketId) {
-  _osmIsCartContext = true;
+  _osmIsCartContext = false;
+  _osmBucketId = null;
   orderSellerOrderId = null;
   fetch(`/api/bucket/${bucketId}/sellers`)
     .then(res => {
@@ -317,6 +315,7 @@ function openOrderBuyerPopup(orderId) {
 }
 
 // expose globally
+window._osmHandleRemoveSeller = _osmHandleRemoveSeller;
 window.openOrderSellerPopup = openOrderSellerPopup;
 window.openOrderBuyerPopup = openOrderBuyerPopup;
 window.openCartSellerPopup = openCartSellerPopup;

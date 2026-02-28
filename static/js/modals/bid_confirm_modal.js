@@ -58,12 +58,12 @@ async function openBidConfirmModal(data) {
         if (metal && spotData.prices[metal.toLowerCase()]) {
           currentSpotPrice = spotData.prices[metal.toLowerCase()];
 
-          // Calculate effective price: (spot * weight) + premium
-          // NOTE: Floor is shown separately but NOT applied to display price
+          // Effective bid price = min(spot * weight + premium, ceiling).
+          // Ceiling is the buyer's hard maximum — never show more than ceiling.
           const spotPremium = parseFloat(data.spotPremium) || 0;
           const ceilingPrice = parseFloat(data.ceilingPrice) || 0;
           const calculatedPrice = (currentSpotPrice * weight) + spotPremium;
-          effectivePrice = calculatedPrice;  // Show calculated price, not floor-adjusted
+          effectivePrice = ceilingPrice > 0 ? Math.min(calculatedPrice, ceilingPrice) : calculatedPrice;
 
           console.log('Bid confirmation - Spot price calculation:', {
             metal,
@@ -73,7 +73,7 @@ async function openBidConfirmModal(data) {
             ceilingPrice,
             calculatedPrice,
             effectivePrice,
-            note: 'Effective price = spot + premium (ceiling shown separately)'
+            note: 'Effective price = min(spot*weight + premium, ceiling)'
           });
 
           // Store calculated values for success modal

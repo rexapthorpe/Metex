@@ -142,8 +142,17 @@ function renderValueChart(historyData) {
 
     console.log('[Portfolio] Canvas found, preparing data...');
 
-    // If only 1 data point, pad with earlier point to show a line
     let chartData = [...historyData];
+
+    // Filter leading zeros — only show from the first data point where the
+    // portfolio had actual value (avoids ugly hockey-stick from zero-padded history)
+    const firstNonZeroIdx = chartData.findIndex(item => (item.value || 0) > 0 || (item.cost_basis || 0) > 0);
+    if (firstNonZeroIdx > 1) {
+        // Keep one zero point before the first real value so the line starts cleanly
+        chartData = chartData.slice(firstNonZeroIdx - 1);
+    }
+
+    // If only 1 data point, pad with earlier point to show a line
     if (chartData.length === 1) {
         console.log('[Portfolio] Only 1 data point - adding padding for visibility');
         const singlePoint = chartData[0];
@@ -213,6 +222,9 @@ function renderValueChart(historyData) {
         portfolioValueChart.destroy();
     }
 
+    // Detect mobile for responsive chart options
+    const isMobile = window.innerWidth <= 600;
+
     // Create gradient
     try {
         const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
@@ -221,35 +233,26 @@ function renderValueChart(historyData) {
 
         console.log('[Portfolio] Creating Chart.js chart...');
 
-        // Configure y-axis based on whether portfolio is empty
+        // Y-axis: hidden (clean chart like bucket page — no axis, no grid lines)
         const yAxisConfig = {
-            grid: {
-                color: '#f3f4f6',
-                drawBorder: false
-            },
-            ticks: {
-                font: {
-                    size: 12
-                },
-                color: '#6b7280',
-                callback: function(value) {
-                    return '$' + formatWithCommas(value, 0);
-                }
-            }
+            display: false,
+            grid: { display: false },
+            ticks: { display: false }
         };
 
-        // If all values are zero, fix y-axis from 0 to 100 (no negative values)
+        // Still set min/max for proper scaling even though the axis is hidden
         if (allZero) {
             yAxisConfig.min = 0;
             yAxisConfig.max = 100;
             yAxisConfig.beginAtZero = true;
-            console.log('[Portfolio] Using fixed y-axis (0-100) for empty portfolio');
         } else {
-            // For non-zero data, set y-axis from 0 to maxValue * 1.2 (20% headroom)
-            yAxisConfig.min = 0;
-            yAxisConfig.max = Math.ceil(maxValue * 1.2);
-            yAxisConfig.beginAtZero = true;
-            console.log('[Portfolio] Using scaled y-axis (0-' + yAxisConfig.max + ') with 20% headroom');
+            // 10% padding above and below data range for breathing room
+            const dataMin = Math.min(...values, ...costBasis);
+            const dataMax = Math.max(...values, ...costBasis);
+            const range = dataMax - dataMin || dataMax * 0.1 || 10;
+            yAxisConfig.min = Math.max(0, dataMin - range * 0.1);
+            yAxisConfig.max = dataMax + range * 0.1;
+            yAxisConfig.beginAtZero = false;
         }
 
         // Create chart
@@ -263,27 +266,27 @@ function renderValueChart(historyData) {
                     data: values,
                     borderColor: '#0066cc',
                     backgroundColor: gradient,
-                    borderWidth: 3,
+                    borderWidth: isMobile ? 2 : 3,
                     fill: true,
                     tension: 0.4,
-                    pointRadius: 4,
+                    pointRadius: isMobile ? 0 : 4,
                     pointBackgroundColor: '#0066cc',
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2,
-                    pointHoverRadius: 7,
+                    pointHoverRadius: isMobile ? 4 : 7,
                     pointHoverBackgroundColor: '#0066cc',
                     pointHoverBorderColor: '#ffffff',
-                    pointHoverBorderWidth: 3
+                    pointHoverBorderWidth: 2
                 },
                 {
                     label: 'Cost Basis',
                     data: costBasis,
                     borderColor: '#9ca3af',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
+                    borderWidth: isMobile ? 1 : 2,
+                    borderDash: [4, 4],
                     fill: false,
                     tension: 0.4,
-                    pointRadius: 3,
+                    pointRadius: 0,
                     pointBackgroundColor: '#9ca3af',
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 1
@@ -293,6 +296,9 @@ function renderValueChart(historyData) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: { left: 0, right: 0, top: 4, bottom: 0 }
+            },
             interaction: {
                 intersect: false,
                 mode: 'index'
@@ -320,15 +326,15 @@ function renderValueChart(historyData) {
             },
             plugins: {
                 legend: {
-                    display: true,
+                    display: !isMobile,   /* hide on mobile — saves ~30px vertical */
                     position: 'top',
                     align: 'end',
                     labels: {
                         boxWidth: 12,
                         boxHeight: 12,
-                        padding: 15,
+                        padding: 12,
                         font: {
-                            size: 13,
+                            size: 12,
                             weight: '600'
                         }
                     }

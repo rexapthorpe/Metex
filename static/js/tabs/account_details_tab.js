@@ -16,7 +16,7 @@ function showDetailsSection(sectionName) {
     section.classList.add('active');
   }
 
-  // Update active state on secondary sidebar items
+  // Update active state on secondary sidebar items (desktop)
   document.querySelectorAll('.account-secondary-sidebar li').forEach(item => {
     item.classList.remove('active');
     const onclick = item.getAttribute('onclick') || '';
@@ -24,6 +24,23 @@ function showDetailsSection(sectionName) {
       item.classList.add('active');
     }
   });
+
+  // Update active state on mobile sub-nav items
+  document.querySelectorAll('.details-mobile-nav-item').forEach(item => {
+    item.classList.remove('active');
+    const onclick = item.getAttribute('onclick') || '';
+    if (onclick.includes(`'${sectionName}'`)) {
+      item.classList.add('active');
+    }
+  });
+
+  // On mobile, scroll the activated section into view below the nav list
+  if (window.innerWidth <= 768 && section) {
+    setTimeout(function() {
+      var top = section.getBoundingClientRect().top + window.scrollY - 160;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, 50);
+  }
 }
 
 // Make it globally accessible

@@ -16,18 +16,62 @@ const POLL_INTERVAL = 30000; // Poll every 30 seconds
 // ===================================
 
 const NOTIF_ICON_MAP = {
-    'bid_filled':       { icon: 'fa-dollar-sign',  bg: '#f3e8ff', color: '#9333ea' },
-    'new_bid':          { icon: 'fa-dollar-sign',  bg: '#f3e8ff', color: '#9333ea' },
-    'bid_received':     { icon: 'fa-dollar-sign',  bg: '#f3e8ff', color: '#9333ea' },
-    'order_confirmed':  { icon: 'fa-cube',          bg: '#dbeafe', color: '#6366f1' },
-    'order_shipped':    { icon: 'fa-cube',          bg: '#dbeafe', color: '#6366f1' },
-    'order_delivered':  { icon: 'fa-cube',          bg: '#e0e7ff', color: '#818cf8' },
-    'listing_sold':     { icon: 'fa-tag',           bg: '#dbeafe', color: '#2563eb' },
-    'new_message':      { icon: 'fa-comment',       bg: '#dcfce7', color: '#22c55e' },
-    'message':          { icon: 'fa-comment',       bg: '#dcfce7', color: '#22c55e' },
-    'new_review':       { icon: 'fa-star',          bg: '#fef9c3', color: '#ca8a04' },
-    'rating':           { icon: 'fa-star',          bg: '#fef9c3', color: '#ca8a04' },
-    'review':           { icon: 'fa-star',          bg: '#fef9c3', color: '#ca8a04' },
+    // ── Legacy ──────────────────────────────────────────────────────────
+    'bid_filled':                           { icon: 'fa-dollar-sign',    bg: '#f3e8ff', color: '#9333ea' },
+    'new_bid':                              { icon: 'fa-dollar-sign',    bg: '#f3e8ff', color: '#9333ea' },
+    'bid_received':                         { icon: 'fa-dollar-sign',    bg: '#f3e8ff', color: '#9333ea' },
+    'order_confirmed':                      { icon: 'fa-cube',           bg: '#dbeafe', color: '#6366f1' },
+    'order_shipped':                        { icon: 'fa-truck',          bg: '#dbeafe', color: '#2563eb' },
+    'order_delivered':                      { icon: 'fa-cube',           bg: '#e0e7ff', color: '#818cf8' },
+    'listing_sold':                         { icon: 'fa-tag',            bg: '#dbeafe', color: '#2563eb' },
+    'new_message':                          { icon: 'fa-comment',        bg: '#dcfce7', color: '#22c55e' },
+    'message':                              { icon: 'fa-comment',        bg: '#dcfce7', color: '#22c55e' },
+    'new_review':                           { icon: 'fa-star',           bg: '#fef9c3', color: '#ca8a04' },
+    'rating':                               { icon: 'fa-star',           bg: '#fef9c3', color: '#ca8a04' },
+    'review':                               { icon: 'fa-star',           bg: '#fef9c3', color: '#ca8a04' },
+    // ── Listings ────────────────────────────────────────────────────────
+    'listing_created_success':              { icon: 'fa-tag',            bg: '#dcfce7', color: '#16a34a' },
+    'listing_edited':                       { icon: 'fa-pen',            bg: '#f3f4f6', color: '#6b7280' },
+    'listing_delisted':                     { icon: 'fa-ban',            bg: '#fee2e2', color: '#ef4444' },
+    'listing_expired':                      { icon: 'fa-clock',          bg: '#fff7ed', color: '#f59e0b' },
+    // ── Bids ────────────────────────────────────────────────────────────
+    'bid_placed_success':                   { icon: 'fa-gavel',          bg: '#f3e8ff', color: '#9333ea' },
+    'bid_placed':                           { icon: 'fa-gavel',          bg: '#f3e8ff', color: '#9333ea' },
+    'bid_on_bucket':                        { icon: 'fa-gavel',          bg: '#f3e8ff', color: '#9333ea' },
+    'bid_fully_filled':                     { icon: 'fa-circle-check',   bg: '#dcfce7', color: '#16a34a' },
+    'bid_partially_accepted':               { icon: 'fa-circle-half-stroke', bg: '#f0fdf4', color: '#22c55e' },
+    'outbid':                               { icon: 'fa-arrow-up',       bg: '#fff7ed', color: '#f59e0b' },
+    'bid_withdrawn':                        { icon: 'fa-minus-circle',   bg: '#f3f4f6', color: '#9ca3af' },
+    'bid_now_leading':                      { icon: 'fa-trophy',         bg: '#fef9c3', color: '#ca8a04' },
+    'bid_rejected_or_expired':              { icon: 'fa-clock',          bg: '#fee2e2', color: '#ef4444' },
+    // ── Orders (buyer) ──────────────────────────────────────────────────
+    'order_created':                        { icon: 'fa-cube',           bg: '#dbeafe', color: '#6366f1' },
+    'order_status_updated':                 { icon: 'fa-rotate',         bg: '#dbeafe', color: '#3b82f6' },
+    'tracking_updated':                     { icon: 'fa-truck',          bg: '#dbeafe', color: '#2563eb' },
+    'delivered_confirmed':                  { icon: 'fa-circle-check',   bg: '#dcfce7', color: '#16a34a' },
+    'cancellation_requested':               { icon: 'fa-circle-xmark',   bg: '#fff7ed', color: '#f59e0b' },
+    'cancellation_denied':                  { icon: 'fa-ban',            bg: '#fee2e2', color: '#ef4444' },
+    'cancellation_approved':                { icon: 'fa-circle-check',   bg: '#dcfce7', color: '#16a34a' },
+    'cancel_request_submitted':             { icon: 'fa-circle-xmark',   bg: '#fff7ed', color: '#f59e0b' },
+    'cancellation_request':                 { icon: 'fa-circle-xmark',   bg: '#fff7ed', color: '#f59e0b' },
+    // ── Sales (seller) ──────────────────────────────────────────────────
+    'seller_order_received':                { icon: 'fa-store',          bg: '#dbeafe', color: '#2563eb' },
+    'seller_fulfillment_needed':            { icon: 'fa-truck',          bg: '#fff7ed', color: '#f59e0b' },
+    'seller_cancellation_request_received': { icon: 'fa-circle-xmark',   bg: '#fee2e2', color: '#ef4444' },
+    'seller_cancellation_finalized':        { icon: 'fa-circle-check',   bg: '#dcfce7', color: '#16a34a' },
+    // ── Messages ────────────────────────────────────────────────────────
+    'new_order_message':                    { icon: 'fa-comment',        bg: '#dcfce7', color: '#22c55e' },
+    'new_direct_message':                   { icon: 'fa-comment-dots',   bg: '#dcfce7', color: '#16a34a' },
+    // ── Ratings ─────────────────────────────────────────────────────────
+    'rating_received':                      { icon: 'fa-star',           bg: '#fef9c3', color: '#ca8a04' },
+    'rating_submitted':                     { icon: 'fa-star',           bg: '#f0fdf4', color: '#22c55e' },
+    'rating_to_leave_reminder':             { icon: 'fa-star-half',      bg: '#fef9c3', color: '#ca8a04' },
+    // ── Account / Security ──────────────────────────────────────────────
+    'new_login':                            { icon: 'fa-shield-halved',  bg: '#fff7ed', color: '#f59e0b' },
+    'password_changed':                     { icon: 'fa-lock',           bg: '#fee2e2', color: '#ef4444' },
+    'email_changed':                        { icon: 'fa-envelope',       bg: '#dbeafe', color: '#3b82f6' },
+    // ── Reports ─────────────────────────────────────────────────────────
+    'report_submitted':                     { icon: 'fa-flag',           bg: '#fff7ed', color: '#f59e0b' },
 };
 
 function getNotifIcon(type) {
@@ -39,11 +83,35 @@ function getNotifIcon(type) {
 // ===================================
 
 function getTargetUrl(type) {
-    if (type === 'bid_filled' || type === 'new_bid' || type === 'bid_received') return '/account#orders';
-    if (type === 'order_confirmed' || type === 'order_shipped' || type === 'order_delivered') return '/account#orders';
-    if (type === 'listing_sold') return '/account#sold';
-    if (type === 'new_message' || type === 'message') return '/account#messages';
-    if (type === 'new_review' || type === 'rating' || type === 'review') return '/account#ratings';
+    const ORDERS_TYPES = new Set([
+        'bid_filled','new_bid','order_confirmed','order_created','order_status_updated',
+        'order_shipped','tracking_updated','delivered_confirmed',
+        'cancellation_requested','cancellation_denied','cancellation_approved',
+        'cancel_request_submitted','cancellation_request',
+        'bid_fully_filled','bid_partially_accepted',
+    ]);
+    const BIDS_TYPES = new Set([
+        'bid_placed','bid_placed_success','bid_received','bid_on_bucket',
+        'bid_withdrawn','bid_rejected_or_expired','outbid','bid_now_leading',
+    ]);
+    const SOLD_TYPES = new Set([
+        'listing_sold','seller_order_received','seller_fulfillment_needed',
+        'seller_cancellation_request_received','seller_cancellation_finalized',
+    ]);
+    const LISTINGS_TYPES = new Set([
+        'listing_created_success','listing_edited','listing_delisted','listing_expired',
+    ]);
+    const MSG_TYPES = new Set(['new_message','message','new_order_message','new_direct_message']);
+    const RATING_TYPES = new Set(['new_review','rating','review','rating_received','rating_submitted','rating_to_leave_reminder']);
+    const ACCOUNT_TYPES = new Set(['new_login','password_changed','email_changed','report_submitted']);
+
+    if (ORDERS_TYPES.has(type)) return '/account#orders';
+    if (BIDS_TYPES.has(type))   return '/account#bids';
+    if (SOLD_TYPES.has(type))   return '/account#sold';
+    if (LISTINGS_TYPES.has(type)) return '/account#listings';
+    if (MSG_TYPES.has(type))    return '/account#messages';
+    if (RATING_TYPES.has(type)) return '/account#ratings';
+    if (ACCOUNT_TYPES.has(type)) return '/account#details';
     return '/account';
 }
 

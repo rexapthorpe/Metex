@@ -6,9 +6,6 @@
       <h1 class="tab-page-title">Portfolio</h1>
       <p class="tab-page-subtitle">Track your precious metals investments</p>
     </div>
-    <button class="portfolio-privacy-btn" title="Toggle visibility" onclick="this.querySelector('i').classList.toggle('fa-eye-slash'); this.querySelector('i').classList.toggle('fa-eye')">
-      <i class="fa-regular fa-eye-slash"></i>
-    </button>
   </div>
 
   <!-- Stats Row -->
@@ -34,34 +31,31 @@
     </div>
   </div>
 
-  <!-- Charts Row: Performance + Allocation -->
-  <div class="portfolio-charts-row">
-    <!-- Performance Chart -->
-    <div class="portfolio-chart-card">
-      <div class="portfolio-chart-header">
-        <span class="portfolio-chart-title">Performance</span>
-        <div class="time-range-selector">
-          <button class="time-btn" data-range="1d">1D</button>
-          <button class="time-btn" data-range="1w">1W</button>
-          <button class="time-btn active" data-range="1m">1M</button>
-          <button class="time-btn" data-range="3m">3M</button>
-          <button class="time-btn" data-range="1y">1Y</button>
-          <button class="time-btn" data-range="all">ALL</button>
-        </div>
-      </div>
-      <div class="portfolio-chart-container">
-        <canvas id="portfolio-value-chart"></canvas>
+  <!-- Performance Chart (full-width) -->
+  <div class="portfolio-chart-card">
+    <div class="portfolio-chart-header">
+      <span class="portfolio-chart-title">Performance</span>
+      <div class="time-range-selector">
+        <button class="time-btn" data-range="1d">1D</button>
+        <button class="time-btn" data-range="1w">1W</button>
+        <button class="time-btn active" data-range="1m">1M</button>
+        <button class="time-btn" data-range="3m">3M</button>
+        <button class="time-btn" data-range="1y">1Y</button>
+        <button class="time-btn" data-range="all">ALL</button>
       </div>
     </div>
+    <div class="portfolio-chart-container">
+      <canvas id="portfolio-value-chart"></canvas>
+    </div>
+  </div>
 
-    <!-- Allocation Donut -->
-    <div class="portfolio-allocation-card">
-      <div class="portfolio-chart-title">Allocation</div>
-      <div class="allocation-chart-container">
-        <canvas id="portfolio-allocation-chart"></canvas>
-      </div>
-      <div id="allocation-legend" class="allocation-legend"></div>
+  <!-- Allocation Donut -->
+  <div class="portfolio-allocation-card">
+    <div class="portfolio-chart-title">Allocation</div>
+    <div class="allocation-chart-container">
+      <canvas id="portfolio-allocation-chart"></canvas>
     </div>
+    <div id="allocation-legend" class="allocation-legend"></div>
   </div>
 
   <!-- Holdings Table -->

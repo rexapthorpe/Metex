@@ -408,6 +408,8 @@ main {
     margin-top: 0;
     margin-bottom: 0;
     min-height: 0;
+    /* Mobile header wraps to 2 rows (~100px); override the 64px desktop value */
+    padding-top: 100px;
   }
 
   /* Hide the desktop sidebar rule on mobile */
@@ -475,5 +477,93 @@ main {
 
   .account-mobile-header {
     padding: 10px 12px;
+  }
+}
+
+/* ============================================================
+   ACCOUNT DETAILS: MOBILE SUB-NAV
+   Visible only on mobile (<= 768px). Replaces the secondary
+   sidebar (which is hidden on mobile) so users can switch
+   between Account Details sections.
+   Styled as a vertical list matching the desktop secondary sidebar.
+   ============================================================ */
+
+.details-mobile-subnav {
+  display: none; /* hidden on desktop */
+  margin-bottom: 24px;
+}
+
+.details-mobile-subnav-heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.details-mobile-subnav-subtitle {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.details-mobile-subnav-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.details-mobile-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.details-mobile-nav-item i {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  color: #64748b;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.details-mobile-nav-item span {
+  flex: 1;
+}
+
+.details-mobile-nav-item:hover {
+  background: #f1f5f9;
+}
+
+.details-mobile-nav-item.active {
+  background: #1a2b4a;
+  color: #ffffff;
+}
+
+.details-mobile-nav-item.active i {
+  color: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .details-mobile-subnav {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .details-mobile-subnav-heading {
+    font-size: 1.3rem;
   }
 }
