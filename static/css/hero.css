@@ -323,12 +323,17 @@ main.container:has(.market-hero) {
   }
 }
 
-@media (max-width: 640px) {
+/* Mobile header is ~120px tall — recalibrate the flush-fit offsets */
+@media (max-width: 768px) {
   .market-hero {
-    padding: 36px 0 30px;
+    margin-top: -120px;
+    padding-top: calc(120px + 36px);
+    padding-bottom: 30px;
     margin-bottom: 24px;
   }
+}
 
+@media (max-width: 640px) {
   .market-hero-headline {
     font-size: 2rem;
   }
@@ -339,5 +344,13 @@ main.container:has(.market-hero) {
 
   .market-hero-right {
     max-width: 100%;
+  }
+}
+
+/* 480px breakpoint matches main padding-top: 115px in base.css */
+@media (max-width: 480px) {
+  .market-hero {
+    margin-top: -115px;
+    padding-top: calc(115px + 24px);
   }
 }

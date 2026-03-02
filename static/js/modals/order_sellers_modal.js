@@ -2,6 +2,7 @@ let orderSellerData = [];
 let orderSellerIndex = 0;
 let orderSellerOrderId = null;
 let _osmIsCartContext = false;
+let _osmIsBucketContext = false;
 let _osmBucketId = null;
 
 function _osmHandleRemoveSeller(bucketId, sellerId) {
@@ -19,6 +20,7 @@ function _osmEsc(s) {
 
 function openOrderSellerPopup(orderId) {
   _osmIsCartContext = false;
+  _osmIsBucketContext = false;
   _osmBucketId = null;
   orderSellerOrderId = orderId;
   fetch(`/orders/api/${orderId}/order_sellers`)
@@ -102,6 +104,10 @@ function renderOrderSeller() {
   const repeatBuyersPct = (s.repeat_buyers_pct != null) ? `${s.repeat_buyers_pct}%` : '--';
   const memberSince = s.member_since || '--';
   const avgShipTime = s.avg_ship_time || '--';
+  const unitsListed = s.total_qty != null ? Number(s.total_qty).toLocaleString() : '--';
+  const avgPrice = s.avg_price != null
+    ? '$' + Number(s.avg_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '--';
 
   const sellerId = s.seller_id;
   const removeHtml = _osmIsCartContext && _osmBucketId != null ? `
@@ -149,6 +155,22 @@ function renderOrderSeller() {
         </div>
       </div>
       <div class="osm-stats-bottom">
+        ${_osmIsBucketContext ? `
+        <div class="osm-stat-item">
+          <div class="osm-stat-icon"><i class="fa-solid fa-layer-group"></i></div>
+          <div>
+            <div class="osm-stat-label">Units listed</div>
+            <div class="osm-stat-value">${unitsListed}</div>
+          </div>
+        </div>
+        <div class="osm-stat-item">
+          <div class="osm-stat-icon"><i class="fa-solid fa-tag"></i></div>
+          <div>
+            <div class="osm-stat-label">Avg. price</div>
+            <div class="osm-stat-value">${avgPrice}</div>
+          </div>
+        </div>
+        ` : `
         <div class="osm-stat-item">
           <div class="osm-stat-icon"><i class="fa-solid fa-truck"></i></div>
           <div>
@@ -163,6 +185,7 @@ function renderOrderSeller() {
             <div class="osm-stat-value">${memberSince}</div>
           </div>
         </div>
+        `}
       </div>
     </div>
 
@@ -173,6 +196,7 @@ function renderOrderSeller() {
 
 function openCartSellerPopup(bucketId) {
   _osmIsCartContext = true;
+  _osmIsBucketContext = false;
   _osmBucketId = bucketId;
   orderSellerOrderId = null;
   fetch(`/cart/api/bucket/${bucketId}/cart_sellers`)
@@ -200,6 +224,7 @@ function openCartSellerPopup(bucketId) {
 
 function openBucketSellerPopup(bucketId) {
   _osmIsCartContext = false;
+  _osmIsBucketContext = true;
   _osmBucketId = null;
   orderSellerOrderId = null;
   fetch(`/api/bucket/${bucketId}/sellers`)

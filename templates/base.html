@@ -61,8 +61,18 @@
     <div class="frozen-banner" style="background-color: #dc3545; color: white; padding: 12px 20px; text-align: center; position: fixed; top: 0; left: 0; right: 0; z-index: 1001; font-weight: bold;">
         Your account has been frozen. Reason: {{ freeze_reason }}
         {% if frozen_admin_id %}
-        | <a href="{{ url_for('messages.messages') }}?to={{ frozen_admin_id }}" style="color: white; text-decoration: underline;">Contact Admin</a>
+        | <a href="{{ url_for('account.my_messages') }}?to={{ frozen_admin_id }}" style="color: white; text-decoration: underline;">Contact Admin</a>
         {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Admin Message Banner (shown by JS when user has unread admin messages) -->
+    {% if session.get('user_id') %}
+    <div id="adminMessageBanner" class="admin-msg-banner" role="alert" aria-live="polite">
+        <i class="fa-solid fa-envelope"></i>
+        <span>You have an unread message from MetEx.</span>
+        <a href="{{ url_for('account.account') }}#messages" id="adminBannerLink">View Message</a>
+        <button class="admin-msg-banner-close" id="adminBannerClose" aria-label="Dismiss">&times;</button>
     </div>
     {% endif %}
 
@@ -190,12 +200,42 @@
             <!-- Notifications will be dynamically loaded here -->
             <div class="notification-loading">Loading notifications...</div>
         </div>
-        <div class="notification-sidebar-footer">
-            <a href="/account" class="notif-view-all-btn">View All Notifications</a>
+        <div class="notification-sidebar-footer" id="notifFooter">
+            <button class="notif-view-all-btn" id="notifViewAllBtn" onclick="loadMoreNotifications()">View All Notifications</button>
         </div>
     </div>
     <!-- Notification Overlay -->
     <div class="notification-overlay" id="notificationOverlay"></div>
+    <!-- Notification Toast Container -->
+    <div id="notif-toast-container"></div>
+    {% endif %}
+
+    <!-- Contact Support Modal -->
+    {% if session.get('user_id') %}
+    <div id="contactSupportModal" class="contact-modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="contactModalTitle">
+        <div class="contact-modal" id="contactModalBox">
+            <!-- Form view -->
+            <div id="contactModalForm">
+                <div class="contact-modal-header">
+                    <h2 id="contactModalTitle">Contact Support</h2>
+                    <button class="contact-modal-close" id="contactModalClose" type="button" aria-label="Close">&times;</button>
+                </div>
+                <div class="contact-modal-body">
+                    <p class="contact-modal-subtitle">Send a message to our team. We'll reply in your messages inbox.</p>
+                    <textarea id="contactMessageText" class="contact-modal-textarea"
+                              placeholder="Describe your issue or question…" maxlength="2000"></textarea>
+                    <div class="contact-modal-char-count"><span id="contactCharCount">0</span> / 2000</div>
+                    <div class="contact-modal-error" id="contactModalError"></div>
+                </div>
+                <div class="contact-modal-footer">
+                    <button class="contact-modal-cancel" id="contactModalCancel" type="button">Cancel</button>
+                    <button class="contact-modal-send" id="contactModalSend" type="button">
+                        <i class="fa-solid fa-paper-plane"></i> Send Message
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     {% endif %}
 
     <!-- Format utilities (must load first - used globally) -->
@@ -255,6 +295,13 @@
             <div class="footer-column footer-legal">
                 <h3>Contact & Legal</h3>
                 <ul class="footer-links">
+                    <li>
+                        {% if session.get('user_id') %}
+                        <a href="#" id="openContactSupport"><i class="fa-regular fa-message" style="margin-right:5px;"></i>Contact Support</a>
+                        {% else %}
+                        <a href="{{ url_for('auth.login') }}"><i class="fa-regular fa-message" style="margin-right:5px;"></i>Contact Support</a>
+                        {% endif %}
+                    </li>
                     <li><a href="mailto:support@metex.com">support@metex.com</a></li>
                     <li><a href="#terms">Terms of Service</a></li>
                     <li><a href="#privacy">Privacy Policy</a></li>
@@ -323,5 +370,173 @@
         }
     })();
     </script>
+
+    <!-- Contact Support Modal JS -->
+    {% if session.get('user_id') %}
+    <script>
+    (function () {
+        var modal   = document.getElementById('contactSupportModal');
+        var openBtn = document.getElementById('openContactSupport');
+        if (!modal || !openBtn) return;
+
+        var textarea  = document.getElementById('contactMessageText');
+        var charCount = document.getElementById('contactCharCount');
+        var sendBtn   = document.getElementById('contactModalSend');
+        var errorEl   = document.getElementById('contactModalError');
+        var formEl    = document.getElementById('contactModalForm');
+
+        function openModal() {
+            // Reset to form state each time
+            formEl.style.display = '';
+            textarea.value = '';
+            if (charCount) charCount.textContent = '0';
+            if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+            if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Message'; }
+            modal.style.display = 'flex';
+            setTimeout(function () { textarea.focus(); }, 50);
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        function showSuccess() {
+            formEl.innerHTML =
+                '<div class="contact-modal-success">' +
+                    '<div class="contact-modal-success-icon"><i class="fa-solid fa-circle-check"></i></div>' +
+                    '<h3>Message Sent!</h3>' +
+                    '<p>We\'ll reply in your messages inbox shortly.</p>' +
+                '</div>';
+            setTimeout(closeModal, 2200);
+        }
+
+        function showError(msg) {
+            if (!errorEl) return;
+            errorEl.textContent = msg || 'Something went wrong. Please try again.';
+            errorEl.style.display = 'block';
+        }
+
+        // Open
+        openBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            openModal();
+        });
+
+        // Close via × or Cancel
+        document.getElementById('contactModalClose').addEventListener('click', closeModal);
+        document.getElementById('contactModalCancel').addEventListener('click', closeModal);
+
+        // Close on overlay click (outside the modal box)
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+
+        // Close on Escape
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+        });
+
+        // Character counter
+        if (textarea && charCount) {
+            textarea.addEventListener('input', function () {
+                charCount.textContent = textarea.value.length;
+                if (errorEl) { errorEl.style.display = 'none'; }
+            });
+        }
+
+        // Send
+        if (sendBtn) {
+            sendBtn.addEventListener('click', function () {
+                var text = textarea.value.trim();
+                if (!text) { showError('Please enter a message before sending.'); return; }
+
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…';
+                if (errorEl) errorEl.style.display = 'none';
+
+                var form = new FormData();
+                form.append('message_text', text);
+
+                fetch('/api/admin/messages', {
+                    method: 'POST',
+                    body: form,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'sent') {
+                        showSuccess();
+                    } else {
+                        showError(data.error || 'Failed to send. Please try again.');
+                        sendBtn.disabled = false;
+                        sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Message';
+                    }
+                })
+                .catch(function () {
+                    showError('Network error. Please try again.');
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Message';
+                });
+            });
+        }
+    })();
+    </script>
+    {% endif %}
+
+    <!-- Admin Message Banner JS -->
+    {% if session.get('user_id') %}
+    <script>
+    (function () {
+        var banner = document.getElementById('adminMessageBanner');
+        if (!banner) return;
+
+        var dismissed = false;
+
+        function showBanner() {
+            banner.style.display = 'flex';
+            document.body.classList.add('admin-banner-visible');
+        }
+
+        function hideBanner() {
+            banner.style.display = 'none';
+            document.body.classList.remove('admin-banner-visible');
+        }
+
+        function check() {
+            fetch('/api/messages/admin-unread')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.has_unread && !dismissed) {
+                        showBanner();
+                    } else {
+                        hideBanner();
+                    }
+                })
+                .catch(function () {}); // fail silently
+        }
+
+        // Close button — session-level dismiss (banner won't reappear until page reload)
+        var closeBtn = document.getElementById('adminBannerClose');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+                dismissed = true;
+                hideBanner();
+            });
+        }
+
+        // Expose so messages_tab.html can trigger an immediate recheck after marking read
+        window.refreshAdminBanner = check;
+
+        // Run on load, then every 60s
+        check();
+        setInterval(check, 60000);
+
+        // Recheck when tab regains focus (user may have read the message in another tab)
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden && !dismissed) check();
+        });
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>

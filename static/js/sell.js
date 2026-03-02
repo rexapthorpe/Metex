@@ -663,16 +663,12 @@ function updatePricePreview() {
     const spotPriceSpan = loadedDiv.querySelector('.spot-price');
     const spotMetalNameSpan = loadedDiv.querySelector('.spot-metal-name');
 
-    // Parse weight
-    const weightStr = weightInput?.value || '1';
-    const weightMatch = weightStr.match(/[\d.]+/);
-    const weight = weightMatch ? parseFloat(weightMatch[0]) : 1.0;
-
     // Parse premium and floor
     const premium = parseFloat(spotPremiumInput?.value) || 0;
     const floor = parseFloat(floorPriceInput?.value) || 0;
 
-    const computedPrice = (spotPrice * weight) + premium;
+    // effective ask = max(spot + premium, floor)
+    const computedPrice = spotPrice + premium;
     const effectivePrice = Math.max(computedPrice, floor);
 
     if (previewAmountSpan) previewAmountSpan.textContent = formatPrice(effectivePrice);

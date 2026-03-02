@@ -146,7 +146,7 @@ function renderMetricsChart(metricType, dataPoints, config) {
         backgroundColor: gradient,
         borderWidth: 2.5,
         fill: true,
-        tension: 0.4,
+        tension: 0,
         pointRadius: 0,
         pointHoverRadius: 6,
         pointHoverBackgroundColor: config.color,

@@ -149,7 +149,11 @@
 
   function closeModal() {
     ratingsModal.style.display = 'none';
-    // Reset confirmation state for next open
+    // Restore elements hidden by showConfirmation so next open is fully populated
+    ['.rm-user-card', '.rm-divider', '#ratingForm'].forEach(sel => {
+      const el = ratingsModal.querySelector(sel);
+      if (el) el.style.display = '';
+    });
     const confirm = document.getElementById('rmConfirm');
     if (confirm) confirm.style.display = 'none';
   }
@@ -181,7 +185,10 @@
       });
     }
 
-    setTimeout(() => closeModal(), 1800);
+    setTimeout(() => {
+      closeModal();
+      window.location.reload();
+    }, 1800);
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -231,7 +238,10 @@
           console.error('Rating error:', data.error);
         }
       })
-      .catch(() => showConfirmation());
+      .catch(err => {
+        console.error('Rating submission error:', err);
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Rating'; }
+      });
     });
   });
 

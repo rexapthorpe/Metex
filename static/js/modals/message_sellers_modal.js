@@ -210,13 +210,17 @@
     } catch(e) { return timestamp; }
   }
 
-  // Format timestamp for date separator ("Wednesday, Jan 7")
+  // Format timestamp for date separator: "DD, DayName, MonthName, YYYY"
   function formatDate(timestamp) {
     if (!timestamp) return '';
     try {
       const d = new Date(timestamp);
-      if (isNaN(d)) return '';
-      return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+      if (isNaN(d.getTime())) return '';
+      const dd = String(d.getDate()).padStart(2, '0');
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+      const monthName = d.toLocaleDateString('en-US', { month: 'long' });
+      const yyyy = d.getFullYear();
+      return `${dd}, ${dayName}, ${monthName}, ${yyyy}`;
     } catch(e) { return ''; }
   }
 

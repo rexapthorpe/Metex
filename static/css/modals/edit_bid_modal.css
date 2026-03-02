@@ -398,3 +398,24 @@
   }
   #editBidModal, #bidModal .edit-bid-modal { overflow-y: auto !important; }
 }
+
+/* ── Bid wizard (bm-wizard) mobile fix ──────────────────────────────────────
+   edit_bid_modal.css is loaded after bid_modal.css on every page that uses
+   the bid wizard, so its non-media-query rule
+     #bidModal .modal-content { padding: 50px !important }
+   wins over bid_modal.css's mobile override of 16px, making the wizard
+   narrower than intended and variable-width per step when scrollbars appear.
+
+   Fix: restore 16px padding and pin the wizard to an explicit vw-based width
+   so it stays identical on every step.
+   ─────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  #bidModal .modal-content {
+    padding: 16px !important;
+  }
+
+  #bidModal .bm-wizard {
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+  }
+}

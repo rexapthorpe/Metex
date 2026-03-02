@@ -9,13 +9,12 @@ Contains routes for editing bids:
 
 from flask import render_template, request, redirect, url_for, session, flash, jsonify
 from database import get_db_connection
-from services.notification_service import notify_bid_filled
+from services.notification_types import notify_bid_updated
 from services.spot_price_service import get_spot_price
 from services.pricing_service import get_effective_bid_price
 from utils.auth_utils import frozen_check
 
 from . import bid_bp
-from .auto_match import auto_match_bid_to_listings
 
 
 @bid_bp.route('/edit_bid/<int:bid_id>')
@@ -115,6 +114,7 @@ def update_bid():
         delivery_address = (request.form.get('delivery_address') or '').strip()
 
         requires_grading = (request.form.get('requires_grading') == 'yes')
+        random_year = 1 if request.form.get('random_year') == 'on' else 0
 
         # Extract pricing parameters based on mode
         if pricing_mode == 'premium_to_spot':
@@ -221,6 +221,7 @@ def update_bid():
                pricing_metal       = ?,
                recipient_first_name = ?,
                recipient_last_name  = ?,
+               random_year         = ?,
                status              = 'Open',
                active              = 1
          WHERE id = ? AND buyer_id = ?
@@ -237,17 +238,18 @@ def update_bid():
             pricing_metal,
             recipient_first,
             recipient_last,
+            random_year,
             bid_id,
             session['user_id']
         )
         )
 
-    # Auto-match bid to available listings (in case price increase opens new matches)
-    match_result = auto_match_bid_to_listings(bid_id, cursor)
+    # Bid stays open; seller must manually accept via view_bucket
+    match_result = {'filled_quantity': 0, 'orders_created': 0, 'message': '', 'notifications': []}
 
     # Get the updated bid with all fields for effective price calculation
     updated_bid = cursor.execute('''
-        SELECT b.*, c.metal, c.weight, c.product_type
+        SELECT b.*, c.metal, c.weight, c.product_type, c.product_line, c.year
         FROM bids b
         JOIN categories c ON b.category_id = c.id
         WHERE b.id = ?
@@ -256,17 +258,29 @@ def update_bid():
     conn.commit()
     conn.close()
 
-    # Send bid_filled notifications if bid was auto-filled (after commit)
-    if match_result.get('notifications'):
-        for notif_data in match_result['notifications']:
-            try:
-                notify_bid_filled(**notif_data)
-            except Exception as e:
-                print(f"[NOTIFICATION ERROR] Failed to send bid_filled notification: {e}")
-
-    # Calculate effective bid price
+    # Calculate effective bid price (must happen before notifications)
     bid_dict = dict(updated_bid) if updated_bid else {}
     effective_price = get_effective_bid_price(bid_dict) if updated_bid else bid_price
+
+    # Send bid_updated notification
+    if updated_bid and match_result.get('filled_quantity', 0) == 0:
+        try:
+            desc_parts = []
+            for field in ('metal', 'product_line', 'weight', 'year'):
+                val = bid_dict.get(field)
+                if val:
+                    desc_parts.append(str(val))
+            item_description = ' '.join(desc_parts) if desc_parts else 'Item'
+            notify_bid_updated(
+                bidder_id=session['user_id'],
+                bid_id=bid_id,
+                bucket_id=bid_dict.get('category_id'),
+                item_description=item_description,
+                quantity=bid_dict.get('quantity_requested', bid_quantity),
+                price_per_unit=effective_price,
+            )
+        except Exception as e:
+            print(f"[NOTIFICATION ERROR] Failed to send bid_updated notification: {e}")
 
     # Get current spot price if variable pricing
     current_spot_price = None

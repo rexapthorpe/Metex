@@ -428,6 +428,165 @@ def delete_user(user_id):
         conn.close()
 
 
+@admin_bp.route('/api/users/bulk-freeze', methods=['POST'])
+@admin_required
+def bulk_freeze_users():
+    """Freeze or unfreeze multiple users at once"""
+    from database import get_db_connection
+
+    data = request.get_json() or {}
+    user_ids = data.get('user_ids', [])
+    action = data.get('action', 'freeze')   # 'freeze' or 'unfreeze'
+    reason = data.get('reason', '').strip()
+
+    if not user_ids:
+        return jsonify({'success': False, 'error': 'No users selected'}), 400
+    if action == 'freeze' and not reason:
+        return jsonify({'success': False, 'error': 'A reason is required when freezing accounts'}), 400
+
+    new_status = 1 if action == 'freeze' else 0
+    stored_reason = reason if action == 'freeze' else None
+
+    conn = get_db_connection()
+    try:
+        count = 0
+        admin_id = session.get('user_id')
+        for uid in user_ids:
+            # Skip admins and the requesting admin's own account
+            user = conn.execute(
+                'SELECT id FROM users WHERE id = ? AND is_admin = 0 AND id != ?',
+                (uid, admin_id)
+            ).fetchone()
+            if user:
+                conn.execute(
+                    'UPDATE users SET is_frozen = ?, freeze_reason = ? WHERE id = ?',
+                    (new_status, stored_reason, uid)
+                )
+                count += 1
+        conn.commit()
+        action_word = 'frozen' if new_status else 'unfrozen'
+        return jsonify({
+            'success': True,
+            'message': f'{count} account{"s" if count != 1 else ""} {action_word} successfully',
+            'count': count
+        })
+    except Exception as e:
+        print(f"Error bulk freezing users: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@admin_bp.route('/api/users/bulk-delete', methods=['POST'])
+@admin_required
+def bulk_delete_users():
+    """Permanently delete multiple users and all their associated data"""
+    from database import get_db_connection
+
+    data = request.get_json() or {}
+    user_ids = data.get('user_ids', [])
+
+    if not user_ids:
+        return jsonify({'success': False, 'error': 'No users selected'}), 400
+
+    admin_id = session.get('user_id')
+    conn = get_db_connection()
+    try:
+        conn.execute('PRAGMA foreign_keys = OFF')
+        total_deleted = 0
+
+        for user_id in user_ids:
+            # Skip admins and the requesting admin's own account
+            user = conn.execute(
+                'SELECT id, username FROM users WHERE id = ? AND is_admin = 0 AND id != ?',
+                (user_id, admin_id)
+            ).fetchone()
+            if not user:
+                continue
+
+            def safe_del(sql, params=None):
+                try:
+                    r = conn.execute(sql, params) if params else conn.execute(sql)
+                    return r.rowcount
+                except Exception as ex:
+                    print(f"[bulk-delete] {sql[:60]} - {ex}")
+                    return 0
+
+            listing_ids = [r['id'] for r in conn.execute(
+                'SELECT id FROM listings WHERE seller_id = ?', (user_id,)
+            ).fetchall()]
+            if listing_ids:
+                ph = ','.join('?' * len(listing_ids))
+                safe_del(f'DELETE FROM listing_set_item_photos WHERE set_item_id IN (SELECT id FROM listing_set_items WHERE listing_id IN ({ph}))', listing_ids)
+                safe_del(f'DELETE FROM listing_set_items WHERE listing_id IN ({ph})', listing_ids)
+                safe_del(f'DELETE FROM listing_photos WHERE listing_id IN ({ph})', listing_ids)
+            safe_del('DELETE FROM listings WHERE seller_id = ?', (user_id,))
+
+            order_ids = [r['id'] for r in conn.execute(
+                'SELECT id FROM orders WHERE buyer_id = ?', (user_id,)
+            ).fetchall()]
+            if order_ids:
+                ph = ','.join('?' * len(order_ids))
+                safe_del(f'DELETE FROM order_items WHERE order_id IN ({ph})', order_ids)
+                safe_del(f'DELETE FROM tracking WHERE order_id IN ({ph})', order_ids)
+                safe_del(f'DELETE FROM seller_order_tracking WHERE order_id IN ({ph})', order_ids)
+                safe_del(f'DELETE FROM cancellation_seller_responses WHERE request_id IN (SELECT id FROM cancellation_requests WHERE order_id IN ({ph}))', order_ids)
+                safe_del(f'DELETE FROM cancellation_requests WHERE order_id IN ({ph})', order_ids)
+            safe_del('DELETE FROM orders WHERE buyer_id = ?', (user_id,))
+
+            bid_ids = [r['id'] for r in conn.execute(
+                'SELECT id FROM bids WHERE buyer_id = ?', (user_id,)
+            ).fetchall()]
+            if bid_ids:
+                ph = ','.join('?' * len(bid_ids))
+                safe_del(f'DELETE FROM bid_fills WHERE bid_id IN ({ph})', bid_ids)
+            safe_del('DELETE FROM bids WHERE buyer_id = ?', (user_id,))
+
+            safe_del('DELETE FROM cart WHERE user_id = ?', (user_id,))
+
+            report_ids = [r['id'] for r in conn.execute(
+                'SELECT id FROM reports WHERE reporter_user_id = ? OR reported_user_id = ?', (user_id, user_id)
+            ).fetchall()]
+            if report_ids:
+                ph = ','.join('?' * len(report_ids))
+                safe_del(f'DELETE FROM report_attachments WHERE report_id IN ({ph})', report_ids)
+            safe_del('DELETE FROM reports WHERE reporter_user_id = ? OR reported_user_id = ?', (user_id, user_id))
+
+            safe_del('DELETE FROM messages WHERE sender_id = ? OR receiver_id = ?', (user_id, user_id))
+            safe_del('DELETE FROM message_reads WHERE user_id = ? OR participant_id = ?', (user_id, user_id))
+            safe_del('DELETE FROM ratings WHERE rater_id = ? OR ratee_id = ?', (user_id, user_id))
+            safe_del('DELETE FROM notifications WHERE user_id = ?', (user_id,))
+            safe_del('DELETE FROM notification_preferences WHERE user_id = ?', (user_id,))
+            safe_del('DELETE FROM user_preferences WHERE user_id = ?', (user_id,))
+            safe_del('DELETE FROM portfolio_exclusions WHERE user_id = ?', (user_id,))
+            safe_del('DELETE FROM portfolio_snapshots WHERE user_id = ?', (user_id,))
+            safe_del('DELETE FROM addresses WHERE user_id = ?', (user_id,))
+            safe_del('DELETE FROM price_locks WHERE user_id = ?', (user_id,))
+            safe_del('DELETE FROM user_cancellation_stats WHERE user_id = ?', (user_id,))
+            safe_del('DELETE FROM seller_order_tracking WHERE seller_id = ?', (user_id,))
+            safe_del('DELETE FROM cancellation_seller_responses WHERE seller_id = ?', (user_id,))
+            safe_del('DELETE FROM users WHERE id = ?', (user_id,))
+
+            total_deleted += 1
+            print(f"[Admin] Bulk-deleted user ID {user_id} (@{user['username']})")
+
+        conn.execute('PRAGMA foreign_keys = ON')
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'message': f'{total_deleted} account{"s" if total_deleted != 1 else ""} permanently deleted',
+            'count': total_deleted
+        })
+    except Exception as e:
+        conn.execute('PRAGMA foreign_keys = ON')
+        print(f"Error bulk deleting users: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
 @admin_bp.route('/api/user/<int:user_id>/message', methods=['POST'])
 @admin_required
 def send_admin_message(user_id):

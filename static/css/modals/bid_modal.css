@@ -876,8 +876,11 @@
   #bidModal .modal-content { padding: 16px !important; }
 
   #bidModal .bm-wizard {
-    width: 100% !important;
-    max-width: 100% !important;
+    /* Use an explicit vw-based width so the modal doesn't change size
+       as steps are navigated, regardless of which CSS file wins for the
+       parent .modal-content padding. 16px margins on each side = 32px total. */
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
     border-radius: 16px;
   }
 

@@ -2,8 +2,11 @@
 'use strict';
 
 /* ==========================================================================
-   Bucket Price History Chart
-   Tracks best ask price changes over time for a specific bucket
+   Bucket Reference Price Chart
+   Renders the canonical Reference Price P(t) for a bucket:
+     - Midpoint of BestAsk + BestBid when both sides exist
+     - Last cleared trade price when only one side (or neither) is active
+   Polls the backend every 90 s and re-renders only when data has changed.
    ========================================================================== */
 
 let bucketPriceChart = null;
@@ -13,6 +16,10 @@ let bucketChartMouseLeaveHandler = null;  // Store reference to event handler fo
 let currentBucketId = null;  // Stored for resize-triggered redraws
 let chartResizeTimer = null;
 let lastChartWasMobile = null;
+
+// Polling state
+let _chartPollTimer = null;
+let _lastTimestamps = { spot: null, bid: null, clear: null };
 
 const isMobileChart = () => window.innerWidth <= 768;
 
@@ -32,6 +39,12 @@ function initBucketPriceChart(bucketId) {
     // Load initial data
     loadBucketPriceHistory(bucketId, currentBucketTimeRange);
 
+    // Start background polling
+    startChartPolling(bucketId);
+
+    // Stop polling when the page is navigated away
+    window.addEventListener('beforeunload', stopChartPolling);
+
     // Redraw chart when crossing the mobile breakpoint (y-axis visibility changes)
     window.addEventListener('resize', function() {
         clearTimeout(chartResizeTimer);
@@ -48,10 +61,53 @@ function initBucketPriceChart(bucketId) {
 }
 
 /**
- * Load bucket price history from API
+ * Start background polling — re-renders chart only when timestamps change.
+ */
+function startChartPolling(bucketId) {
+    if (_chartPollTimer) return; // Already running
+
+    _chartPollTimer = setInterval(function() {
+        const url = `/api/buckets/${bucketId}/reference_price_history?range=${currentBucketTimeRange}`;
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+
+                const spotChanged  = data.latest_spot_as_of  !== _lastTimestamps.spot;
+                const bidChanged   = data.latest_bid_as_of   !== _lastTimestamps.bid;
+                const clearChanged = data.latest_clear_as_of !== _lastTimestamps.clear;
+
+                if (spotChanged || bidChanged || clearChanged) {
+                    console.log('[BucketChart] Poll: data changed — re-rendering');
+                    _lastTimestamps = {
+                        spot:  data.latest_spot_as_of,
+                        bid:   data.latest_bid_as_of,
+                        clear: data.latest_clear_as_of,
+                    };
+                    bucketChartData = data;
+                    updateBucketPriceSummary(data.summary);
+                    renderBucketPriceChart(data.primary_series, currentBucketTimeRange);
+                }
+            })
+            .catch(() => {}); // Silently ignore network errors during polling
+    }, 90000); // 90 seconds
+}
+
+/**
+ * Stop background polling.
+ */
+function stopChartPolling() {
+    if (_chartPollTimer) {
+        clearInterval(_chartPollTimer);
+        _chartPollTimer = null;
+    }
+}
+
+/**
+ * Load reference price history from the new canonical API endpoint.
  */
 function loadBucketPriceHistory(bucketId, range) {
-    console.log('[BucketChart] Loading history for bucket ID:', bucketId, 'range:', range);
+    console.log('[BucketChart] Loading reference price history for bucket ID:', bucketId, 'range:', range);
 
     const chartContainer = document.getElementById('bucket-price-chart-container');
     const emptyState = document.getElementById('bucket-price-empty-state');
@@ -64,22 +120,7 @@ function loadBucketPriceHistory(bucketId, range) {
         return;
     }
 
-    // Build query parameters including filters
-    const params = new URLSearchParams({ range });
-
-    // Add Random Year mode if enabled
-    const randomYearToggle = document.getElementById('randomYearToggle');
-    if (randomYearToggle && randomYearToggle.checked) {
-        params.append('random_year', '1');
-    }
-
-    // Add packaging filters (multi-select checkboxes)
-    const packagingTypeCheckboxes = document.querySelectorAll('.packaging-type-checkbox:checked');
-    packagingTypeCheckboxes.forEach(checkbox => {
-        params.append('packaging_styles', checkbox.value);
-    });
-
-    fetch(`/bucket/${bucketId}/price-history?${params.toString()}`)
+    fetch(`/api/buckets/${bucketId}/reference_price_history?range=${encodeURIComponent(range)}`)
         .then(response => {
             console.log('[BucketChart] History response status:', response.status);
             if (!response.ok) {
@@ -93,26 +134,25 @@ function loadBucketPriceHistory(bucketId, range) {
             if (data.success) {
                 bucketChartData = data;
 
-                if (data.history && data.history.length > 0) {
-                    console.log('[BucketChart] Found', data.history.length, 'history points');
+                // Store timestamps for change-detection polling
+                _lastTimestamps = {
+                    spot:  data.latest_spot_as_of,
+                    bid:   data.latest_bid_as_of,
+                    clear: data.latest_clear_as_of,
+                };
 
-                    // Check if this is historical data with no active listings
-                    if (data.summary && !data.summary.has_active_listings) {
-                        console.log('[BucketChart] No active listings - displaying historical data with forward-fill');
-                    }
+                const series = data.primary_series || [];
 
-                    // Show chart, hide empty state (even if no active listings)
+                if (series.length > 0) {
+                    console.log('[BucketChart] Found', series.length, 'reference price points');
+
                     if (chartContainer) chartContainer.style.display = 'block';
                     if (emptyState) emptyState.style.display = 'none';
 
-                    // Update summary
                     updateBucketPriceSummary(data.summary);
-
-                    // Render chart (will forward-fill if needed)
-                    renderBucketPriceChart(data.history, range);
+                    renderBucketPriceChart(series, range);
                 } else {
-                    // Truly no historical data at all - show empty state
-                    console.log('[BucketChart] No price history exists for this bucket');
+                    console.log('[BucketChart] No reference price data for this bucket');
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (emptyState) emptyState.style.display = 'flex';
                 }
@@ -281,27 +321,27 @@ function renderBucketPriceChart(historyData, range) {
     // Use raw data - plot at actual timestamps (time scale handles spacing)
     let chartData = [...historyData];
 
-    // Sort by timestamp to ensure proper ordering
+    // Sort by timestamp to ensure proper ordering (series points use key 't')
     chartData.sort((a, b) => {
-        const dateA = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-        const dateB = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+        const dateA = a.t instanceof Date ? a.t : new Date(a.t);
+        const dateB = b.t instanceof Date ? b.t : new Date(b.t);
         return dateA - dateB;
     });
 
     // Handle duplicate or extremely close timestamps to prevent degenerate curve artifacts
     // Add tiny offsets (milliseconds) purely for rendering while preserving data integrity
     for (let i = 1; i < chartData.length; i++) {
-        const prevDate = chartData[i - 1].timestamp instanceof Date ?
-            chartData[i - 1].timestamp : new Date(chartData[i - 1].timestamp);
-        const currDate = chartData[i].timestamp instanceof Date ?
-            chartData[i].timestamp : new Date(chartData[i].timestamp);
+        const prevDate = chartData[i - 1].t instanceof Date ?
+            chartData[i - 1].t : new Date(chartData[i - 1].t);
+        const currDate = chartData[i].t instanceof Date ?
+            chartData[i].t : new Date(chartData[i].t);
 
         // If timestamps are identical or within 1 second, add small offset
         const timeDiff = currDate.getTime() - prevDate.getTime();
         if (timeDiff < 1000) {
             // Offset by i milliseconds to maintain ordering
             const offsetDate = new Date(prevDate.getTime() + i);
-            chartData[i].timestamp = offsetDate;
+            chartData[i].t = offsetDate;
             console.log('[BucketChart] Adjusted close timestamp:', currDate, '->', offsetDate);
         }
     }
@@ -354,27 +394,21 @@ function renderBucketPriceChart(historyData, range) {
         const firstDataPoint = chartData[0];
         const lastDataPoint = chartData[chartData.length - 1];
 
-        const firstDate = firstDataPoint.timestamp instanceof Date ?
-            firstDataPoint.timestamp : new Date(firstDataPoint.timestamp);
-        const lastDate = lastDataPoint.timestamp instanceof Date ?
-            lastDataPoint.timestamp : new Date(lastDataPoint.timestamp);
+        const firstDate = firstDataPoint.t instanceof Date ?
+            firstDataPoint.t : new Date(firstDataPoint.t);
+        const lastDate = lastDataPoint.t instanceof Date ?
+            lastDataPoint.t : new Date(lastDataPoint.t);
 
         // Backfill: If first data point is after minTime, add a point at minTime with same price
         if (firstDate > minTime) {
             console.log('[BucketChart] Backfilling from', minTime, 'to first data point at', firstDate);
-            chartData.unshift({
-                timestamp: new Date(minTime),
-                price: firstDataPoint.price
-            });
+            chartData.unshift({ t: new Date(minTime), price: firstDataPoint.price });
         }
 
         // Forward-fill: If last data point is before now, add a point at now with same price
         if (lastDate < maxTime) {
             console.log('[BucketChart] Forward-filling from last data point at', lastDate, 'to', maxTime);
-            chartData.push({
-                timestamp: new Date(maxTime),
-                price: lastDataPoint.price
-            });
+            chartData.push({ t: new Date(maxTime), price: lastDataPoint.price });
         }
     } else if (chartData.length === 0) {
         // No data - show empty state (handled by caller)
@@ -384,7 +418,7 @@ function renderBucketPriceChart(historyData, range) {
 
     // Prepare data points with actual timestamps for time-scale plotting
     const dataPoints = chartData.map(item => {
-        const date = item.timestamp instanceof Date ? item.timestamp : new Date(item.timestamp);
+        const date = item.t instanceof Date ? item.t : new Date(item.t);
         return {
             x: date,  // Use actual Date object for time-based positioning
             y: item.price
@@ -445,14 +479,13 @@ function renderBucketPriceChart(historyData, range) {
             type: 'line',
             data: {
                 datasets: [{
-                    label: 'Best Ask Price',
+                    label: 'Reference Price',
                     data: dataPoints,  // Use {x, y} format with Date objects
                     borderColor: '#0066cc',
                     backgroundColor: gradient,
                     borderWidth: 3,
                     fill: true,
-                    cubicInterpolationMode: 'monotone',  // Use monotone cubic spline to prevent vertical loops
-                    tension: 0,  // Disable Bezier tension (monotone handles smoothing)
+                    tension: 0,  // Straight lines between points (no curves)
                     pointRadius: 4,
                     pointBackgroundColor: '#0066cc',
                     pointBorderColor: '#ffffff',
@@ -475,59 +508,7 @@ function renderBucketPriceChart(historyData, range) {
                         display: false
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                        titleFont: {
-                            size: 13,
-                            weight: '600'
-                        },
-                        bodyFont: {
-                            size: 14,
-                            weight: '600'
-                        },
-                        padding: 12,
-                        displayColors: false,
-                        callbacks: {
-                            title: function(context) {
-                                // Show full date/time
-                                const index = context[0].dataIndex;
-                                const timestamp = originalData[index].timestamp;
-                                const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-
-                                if (range === '1d') {
-                                    return date.toLocaleString('en-US', {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        hour: 'numeric',
-                                        minute: '2-digit',
-                                        hour12: true
-                                    });
-                                } else {
-                                    return date.toLocaleDateString('en-US', {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: 'numeric'
-                                    });
-                                }
-                            },
-                            label: function(context) {
-                                const price = context.parsed.y;
-
-                                // Calculate change from first point
-                                const firstPrice = bucketChartData.summary.first_price;
-                                const changeAmount = price - firstPrice;
-                                const changePercent = (changeAmount / firstPrice * 100);
-
-                                const sign = changeAmount >= 0 ? '+' : '';
-
-                                return [
-                                    'Price: ' + formatPrice(price),
-                                    sign + formatPrice(Math.abs(changeAmount), false) + ' (' + sign + formatWithCommas(changePercent, 2) + '%)'
-                                ];
-                            },
-                            afterLabel: function(context) {
-                                return ''; // Empty to add spacing
-                            }
-                        }
+                        enabled: false  // Disabled — hover updates the top-left price indicators instead
                     }
                 },
                 scales: {
@@ -557,8 +538,6 @@ function renderBucketPriceChart(historyData, range) {
                         min: minTime,  // Start of time range (browser timezone)
                         max: maxTime,  // End of time range (browser timezone)
                         time: {
-                            unit: timeUnit,
-                            stepSize: stepSize,
                             displayFormats: {
                                 hour: 'h a',           // "9 AM"
                                 day: 'MMM d',          // "Nov 2"
@@ -576,9 +555,9 @@ function renderBucketPriceChart(historyData, range) {
                                 size: 12
                             },
                             color: '#6b7280',
-                            maxRotation: 0,
-                            autoSkip: false,  // Don't skip - we control with stepSize
-                            source: 'auto'
+                            maxRotation: 45,
+                            autoSkip: true,       // Skip overlapping labels, but every point is still plotted
+                            source: 'data'        // Tick at every actual data point, not uniform intervals
                         }
                     }
                 },
@@ -587,6 +566,7 @@ function renderBucketPriceChart(historyData, range) {
                     if (activeElements && activeElements.length > 0) {
                         const index = activeElements[0].index;
                         const hoveredPrice = dataPoints[index].y;
+                        const hoveredDate = dataPoints[index].x;
                         const firstPrice = bucketChartData.summary.first_price;
                         const changeAmount = hoveredPrice - firstPrice;
                         const changePercent = (changeAmount / firstPrice * 100);
@@ -596,9 +576,11 @@ function renderBucketPriceChart(historyData, range) {
                             change_amount: changeAmount,
                             change_percent: changePercent
                         });
+                        updateBucketPriceDatetime(hoveredDate, range);
                     } else {
                         // Reset to original summary when not hovering
                         updateBucketPriceSummary(bucketChartData.summary);
+                        clearBucketPriceDatetime();
                     }
                 }
             },
@@ -634,6 +616,7 @@ function renderBucketPriceChart(historyData, range) {
             if (bucketChartData && bucketChartData.summary) {
                 console.log('[BucketChart] Mouse left chart - resetting summary to current price');
                 updateBucketPriceSummary(bucketChartData.summary);
+                clearBucketPriceDatetime();
             }
         };
         ctx.addEventListener('mouseleave', bucketChartMouseLeaveHandler);
@@ -642,6 +625,37 @@ function renderBucketPriceChart(historyData, range) {
         console.error('[BucketChart] ERROR creating chart:', error);
         console.error('[BucketChart] Error stack:', error.stack);
     }
+}
+
+/**
+ * Update the datetime indicator below the main price display.
+ * @param {Date} date - The timestamp of the hovered data point
+ * @param {string} range - Current time range (1d, 1w, 1m, 3m, 1y)
+ */
+function updateBucketPriceDatetime(date, range) {
+    const el = document.getElementById('bucket-price-datetime');
+    if (!el || !(date instanceof Date)) return;
+
+    let formatted;
+    if (range === '1d') {
+        // e.g. "Sun, Mar 1 · 4:30 PM"
+        formatted = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+            + ' · '
+            + date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    } else {
+        // e.g. "Sun, Mar 1, 2026"
+        formatted = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    el.textContent = formatted;
+}
+
+/**
+ * Clear the datetime indicator (when hover ends).
+ */
+function clearBucketPriceDatetime() {
+    const el = document.getElementById('bucket-price-datetime');
+    if (el) el.textContent = '';
 }
 
 /**
@@ -668,3 +682,4 @@ function setupBucketTimeRangeSelector(bucketId) {
 // Expose functions globally
 window.initBucketPriceChart = initBucketPriceChart;
 window.loadBucketPriceHistory = loadBucketPriceHistory;
+window.stopChartPolling = stopChartPolling;

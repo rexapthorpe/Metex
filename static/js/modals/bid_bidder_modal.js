@@ -60,10 +60,14 @@ function renderBidder(b) {
     : '';
 
   // Stats values
-  const transactions   = b.transaction_count != null ? Number(b.transaction_count).toLocaleString() : '--';
-  const repeatSellers  = b.repeat_sellers_pct != null ? `${b.repeat_sellers_pct}%` : '--';
-  const memberSince    = b.member_since  || '--';
-  const bidQty         = b.quantity      != null ? b.quantity : '--';
+  const transactions = b.transaction_count != null ? Number(b.transaction_count).toLocaleString() : '--';
+  const bidPriceRaw  = b.bid_price != null ? b.bid_price : null;
+  const bidPriceStr  = bidPriceRaw != null
+    ? '$' + Number(bidPriceRaw).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        + (b.pricing_mode === 'premium_to_spot' ? ' (variable)' : '')
+    : '--';
+  const memberSince  = b.member_since || '--';
+  const bidQty       = b.quantity != null ? b.quantity : '--';
 
   container.innerHTML = `
     <div class="osm-identity">
@@ -93,10 +97,10 @@ function renderBidder(b) {
       </div>
       <div class="osm-stats-bottom">
         <div class="osm-stat-item">
-          <div class="osm-stat-icon green"><i class="fa-solid fa-arrow-trend-up"></i></div>
+          <div class="osm-stat-icon green"><i class="fa-solid fa-tag"></i></div>
           <div>
-            <div class="osm-stat-label">Repeat Sellers</div>
-            <div class="osm-stat-value">${repeatSellers}</div>
+            <div class="osm-stat-label">Bid Price</div>
+            <div class="osm-stat-value">${bidPriceStr}</div>
           </div>
         </div>
         <div class="osm-stat-item">

@@ -37,63 +37,44 @@ function showIsolatedBidWarning(bidsData, formData) {
     // Clear previous content
     bidsContainer.innerHTML = '';
 
-    // Populate each bid
-    bidsArray.forEach((bidData, index) => {
+    // Populate each bid as a table row
+    let totalUnits = 0;
+    let totalAmount = 0;
+
+    bidsArray.forEach((bidData) => {
       const bidderName = bidData.buyer_name || 'Unknown';
       const price = bidData.effective_price || bidData.price_per_coin || 0;
       const quantity = bidData.quantity || 1;
-      const total = price * quantity;
+      const subtotal = price * quantity;
+      totalUnits += quantity;
+      totalAmount += subtotal;
 
-      const requiresGrading = bidData.requires_grading;
-      const preferredGrader = bidData.preferred_grader;
-      let gradingText = 'No 3rd party grading required';
-
-      if (requiresGrading) {
-        if (preferredGrader) {
-          gradingText = `Requires 3rd party grading (${preferredGrader})`;
-        } else {
-          gradingText = 'Requires 3rd party grading';
-        }
-      }
-
-      // Create bid card HTML
-      const bidCard = document.createElement('div');
-      bidCard.className = 'bid-confirmation-card';
-      bidCard.innerHTML = `
-        <h3 class="bid-card-header">Bid #${index + 1}</h3>
-
-        <div class="content-container">
-          <h4 class="container-subheader">Transaction Details</h4>
-          <div class="bid-summary-grid">
-            <div class="summary-row">
-              <span class="summary-label">Bidder:</span>
-              <span class="summary-value">${bidderName}</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">Price per item:</span>
-              <span class="summary-value price-highlight">${formatPrice(price)} USD</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">Quantity:</span>
-              <span class="summary-value">${quantity}</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">Total value:</span>
-              <span class="summary-value total-highlight">${formatPrice(total)} USD</span>
-            </div>
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="abm-buyer-cell">
+            <div class="abm-buyer-icon"><i class="fa-solid fa-user"></i></div>
+            <span class="abm-buyer-name">${bidderName}</span>
           </div>
-        </div>
+        </td>
+        <td>${quantity}</td>
+        <td>${formatPrice(price)}</td>
+        <td class="abm-subtotal">${formatPrice(subtotal)}</td>
+      `;
+      bidsContainer.appendChild(tr);
+    });
 
-        <div class="content-container">
-          <h4 class="container-subheader">Grading Requirement</h4>
-          <div class="grading-requirement">
-            <p>${gradingText}</p>
-          </div>
+    // Update summary
+    const summaryEl = document.getElementById('confirm-bids-summary');
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <span class="abm-summary-units">${totalUnits} unit${totalUnits !== 1 ? 's' : ''} total</span>
+        <div class="abm-summary-total">
+          <span>Total</span>
+          <span class="abm-summary-amount">${formatPrice(totalAmount)}</span>
         </div>
       `;
-
-      bidsContainer.appendChild(bidCard);
-    });
+    }
 
     // Show modal with animation
     modal.style.display = 'flex';
@@ -135,64 +116,45 @@ function openAcceptBidConfirmModal(bidsData, formData) {
   // Clear previous content
   bidsContainer.innerHTML = '';
 
-  // Populate each bid
-  bidsArray.forEach((bidData, index) => {
+  // Populate each bid as a table row
+  let totalUnits = 0;
+  let totalAmount = 0;
+
+  bidsArray.forEach((bidData) => {
     const bidderName = bidData.buyer_name || 'Unknown';
     // Use effective_price for correct display (handles both fixed and variable bids)
     const price = bidData.effective_price || bidData.price_per_coin || 0;
     const quantity = bidData.quantity || 1;
-    const total = price * quantity;
+    const subtotal = price * quantity;
+    totalUnits += quantity;
+    totalAmount += subtotal;
 
-    const requiresGrading = bidData.requires_grading;
-    const preferredGrader = bidData.preferred_grader;
-    let gradingText = 'No 3rd party grading required';
-
-    if (requiresGrading) {
-      if (preferredGrader) {
-        gradingText = `Requires 3rd party grading (${preferredGrader})`;
-      } else {
-        gradingText = 'Requires 3rd party grading';
-      }
-    }
-
-    // Create bid card HTML
-    const bidCard = document.createElement('div');
-    bidCard.className = 'bid-confirmation-card';
-    bidCard.innerHTML = `
-      <h3 class="bid-card-header">Bid #${index + 1}</h3>
-
-      <div class="content-container">
-        <h4 class="container-subheader">Transaction Details</h4>
-        <div class="bid-summary-grid">
-          <div class="summary-row">
-            <span class="summary-label">Bidder:</span>
-            <span class="summary-value">${bidderName}</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-label">Price per item:</span>
-            <span class="summary-value price-highlight">${formatPrice(price)} USD</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-label">Quantity:</span>
-            <span class="summary-value">${quantity}</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-label">Total value:</span>
-            <span class="summary-value total-highlight">${formatPrice(total)} USD</span>
-          </div>
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div class="abm-buyer-cell">
+          <div class="abm-buyer-icon"><i class="fa-solid fa-user"></i></div>
+          <span class="abm-buyer-name">${bidderName}</span>
         </div>
-      </div>
+      </td>
+      <td>${quantity}</td>
+      <td>${formatPrice(price)}</td>
+      <td class="abm-subtotal">${formatPrice(subtotal)}</td>
+    `;
+    bidsContainer.appendChild(tr);
+  });
 
-      <div class="content-container">
-        <h4 class="container-subheader">Grading Requirement</h4>
-        <div class="grading-requirement">
-          <p>${gradingText}</p>
-        </div>
+  // Update summary
+  const summaryEl = document.getElementById('confirm-bids-summary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <span class="abm-summary-units">${totalUnits} unit${totalUnits !== 1 ? 's' : ''} total</span>
+      <div class="abm-summary-total">
+        <span>Total</span>
+        <span class="abm-summary-amount">${formatPrice(totalAmount)}</span>
       </div>
     `;
-
-    bidsContainer.appendChild(bidCard);
-  });
+  }
 
   // Show modal with animation
   modal.style.display = 'flex';
@@ -245,10 +207,6 @@ function openAcceptBidSuccessModal(ordersData) {
     const price = orderData.price_per_coin || 0;
     const quantity = orderData.quantity || 1;
     const total = orderData.total_price || (price * quantity);
-
-    // Parse 3rd party grading info
-    const requiresGrading = orderData.requires_grading || false;
-    const preferredGrader = orderData.preferred_grader || '';
 
     // Parse delivery address
     let address = orderData.delivery_address || '';
@@ -304,7 +262,7 @@ function openAcceptBidSuccessModal(ordersData) {
       street = address;
     }
 
-    // Create order card HTML with THREE SECTIONS
+    // Create order card HTML
     const orderCard = document.createElement('div');
     orderCard.className = 'order-success-card';
     orderCard.innerHTML = `
@@ -340,23 +298,6 @@ function openAcceptBidSuccessModal(ordersData) {
         </div>
       </div>
 
-      <!-- ✅ SECTION 3: 3rd Party Grading -->
-      <div class="success-section grading-section">
-        <h4 class="section-title">3rd Party Grading</h4>
-        <div class="section-content">
-          <div class="detail-row">
-            <span class="detail-label">Requires 3rd Party Grading:</span>
-            <span class="detail-value">${requiresGrading ? 'Yes' : 'No'}</span>
-          </div>
-          ${requiresGrading && preferredGrader ? `
-            <div class="detail-row">
-              <span class="detail-label">Grader:</span>
-              <span class="detail-value">${preferredGrader}</span>
-            </div>
-          ` : ''}
-        </div>
-      </div>
-
       <!-- ✅ Delivery Address (with proper label/value rows) -->
       <div class="success-section delivery-address-section">
         <h4 class="section-title">Delivery Address</h4>
@@ -387,6 +328,14 @@ function openAcceptBidSuccessModal(ordersData) {
 
     ordersContainer.appendChild(orderCard);
   });
+
+  // Reset the checkmark SVG animation so it replays each time
+  const animContainer = modal.querySelector('.abm-success-anim');
+  if (animContainer) {
+    const saved = animContainer.innerHTML;
+    animContainer.innerHTML = '';
+    animContainer.innerHTML = saved;
+  }
 
   // Show modal with animation
   modal.style.display = 'flex';
@@ -424,7 +373,7 @@ function handleConfirmAccept() {
 
   // Disable button and show loading state
   confirmBtn.disabled = true;
-  confirmBtn.textContent = 'Processing...';
+  confirmBtn.innerHTML = 'Processing...';
 
   // Submit via AJAX
   fetch(`/bids/accept_bid/${window.bucketId}`, {
@@ -504,7 +453,7 @@ function handleConfirmAccept() {
       // Reset button
       if (confirmBtn) {
         confirmBtn.disabled = false;
-        confirmBtn.textContent = `Yes, Accept ${bidsData.length > 1 ? 'Bids' : 'Bid'}`;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm &amp; Accept';
       }
     });
 }

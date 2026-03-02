@@ -1,451 +1,537 @@
 /* ==========================================================================
-   Accept Bid Modals — Confirmation and Success
-   Side-panel style that pushes content to the left
+   Accept Bid Modals — Centered modal design
    ========================================================================== */
 
-/* Modal overlay - darkens left content */
-.modal-overlay {
+/* Overlay */
+.abm-overlay {
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background: rgba(0, 0, 0, 0.4);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
   z-index: 9999;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  transition: opacity 0.3s ease;
-}
-
-.modal-overlay.hiding {
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
   opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
-/* Modal dialog - slides in from right */
-.modal-dialog {
+.abm-overlay.active {
+  opacity: 1;
+}
+
+/* =====================
+   Confirmation Dialog
+   ===================== */
+
+.abm-dialog {
   background: #fff;
-  width: 600px;
-  max-width: 90vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
-  border-radius: 20px 0 0 20px; /* Rounded left corners, sharp right corners (flush to screen edge) */
-  transform: translateX(0);
-  transition: transform 0.3s ease;
-  overflow: hidden; /* Ensure border-radius clips child elements properly */
-  position: relative; /* Positioning context for close button */
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  padding: 28px 28px 24px;
+  box-sizing: border-box;
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
 }
 
-.modal-overlay:not(.active) .modal-dialog {
-  transform: translateX(100%);
-}
-
-.modal-overlay.active .modal-dialog {
-  transform: translateX(0);
+.abm-overlay.active .abm-dialog {
+  transform: scale(1);
 }
 
 /* Header */
-.modal-header {
-  padding: 24px 32px;
-  border-bottom: 1px solid #e5e7eb;
+.abm-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-shrink: 0;
+  margin-bottom: 10px;
 }
 
-.modal-header h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-  color: #111827;
+.abm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.modal-header.success-header {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  border-bottom: none;
-}
-
-.modal-header.success-header h2 {
-  color: white;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 32px;
-  line-height: 1;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
+.abm-icon-box {
+  width: 44px;
+  height: 44px;
+  background: #ecfdf5;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: background 0.2s, color 0.2s;
+  color: #16a34a;
+  font-size: 20px;
+  flex-shrink: 0;
 }
 
-.modal-close:hover {
-  background: rgba(0, 0, 0, 0.05);
+.abm-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.abm-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.abm-close:hover {
+  background: #f3f4f6;
   color: #111827;
 }
 
-.success-header .modal-close {
+.abm-close-light {
   color: rgba(255, 255, 255, 0.8);
 }
 
-.success-header .modal-close:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.2);
+.abm-close-light:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
 
-/* Body */
-.modal-body {
-  padding: 32px;
-  flex: 1;
-  overflow-y: auto;
-}
-
-/* Confirmation modal specific */
-.confirm-summary {
-  max-width: 500px;
-}
-
-.confirm-message {
-  font-size: 16px;
-  color: #374151;
-  margin: 0 0 24px 0;
-}
-
-.bid-summary-grid {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 20px;
-  padding: 20px;
-  margin-bottom: 24px;
-}
-
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.summary-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.summary-row:first-child {
-  padding-top: 0;
-}
-
-.summary-label {
-  font-weight: 600;
+/* Subtitle */
+.abm-subtitle {
+  font-size: 14px;
   color: #6b7280;
-  font-size: 14px;
-}
-
-.summary-value {
-  font-weight: 600;
-  color: #111827;
-  font-size: 15px;
-  text-align: right;
-}
-
-.summary-value.price-highlight {
-  color: #0066cc;
-  font-size: 18px;
-}
-
-.summary-value.total-highlight {
-  color: #059669;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.summary-value.delivery-address {
-  font-weight: 400;
-  font-size: 14px;
-  max-width: 60%;
+  margin: 0 0 18px;
   line-height: 1.5;
 }
 
-.confirm-question {
-  font-size: 16px;
-  font-weight: 600;
+/* Bid Summary Table */
+.abm-table-wrap {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.abm-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.abm-table thead tr {
+  background: #f9fafb;
+}
+
+.abm-table th {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  text-align: right;
+}
+
+.abm-th-buyer {
+  text-align: left !important;
+}
+
+.abm-table td {
+  padding: 14px;
+  font-size: 14px;
   color: #111827;
-  margin: 24px 0 16px 0;
+  border-top: 1px solid #f3f4f6;
+  vertical-align: middle;
+  text-align: right;
+}
+
+.abm-table td:first-child {
   text-align: left;
 }
 
-.confirm-divider {
-  border: none;
-  height: 1px;
-  background: #e5e7eb;
-  margin: 0 6px;
+.abm-buyer-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* Success modal specific */
-.success-content {
-  max-width: 600px;
+.abm-buyer-icon {
+  width: 28px;
+  height: 28px;
+  background: #f3f4f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
-.success-message {
-  font-size: 18px;
-  color: #059669;
+.abm-buyer-name {
   font-weight: 600;
-  margin: 0 0 32px 0;
-  text-align: center;
+  color: #111827;
 }
 
-.order-details h3 {
+.abm-grading-badge {
+  background: #dcfce7;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+}
+
+.abm-subtotal {
+  font-weight: 700;
+}
+
+/* Summary bar */
+.abm-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 13px 16px;
+  margin-bottom: 14px;
+}
+
+.abm-summary-units {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.abm-summary-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.abm-summary-amount {
   font-size: 20px;
   font-weight: 700;
-  color: #111827;
-  margin: 0 0 24px 0;
-  border-bottom: 2px solid #10b981;
-  padding-bottom: 8px;
+  color: #16a34a;
 }
 
-.detail-section {
-  margin-bottom: 28px;
+/* Warning box */
+.abm-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  padding: 13px 15px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #c2410c;
+  line-height: 1.5;
 }
 
-.detail-section h4 {
-  font-size: 16px;
-  font-weight: 700;
+.abm-warning i {
+  margin-top: 1px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* Escrow notice */
+.abm-escrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 22px;
+}
+
+.abm-escrow i {
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+/* Footer buttons */
+.abm-footer {
+  display: flex;
+  gap: 12px;
+}
+
+.abm-btn-cancel {
+  flex: 1;
+  padding: 13px 20px;
+  border: 2px solid #d1d5db;
+  background: #fff;
   color: #374151;
-  margin: 0 0 16px 0;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
 }
 
+.abm-btn-cancel:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.abm-btn-confirm {
+  flex: 1;
+  padding: 13px 20px;
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+
+.abm-btn-confirm:hover {
+  background: #15803d;
+}
+
+.abm-btn-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =====================
+   Success Dialog
+   ===================== */
+
+.abm-success-dialog {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  padding: 32px 28px 24px;
+  box-sizing: border-box;
+  position: relative;
+  text-align: center;
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+}
+
+.abm-overlay.active .abm-success-dialog {
+  transform: scale(1);
+}
+
+/* Absolute close button for success modal */
+.abm-success-close-abs {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+/* Checkmark animation container */
+.abm-success-anim {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.abm-checkmark {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 2;
+  stroke: #16a34a;
+  stroke-miterlimit: 10;
+  animation: abm-checkmark-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.abm-checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 2;
+  stroke-miterlimit: 10;
+  stroke: #16a34a;
+  fill: #ecfdf5;
+  animation: abm-stroke 0.5s cubic-bezier(0.65, 0, 0.45, 1) 0.15s forwards;
+}
+
+.abm-checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke: #16a34a;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: abm-stroke 0.35s cubic-bezier(0.65, 0, 0.45, 1) 0.55s forwards;
+}
+
+@keyframes abm-stroke {
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes abm-checkmark-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* Success title & subtitle */
+.abm-success-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px;
+}
+
+.abm-success-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+/* Body section inside success modal */
+.abm-success-body {
+  text-align: left;
+}
+
+/* Link styled as button */
+.abm-btn-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* =====================
+   Order Cards (Success Modal)
+   ===================== */
+
+#success-orders-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.order-success-card {
+  background: #f0fdf4;
+  border: 2px solid #86efac;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.order-card-header {
+  font-size: 17px;
+  font-weight: 700;
+  color: #065f46;
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #86efac;
+}
+
+.success-section {
+  background: #fff;
+  border: 1px solid #d1fae5;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.success-section:last-child {
+  margin-bottom: 0;
+}
+
+.success-section .section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #065f46;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #86efac;
+}
+
+.success-section .section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Section row types */
 .detail-row {
   display: flex;
   justify-content: space-between;
-  padding: 10px 0;
+  align-items: baseline;
+  padding: 8px 0;
   border-bottom: 1px solid #f3f4f6;
 }
 
 .detail-row:last-child {
   border-bottom: none;
+  padding-bottom: 0;
+}
+
+.detail-row:first-child {
+  padding-top: 0;
+}
+
+.detail-row.total-row {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 2px solid #d1fae5;
+  border-bottom: none;
 }
 
 .detail-label {
+  font-size: 13px;
   font-weight: 500;
   color: #6b7280;
-  font-size: 14px;
 }
 
 .detail-value {
+  font-size: 14px;
   font-weight: 600;
   color: #111827;
-  font-size: 15px;
   text-align: right;
 }
 
 .detail-value.price-highlight {
   color: #0066cc;
-  font-size: 17px;
 }
 
 .detail-value.total-highlight {
   color: #059669;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 700;
 }
 
-.detail-value.delivery-address {
-  font-weight: 400;
-  font-size: 14px;
-  max-width: 60%;
-  line-height: 1.5;
-}
-
-/* Item specs grid - 2 columns with horizontal label-value pairs */
-.item-specs-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px 20px;
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-}
-
-.spec-item {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-/* Remove border from last row items (handles both 8 and 9 item grids) */
-.item-specs-grid .spec-item:nth-last-child(-n+2) {
-  border-bottom: none;
-}
-
-.spec-item .spec-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #6b7280;
-  white-space: nowrap;
-}
-
-.spec-item .spec-value {
-  font-size: 15px;
-  font-weight: 600;
-  color: #111827;
-  text-align: right;
-}
-
-/* Shipping notice */
-.shipping-notice {
-  background: #fef3c7;
-  border: 2px solid #f59e0b;
-  border-radius: 8px;
-  padding: 16px;
-  margin-top: 24px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #92400e;
-}
-
-.shipping-notice strong {
-  color: #78350f;
-}
-
-/* Footer */
-.modal-footer {
-  padding: 20px 32px;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-/* Success footer with divider */
-.modal-footer.success-footer {
-  border-top: none;
-  padding-top: 0;
-  flex-direction: column;
-  gap: 0;
-}
-
-.footer-divider {
-  border: none;
-  height: 1px;
-  background: #e5e7eb;
-  margin: 0 6px 20px 6px;
-  width: calc(100% - 12px);
-}
-
-.modal-footer .btn {
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.btn-secondary:hover {
-  background: #e5e7eb;
-}
-
-.btn-primary {
-  background: #0066cc;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #0052a3;
-}
-
-/* Content Containers */
-.content-container {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.container-subheader {
-  font-size: 16px;
-  font-weight: 700;
-  color: #111827;
-  margin: 0 0 16px 0;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #0066cc;
-}
-
-/* Grading Requirement */
-.grading-requirement {
-  background: #f0f9ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  padding: 14px 16px;
-}
-
-.grading-requirement p {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e40af;
-  line-height: 1.5;
-}
-
-/* Privacy Notice */
-.privacy-notice {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: #f0f9ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
-  color: #1e40af;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.privacy-notice i {
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.privacy-notice span {
-  flex: 1;
-}
-
-/* Address Grid */
-.address-grid {
+/* Address rows */
+.address-rows {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .address-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 10px 0;
+  padding: 8px 0;
   border-bottom: 1px solid #f3f4f6;
 }
 
@@ -459,36 +545,50 @@
 }
 
 .address-label {
+  font-size: 13px;
   font-weight: 600;
   color: #6b7280;
-  font-size: 14px;
-  min-width: 130px;
+  min-width: 120px;
 }
 
 .address-value {
+  font-size: 14px;
   font-weight: 600;
   color: #111827;
-  font-size: 15px;
   text-align: right;
   flex: 1;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .modal-dialog {
-    width: 100vw;
-    max-width: 100vw;
+/* =====================
+   Responsive
+   ===================== */
+
+@media (max-width: 540px) {
+  .abm-dialog,
+  .abm-success-dialog {
+    padding: 24px 16px 18px;
+    border-radius: 14px;
   }
 
-  .summary-value.delivery-address,
-  .detail-value.delivery-address {
-    max-width: 100%;
+  .abm-title,
+  .abm-success-title {
+    font-size: 18px;
+  }
+
+  .abm-footer {
+    flex-direction: column;
+  }
+
+  .abm-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
   }
 
   .address-row {
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    gap: 2px;
   }
 
   .address-label {
@@ -496,263 +596,6 @@
   }
 
   .address-value {
-    text-align: left;
-  }
-}
-
-@media (max-width: 480px) {
-  .item-specs-grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* In single column, restore borders for all except last item */
-  .item-specs-grid .spec-item:nth-last-child(-n+2) {
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  .item-specs-grid .spec-item:last-child {
-    border-bottom: none;
-  }
-}
-
-/* ==========================================================================
-   Multi-Bid Support - Card Styles for Multiple Bids/Orders
-   ========================================================================== */
-
-/* Container for multiple bids in confirmation modal */
-#confirm-bids-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-/* Individual bid confirmation card */
-.bid-confirmation-card {
-  background: #f9fafb;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px;
-  transition: box-shadow 0.2s ease;
-}
-
-.bid-confirmation-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.bid-card-header {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 16px 0;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #d1d5db;
-}
-
-/* Container for multiple orders in success modal */
-#success-orders-container {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-/* Individual order success card */
-.order-success-card {
-  background: #f0fdf4;
-  border: 2px solid #86efac;
-  border-radius: 12px;
-  padding: 24px;
-  transition: all 0.2s ease;
-}
-
-.order-success-card:hover {
-  box-shadow: 0 4px 16px rgba(134, 239, 172, 0.3);
-  transform: translateY(-2px);
-}
-
-.order-card-header {
-  font-size: 19px;
-  font-weight: 700;
-  color: #065f46;
-  margin: 0 0 18px 0;
-  padding-bottom: 14px;
-  border-bottom: 2px solid #86efac;
-}
-
-/* Address display in order cards */
-.address-display {
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  line-height: 1.6;
-  color: #374151;
-  font-size: 14px;
-}
-
-/* Success modal section styles */
-.success-section {
-  background: white;
-  border: 1px solid #d1fae5;
-  border-radius: 10px;
-  padding: 18px;
-  margin-bottom: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.success-section:last-of-type {
-  margin-bottom: 0;
-}
-
-.success-section .section-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #065f46;
-  margin: 0 0 14px 0;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #86efac;
-}
-
-.success-section .section-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* Price Details section specific */
-.price-details-section .detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 10px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.price-details-section .detail-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.price-details-section .detail-row:first-child {
-  padding-top: 0;
-}
-
-.price-details-section .detail-row.total-row {
-  margin-top: 4px;
-  padding-top: 14px;
-  border-top: 2px solid #d1fae5;
-}
-
-/* Bidder ID section specific */
-.bidder-id-section .detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 0;
-  border-bottom: none;
-}
-
-/* 3rd Party Grading section specific */
-.grading-section .detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 8px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.grading-section .detail-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.grading-section .detail-row:first-child {
-  padding-top: 0;
-}
-
-/* Delivery Address section specific */
-.delivery-address-section {
-  background: #fefefe;
-  border: 1px solid #e5e7eb;
-}
-
-.delivery-address-section .section-title {
-  color: #374151;
-  border-bottom: 2px solid #9ca3af;
-}
-
-.delivery-address-section .address-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.delivery-address-section .address-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 10px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.delivery-address-section .address-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.delivery-address-section .address-row:first-child {
-  padding-top: 0;
-}
-
-.delivery-address-section .address-label {
-  font-weight: 600;
-  color: #6b7280;
-  font-size: 14px;
-  min-width: 130px;
-}
-
-.delivery-address-section .address-value {
-  font-weight: 600;
-  color: #111827;
-  font-size: 15px;
-  text-align: right;
-  flex: 1;
-}
-
-/* Responsive adjustments for multi-bid cards */
-@media (max-width: 768px) {
-  #confirm-bids-container,
-  #success-orders-container {
-    gap: 16px;
-  }
-
-  .bid-confirmation-card,
-  .order-success-card {
-    padding: 16px;
-  }
-
-  .bid-card-header,
-  .order-card-header {
-    font-size: 16px;
-  }
-
-  .success-section {
-    padding: 14px;
-    margin-bottom: 12px;
-  }
-
-  .delivery-address-section .address-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .delivery-address-section .address-label {
-    min-width: auto;
-  }
-
-  .delivery-address-section .address-value {
     text-align: left;
   }
 }

@@ -52,23 +52,24 @@ function openSellConfirmModal(formData) {
   let priceLabel = 'Price per Unit';
   let spotPremiumDisplay = null;  // for extra rows
   let spotPriceDisplay   = null;  // for extra rows
+  let floorPriceDisplay  = null;  // for extra rows
   if (isPremiumToSpot) {
     const floorPrice   = parseFloat(formData.get('floor_price')) || 0;
+    floorPriceDisplay  = formatPrice(floorPrice);
     const spotPremium  = parseFloat(formData.get('spot_premium')) || 0;
     const pricingMetal = (formData.get('pricing_metal') || '').toLowerCase();
-    const weightStr    = formData.get('weight') || '1';
-    const weightMatch  = weightStr.match(/[\d.]+/);
-    const weight       = weightMatch ? parseFloat(weightMatch[0]) : 1.0;
 
-    // Top card always shows floor price
-    pricePerUnit = floorPrice;
-    priceLabel   = 'Floor Price';
-
-    // Populate extra rows if spot prices are loaded
+    // Show effective ask price when spot is available; fall back to floor price
     if (window.spotPrices && pricingMetal && window.spotPrices[pricingMetal]) {
-      const spotPrice = window.spotPrices[pricingMetal];
+      const spotPrice     = window.spotPrices[pricingMetal];
+      const computedPrice = spotPrice + spotPremium;
+      pricePerUnit = Math.max(computedPrice, floorPrice);
+      priceLabel   = 'Ask Price';
       spotPremiumDisplay = `+${formatPrice(spotPremium)}`;
       spotPriceDisplay   = `${formatPrice(spotPrice)}/oz`;
+    } else {
+      pricePerUnit = floorPrice;
+      priceLabel   = 'Floor Price';
     }
   } else {
     pricePerUnit = parseFloat(formData.get('price_per_coin')) || 0;
@@ -109,6 +110,7 @@ function openSellConfirmModal(formData) {
       premiumRowsEl.style.display = 'block';
       set('confirm-spot-premium', spotPremiumDisplay);
       set('confirm-spot-price',   spotPriceDisplay || '—');
+      set('confirm-floor-price',  floorPriceDisplay || '—');
     } else {
       premiumRowsEl.style.display = 'none';
     }
@@ -118,6 +120,25 @@ function openSellConfirmModal(formData) {
   const confirmBtn = document.getElementById('confirmListingBtn');
   if (confirmBtn && window.sellEditMode) {
     confirmBtn.textContent = 'Update Listing \u2192';
+  }
+
+  // For set listings: show "Items in Set" count; hide Category and Metal Type rows
+  const rowCategory = document.getElementById('confirm-row-category');
+  const divider1    = document.getElementById('confirm-divider-1');
+  const rowMetal    = document.getElementById('confirm-row-metal');
+  const rowSetItems = document.getElementById('confirm-row-set-items');
+  if (isSet) {
+    const itemCount = (window.setItems || []).length;
+    set('confirm-set-item-count', `${itemCount} item${itemCount !== 1 ? 's' : ''}`);
+    if (rowCategory) rowCategory.style.display = 'none';
+    if (divider1)    divider1.style.display    = 'none';
+    if (rowMetal)    rowMetal.style.display    = 'none';
+    if (rowSetItems) rowSetItems.style.display = '';
+  } else {
+    if (rowCategory) rowCategory.style.display = '';
+    if (divider1)    divider1.style.display    = '';
+    if (rowMetal)    rowMetal.style.display    = '';
+    if (rowSetItems) rowSetItems.style.display = 'none';
   }
 
   // Disable sidebar submit button while confirmation modal is open

@@ -120,8 +120,8 @@
   margin-bottom: 8px;
 }
 
-.pricing-mode-badge--variable { background: #dbeafe; color: #1e40af; }
-.pricing-mode-badge--fixed { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.pricing-mode-badge--variable { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.pricing-mode-badge--fixed    { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 
 .listing-price-details {
   display: flex;
@@ -138,40 +138,47 @@
   line-height: 1.2;
 }
 
-/* Premium + Floor chip row */
-.listing-price-meta {
+/* Metrics strip — Premium / Floor / Spot */
+.listing-metrics-strip {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: stretch;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.listing-price-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
+.listing-metric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
 }
 
-.listing-price-chip-label {
-  font-weight: 500;
-  opacity: 0.75;
+.listing-metric-sep {
+  width: 1px;
+  background: #e2e8f0;
+  flex-shrink: 0;
 }
 
-.listing-price-chip--premium {
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
+.listing-metric-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.listing-price-chip--floor {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+.listing-metric-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
 }
+
+.listing-metric-value--premium { color: #0f172a; }
+.listing-metric-value--floor    { color: #0f172a; }
+.listing-metric-value--spot     { color: #0f172a; }
 
 .listing-fixed-price {
   font-size: 22px;

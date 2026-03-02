@@ -8,7 +8,7 @@ from flask import request, jsonify, session
 from database import get_db_connection
 from utils.cart_utils import get_cart_items
 from services.spot_price_service import get_current_spot_prices, get_spot_price_age, refresh_spot_prices
-from services.pricing_service import create_price_lock, get_active_price_lock
+from services.pricing_service import create_price_lock, get_active_price_lock, get_effective_price
 
 from . import api_bp
 
@@ -480,19 +480,8 @@ def get_listing_details(listing_id):
             conn.close()
             return jsonify({'error': 'Listing not found or unauthorized'}), 404
 
-        # Calculate effective price for variable pricing
-        effective_price = listing['price_per_coin']
-        if listing['pricing_mode'] == 'premium_to_spot':
-            from services.spot_price_service import get_spot_price
-            try:
-                spot_price = get_spot_price(listing['pricing_metal'] or listing['metal'])
-                if spot_price and listing['spot_premium'] is not None:
-                    effective_price = spot_price + listing['spot_premium']
-                    # Apply floor price if set
-                    if listing['floor_price'] and effective_price < listing['floor_price']:
-                        effective_price = listing['floor_price']
-            except:
-                pass
+        # Calculate effective price using pricing service (handles weight multiplication correctly)
+        effective_price = get_effective_price(dict(listing))
 
         result = {
             'listing_id': listing['listing_id'],

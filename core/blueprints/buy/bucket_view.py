@@ -9,7 +9,7 @@ Contains routes for viewing bucket details and availability:
 from flask import render_template, request, redirect, url_for, session, flash
 from database import get_db_connection
 from services.pricing_service import get_effective_price, get_effective_bid_price
-from services.spot_price_service import get_spot_price
+from services.spot_price_service import get_current_spot_prices
 from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
 from . import buy_bp
 
@@ -154,13 +154,16 @@ def view_bucket(bucket_id):
         listings_query += f' AND l.packaging_type IN ({packaging_placeholders})'
         listings_params.extend(packaging_styles)
 
+    # Pre-fetch spot prices once for all listings (avoids N DB queries)
+    spot_prices = get_current_spot_prices()
+
     # Execute listings query
     listings_raw = conn.execute(listings_query, listings_params).fetchall()
     # Calculate effective prices for all listings
     listings = []
     for listing in listings_raw:
         listing_dict = dict(listing)
-        listing_dict['effective_price'] = get_effective_price(listing_dict)
+        listing_dict['effective_price'] = get_effective_price(listing_dict, spot_prices)
         listings.append(listing_dict)
 
     # Calculate availability from ALL listings (including user's own) for best ask
@@ -169,7 +172,7 @@ def view_bucket(bucket_id):
     has_non_user_listings = False
     for listing in all_listings_raw:
         listing_dict = dict(listing)
-        listing_dict['effective_price'] = get_effective_price(listing_dict)
+        listing_dict['effective_price'] = get_effective_price(listing_dict, spot_prices)
         all_listings.append(listing_dict)
         # Check if this is not the user's listing
         if user_id and listing_dict['seller_id'] != user_id:
@@ -353,11 +356,11 @@ def view_bucket(bucket_id):
 
     user_is_logged_in = 'user_id' in session
 
-    # Fetch spot price for the bucket's metal
+    # Get spot price for the bucket's metal (reuse pre-fetched spot_prices)
     bucket_metal = specs.get('Metal')
     spot_price = None
     if bucket_metal and bucket_metal != '--':
-        spot_price = get_spot_price(bucket_metal)
+        spot_price = spot_prices.get(bucket_metal.lower())
 
     # Get isolated/set information from listing
     # Check if this bucket has isolated listings

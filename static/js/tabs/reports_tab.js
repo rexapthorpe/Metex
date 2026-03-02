@@ -432,18 +432,17 @@ function reportDetailsOutsideClickListener(e) {
 function formatReportDate(dateStr, includeTime = false) {
   try {
     const date = new Date(dateStr);
-    const options = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    };
-
+    if (isNaN(date.getTime())) return dateStr;
+    const dd = String(date.getDate()).padStart(2, '0');
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+    const yyyy = date.getFullYear();
     if (includeTime) {
-      options.hour = '2-digit';
-      options.minute = '2-digit';
+      const hh = String(date.getHours()).padStart(2, '0');
+      const mm = String(date.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}, ${dd}, ${dayName}, ${monthName}, ${yyyy}`;
     }
-
-    return date.toLocaleDateString('en-US', options);
+    return `${dd}, ${dayName}, ${monthName}, ${yyyy}`;
   } catch (e) {
     return dateStr;
   }

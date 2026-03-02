@@ -137,38 +137,13 @@
           </div>
         {% endif %}
 
-        <div class="specs-two-col">
-          <div class="spec-col">
-            <div class="spec-row"><span class="spec-label">Metal</span><span class="spec-value">{{ specs['Metal'] or '--' }}</span></div>
-            <div class="spec-row"><span class="spec-label">Product line</span><span class="spec-value">{{ specs['Product line'] or '--' }}</span></div>
-            <div class="spec-row"><span class="spec-label">Product type</span><span class="spec-value">{{ specs['Product type'] or '--' }}</span></div>
-            <div class="spec-row"><span class="spec-label">Weight</span><span class="spec-value">{{ specs['Weight'] or '--' }}</span></div>
-            <div class="spec-row"><span class="spec-label">Condition</span><span class="spec-value">{{ specs['Condition Category'] or '--' }}</span></div>
-          </div>
-          <div class="spec-col">
-            <div class="spec-row"><span class="spec-label">Year</span><span class="spec-value">{{ specs['Year'] or '--' }}</span></div>
-            <div class="spec-row"><span class="spec-label">Mint</span><span class="spec-value">{{ specs['Mint'] or '--' }}</span></div>
-            <div class="spec-row"><span class="spec-label">Purity</span><span class="spec-value">{{ specs['Purity'] or '--' }}</span></div>
-            <div class="spec-row"><span class="spec-label">Finish</span><span class="spec-value">{{ specs['Finish'] or '--' }}</span></div>
-            <div class="spec-row"><span class="spec-label">Series Variant</span><span class="spec-value">{{ specs['Series Variant'] or '--' }}</span></div>
-          </div>
-        </div>
-
-        <div class="subsection">
-          <h4 class="section-heading">Item Description</h4>
+        {% if isolated_type == 'set' %}
+          <!-- SET LISTING: description → items (no top-level spec grid) -->
           <p class="item-description">
             {{ listing_description if listing_description else 'No description provided.' }}
           </p>
-        </div>
 
-        {% if is_isolated %}
-          <div class="subsection" style="margin-top: 1rem;">
-            {% if listing_edition_number and listing_edition_total %}
-            <div class="spec-row">
-              <span class="spec-label">Edition</span>
-              <span class="spec-value">#{{ listing_edition_number }} of {{ listing_edition_total }}</span>
-            </div>
-            {% endif %}
+          <div style="margin-top: 1rem;">
             <div class="spec-row">
               <span class="spec-label">Packaging</span>
               <span class="spec-value">{{ listing_packaging_type or '--' }}</span>
@@ -177,46 +152,89 @@
               <span class="spec-label">Packaging Notes</span>
               <span class="spec-value">{{ listing_packaging_notes or '--' }}</span>
             </div>
-            <div class="spec-row">
-              <span class="spec-label">Condition Notes</span>
-              <span class="spec-value">{{ listing_condition_notes or '--' }}</span>
+          </div>
+
+          {% if set_items and set_items|length > 0 %}
+            <div class="subsection" style="margin-top: 1.5rem;">
+              <h4 class="section-heading">Items Included in This Set</h4>
+              <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
+                This set includes {{ set_items|length }} item{{ 's' if set_items|length != 1 else '' }}:
+              </p>
+
+              {% for item in set_items %}
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                  <div style="font-weight: bold; margin-bottom: 8px; font-size: 0.95rem;">
+                    Item #{{ loop.index }}
+                  </div>
+                  <div class="specs-two-col">
+                    <div class="spec-col">
+                      <div class="spec-row"><span class="spec-label">Metal</span><span class="spec-value">{{ item['metal'] or '--' }}</span></div>
+                      <div class="spec-row"><span class="spec-label">Product line</span><span class="spec-value">{{ item['product_line'] or '--' }}</span></div>
+                      <div class="spec-row"><span class="spec-label">Product type</span><span class="spec-value">{{ item['product_type'] or '--' }}</span></div>
+                      <div class="spec-row"><span class="spec-label">Weight</span><span class="spec-value">{{ item['weight'] or '--' }}</span></div>
+                    </div>
+                    <div class="spec-col">
+                      <div class="spec-row"><span class="spec-label">Year</span><span class="spec-value">{{ item['year'] or '--' }}</span></div>
+                      <div class="spec-row"><span class="spec-label">Mint</span><span class="spec-value">{{ item['mint'] or '--' }}</span></div>
+                      <div class="spec-row"><span class="spec-label">Purity</span><span class="spec-value">{{ item['purity'] or '--' }}</span></div>
+                      <div class="spec-row"><span class="spec-label">Finish</span><span class="spec-value">{{ item['finish'] or '--' }}</span></div>
+                      {% if item['edition_number'] and item['edition_total'] %}
+                      <div class="spec-row"><span class="spec-label">Edition</span><span class="spec-value">#{{ item['edition_number'] }} of {{ item['edition_total'] }}</span></div>
+                      {% endif %}
+                    </div>
+                  </div>
+                  {% if item['condition_notes'] %}
+                  <div class="spec-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                    <span class="spec-label">Condition Notes</span>
+                    <span class="spec-value">{{ item['condition_notes'] }}</span>
+                  </div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+        {% else %}
+          <!-- STANDARD / ONE-OF-A-KIND: description → spec grid → notes -->
+          <p class="item-description" style="margin-bottom: 1rem;">
+            {{ listing_description if listing_description else 'No description provided.' }}
+          </p>
+
+          <div class="specs-two-col">
+            <div class="spec-col">
+              <div class="spec-row"><span class="spec-label">Metal</span><span class="spec-value">{{ specs['Metal'] or '--' }}</span></div>
+              <div class="spec-row"><span class="spec-label">Product line</span><span class="spec-value">{{ specs['Product line'] or '--' }}</span></div>
+              <div class="spec-row"><span class="spec-label">Product type</span><span class="spec-value">{{ specs['Product type'] or '--' }}</span></div>
+              <div class="spec-row"><span class="spec-label">Weight</span><span class="spec-value">{{ specs['Weight'] or '--' }}</span></div>
+              <div class="spec-row"><span class="spec-label">Condition</span><span class="spec-value">{{ specs['Condition Category'] or '--' }}</span></div>
+              {% if is_isolated and listing_edition_number and listing_edition_total %}
+              <div class="spec-row"><span class="spec-label">Edition</span><span class="spec-value">#{{ listing_edition_number }} of {{ listing_edition_total }}</span></div>
+              {% endif %}
+            </div>
+            <div class="spec-col">
+              <div class="spec-row"><span class="spec-label">Year</span><span class="spec-value">{{ specs['Year'] or '--' }}</span></div>
+              <div class="spec-row"><span class="spec-label">Mint</span><span class="spec-value">{{ specs['Mint'] or '--' }}</span></div>
+              <div class="spec-row"><span class="spec-label">Purity</span><span class="spec-value">{{ specs['Purity'] or '--' }}</span></div>
+              <div class="spec-row"><span class="spec-label">Finish</span><span class="spec-value">{{ specs['Finish'] or '--' }}</span></div>
+              <div class="spec-row"><span class="spec-label">Series Variant</span><span class="spec-value">{{ specs['Series Variant'] or '--' }}</span></div>
+              {% if is_isolated %}
+              <div class="spec-row"><span class="spec-label">Packaging</span><span class="spec-value">{{ listing_packaging_type or '--' }}</span></div>
+              {% endif %}
             </div>
           </div>
-        {% endif %}
 
-        <!-- Set Items Display (for set listings) -->
-        {% if set_items and set_items|length > 0 %}
-          <div class="subsection" style="margin-top: 1.5rem;">
-            <h4 class="section-heading">Items Included in This Set</h4>
-            <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
-              This set includes {{ set_items|length }} item{{ 's' if set_items|length != 1 else '' }}:
-            </p>
-
-            {% for item in set_items %}
-              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                <div style="font-weight: bold; margin-bottom: 8px; font-size: 0.95rem;">
-                  Item #{{ loop.index }}
-                </div>
-                <div class="specs-two-col">
-                  <div class="spec-col">
-                    <div class="spec-row"><span class="spec-label">Metal</span><span class="spec-value">{{ item['metal'] or '--' }}</span></div>
-                    <div class="spec-row"><span class="spec-label">Product line</span><span class="spec-value">{{ item['product_line'] or '--' }}</span></div>
-                    <div class="spec-row"><span class="spec-label">Product type</span><span class="spec-value">{{ item['product_type'] or '--' }}</span></div>
-                    <div class="spec-row"><span class="spec-label">Weight</span><span class="spec-value">{{ item['weight'] or '--' }}</span></div>
-                  </div>
-                  <div class="spec-col">
-                    <div class="spec-row"><span class="spec-label">Year</span><span class="spec-value">{{ item['year'] or '--' }}</span></div>
-                    <div class="spec-row"><span class="spec-label">Mint</span><span class="spec-value">{{ item['mint'] or '--' }}</span></div>
-                    <div class="spec-row"><span class="spec-label">Purity</span><span class="spec-value">{{ item['purity'] or '--' }}</span></div>
-                    <div class="spec-row"><span class="spec-label">Finish</span><span class="spec-value">{{ item['finish'] or '--' }}</span></div>
-                    {% if item['edition_number'] and item['edition_total'] %}
-                    <div class="spec-row"><span class="spec-label">Edition</span><span class="spec-value">#{{ item['edition_number'] }} of {{ item['edition_total'] }}</span></div>
-                    {% endif %}
-                  </div>
-                </div>
+          {% if is_isolated %}
+            <div class="subsection" style="margin-top: 0;">
+              <div class="spec-row">
+                <span class="spec-label">Packaging Notes</span>
+                <span class="spec-value">{{ listing_packaging_notes or '--' }}</span>
               </div>
-            {% endfor %}
-          </div>
+              <div class="spec-row">
+                <span class="spec-label">Condition Notes</span>
+                <span class="spec-value">{{ listing_condition_notes or '--' }}</span>
+              </div>
+            </div>
+          {% endif %}
         {% endif %}
 
       </article>
@@ -507,12 +525,8 @@
             <button type="submit" class="btn buy-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Buy Item</button>
           </form>
 
-          <!-- Bid button: disabled for isolated/set (one-of-a-kind) own listings -->
-          {% if is_isolated %}
+          <!-- Bid button: disabled when all listings belong to the current user -->
           <button type="button" class="btn bid-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Make a Bid</button>
-          {% else %}
-          <button type="button" class="btn bid-btn" onclick="openBidModal({{ bucket['id'] }})">Make a Bid</button>
-          {% endif %}
 
           <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
             <button type="submit" class="btn add-cart-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Add to Cart</button>
@@ -549,17 +563,17 @@
         Currently out of stock. Check back later or place a bid below.
       </p>
 
-      <!-- NEW: Opens unified bid modal (out of stock state) -->
+      <!-- Opens unified bid modal (out of stock state) -->
       <button
         type="button"
         id="outOfStockBidBtn"
         class="btn bid-btn"
-        {% if is_isolated and availability.get('all_listings_are_users', False) and session.get('user_id') %}
-          disabled style="opacity: 0.5; cursor: not-allowed;"
+        {% if availability.get('all_listings_are_users', False) and session.get('user_id') %}
+          disabled
         {% else %}
           onclick="openBidModal({{ bucket['id'] }})"
         {% endif %}
-        {% if in_stock %}style="display:none"{% endif %}
+        style="{% if in_stock %}display:none{% elif availability.get('all_listings_are_users', False) and session.get('user_id') %}opacity: 0.5; cursor: not-allowed;{% endif %}"
       >
         Make a Bid
       </button>
@@ -605,6 +619,7 @@
             <span id="bucket-price-change-percent">(0.00%)</span>
           </span>
         </div>
+        <div class="bucket-price-datetime" id="bucket-price-datetime"></div>
       </div>
     </div>
 
@@ -688,7 +703,7 @@
                 {% if bid['created_at'] %}
                 <div class="bid-date-row">
                   <i class="fa-regular fa-clock"></i>
-                  <span>{{ bid['created_at'][:10] }}</span>
+                  <span>{{ bid['created_at'] | format_datetime }}</span>
                 </div>
                 {% endif %}
               </div>
@@ -741,7 +756,7 @@
             <i class="fa-solid fa-check"></i> Accept Selected
           </button>
         {% endif %}
-        {% if is_isolated and availability.get('all_listings_are_users', False) and session.get('user_id') %}
+        {% if availability.get('all_listings_are_users', False) and session.get('user_id') %}
         <button type="button" class="btn header-bid-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
           + Create a Bid
         </button>
@@ -810,7 +825,7 @@
                       {% if bid['created_at'] %}
                       <div class="bid-date-row">
                         <i class="fa-regular fa-clock"></i>
-                        <span>{{ bid['created_at'][:10] }}</span>
+                        <span>{{ bid['created_at'] | format_datetime }}</span>
                       </div>
                       {% endif %}
                     </div>
@@ -819,10 +834,10 @@
                       <button
                         type="button"
                         class="icon-button view-bidder-btn"
-                        title="View Bidder"
+                        title="View Seller"
                         onclick="event.stopPropagation(); openBidderModal({{ bid['id'] }})">
                         <i class="fa-solid fa-user"></i>
-                        <span class="icon-label">View</span>
+                        <span class="icon-label">Seller</span>
                       </button>
                     </div>
                   </div>
@@ -888,7 +903,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bid_modal.css') }}?v=wizard-1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/bid_confirm_modal.css') }}?v=1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/edit_bid_modal.css') }}?v=1">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/accept_bid_modals.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modals/accept_bid_modals.css') }}?v=3">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/buy_item_modal.css') }}?v=1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/own_listings_skipped_modal.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/address_modal.css') }}">
@@ -1112,7 +1127,7 @@
 <script src="{{ url_for('static', filename='js/modals/bid_modal_steps.js') }}?v=wizard-2"></script>
 <script src="{{ url_for('static', filename='js/modals/bid_modal.js') }}?v=wizard-2"></script>
 <script src="{{ url_for('static', filename='js/modals/bid_confirm_modal.js') }}?v=CALC_FIX"></script>
-<script src="{{ url_for('static', filename='js/modals/accept_bid_modals.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/modals/accept_bid_modals.js') }}?v=3"></script>
 <script src="{{ url_for('static', filename='js/modals/buy_item_modal.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/modals/error_notification_modal.js') }}"></script>
 <script src="{{ url_for('static', filename='js/modals/close_bid_buy_page_confirmation_modal.js') }}"></script>

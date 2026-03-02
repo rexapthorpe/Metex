@@ -58,6 +58,81 @@
   }
 }
 
+/* ============================================
+   BULK ACTION BAR
+   ============================================ */
+
+.bulk-action-bar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.bulk-action-bar.visible {
+  display: flex;
+}
+
+.bulk-count-badge {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e40af;
+  margin-right: 4px;
+}
+
+.bulk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.bulk-btn-freeze {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.bulk-btn-freeze:hover { background: #1d4ed8; }
+
+.bulk-btn-delete {
+  background: #dc2626;
+  color: #fff;
+}
+
+.bulk-btn-delete:hover { background: #b91c1c; }
+
+.bulk-btn-cancel {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.bulk-btn-cancel:hover { background: #d1d5db; }
+
+/* Checkbox column */
+.cb-col {
+  width: 44px;
+  text-align: center;
+}
+
+.user-select-cb,
+#selectAllUsers {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
 /* Message Modal Styles */
 .message-recipient {
   display: flex;

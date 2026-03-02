@@ -69,16 +69,19 @@
   font-size: 0.95rem;
 }
 
-.address-form .form-group input {
+.address-form .form-group input,
+.address-form .form-group select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #ccc;
   border-radius: 6px;
   font-size: 1rem;
   box-sizing: border-box;
+  background-color: #fff;
 }
 
-.address-form .form-group input:focus {
+.address-form .form-group input:focus,
+.address-form .form-group select:focus {
   outline: none;
   border-color: #3da6ff;
   box-shadow: 0 0 0 2px rgba(61, 166, 255, 0.2);

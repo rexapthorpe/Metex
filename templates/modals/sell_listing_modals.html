@@ -47,25 +47,37 @@
           <span class="confirm-total-label">Spot Price</span>
           <span class="confirm-total-value confirm-total-value--secondary" id="confirm-spot-price">—</span>
         </div>
+        <div class="confirm-price-divider"></div>
+        <div class="confirm-total-row">
+          <span class="confirm-total-label">Floor Price</span>
+          <span class="confirm-total-value confirm-total-value--secondary" id="confirm-floor-price">—</span>
+        </div>
       </div>
     </div>
 
     <!-- Item Details -->
     <div class="confirm-section-label">ITEM DETAILS</div>
     <div class="confirm-details-card">
-      <div class="confirm-detail-row">
+      <div class="confirm-detail-row" id="confirm-row-category">
         <i class="fa-solid fa-layer-group confirm-detail-icon"></i>
         <div class="confirm-detail-text">
           <span class="confirm-detail-key">Category</span>
           <span class="confirm-detail-val" id="confirm-product-type">—</span>
         </div>
       </div>
-      <div class="confirm-detail-divider"></div>
-      <div class="confirm-detail-row">
+      <div class="confirm-detail-divider" id="confirm-divider-1"></div>
+      <div class="confirm-detail-row" id="confirm-row-metal">
         <i class="fa-regular fa-circle-dot confirm-detail-icon"></i>
         <div class="confirm-detail-text">
           <span class="confirm-detail-key">Metal Type</span>
           <span class="confirm-detail-val" id="confirm-metal">—</span>
+        </div>
+      </div>
+      <div class="confirm-detail-row" id="confirm-row-set-items" style="display:none;">
+        <i class="fa-solid fa-boxes-stacked confirm-detail-icon"></i>
+        <div class="confirm-detail-text">
+          <span class="confirm-detail-key">Items in Set</span>
+          <span class="confirm-detail-val" id="confirm-set-item-count">—</span>
         </div>
       </div>
     </div>

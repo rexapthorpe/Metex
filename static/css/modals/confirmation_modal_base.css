@@ -25,9 +25,66 @@
   padding: 24px;
   border-radius: 20px;
   width: 90%;
-  max-width: 400px;
+  max-width: 460px;
   text-align: center;
   position: relative;
+}
+
+/* ── Bid-closed success animation ── */
+.bid-closed-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0 4px;
+}
+
+.bid-closed-checkmark {
+  width: 72px;
+  height: 72px;
+  overflow: visible;
+}
+
+.bid-closed-circle {
+  stroke: #22c55e;
+  stroke-width: 3;
+  stroke-linecap: round;
+  fill: none;
+  stroke-dasharray: 145;
+  stroke-dashoffset: 145;
+  animation: bid-draw-circle 0.55s ease-in-out forwards;
+}
+
+.bid-closed-check {
+  stroke: #22c55e;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 50;
+  stroke-dashoffset: 50;
+  animation: bid-draw-check 0.4s 0.5s ease-in-out forwards;
+}
+
+.bid-closed-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #22c55e;
+  margin: 0;
+  opacity: 0;
+  animation: bid-label-fadein 0.3s 0.85s ease forwards;
+}
+
+@keyframes bid-draw-circle {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes bid-draw-check {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes bid-label-fadein {
+  to { opacity: 1; }
 }
 
 .confirmation-modal-content h2 {

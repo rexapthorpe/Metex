@@ -958,6 +958,33 @@ class SchemaManager:
         self.create_index('idx_reports_order', 'reports', 'order_id')
         self.create_index('idx_reports_status', 'reports', 'status')
 
+    def create_spot_price_snapshots_table(self):
+        """Create the spot_price_snapshots time-series table"""
+        print("\n[28/28] Creating SPOT_PRICE_SNAPSHOTS table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS spot_price_snapshots (
+            id         INTEGER   PRIMARY KEY AUTOINCREMENT,
+            metal      TEXT      NOT NULL,
+            price_usd  REAL      NOT NULL,
+            as_of      TIMESTAMP NOT NULL,
+            source     TEXT      DEFAULT 'metalpriceapi',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+
+        if not self.table_exists('spot_price_snapshots'):
+            self.cursor.execute(sql)
+            self.log_change("Created spot_price_snapshots table")
+        else:
+            self.log_skip("Table 'spot_price_snapshots' already exists")
+
+        self.create_index(
+            'idx_spot_snapshots_metal_as_of',
+            'spot_price_snapshots',
+            'metal, as_of DESC'
+        )
+
     def create_report_attachments_table(self):
         """Create the report_attachments table for report photos"""
         print("\n[27/27] Creating REPORT_ATTACHMENTS table...")
@@ -1023,6 +1050,7 @@ class SchemaManager:
             self.create_user_cancellation_stats_table()
             self.create_reports_table()
             self.create_report_attachments_table()
+            self.create_spot_price_snapshots_table()
 
             # Add cancellation columns to orders table
             self.add_column('orders', 'canceled_at', 'TIMESTAMP')

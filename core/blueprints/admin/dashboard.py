@@ -283,37 +283,43 @@ def dashboard():
             })
 
         # ========== TRANSACTION STATS (for Transactions tab) ==========
-        today = datetime.now().strftime('%Y-%m-%d')
+        # Exclude cancelled orders from all volume/count stats so figures
+        # reflect real economic activity only.
 
-        # Today's volume
+        # Today's volume (non-cancelled orders placed today)
         result = conn.execute('''
             SELECT COALESCE(SUM(total_price), 0) as total
             FROM orders
             WHERE date(created_at) = date('now')
+              AND status NOT IN ('Canceled', 'Cancelled')
         ''').fetchone()
         today_volume = result['total'] or 0
-        if today_volume >= 1000:
-            transaction_stats['today_volume'] = f"${today_volume/1000:.1f}K"
+        if today_volume >= 1_000_000:
+            transaction_stats['today_volume'] = f"${today_volume/1_000_000:.2f}M"
+        elif today_volume >= 1_000:
+            transaction_stats['today_volume'] = f"${today_volume/1_000:.1f}K"
         else:
-            transaction_stats['today_volume'] = f"${today_volume:,.0f}"
+            transaction_stats['today_volume'] = f"${today_volume:,.2f}"
 
-        # Transactions today
+        # Transactions today (non-cancelled)
         result = conn.execute('''
             SELECT COUNT(*) as count
             FROM orders
             WHERE date(created_at) = date('now')
+              AND status NOT IN ('Canceled', 'Cancelled')
         ''').fetchone()
         transaction_stats['transactions_today'] = f"{result['count']:,}"
 
-        # Average order value
+        # Average order value (non-cancelled orders only)
         result = conn.execute('''
             SELECT AVG(total_price) as avg_value
             FROM orders
+            WHERE status NOT IN ('Canceled', 'Cancelled')
         ''').fetchone()
         avg_value = result['avg_value'] or 0
-        transaction_stats['avg_order_value'] = f"${avg_value:,.0f}"
+        transaction_stats['avg_order_value'] = f"${avg_value:,.2f}"
 
-        # Processing orders
+        # Processing orders (active, non-cancelled orders awaiting fulfilment)
         result = conn.execute('''
             SELECT COUNT(*) as count
             FROM orders
@@ -322,6 +328,8 @@ def dashboard():
         transaction_stats['processing'] = f"{result['count']}"
 
         # ========== ALL TRANSACTIONS (for Transactions tab) ==========
+        # LEFT JOINs on listings/seller so orders survive even if a listing
+        # or seller account is later deleted.
         all_tx_query = conn.execute('''
             SELECT
                 o.id,
@@ -334,9 +342,9 @@ def dashboard():
                 COUNT(oi.id) as item_count
             FROM orders o
             JOIN users buyer ON o.buyer_id = buyer.id
-            JOIN order_items oi ON o.id = oi.order_id
-            JOIN listings l ON oi.listing_id = l.id
-            JOIN users seller ON l.seller_id = seller.id
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN listings l ON oi.listing_id = l.id
+            LEFT JOIN users seller ON l.seller_id = seller.id
             GROUP BY o.id
             ORDER BY o.created_at DESC
             LIMIT 100
@@ -346,10 +354,12 @@ def dashboard():
             created = tx['created_at'] or ''
             time_ago = _format_time_ago(created)
 
-            # Map status to display status
+            # Map raw status to a display class
             status = tx['status'] or 'pending'
             status_lower = status.lower()
-            if 'completed' in status_lower or 'delivered' in status_lower:
+            if 'cancel' in status_lower:
+                display_status = 'cancelled'
+            elif 'completed' in status_lower or 'delivered' in status_lower:
                 display_status = 'completed'
             elif 'pending' in status_lower or 'processing' in status_lower:
                 display_status = 'processing'
@@ -360,10 +370,10 @@ def dashboard():
 
             all_transactions.append({
                 'id': tx['id'],
-                'buyer': tx['buyer_username'],
-                'seller': tx['seller_username'],
+                'buyer': tx['buyer_username'] or 'Unknown',
+                'seller': tx['seller_username'] or 'Unknown',
                 'items': tx['item_count'],
-                'amount': f"${tx['total_price']:,.2f}",
+                'amount': f"${tx['total_price']:,.2f}" if tx['total_price'] else '$0.00',
                 'status': display_status,
                 'date': time_ago
             })

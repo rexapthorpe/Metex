@@ -3,6 +3,7 @@
 from flask import render_template, request, session
 from database import get_db_connection
 from services.pricing_service import get_effective_price
+from services.spot_price_service import get_current_spot_prices
 from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
 
 from . import buy_bp
@@ -11,24 +12,6 @@ from . import buy_bp
 @buy_bp.route('/buy')
 def buy():
     conn = get_db_connection()
-
-    # Check for any pending bid/listing matches (spot prices may have changed)
-    try:
-        from routes.bid_routes import check_all_pending_matches
-        match_result = check_all_pending_matches(conn)
-        if match_result['total_filled'] > 0:
-            print(f"[AUTO-MATCH] On buy page: Filled {match_result['total_filled']} items, "
-                  f"{match_result['orders_created']} orders, {match_result['bids_matched']} bids matched")
-            # Send notifications for filled bids
-            if match_result.get('notifications'):
-                from services.notification_service import notify_bid_filled
-                for notif_data in match_result['notifications']:
-                    try:
-                        notify_bid_filled(**notif_data)
-                    except Exception as e:
-                        print(f"[NOTIFICATION ERROR] {e}")
-    except Exception as e:
-        print(f"[AUTO-MATCH WARNING] Failed to check pending matches: {e}")
 
     # Read grading filters from GET parameters
     graded_only = request.args.get('graded_only') == '1'
@@ -153,11 +136,14 @@ def buy():
 
     listings = conn.execute(listings_query, params).fetchall()
 
+    # Pre-fetch spot prices once for all listings (avoids N DB queries)
+    spot_prices = get_current_spot_prices()
+
     # Calculate effective prices for all listings
     listings_with_prices = []
     for listing in listings:
         listing_dict = dict(listing)
-        listing_dict['effective_price'] = get_effective_price(listing_dict)
+        listing_dict['effective_price'] = get_effective_price(listing_dict, spot_prices)
         listings_with_prices.append(listing_dict)
 
     # Aggregate by bucket_id
@@ -170,15 +156,17 @@ def buy():
         if bucket_id not in bucket_data:
             bucket_data[bucket_id] = {
                 'lowest_price': listing['effective_price'],
+                'lowest_price_pricing_mode': listing.get('pricing_mode', 'static'),
+                'lowest_price_metal': (listing.get('pricing_metal') or listing.get('metal') or '').lower(),
                 'total_available': listing['quantity'],
                 'has_non_user_listings': not is_user_listing,
                 'total_non_user_available': 0 if is_user_listing else listing['quantity']
             }
         else:
-            bucket_data[bucket_id]['lowest_price'] = min(
-                bucket_data[bucket_id]['lowest_price'],
-                listing['effective_price']
-            )
+            if listing['effective_price'] < bucket_data[bucket_id]['lowest_price']:
+                bucket_data[bucket_id]['lowest_price'] = listing['effective_price']
+                bucket_data[bucket_id]['lowest_price_pricing_mode'] = listing.get('pricing_mode', 'static')
+                bucket_data[bucket_id]['lowest_price_metal'] = (listing.get('pricing_metal') or listing.get('metal') or '').lower()
             bucket_data[bucket_id]['total_available'] += listing['quantity']
             if not is_user_listing:
                 bucket_data[bucket_id]['has_non_user_listings'] = True
@@ -199,11 +187,18 @@ def buy():
             cat_dict['total_available'] = bucket_data[bucket_id]['total_available']
             cat_dict['all_listings_are_users'] = not bucket_data[bucket_id]['has_non_user_listings']
             cat_dict['total_non_user_available'] = bucket_data[bucket_id]['total_non_user_available']
+            pricing_mode = bucket_data[bucket_id].get('lowest_price_pricing_mode', 'static')
+            cat_dict['is_variable_pricing'] = pricing_mode == 'premium_to_spot'
+            if cat_dict['is_variable_pricing']:
+                metal = bucket_data[bucket_id].get('lowest_price_metal', '')
+                cat_dict['spot_price'] = spot_prices.get(metal)
+                cat_dict['spot_metal'] = metal
         else:
             cat_dict['lowest_price'] = None
             cat_dict['total_available'] = 0
             cat_dict['all_listings_are_users'] = False
             cat_dict['total_non_user_available'] = 0
+            cat_dict['is_variable_pricing'] = False
 
         standard_buckets.append(cat_dict)
 
@@ -224,11 +219,18 @@ def buy():
             cat_dict['total_available'] = bucket_data[bucket_id]['total_available']
             cat_dict['all_listings_are_users'] = not bucket_data[bucket_id]['has_non_user_listings']
             cat_dict['total_non_user_available'] = bucket_data[bucket_id]['total_non_user_available']
+            pricing_mode = bucket_data[bucket_id].get('lowest_price_pricing_mode', 'static')
+            cat_dict['is_variable_pricing'] = pricing_mode == 'premium_to_spot'
+            if cat_dict['is_variable_pricing']:
+                metal = bucket_data[bucket_id].get('lowest_price_metal', '')
+                cat_dict['spot_price'] = spot_prices.get(metal)
+                cat_dict['spot_metal'] = metal
         else:
             cat_dict['lowest_price'] = None
             cat_dict['total_available'] = 0
             cat_dict['all_listings_are_users'] = False
             cat_dict['total_non_user_available'] = 0
+            cat_dict['is_variable_pricing'] = False
 
         # ISOLATED BUCKET VISIBILITY RULE:
         # Skip isolated buckets with qty=0 (remove from Buy page)

@@ -47,6 +47,7 @@ NOTIFICATION_DEFAULTS = {  # type: dict[str, bool]
     'listing_expired':                      True,
     # ── Bids ──────────────────────────────────────────────────────────────
     'bid_placed_success':                   True,
+    'bid_updated':                          True,
     'bid_received':                         True,
     'bid_withdrawn':                        True,
     'outbid':                               True,
@@ -297,15 +298,16 @@ def notify_report_submitted(reporter_id, reported_username, report_id):
 # Query / management helpers
 # ---------------------------------------------------------------------------
 
-def get_user_notifications(user_id, unread_only=False, limit=50):
+def get_user_notifications(user_id, unread_only=False, limit=50, offset=0):
     """Get notifications for a user (newest first)."""
     conn = _get_conn()
     query = 'SELECT * FROM notifications WHERE user_id = ?'
     params = [user_id]
     if unread_only:
         query += ' AND is_read = 0'
-    query += ' ORDER BY created_at DESC LIMIT ?'
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
     params.append(limit)
+    params.append(offset)
     notifications = conn.execute(query, params).fetchall()
     conn.close()
 

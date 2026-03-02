@@ -6,7 +6,7 @@ Message routes: get sellers, buyers, messages, post messages, mark read.
 
 from flask import request, jsonify, session
 from database import get_db_connection
-from services.notification_service import notify_new_message
+from services.notification_types import notify_new_message
 
 from . import messages_bp
 

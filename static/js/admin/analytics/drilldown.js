@@ -12,31 +12,33 @@ function formatNumber(value) {
 }
 
 /**
- * Format date
+ * Format date (no time): DD, DayName, MonthName, YYYY
  */
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+    if (isNaN(date.getTime())) return String(dateString);
+    const dd = String(date.getDate()).padStart(2, '0');
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+    const yyyy = date.getFullYear();
+    return `${dd}, ${dayName}, ${monthName}, ${yyyy}`;
 }
 
 /**
- * Format datetime
+ * Format datetime: HH:MM, DD, DayName, MonthName, YYYY
  */
 function formatDateTime(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    if (isNaN(date.getTime())) return String(dateString);
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+    const yyyy = date.getFullYear();
+    return `${hh}:${mm}, ${dd}, ${dayName}, ${monthName}, ${yyyy}`;
 }
 
 // ============================================================================

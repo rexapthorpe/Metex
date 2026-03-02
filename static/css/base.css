@@ -181,6 +181,86 @@ button, .btn {
     }
 }
 
+/* === Admin Message Banner ===
+   Fixed strip below the header. Shown when the user has unread admin messages.
+   Dismissed when the user opens the admin conversation (JS handles this).
+   ========================================================================= */
+.admin-msg-banner {
+    display: none; /* shown by JS */
+    position: fixed;
+    top: 90px; /* matches main padding-top / desktop header clearance */
+    left: 0;
+    right: 0;
+    z-index: 990;
+    background: linear-gradient(90deg, #1a3a6b 0%, #2563eb 100%);
+    color: #fff;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 48px 10px 20px; /* right padding leaves room for close btn */
+    min-height: 44px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    text-align: center;
+}
+
+.admin-msg-banner i {
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+
+.admin-msg-banner a {
+    color: #fff;
+    font-weight: 700;
+    text-decoration: underline;
+    white-space: nowrap;
+}
+
+.admin-msg-banner a:hover {
+    opacity: 0.85;
+}
+
+.admin-msg-banner-close {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 4px 6px;
+    opacity: 0.7;
+    border-radius: 4px;
+}
+
+.admin-msg-banner-close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Push main content down so banner doesn't overlap */
+body.admin-banner-visible main {
+    padding-top: calc(90px + 44px);
+}
+
+@media (max-width: 768px) {
+    .admin-msg-banner { top: 120px; }
+    body.admin-banner-visible main { padding-top: calc(120px + 44px); }
+}
+
+@media (max-width: 480px) {
+    .admin-msg-banner {
+        top: 115px;
+        font-size: 13px;
+        padding: 10px 44px 10px 14px;
+    }
+    body.admin-banner-visible main { padding-top: calc(115px + 44px); }
+}
+
 /* === Global Modal Responsive Defaults ===
    These ensure modal content never overflows on mobile.
    Individual modal CSS files may override with more specific styles. */

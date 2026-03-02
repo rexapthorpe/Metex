@@ -259,7 +259,7 @@ def _register_blueprints(app):
     from routes.buy_routes import buy_bp
     from routes.account_routes import account_bp
     from routes.checkout_routes import checkout_bp
-    from routes.messages_routes import messages_bp
+    from core.blueprints.messages import messages_bp
     from routes.cart_routes import cart_bp
     from core.blueprints.bids import bid_bp
     from routes.ratings_routes import ratings_bp
@@ -442,10 +442,10 @@ def _register_jinja_filters(app):
             return str(value)
 
     @app.template_filter('format_datetime')
-    def format_datetime(value, format_str='%I:%M %p, %d %B %Y'):
+    def format_datetime(value, format_str='%H:%M, %d, %A, %B, %Y'):
         """
         Format a datetime string to a human-readable format.
-        Default: "12:17 AM, 10 January 2026"
+        Default: "14:30, 01, Wednesday, March, 2026"
         """
         if not value:
             return 'N/A'

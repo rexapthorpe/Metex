@@ -49,7 +49,7 @@
 
     {% if received_ratings %}
       {% for r in received_ratings %}
-        <div class="rt-row" data-type="received">
+        <div class="rt-row" data-type="received" data-timestamp="{{ r['timestamp_sort'] or '' }}">
 
           <!-- Left: avatar + identity + stars -->
           <div class="rt-left">
@@ -100,7 +100,7 @@
 
     <!-- Given Ratings -->
     {% for r in given_ratings %}
-      <div class="rt-row" data-type="given">
+      <div class="rt-row" data-type="given" data-timestamp="{{ r['timestamp_sort'] or '' }}">
         <div class="rt-left">
           <div class="rt-avatar">
             <span class="rt-avatar-initials">{{ (r["ratee_name"][:2] | upper) if r["ratee_name"] else "??" }}</span>
@@ -134,7 +134,7 @@
 
     <!-- Pending Ratings -->
     {% for p in pending_ratings %}
-      <div class="rt-row rt-row--pending" data-type="pending">
+      <div class="rt-row rt-row--pending" data-type="pending" data-timestamp="{{ p['order_date_sort'] or '' }}">
         <div class="rt-left">
           <div class="rt-avatar rt-avatar--pending">
             <span class="rt-avatar-initials">{{ (p["other_username"][:2] | upper) if p["other_username"] else "??" }}</span>
@@ -195,6 +195,27 @@
     (function () {
       var btns = document.querySelectorAll(".ratings-tab .filter-pill");
       var rows = document.querySelectorAll(".ratings-tab .rt-row");
+      var list = document.querySelector(".ratings-tab .rt-list");
+
+      function sortByRecent() {
+        if (!list) return;
+        var rowArr = Array.from(rows);
+        rowArr.sort(function (a, b) {
+          var ta = a.dataset.timestamp || "";
+          var tb = b.dataset.timestamp || "";
+          return tb > ta ? 1 : tb < ta ? -1 : 0;
+        });
+        // Find the first non-row child (empty state divs) to insert before
+        var anchor = Array.from(list.children).find(function (c) {
+          return !c.classList.contains("rt-row");
+        }) || null;
+        rowArr.forEach(function (r) {
+          list.insertBefore(r, anchor);
+        });
+      }
+
+      // Sort on initial load (default "All" view)
+      sortByRecent();
 
       btns.forEach(function (btn) {
         btn.addEventListener("click", function () {
@@ -205,6 +226,10 @@
           rows.forEach(function (row) {
             row.style.display = (filter === "all" || row.dataset.type === filter) ? "" : "none";
           });
+
+          if (filter === "all") {
+            sortByRecent();
+          }
 
           var emptyEl = document.getElementById("ratingsFilterEmpty");
           if (emptyEl) {

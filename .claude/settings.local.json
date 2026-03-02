@@ -73,7 +73,16 @@
       "Bash(echo npm not available:*)",
       "Bash(which npm && npm --version 2>/dev/null; which node && node --version 2>/dev/null)",
       "Bash(brew list)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(mdfind \"kMDItemKind == ''Application''\")",
+      "Bash(venv/bin/python3:*)",
+      "Bash(venv/bin/python:*)",
+      "Bash(pytest:*)",
+      "Bash(pip3 show pytest)",
+      "Bash(python3.12 -m pytest --version)",
+      "Bash(python3.11 -m pytest --version)",
+      "Bash(.venv/bin/pytest:*)",
+      "Bash(venv/bin/pytest:*)"
     ],
     "deny": [],
     "ask": []

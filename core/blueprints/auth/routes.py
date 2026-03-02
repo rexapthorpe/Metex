@@ -359,7 +359,7 @@ def reset_password(token):
     if not token or len(token) != 64:
         if is_ajax:
             return jsonify({'success': False, 'error': 'Invalid reset link.'})
-        return "Invalid reset link."
+        return redirect(url_for('auth.login'))
 
     # Hash the provided token to look it up
     token_hash = hash_token(token)
@@ -379,7 +379,7 @@ def reset_password(token):
             log_password_reset_failed(None, 'invalid_token')
         if is_ajax:
             return jsonify({'success': False, 'error': 'Invalid or expired reset link.'})
-        return "Invalid or expired reset link."
+        return redirect(url_for('auth.login'))
 
     # Check if token has been used
     if token_record['used_at']:
@@ -388,7 +388,7 @@ def reset_password(token):
             log_password_reset_failed(token_record['user_id'], 'token_already_used')
         if is_ajax:
             return jsonify({'success': False, 'error': 'This reset link has already been used.'})
-        return "This reset link has already been used."
+        return redirect(url_for('auth.login'))
 
     # Check if token has expired
     expires_at = datetime.fromisoformat(token_record['expires_at'])
@@ -398,7 +398,7 @@ def reset_password(token):
             log_password_reset_failed(token_record['user_id'], 'token_expired')
         if is_ajax:
             return jsonify({'success': False, 'error': 'This reset link has expired. Please request a new one.'})
-        return "This reset link has expired. Please request a new one."
+        return redirect(url_for('auth.login'))
 
     user_id = token_record['user_id']
 

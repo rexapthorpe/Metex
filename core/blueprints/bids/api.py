@@ -2,6 +2,7 @@
 
 from flask import jsonify, session
 from database import get_db_connection
+from services.pricing_service import get_effective_bid_price
 from . import bid_bp
 
 
@@ -23,24 +24,6 @@ def get_bidder_info(bid_id):
     conn = get_db_connection()
 
     try:
-        # SECURITY: Verify the current user is a seller with listings in this bid's bucket
-        # This allows potential bid recipients to view bidder info
-        seller_check = conn.execute("""
-            SELECT 1 FROM listings l
-            JOIN bids b ON l.category_id = b.category_id
-            WHERE b.id = ? AND l.seller_id = ? AND l.active = 1
-            LIMIT 1
-        """, (bid_id, user_id)).fetchone()
-
-        if not seller_check:
-            # Log the attempt
-            try:
-                from services.audit_service import log_unauthorized_access
-                log_unauthorized_access('bid', bid_id, 'view_bidder_info')
-            except ImportError:
-                pass
-            return jsonify({'error': 'You do not have access to view this bidder'}), 403
-
         # Get bid and bidder information
         bidder = conn.execute("""
             SELECT
@@ -48,6 +31,11 @@ def get_bidder_info(bid_id):
                 b.buyer_id,
                 b.quantity_requested,
                 b.remaining_quantity,
+                b.price_per_coin,
+                b.pricing_mode,
+                b.spot_premium,
+                b.ceiling_price,
+                b.pricing_metal,
                 u.username,
                 COALESCE(AVG(r.rating), 0) as rating,
                 COUNT(r.id) as num_reviews
@@ -55,7 +43,9 @@ def get_bidder_info(bid_id):
             JOIN users u ON b.buyer_id = u.id
             LEFT JOIN ratings r ON u.id = r.ratee_id
             WHERE b.id = ?
-            GROUP BY b.id, b.buyer_id, b.quantity_requested, b.remaining_quantity, u.username
+            GROUP BY b.id, b.buyer_id, b.quantity_requested, b.remaining_quantity,
+                     b.price_per_coin, b.pricing_mode, b.spot_premium, b.ceiling_price,
+                     b.pricing_metal, u.username
         """, (bid_id,)).fetchone()
 
         if not bidder:
@@ -67,12 +57,16 @@ def get_bidder_info(bid_id):
         requested = bidder['quantity_requested'] or 0
         remaining = bidder['remaining_quantity'] if bidder['remaining_quantity'] is not None else requested
 
+        effective_price = get_effective_bid_price(dict(bidder))
+
         result = {
             'buyer_id': buyer_id,
             'username': bidder['username'],
             'rating': round(bidder['rating'], 1),
             'num_reviews': bidder['num_reviews'],
-            'quantity': remaining
+            'quantity': remaining,
+            'bid_price': round(effective_price, 2),
+            'pricing_mode': bidder['pricing_mode'],
         }
 
         # Get user info (member since, display name)

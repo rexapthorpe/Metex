@@ -9,7 +9,6 @@ from flask import request, session, flash, jsonify
 from database import get_db_connection
 from routes.category_options import get_dropdown_options
 from utils.category_manager import get_or_create_category, validate_category_specification
-from services.notification_service import notify_bid_filled
 from services.bucket_price_history_service import update_bucket_price
 from services.pricing_service import get_effective_price
 from werkzeug.utils import secure_filename
@@ -458,27 +457,14 @@ def handle_sell_post():
             if result is not None:
                 return result  # Error response
 
+        # Attempt auto-match: fill existing open bids with this new listing
+        try:
+            from core.blueprints.bids.auto_match import auto_match_listing_to_bids
+            auto_match_listing_to_bids(listing_id, cursor)
+        except Exception as e:
+            print(f"[WARNING] Auto-match failed for listing {listing_id}: {e}")
+
         conn.commit()
-
-        # Auto-match this listing to existing bids (only for non-isolated listings)
-        auto_match_result = None
-        if not is_isolated:
-            try:
-                from routes.bid_routes import auto_match_listing_to_bids
-                cursor = conn.cursor()
-                auto_match_result = auto_match_listing_to_bids(listing_id, cursor)
-                conn.commit()
-                print(f"[SELL] Auto-match result: {auto_match_result}")
-
-                # Send notifications for any filled bids
-                if auto_match_result and auto_match_result.get('notifications'):
-                    for notif_data in auto_match_result['notifications']:
-                        try:
-                            notify_bid_filled(**notif_data)
-                        except Exception as e:
-                            print(f"[NOTIFICATION ERROR] Failed to send bid_filled notification: {e}")
-            except Exception as e:
-                print(f"[WARNING] Failed to auto-match listing to bids: {e}")
 
         # Update bucket price history after creating new listing
         try:

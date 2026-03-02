@@ -25,24 +25,6 @@ def account():
 
     conn = get_db_connection()
 
-    # Check for any pending bid/listing matches (spot prices may have changed)
-    try:
-        from routes.bid_routes import check_all_pending_matches
-        match_result = check_all_pending_matches(conn)
-        if match_result['total_filled'] > 0:
-            print(f"[AUTO-MATCH] On page load: Filled {match_result['total_filled']} items, "
-                  f"{match_result['orders_created']} orders, {match_result['bids_matched']} bids matched")
-            # Send notifications for filled bids
-            if match_result.get('notifications'):
-                from services.notification_service import notify_bid_filled
-                for notif_data in match_result['notifications']:
-                    try:
-                        notify_bid_filled(**notif_data)
-                    except Exception as e:
-                        print(f"[NOTIFICATION ERROR] {e}")
-    except Exception as e:
-        print(f"[AUTO-MATCH WARNING] Failed to check pending matches: {e}")
-
     # Get user information
     user = conn.execute(
         "SELECT * FROM users WHERE id = ?",
@@ -145,7 +127,7 @@ def account():
         # Format bid created_at timestamp
         if bid.get('created_at'):
             dt = datetime.fromisoformat(bid['created_at'])
-            bid['created_at'] = dt.strftime('%I:%M %p, %d %B %Y').lstrip('0')
+            bid['created_at'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
 
         bids.append(bid)
 
@@ -229,7 +211,7 @@ def account():
         r = dict(rating)
         if r.get('timestamp'):
             dt = datetime.fromisoformat(r['timestamp'])
-            r['timestamp'] = dt.strftime('%I:%M %p, %d %B %Y').lstrip('0')
+            r['timestamp'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
         formatted_received.append(r)
     received_ratings = formatted_received
 
@@ -238,7 +220,7 @@ def account():
         r = dict(rating)
         if r.get('timestamp'):
             dt = datetime.fromisoformat(r['timestamp'])
-            r['timestamp'] = dt.strftime('%I:%M %p, %d %B %Y').lstrip('0')
+            r['timestamp'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
         formatted_given.append(r)
     given_ratings = formatted_given
 
@@ -247,7 +229,7 @@ def account():
         r = dict(rating)
         if r.get('timestamp'):
             dt = datetime.fromisoformat(r['timestamp'])
-            r['timestamp'] = dt.strftime('%I:%M %p, %d %B %Y').lstrip('0')
+            r['timestamp'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
         formatted_pending.append(r)
     pending_ratings = formatted_pending
 
@@ -493,7 +475,7 @@ def account():
     for order in pending_orders + completed_orders:
         if order.get('order_date'):
             dt = datetime.fromisoformat(order['order_date'])
-            order['formatted_order_date'] = dt.strftime('%I:%M %p, %d %B %Y').lstrip('0')  # Remove leading zero from hour
+            order['formatted_order_date'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
 
     # 5) Active listings & sales
     # Note: Use subquery to get only ONE photo per listing (the first one by ID)
@@ -620,7 +602,7 @@ def account():
         # Format order date
         if sale.get('order_date'):
             dt = datetime.fromisoformat(sale['order_date'])
-            sale['order_date'] = dt.strftime('%I:%M %p, %d %B %Y').lstrip('0')
+            sale['order_date'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
 
         # Get cancellation request data for this order (for seller view)
         cancel_request = conn.execute(
@@ -749,7 +731,7 @@ def account():
         for m in history:
             msg = dict(m)
             if msg.get('timestamp'):
-                msg['timestamp'] = datetime.fromisoformat(msg['timestamp']).strftime('%I:%M %p, %d %B %Y').lstrip('0')
+                msg['timestamp'] = datetime.fromisoformat(msg['timestamp']).strftime('%H:%M, %d, %A, %B, %Y')
             convo['messages'].append({
                 'sender_id': msg['sender_id'],
                 'content': msg['content'],
@@ -759,7 +741,7 @@ def account():
         # Format last_message_time
         if convo.get('last_message_time'):
             dt = datetime.fromisoformat(convo['last_message_time'])
-            convo['last_message_time'] = dt.strftime('%I:%M %p, %d %B %Y').lstrip('0')
+            convo['last_message_time'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
 
         conversations.append(convo)
 

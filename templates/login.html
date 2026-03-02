@@ -20,6 +20,12 @@
   <main class="auth-shell" role="main">
     <!-- auth-card gets class .signup-mode when user toggles -->
     <section class="auth-card" id="authCard">
+      <!-- MOBILE TAB BAR — visible only at ≤768px via CSS -->
+      <div class="mobile-auth-tabs" aria-label="Switch between login and sign up">
+        <button class="mobile-auth-tab" data-swap="signup" type="button">Login</button>
+        <button class="mobile-auth-tab" data-swap="login" type="button">Create Account</button>
+      </div>
+
       <!-- Fixed side-by-side panes -->
       <div class="panes">
         <!-- LOGIN PANE -->

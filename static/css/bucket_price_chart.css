@@ -85,6 +85,14 @@
   color: #6b7280;
 }
 
+.bucket-price-datetime {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 400;
+  min-height: 18px;
+  margin-top: 4px;
+}
+
 /* Time Range Selector */
 .bucket-time-range-selector {
   display: flex;

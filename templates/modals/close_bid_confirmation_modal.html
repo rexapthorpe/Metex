@@ -1,16 +1,24 @@
 <div id="closeBidConfirmModal" class="confirmation-overlay" style="display: none;">
   <div class="confirmation-modal-content">
-    <!-- Unified close button -->
-    <button type="button" class="modal-close" onclick="closeCloseBidConfirmModal()" aria-label="Close modal">&times;</button>
-    <h2>Close Bid?</h2>
-    <p>Are you sure you want to close this bid?</p>
-    <div class="confirmation-actions">
-      <button class="confirmation-btn confirmation-btn-yes" onclick="confirmCloseBid()">
-        Yes
-      </button>
-      <button class="confirmation-btn confirmation-btn-no" onclick="closeCloseBidConfirmModal()">
-        No
-      </button>
+    <button type="button" class="modal-close" id="closeBidConfirmCloseBtn" onclick="closeCloseBidConfirmModal()" aria-label="Close modal">&times;</button>
+    <div id="closeBidConfirmContent">
+      <h2>Close Bid?</h2>
+      <p>Are you sure you want to close this bid?</p>
+      <div class="confirmation-actions">
+        <button class="confirmation-btn confirmation-btn-yes" onclick="confirmCloseBid()">
+          Yes
+        </button>
+        <button class="confirmation-btn confirmation-btn-no" onclick="closeCloseBidConfirmModal()">
+          No
+        </button>
+      </div>
+    </div>
+    <div id="closeBidSuccessAnim" class="bid-closed-success" style="display:none;">
+      <svg class="bid-closed-checkmark" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+        <circle class="bid-closed-circle" cx="26" cy="26" r="23"/>
+        <path class="bid-closed-check" d="M13 26l8 8 18-18"/>
+      </svg>
+      <p class="bid-closed-label">Bid Closed</p>
     </div>
   </div>
 </div>

@@ -10,6 +10,16 @@
 let notifications = [];
 let isNotificationSidebarOpen = false;
 const POLL_INTERVAL = 30000; // Poll every 30 seconds
+const INITIAL_LIMIT = 10;    // Notifications shown on initial sidebar open
+
+// Sidebar state
+let sidebarNotifications = [];  // All notifications currently displayed in sidebar
+let allLoaded = false;          // Whether all notifications have been fetched
+let sidebarLoading = false;     // Prevent concurrent "load more" requests
+
+// Toast state
+let lastSeenNotifId = null;
+let hasInitializedToasts = false;
 
 // ===================================
 // NOTIFICATION TYPE → ICON/COLOR MAP
@@ -143,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setInterval(() => {
         updateBadgeCount();
-        if (isNotificationSidebarOpen) loadNotifications();
+        loadNotifications(); // always poll — detects new notifications for toasts
     }, POLL_INTERVAL);
 });
 
@@ -163,7 +173,9 @@ function openNotificationSidebar() {
     isNotificationSidebarOpen = true;
     sidebar.classList.add('open');
     overlay.classList.add('show');
-    loadNotifications();
+    sidebarNotifications = [];
+    allLoaded = false;
+    loadSidebarInitial();
 }
 
 function closeNotificationSidebar() {
@@ -177,19 +189,47 @@ function closeNotificationSidebar() {
 // ===================================
 
 function loadNotifications() {
-    fetch('/notifications')
+    fetch(`/notifications?limit=${INITIAL_LIMIT}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 notifications = data.notifications;
-                renderNotifications();
-                updateNewBadge();
+                checkAndShowToasts();
             } else {
                 console.error('Failed to load notifications:', data.error);
             }
         })
-        .catch(error => {
-            console.error('Error loading notifications:', error);
+        .catch(error => console.error('Error loading notifications:', error));
+}
+
+// ===================================
+// SIDEBAR LOAD (INITIAL + MORE)
+// ===================================
+
+function loadSidebarInitial() {
+    notificationList.innerHTML = `
+        <div class="notification-loading">Loading notifications...</div>
+    `;
+    fetch(`/notifications?limit=${INITIAL_LIMIT}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                notifications = data.notifications;
+                sidebarNotifications = data.notifications;
+                allLoaded = sidebarNotifications.length < INITIAL_LIMIT;
+                renderNotifications();
+                updateNewBadge();
+                updateViewAllBtn();
+            } else {
+                notificationList.innerHTML = `
+                    <div class="notification-empty">
+                        <i class="fa-solid fa-exclamation-triangle"></i>
+                        <p>Failed to load notifications</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(() => {
             notificationList.innerHTML = `
                 <div class="notification-empty">
                     <i class="fa-solid fa-exclamation-triangle"></i>
@@ -199,6 +239,122 @@ function loadNotifications() {
         });
 }
 
+function loadMoreNotifications() {
+    if (allLoaded || sidebarLoading) return;
+    sidebarLoading = true;
+    const btn = document.getElementById('notifViewAllBtn');
+    if (btn) btn.textContent = 'Loading...';
+
+    fetch(`/notifications?offset=${INITIAL_LIMIT}&limit=9999`)
+        .then(response => response.json())
+        .then(data => {
+            sidebarLoading = false;
+            if (data.success) {
+                const newNotifs = data.notifications;
+                sidebarNotifications = [...sidebarNotifications, ...newNotifs];
+                allLoaded = true;
+                newNotifs.forEach(notification => {
+                    const tile = createNotificationTile(notification);
+                    notificationList.appendChild(tile);
+                });
+                updateViewAllBtn();
+            } else {
+                if (btn) btn.textContent = 'View All Notifications';
+            }
+        })
+        .catch(() => {
+            sidebarLoading = false;
+            if (btn) btn.textContent = 'View All Notifications';
+        });
+}
+
+function updateViewAllBtn() {
+    const footer = document.getElementById('notifFooter');
+    if (!footer) return;
+    footer.style.display = allLoaded ? 'none' : '';
+}
+
+// ===================================
+// TOAST DETECTION & DISPLAY
+// ===================================
+
+function checkAndShowToasts() {
+    if (!hasInitializedToasts) {
+        // First load: record the current highest ID so we only toast future arrivals
+        if (notifications.length > 0) {
+            lastSeenNotifId = Math.max(...notifications.map(n => n.id));
+        }
+        hasInitializedToasts = true;
+        return;
+    }
+
+    // Find notifications newer than what we've seen
+    const newNotifs = notifications.filter(n => n.id > (lastSeenNotifId || 0));
+
+    // Advance the watermark
+    if (notifications.length > 0) {
+        lastSeenNotifId = Math.max(...notifications.map(n => n.id));
+    }
+
+    // Show toasts (cap at 3 to avoid overwhelming the screen)
+    newNotifs.slice(0, 3).forEach((notif, index) => {
+        setTimeout(() => showNotifToast(notif), index * 200);
+    });
+}
+
+function showNotifToast(notification) {
+    const container = document.getElementById('notif-toast-container');
+    if (!container) return;
+
+    const { icon, bg, color } = getNotifIcon(notification.type);
+    const targetUrl = getTargetUrl(notification.type);
+
+    const toast = document.createElement('div');
+    toast.className = 'notif-toast';
+    toast.innerHTML = `
+        <div class="notif-icon-circle" style="background:${bg}; color:${color}">
+            <i class="fa-solid ${icon}"></i>
+        </div>
+        <div class="notif-toast-body">
+            <div class="notif-toast-title">${escapeHtml(notification.title)}</div>
+            <div class="notif-toast-message">${escapeHtml(notification.message)}</div>
+        </div>
+        <button class="notif-toast-close" aria-label="Dismiss">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    `;
+
+    let dismissed = false;
+
+    function dismissToast() {
+        if (dismissed) return;
+        dismissed = true;
+        toast.classList.add('hide');
+        setTimeout(() => {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 320);
+    }
+
+    // Click body → navigate
+    toast.addEventListener('click', (e) => {
+        if (e.target.closest('.notif-toast-close')) return;
+        dismissToast();
+        window.location.href = targetUrl;
+    });
+
+    // X button → dismiss only
+    toast.querySelector('.notif-toast-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismissToast();
+    });
+
+    container.appendChild(toast);
+
+    // CSS @keyframes on .notif-toast fires automatically on DOM insertion.
+    // Auto-dismiss after 3 seconds
+    setTimeout(dismissToast, 3000);
+}
+
 // ===================================
 // RENDER NOTIFICATIONS
 // ===================================
@@ -206,7 +362,7 @@ function loadNotifications() {
 function renderNotifications() {
     notificationList.innerHTML = '';
 
-    if (notifications.length === 0) {
+    if (sidebarNotifications.length === 0) {
         notificationList.innerHTML = `
             <div class="notification-empty">
                 <i class="fa-regular fa-bell-slash"></i>
@@ -216,7 +372,7 @@ function renderNotifications() {
         return;
     }
 
-    notifications.forEach(notification => {
+    sidebarNotifications.forEach(notification => {
         const tile = createNotificationTile(notification);
         notificationList.appendChild(tile);
     });
@@ -279,7 +435,9 @@ function handleMarkAllRead() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                loadNotifications();
+                sidebarNotifications = [];
+                allLoaded = false;
+                loadSidebarInitial();
                 updateBadgeCount();
             }
         })
@@ -309,7 +467,7 @@ function updateBadgeCount() {
 
 // Update the "N new" pill in the sidebar header
 function updateNewBadge() {
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const unreadCount = sidebarNotifications.filter(n => !n.is_read).length;
     if (notifNewBadge) {
         if (unreadCount > 0) {
             notifNewBadge.textContent = `${unreadCount} new`;

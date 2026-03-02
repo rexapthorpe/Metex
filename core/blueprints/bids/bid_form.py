@@ -61,40 +61,38 @@ def bid_form_unified(bucket_id, bid_id=None):
         is_edit = True
         form_action_url = url_for('bid.update_bid')
 
-        # Parse delivery_address to populate individual fields
-        # Format: "First Last • Address Line 1 • Address Line 2 • City, State, Zip"
+        # Parse delivery_address to populate individual fields.
+        # Current JS format (name is stored separately, NOT in this string):
+        #   "Address Line 1 • City, State ZIP"          (no line2)
+        #   "Address Line 1 • Address Line 2 • City, State ZIP"  (with line2)
         parsed_address = {}
         if bid['delivery_address']:
             parts = [p.strip() for p in bid['delivery_address'].split('•')]
+
             if len(parts) >= 1:
-                # First part: name
-                name_parts = parts[0].split(None, 1)  # Split on first space
-                parsed_address['first_name'] = name_parts[0] if len(name_parts) > 0 else ''
-                parsed_address['last_name'] = name_parts[1] if len(name_parts) > 1 else ''
+                parsed_address['line1'] = parts[0]
 
-            if len(parts) >= 2:
-                parsed_address['line1'] = parts[1]
+            if len(parts) == 2:
+                # "line1 • City, State ZIP"
+                city_state_zip = parts[1]
+            elif len(parts) >= 3:
+                # "line1 • line2 • City, State ZIP"
+                parsed_address['line2'] = parts[1]
+                city_state_zip = parts[-1]
+            else:
+                city_state_zip = ''
 
-            if len(parts) >= 3:
-                # Check if this is city/state/zip or line2
-                if len(parts) == 3:
-                    # Last part is city/state/zip
-                    city_state_zip = parts[2]
-                else:
-                    # This is line2
-                    parsed_address['line2'] = parts[2]
-                    city_state_zip = parts[3] if len(parts) >= 4 else ''
-
-                # Parse city, state, zip from "City, State, Zip" format
-                if len(parts) >= 3:
-                    city_state_zip = parts[-1]  # Always last part
-                    city_parts = [p.strip() for p in city_state_zip.split(',')]
-                    if len(city_parts) >= 1:
-                        parsed_address['city'] = city_parts[0]
-                    if len(city_parts) >= 2:
-                        parsed_address['state'] = city_parts[1]
-                    if len(city_parts) >= 3:
-                        parsed_address['zip'] = city_parts[2]
+            # Parse "City, State ZIP" → city, state, zip
+            # Split on first comma only: ["City", "State ZIP"]
+            if city_state_zip:
+                comma_parts = [p.strip() for p in city_state_zip.split(',', 1)]
+                if comma_parts:
+                    parsed_address['city'] = comma_parts[0]
+                if len(comma_parts) >= 2:
+                    # "State ZIP" → split on whitespace
+                    state_zip_parts = comma_parts[1].split(None, 1)
+                    parsed_address['state'] = state_zip_parts[0] if state_zip_parts else ''
+                    parsed_address['zip'] = state_zip_parts[1].strip() if len(state_zip_parts) > 1 else ''
 
         # Add parsed address to context
         bid = dict(bid)

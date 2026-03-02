@@ -83,32 +83,13 @@ def get_effective_price(listing, spot_prices=None):
             # Fall back to static price or floor price
             return listing.get('price_per_coin') or listing.get('floor_price', 0.0)
 
-        # Get weight in troy ounces
-        weight = listing.get('weight', 1.0)
-
-        # Parse weight if it's a string (e.g., "1 oz", "10 oz")
-        if isinstance(weight, str):
-            import re
-            # Extract numeric value from strings like "1 oz", "1oz", "0.5 oz"
-            match = re.match(r'([0-9.]+)\s*(oz|g|kg|lb)?', weight.strip(), re.IGNORECASE)
-            if match:
-                weight_value = float(match.group(1))
-                weight_unit = match.group(2) or 'oz'
-                weight_oz = convert_weight_to_troy_ounces(weight_value, weight_unit)
-            else:
-                logger.warning(f"Could not parse weight '{weight}', assuming 1.0 oz")
-                weight_oz = 1.0
-        else:
-            # Weight is already numeric
-            weight_oz = float(weight)
-
         # Calculate spot-based price
-        # Price = (spot price per oz * weight in oz) + premium
+        # effective ask = spot_price + premium (floor acts as minimum)
         spot_premium = listing.get('spot_premium', 0.0)
         if spot_premium is None:
             spot_premium = 0.0
 
-        computed_price = (spot_price_per_oz * weight_oz) + spot_premium
+        computed_price = spot_price_per_oz + spot_premium
 
         # Enforce floor price (for listings)
         # Note: This is for LISTINGS. Bids use ceiling price instead (see get_effective_bid_price)

@@ -26,8 +26,9 @@ def get_notifications():
     user_id = session['user_id']
     unread_only = request.args.get('unread_only', 'false').lower() == 'true'
     limit = int(request.args.get('limit', 50))
+    offset = int(request.args.get('offset', 0))
 
-    notifications = get_user_notifications(user_id, unread_only=unread_only, limit=limit)
+    notifications = get_user_notifications(user_id, unread_only=unread_only, limit=limit, offset=offset)
 
     return jsonify({
         'success': True,

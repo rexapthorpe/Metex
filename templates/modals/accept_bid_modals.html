@@ -1,73 +1,93 @@
 <!-- Accept Bid Confirmation Modal -->
-<div id="acceptBidConfirmModal" class="modal-overlay" style="display: none;">
-  <div class="modal-dialog accept-bid-modal">
-    <!-- Unified close button - positioned relative to modal card -->
-    <button type="button" class="modal-close" onclick="closeAcceptBidConfirmModal()" aria-label="Close modal">&times;</button>
-    <div class="modal-header">
-      <h2>Confirm Bid Acceptance</h2>
-    </div>
-
-    <div class="modal-body">
-      <div class="confirm-summary">
-        <p class="confirm-message">You are about to accept the following bid(s):</p>
-
-        <!-- ✅ Container for dynamically generated bid cards (supports single or multiple bids) -->
-        <div id="confirm-bids-container">
-          <!-- Bid cards will be inserted here by JavaScript -->
+<div id="acceptBidConfirmModal" class="abm-overlay" style="display: none;">
+  <div class="abm-dialog">
+    <!-- Header -->
+    <div class="abm-header">
+      <div class="abm-header-left">
+        <div class="abm-icon-box">
+          <i class="fa-solid fa-gavel"></i>
         </div>
-
-        <!-- Delivery Address Notice (applies to all bids) -->
-        <div class="content-container delivery-address">
-          <h3 class="container-subheader">Delivery Address</h3>
-          <div class="privacy-notice">
-            <i class="fas fa-lock"></i>
-            <span>Buyer delivery addresses are hidden until bids are accepted for the purpose of protecting user privacy.</span>
-          </div>
-        </div>
-
-        <p class="confirm-question">Do you want to proceed?</p>
-        <hr class="confirm-divider">
+        <h2 class="abm-title">Accept Bid</h2>
       </div>
+      <button type="button" class="abm-close" onclick="closeAcceptBidConfirmModal()" aria-label="Close">&times;</button>
     </div>
 
-    <div class="modal-footer">
-      <button type="button" class="btn btn-secondary" onclick="closeAcceptBidConfirmModal()">No, Cancel</button>
-      <button type="button" class="btn btn-primary" id="confirmAcceptBtn">Yes, Accept Bid</button>
+    <p class="abm-subtitle">You are committing to fulfill these orders once accepted.</p>
+
+    <!-- Bid Summary Table -->
+    <div class="abm-table-wrap">
+      <table class="abm-table">
+        <thead>
+          <tr>
+            <th class="abm-th-buyer">BUYER</th>
+            <th>QTY</th>
+            <th>PRICE</th>
+            <th>SUBTOTAL</th>
+          </tr>
+        </thead>
+        <tbody id="confirm-bids-container">
+          <!-- JS fills rows -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totals Summary -->
+    <div class="abm-summary" id="confirm-bids-summary"></div>
+
+    <!-- Shipping Warning -->
+    <div class="abm-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span>You must ship items within 4 business days. Failure may result in penalties.</span>
+    </div>
+
+    <!-- Escrow Notice -->
+    <div class="abm-escrow">
+      <i class="fa-solid fa-shield-halved"></i>
+      <span>Buyer funds held in escrow until delivery confirmed.</span>
+    </div>
+
+    <!-- Footer -->
+    <div class="abm-footer">
+      <button type="button" class="abm-btn-cancel" onclick="closeAcceptBidConfirmModal()">Cancel</button>
+      <button type="button" class="abm-btn-confirm" id="confirmAcceptBtn">
+        <i class="fa-solid fa-check"></i> Confirm &amp; Accept
+      </button>
     </div>
   </div>
 </div>
 
 <!-- Accept Bid Success Modal -->
-<div id="acceptBidSuccessModal" class="modal-overlay" style="display: none;">
-  <div class="modal-dialog accept-bid-success-modal">
-    <div class="modal-header success-header">
-      <h2>🎉 Congratulations!</h2>
-      <button type="button" class="modal-close" onclick="closeAcceptBidSuccessModal()" aria-label="Close">&times;</button>
+<div id="acceptBidSuccessModal" class="abm-overlay" style="display: none;">
+  <div class="abm-success-dialog">
+    <!-- Absolute close button -->
+    <button type="button" class="abm-close abm-success-close-abs" onclick="closeAcceptBidSuccessModal()" aria-label="Close">&times;</button>
+
+    <!-- Animated checkmark -->
+    <div class="abm-success-anim">
+      <svg class="abm-checkmark" viewBox="0 0 52 52" aria-hidden="true">
+        <circle class="abm-checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+        <path class="abm-checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+      </svg>
     </div>
 
-    <div class="modal-body">
-      <div class="success-content">
-        <p class="success-message">You have successfully accepted the bid(s)!</p>
+    <h2 class="abm-success-title">Bid Accepted!</h2>
+    <p class="abm-success-subtitle">You're committed to fulfill these orders. Ship within 4 business days.</p>
 
-        <div class="order-details">
-          <h3>Order Details</h3>
+    <div class="abm-success-body">
+      <!-- Container for dynamically generated order cards -->
+      <div id="success-orders-container"></div>
 
-          <!-- ✅ Container for dynamically generated order cards (supports single or multiple orders) -->
-          <div id="success-orders-container">
-            <!-- Order cards will be inserted here by JavaScript -->
-          </div>
-
-          <div class="shipping-notice">
-            <strong>⚠️ Important:</strong> You have <strong>4 days</strong> to input shipping tracking links for these orders.
-            Failure to do so will result in forfeiting the contracts, and you will be flagged in our system going forward.
-          </div>
-        </div>
+      <div class="abm-warning" style="margin-top: 16px; margin-bottom: 0;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>You have <strong>4 business days</strong> to add shipping tracking. Failure may result in penalties.</span>
       </div>
     </div>
 
-    <div class="modal-footer success-footer">
-      <hr class="footer-divider">
-      <button type="button" class="btn btn-primary" onclick="closeAcceptBidSuccessModal()">Close</button>
+    <div class="abm-footer" style="margin-top: 24px;">
+      <button type="button" class="abm-btn-cancel" onclick="closeAcceptBidSuccessModal()">Close</button>
+      <a href="/account#sold" class="abm-btn-confirm abm-btn-link">
+        <i class="fa-solid fa-box-open"></i> View Sold Items
+      </a>
     </div>
   </div>
 </div>

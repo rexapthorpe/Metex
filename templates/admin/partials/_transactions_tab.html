@@ -62,7 +62,7 @@
               <td>@{{ tx.buyer }}</td>
               <td>@{{ tx.seller }}</td>
               <td>{{ tx.items }}</td>
-              <td>${{ '{:,.2f}'.format(tx.amount or 0) }}</td>
+              <td>{{ tx.amount }}</td>
               <td><span class="status-badge status-{{ tx.status | lower }}">{{ tx.status }}</span></td>
               <td>{{ tx.date }}</td>
               <td class="actions-cell">

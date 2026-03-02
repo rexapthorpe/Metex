@@ -16,10 +16,25 @@
         </div>
       </div>
 
+      <!-- Bulk action bar — shown when 1+ rows are checked -->
+      <div class="bulk-action-bar" id="bulkActionBar">
+        <span class="bulk-count-badge"><span id="bulkSelectedCount">0</span> selected</span>
+        <button class="bulk-btn bulk-btn-freeze" onclick="bulkFreezeUsers()">
+          <i class="fa-solid fa-snowflake"></i> Freeze Selected
+        </button>
+        <button class="bulk-btn bulk-btn-delete" onclick="bulkDeleteUsers()">
+          <i class="fa-solid fa-trash"></i> Delete Selected
+        </button>
+        <button class="bulk-btn bulk-btn-cancel" onclick="clearBulkSelection()">
+          <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+      </div>
+
       <div class="data-table-container">
         <table class="data-table">
           <thead>
             <tr>
+              <th class="cb-col"><input type="checkbox" id="selectAllUsers" title="Select all visible users" onchange="toggleSelectAll(this)"></th>
               <th>User</th>
               <th>Email</th>
               <th>Status</th>
@@ -32,6 +47,7 @@
           <tbody>
             {% for user in users %}
             <tr data-user-id="{{ user.id }}" class="{% if user.is_frozen %}user-row-frozen{% endif %}">
+              <td class="cb-col"><input type="checkbox" class="user-select-cb" data-user-id="{{ user.id }}" onchange="updateBulkActionBar()"></td>
               <td>
                 <div class="user-cell">
                   <div class="user-avatar">{{ user.initial }}</div>

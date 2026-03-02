@@ -139,6 +139,28 @@ def notify_outbid(previous_bidder_id, bid_id, item_description, old_price, new_p
     )
 
 
+def notify_bid_updated(bidder_id, bid_id, bucket_id, item_description, quantity, price_per_unit):
+    """Confirm to a bidder that their bid was successfully updated."""
+    total = quantity * price_per_unit
+    return notify(
+        user_id=bidder_id,
+        notification_type='bid_updated',
+        title='Bid Updated Successfully',
+        body=(
+            f'Your bid for {quantity} unit(s) of {item_description} at '
+            f'${price_per_unit:.2f}/unit (${total:.2f} total) has been updated.'
+        ),
+        related_bid_id=bid_id,
+        metadata={
+            'bucket_id': bucket_id,
+            'quantity': quantity,
+            'price_per_unit': price_per_unit,
+            'total_amount': total,
+            'item_description': item_description,
+        },
+    )
+
+
 def notify_bid_withdrawn(bidder_id, bid_id, item_description):
     """Confirm to a bidder that their bid was withdrawn."""
     return notify(

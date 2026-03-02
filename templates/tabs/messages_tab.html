@@ -20,22 +20,24 @@
   <!-- Conversation List -->
   <div class="conversation-list">
     {% for convo in conversations %}
+      {% set is_admin = convo.type == 'admin' %}
       {% set initials = convo.other_username[:2].upper() if convo.other_username else '??' %}
-      <div class="conversation-tile collapsed"
+      <div class="conversation-tile collapsed{% if is_admin %} convo-admin-tile{% endif %}"
            data-user-id="{{ convo.other_user_id }}"
            data-order-id="{{ convo.order_id }}"
            data-type="{{ convo.type }}"
            data-has-unread="{{ '1' if convo.unread_count > 0 else '0' }}">
 
         <!-- Row -->
-        <div class="convo-row" onclick="toggleConversation(this)">
+        <div class="convo-row{% if is_admin %} convo-admin-row{% endif %}" onclick="toggleConversation(this)">
           <!-- Avatar -->
-          <div class="convo-avatar" data-initials="{{ initials }}">{{ initials }}</div>
+          <div class="convo-avatar{% if is_admin %} convo-admin-avatar{% endif %}" data-initials="{{ initials }}">{{ initials }}</div>
 
           <!-- Content -->
           <div class="convo-content">
             <div class="convo-header-row">
               <span class="convo-name">{{ convo.other_display_name or convo.other_username }}</span>
+              {% if is_admin %}<span class="convo-admin-badge">Admin</span>{% endif %}
               <span class="convo-username">@{{ convo.other_username }}</span>
               <span class="convo-time">{{ convo.last_message_time }}</span>
               {% if convo.unread_count > 0 %}
@@ -44,7 +46,7 @@
             </div>
             <div class="convo-preview">{{ convo.last_message_content }}</div>
             <!-- Linked item if available -->
-            {% if convo.order_id %}
+            {% if convo.order_id and convo.order_id != 0 %}
               <div class="convo-linked-item">
                 <i class="fa-solid fa-box convo-linked-icon"></i>
                 <span class="convo-linked-text">Re: Order #{{ '%04d' % convo.order_id }}</span>
@@ -58,12 +60,12 @@
 
           <!-- Hidden compat fields for JS -->
           <span class="last-message" style="display:none">{{ convo.last_message_content }}</span>
-          <span class="timestamp" style="display:none">{{ convo.last_message_time }}</span>
+          <span class="timestamp" style="display:none">{{ convo.last_message_time_raw }}</span>
           <span class="username" style="display:none">{{ convo.other_username }}</span>
         </div>
 
         <!-- Message Thread (collapsed by default) -->
-        <div class="message-body" style="display:none;">
+        <div class="message-body{% if is_admin %} message-body-admin{% endif %}" style="display:none;">
           <div class="message-history">
             {% for message in convo.messages %}
               <div class="message {% if message.sender_id == current_user_id %}sent{% else %}received{% endif %}">
@@ -74,9 +76,10 @@
           </div>
           <form class="message-input-row"
                 data-user-id="{{ convo.other_user_id }}"
-                data-order-id="{{ convo.order_id }}">
-            <input type="text" class="message-input" placeholder="Type a message…" />
-            <button type="submit" class="send-button">Send</button>
+                data-order-id="{{ convo.order_id }}"
+                data-is-admin="{{ 'true' if is_admin else 'false' }}">
+            <input type="text" class="message-input" placeholder="{% if is_admin %}Message admin…{% else %}Type a message…{% endif %}" />
+            <button type="submit" class="send-button{% if is_admin %} send-button-admin{% endif %}">Send</button>
           </form>
         </div>
       </div>
@@ -106,7 +109,7 @@ function filterMessages(filter) {
   });
   document.querySelectorAll('.conversation-tile').forEach(tile => {
     const isUnread = tile.dataset.hasUnread === '1';
-    const isOrder = !!tile.dataset.orderId && tile.dataset.orderId !== 'None';
+    const isOrder = tile.dataset.type !== 'admin' && !!tile.dataset.orderId && tile.dataset.orderId !== '0';
     let show = true;
     if (filter === 'unread') show = isUnread;
     if (filter === 'orders') show = isOrder;
@@ -130,9 +133,51 @@ function toggleConversation(row) {
   const tile = row.closest('.conversation-tile');
   const body = tile.querySelector('.message-body');
   const isOpen = body.style.display !== 'none';
+  // Collapse all others
+  document.querySelectorAll('.conversation-tile .message-body').forEach(b => {
+    if (b !== body) b.style.display = 'none';
+  });
+  document.querySelectorAll('.conversation-tile').forEach(t => {
+    if (t !== tile) t.classList.remove('expanded');
+  });
   body.style.display = isOpen ? 'none' : 'block';
   tile.classList.toggle('expanded', !isOpen);
+  if (!isOpen) {
+    const history = body.querySelector('.message-history');
+    if (history) history.scrollTop = history.scrollHeight;
+    // Mark read
+    const orderId = tile.dataset.orderId;
+    const userId = tile.dataset.userId;
+    const isAdmin = tile.dataset.type === 'admin';
+    tile.querySelector('.unread-dot')?.classList.add('hidden');
+    tile.dataset.hasUnread = '0';
+    if (isAdmin) {
+      fetch('/api/admin/messages/read', { method: 'POST' })
+        .then(function () {
+          // Give the server a moment to commit, then recheck the global banner
+          setTimeout(function () {
+            if (window.refreshAdminBanner) window.refreshAdminBanner();
+          }, 200);
+        })
+        .catch(function () {});
+    } else {
+      fetch(`/orders/api/${orderId}/messages/${userId}/read`, { method: 'POST' }).catch(() => {});
+    }
+  }
 }
+
+// Auto-open admin conversation if ?open_admin=1
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('open_admin') === '1') {
+    const adminTile = document.querySelector('.conversation-tile[data-type="admin"]');
+    if (adminTile) {
+      const row = adminTile.querySelector('.convo-row');
+      if (row) row.click();
+      setTimeout(() => adminTile.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
+  }
+})();
 
 window.filterMessages = filterMessages;
 </script>

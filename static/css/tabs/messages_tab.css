@@ -175,6 +175,57 @@
 .send-button:hover { background: #1e74f0; }
 
 /* ===================================
+   ADMIN CONVERSATION STYLING
+   =================================== */
+
+/* Tile background */
+.convo-admin-tile { background: #fffbf0; }
+.convo-admin-tile:last-child { border-bottom: none; }
+
+/* Row hover */
+.convo-admin-row { border-left: 3px solid #f59e0b; }
+.convo-admin-row:hover { background: #fff8e1; }
+
+/* Avatar — amber instead of blue */
+.convo-admin-avatar { background: #f59e0b; }
+
+/* "Admin" badge next to name */
+.convo-admin-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  padding: 1px 6px;
+  border-radius: 9999px;
+}
+
+/* Message body background */
+.message-body-admin { background: #fffbf0; }
+
+/* Sent messages (user → admin) — amber */
+.convo-admin-tile .message.sent .message-text {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+/* Received messages (admin → user) — warm tint */
+.convo-admin-tile .message.received .message-text {
+  background: #fff8e1;
+  border-color: #fcd34d;
+  color: #1c1917;
+}
+
+/* Send button — amber */
+.send-button-admin { background: #f59e0b; }
+.send-button-admin:hover { background: #d97706; }
+
+/* Unread badge — amber */
+.convo-admin-tile .convo-unread-badge { background: #f59e0b; }
+
+/* ===================================
    RESPONSIVE — MESSAGES TAB
    =================================== */
 

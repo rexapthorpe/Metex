@@ -10,13 +10,12 @@ Routes:
 
 from flask import request, redirect, url_for, session, flash, jsonify
 from database import get_db_connection
-from services.notification_service import notify_bid_filled
-from services.notification_types import notify_bid_placed, notify_bid_on_bucket
+from services.notification_types import notify_bid_placed, notify_bid_on_bucket, notify_bid_filled
+from .auto_match import auto_match_bid_to_listings
 from services.pricing_service import get_effective_bid_price
 from utils.auth_utils import frozen_check
 
 from . import bid_bp
-from .auto_match import auto_match_bid_to_listings
 
 
 @bid_bp.route('/place_bid/<int:bucket_id>', methods=['POST'])
@@ -96,6 +95,19 @@ def place_bid(bucket_id):
         flash("Please add your full name in Account Details before placing a bid.", "error")
         return redirect('/account#personal-info')
 
+    # Block bid if all active listings in this bucket belong to the current user
+    counts = cursor.execute('''
+        SELECT COUNT(*) AS total,
+               SUM(CASE WHEN l.seller_id != ? THEN 1 ELSE 0 END) AS others
+        FROM listings l
+        JOIN categories c ON l.category_id = c.id
+        WHERE c.bucket_id = ? AND l.active = 1 AND l.quantity > 0
+    ''', (session['user_id'], bucket_id)).fetchone()
+    if counts['total'] > 0 and counts['others'] == 0:
+        conn.close()
+        flash("You can't bid on a bucket where your listings are the only ones available.", "error")
+        return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
+
     recipient_first = user_info['first_name']
     recipient_last = user_info['last_name']
 
@@ -126,6 +138,13 @@ def place_bid(bucket_id):
             random_year
         )
     )
+    new_bid_id = cursor.lastrowid
+
+    try:
+        auto_match_bid_to_listings(new_bid_id, cursor)
+    except Exception as e:
+        print(f"[WARNING] Auto-match failed for bid {new_bid_id}: {e}")
+
     conn.commit()
     conn.close()
 
@@ -228,6 +247,21 @@ def create_bid_unified(bucket_id):
             redirect_to="/account#personal-info"
         ), 400
 
+    # Block bid if all active listings in this bucket belong to the current user
+    counts = cursor.execute('''
+        SELECT COUNT(*) AS total,
+               SUM(CASE WHEN l.seller_id != ? THEN 1 ELSE 0 END) AS others
+        FROM listings l
+        JOIN categories c ON l.category_id = c.id
+        WHERE c.bucket_id = ? AND l.active = 1 AND l.quantity > 0
+    ''', (session['user_id'], bucket_id)).fetchone()
+    if counts['total'] > 0 and counts['others'] == 0:
+        conn.close()
+        return jsonify(
+            success=False,
+            message="You can't bid on a bucket where your listings are the only ones available."
+        ), 403
+
     recipient_first = user_info['first_name']
     recipient_last = user_info['last_name']
 
@@ -262,7 +296,7 @@ def create_bid_unified(bucket_id):
         )
         new_bid_id = cursor.lastrowid
 
-        # Auto-match bid to available listings
+        # Attempt auto-match: fill bid against available listings immediately
         match_result = auto_match_bid_to_listings(new_bid_id, cursor)
 
         conn.commit()
@@ -354,13 +388,22 @@ def create_bid_unified(bucket_id):
         except Exception as e:
             print(f"[NOTIFICATION ERROR] Failed to send bid_on_bucket notifications: {e}")
 
-        # 3. If bid was auto-filled, notify the buyer
-        if match_result.get('notifications'):
-            for notif_data in match_result['notifications']:
-                try:
-                    notify_bid_filled(**notif_data)
-                except Exception as e:
-                    print(f"[NOTIFICATION ERROR] Failed to send bid_filled notification: {e}")
+        # 3. Send fill notifications if bid was auto-matched
+        for notif in match_result.get('notifications', []):
+            try:
+                notify_bid_filled(
+                    buyer_id=notif['buyer_id'],
+                    order_id=notif['order_id'],
+                    bid_id=notif['bid_id'],
+                    item_description=notif['item_description'],
+                    quantity_filled=notif['quantity_filled'],
+                    price_per_unit=notif['price_per_unit'],
+                    total_amount=notif['total_amount'],
+                    is_partial=notif['is_partial'],
+                    remaining_quantity=notif['remaining_quantity']
+                )
+            except Exception as e:
+                print(f"[NOTIFICATION ERROR] Failed to send bid fill notification: {e}")
 
         # Build response message
         if pricing_mode == 'premium_to_spot':

@@ -258,7 +258,7 @@ function initBucketPriceChart(priceHistory) {
           backgroundColor: 'rgba(139, 92, 246, 0.1)',
           borderWidth: 2,
           fill: true,
-          tension: 0.3,
+          tension: 0,
           pointRadius: 3,
           pointHoverRadius: 5
         },
@@ -269,7 +269,7 @@ function initBucketPriceChart(priceHistory) {
           borderWidth: 1,
           borderDash: [5, 5],
           fill: false,
-          tension: 0.3,
+          tension: 0,
           pointRadius: 0
         },
         {
@@ -279,7 +279,7 @@ function initBucketPriceChart(priceHistory) {
           borderWidth: 1,
           borderDash: [5, 5],
           fill: false,
-          tension: 0.3,
+          tension: 0,
           pointRadius: 0
         }
       ]

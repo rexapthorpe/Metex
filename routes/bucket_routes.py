@@ -78,6 +78,13 @@ def get_price_history(bucket_id):
         else:
             bucket_ids = [bucket_id]
 
+        # Snapshot the current price for each bucket before fetching history.
+        # This ensures that spot-price-driven price changes (which don't trigger
+        # a listing edit) are recorded as a new price point right now, so the
+        # graph's right-most value matches the displayed current price.
+        for bid in bucket_ids:
+            update_bucket_price(bid)
+
         # Get historical data for all relevant buckets
         all_history = []
         for bid in bucket_ids:

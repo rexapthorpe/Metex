@@ -86,15 +86,23 @@
                   <div class="listing-price-current">
                     ${{ '{:,.2f}'.format(listing.effective_price) if listing.effective_price else '0.00' }}
                   </div>
-                  <div class="listing-price-meta">
-                    <span class="listing-price-chip listing-price-chip--premium">
-                      <span class="listing-price-chip-label">Premium</span>
-                      <span class="listing-price-chip-val">+${{ '{:,.2f}'.format(listing.spot_premium) if listing.spot_premium else '0.00' }}</span>
-                    </span>
-                    <span class="listing-price-chip listing-price-chip--floor">
-                      <span class="listing-price-chip-label">Floor</span>
-                      <span class="listing-price-chip-val">${{ '{:,.2f}'.format(listing.floor_price) if listing.floor_price else '0.00' }}</span>
-                    </span>
+                  <div class="listing-metrics-strip">
+                    <div class="listing-metric">
+                      <span class="listing-metric-label">Premium</span>
+                      <span class="listing-metric-value listing-metric-value--premium">+${{ '{:,.2f}'.format(listing.spot_premium) if listing.spot_premium else '0.00' }}</span>
+                    </div>
+                    <div class="listing-metric-sep"></div>
+                    <div class="listing-metric">
+                      <span class="listing-metric-label">Floor</span>
+                      <span class="listing-metric-value listing-metric-value--floor">${{ '{:,.2f}'.format(listing.floor_price) if listing.floor_price else '0.00' }}</span>
+                    </div>
+                    {% if listing.get('spot_price') %}
+                    <div class="listing-metric-sep"></div>
+                    <div class="listing-metric">
+                      <span class="listing-metric-label">Spot/oz</span>
+                      <span class="listing-metric-value listing-metric-value--spot">${{ '{:,.2f}'.format(listing['spot_price']) }}</span>
+                    </div>
+                    {% endif %}
                   </div>
                 </div>
               {% else %}

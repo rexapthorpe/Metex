@@ -21,6 +21,7 @@ def account():
         return redirect(url_for('auth.login'))
     user_id = session['user_id']
 
+    from datetime import datetime
     conn = get_db_connection()
 
     # Get user information
@@ -105,6 +106,15 @@ def account():
                 min_listing_effective_price = listing_effective
 
         bid['listing_effective_price'] = min_listing_effective_price
+
+        # Format bid creation date
+        if bid.get('created_at'):
+            try:
+                dt = datetime.fromisoformat(bid['created_at'])
+                bid['created_at'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
+            except (ValueError, TypeError):
+                pass
+
         bids.append(bid)
 
     # 3) Ratings
@@ -172,6 +182,46 @@ def account():
 
     pending_ratings = [dict(r) for r in pending_ratings_buyer] + [dict(r) for r in pending_ratings_seller]
     pending_ratings.sort(key=lambda x: x.get('order_date', ''), reverse=True)
+
+    # Format rating timestamps
+    formatted_received = []
+    for rating in received_ratings:
+        r = dict(rating)
+        if r.get('timestamp'):
+            try:
+                r['timestamp_sort'] = r['timestamp']  # raw ISO for JS sorting
+                dt = datetime.fromisoformat(r['timestamp'])
+                r['timestamp'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
+            except (ValueError, TypeError):
+                r['timestamp_sort'] = r.get('timestamp', '')
+        else:
+            r['timestamp_sort'] = ''
+        formatted_received.append(r)
+    received_ratings = formatted_received
+
+    formatted_given = []
+    for rating in given_ratings:
+        r = dict(rating)
+        if r.get('timestamp'):
+            try:
+                r['timestamp_sort'] = r['timestamp']  # raw ISO for JS sorting
+                dt = datetime.fromisoformat(r['timestamp'])
+                r['timestamp'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
+            except (ValueError, TypeError):
+                r['timestamp_sort'] = r.get('timestamp', '')
+        else:
+            r['timestamp_sort'] = ''
+        formatted_given.append(r)
+    given_ratings = formatted_given
+
+    for p in pending_ratings:
+        p['order_date_sort'] = p.get('order_date', '')  # raw ISO for JS sorting
+        if p.get('order_date'):
+            try:
+                dt = datetime.fromisoformat(p['order_date'])
+                p['order_date'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
+            except (ValueError, TypeError):
+                pass
 
     # 4) Orders (pending & completed) + helper to attach sellers
     def attach_sellers(order_rows):
@@ -362,11 +412,10 @@ def account():
                 order['delivery_address'] = json.dumps(parsed) if isinstance(parsed, dict) else parsed
 
     # Format order dates
-    from datetime import datetime
     for order in pending_orders + completed_orders:
         if order.get('order_date'):
             dt = datetime.fromisoformat(order['order_date'])
-            order['formatted_order_date'] = dt.strftime('%I:%M %p, %d %B %Y').lstrip('0')  # Remove leading zero from hour
+            order['formatted_order_date'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
 
     # 5) Active listings & sales
     active_listings_raw = conn.execute(
@@ -406,6 +455,8 @@ def account():
         # Calculate effective price if variable pricing
         if listing_dict.get('pricing_mode') == 'premium_to_spot':
             listing_dict['effective_price'] = get_effective_price(listing_dict, spot_prices)
+            metal = (listing_dict.get('pricing_metal') or listing_dict.get('metal') or '').lower()
+            listing_dict['spot_price'] = spot_prices.get(metal)
         else:
             listing_dict['effective_price'] = listing_dict.get('price_per_coin', 0)
         active_listings.append(listing_dict)
@@ -542,6 +593,14 @@ def account():
         else:
             sale['payout_display'] = 'Processing'
 
+        # Format sale order date
+        if sale.get('order_date'):
+            try:
+                dt = datetime.fromisoformat(sale['order_date'])
+                sale['order_date'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
+            except (ValueError, TypeError):
+                pass
+
         sales.append(sale)
 
     # 6) Cart — single authoritative source for all pricing and totals
@@ -552,7 +611,64 @@ def account():
     grand_total = cart_summary['grand_total']
     has_tpg = cart_summary['has_tpg']
 
-    # 7) Conversations
+    # 7a) Admin direct messages (order_id = 0) — fetched first so they pin to top
+    admin_conv_rows = conn.execute(
+        """
+        SELECT
+          CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END
+            AS other_user_id,
+          u.username AS other_username,
+          m.content  AS last_message_content,
+          m.timestamp AS last_message_time,
+          SUM(CASE WHEN m.receiver_id = ? AND m.sender_id != ? THEN 1 ELSE 0 END)
+            AS unread_count
+        FROM messages m
+        JOIN users u ON u.id = (CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END)
+        WHERE m.order_id = 0
+          AND (m.sender_id = ? OR m.receiver_id = ?)
+        GROUP BY other_user_id
+        ORDER BY last_message_time DESC
+        """, (user_id, user_id, user_id, user_id, user_id, user_id)
+    ).fetchall()
+
+    def _fmt_ts(ts):
+        if not ts:
+            return ts
+        try:
+            return datetime.fromisoformat(ts).strftime('%H:%M, %d, %A, %B, %Y')
+        except (ValueError, TypeError):
+            return ts
+
+    conversations = []
+    for r in admin_conv_rows:
+        history = conn.execute(
+            """
+            SELECT sender_id, receiver_id, content, timestamp
+              FROM messages
+             WHERE order_id = 0
+               AND ((sender_id = ? AND receiver_id = ?)
+                 OR (sender_id = ? AND receiver_id = ?))
+             ORDER BY timestamp ASC
+            """,
+            (user_id, r['other_user_id'], r['other_user_id'], user_id)
+        ).fetchall()
+        raw_lmt = r['last_message_time'] or ''
+        conversations.append({
+            'order_id':                 0,
+            'other_user_id':            r['other_user_id'],
+            'other_username':           r['other_username'],
+            'last_message_content':     r['last_message_content'],
+            'last_message_time':        _fmt_ts(raw_lmt),
+            'last_message_time_raw':    raw_lmt,
+            'unread_count':             r['unread_count'],
+            'type':                     'admin',
+            'messages': [
+                {'sender_id': m['sender_id'], 'content': m['content'], 'timestamp': _fmt_ts(m['timestamp'])}
+                for m in history
+            ],
+        })
+
+    # 7b) Order-based conversations
     conv_rows = conn.execute(
         """
         SELECT
@@ -568,24 +684,14 @@ def account():
         FROM messages m
         JOIN orders o ON o.id = m.order_id
         JOIN users u  ON u.id = other_user_id
-        WHERE m.sender_id = ? OR m.receiver_id = ?
+        WHERE (m.sender_id = ? OR m.receiver_id = ?)
+          AND m.order_id != 0
         GROUP BY m.order_id, other_user_id
         ORDER BY last_message_time DESC
         """, (user_id, user_id, user_id, user_id)
     ).fetchall()
 
-    conversations = []
     for r in conv_rows:
-        convo = {
-            'order_id':             r['order_id'],
-            'other_user_id':        r['other_user_id'],
-            'other_username':       r['other_username'],
-            'last_message_content': r['last_message_content'],
-            'last_message_time':    r['last_message_time'],
-            'unread_count':         r['unread_count'],
-            'type': 'seller' if r['order_buyer_id'] == user_id else 'buyer',
-            'messages': []
-        }
         history = conn.execute(
             """
             SELECT sender_id, receiver_id, content, timestamp
@@ -595,17 +701,23 @@ def account():
                  OR (sender_id = ? AND receiver_id = ?))
              ORDER BY timestamp ASC
             """,
-            (r['order_id'],
-             user_id, r['other_user_id'],
-             r['other_user_id'], user_id)
+            (r['order_id'], user_id, r['other_user_id'], r['other_user_id'], user_id)
         ).fetchall()
-        convo['messages'] = [
-            {'sender_id': m['sender_id'],
-             'content':   m['content'],
-             'timestamp': m['timestamp']}
-            for m in history
-        ]
-        conversations.append(convo)
+        raw_lmt = r['last_message_time'] or ''
+        conversations.append({
+            'order_id':                 r['order_id'],
+            'other_user_id':            r['other_user_id'],
+            'other_username':           r['other_username'],
+            'last_message_content':     r['last_message_content'],
+            'last_message_time':        _fmt_ts(raw_lmt),
+            'last_message_time_raw':    raw_lmt,
+            'unread_count':             r['unread_count'],
+            'type': 'seller' if r['order_buyer_id'] == user_id else 'buyer',
+            'messages': [
+                {'sender_id': m['sender_id'], 'content': m['content'], 'timestamp': _fmt_ts(m['timestamp'])}
+                for m in history
+            ],
+        })
 
     conn.close()
 
@@ -738,69 +850,13 @@ def sold_orders():
 
 @account_bp.route('/messages')
 def my_messages():
-    print("⚡ /messages route hit!")
-
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
-
-    user_id = session['user_id']
-    conn = get_db_connection()
-
-    # First, get list of distinct conversations with latest message details
-    base_conversations = conn.execute('''
-        SELECT
-            users.id AS other_user_id,
-            users.username AS other_username,
-            messages.content AS latest_message,
-            messages.timestamp AS latest_timestamp
-        FROM messages
-        JOIN (
-            SELECT
-                CASE
-                    WHEN sender_id = ? THEN receiver_id
-                    ELSE sender_id
-                END AS other_id,
-                MAX(timestamp) AS max_time
-            FROM messages
-            WHERE sender_id = ? OR receiver_id = ?
-            GROUP BY other_id
-        ) AS latest_convos
-        ON (
-            (messages.sender_id = ? AND messages.receiver_id = latest_convos.other_id)
-            OR (messages.sender_id = latest_convos.other_id AND messages.receiver_id = ?)
-        )
-        AND messages.timestamp = latest_convos.max_time
-        JOIN users ON users.id = latest_convos.other_id
-        ORDER BY messages.timestamp DESC;
-    ''', (user_id, user_id, user_id, user_id, user_id)).fetchall()
-
-    conversations = []
-
-    for convo in base_conversations:
-        other_user_id = convo['other_user_id']
-        convo_data = {
-            'other_user_id': other_user_id,
-            'other_username': convo['other_username'],
-            'last_message_content': convo['latest_message'],
-            'last_message_time': convo['latest_timestamp'],
-            'messages': []
-        }
-
-        # Now get all messages for this conversation
-        convo_data['messages'] = conn.execute('''
-            SELECT sender_id, receiver_id, content, timestamp
-            FROM messages
-            WHERE (sender_id = ? AND receiver_id = ?)
-               OR (sender_id = ? AND receiver_id = ?)
-            ORDER BY timestamp ASC
-        ''', (user_id, other_user_id, other_user_id, user_id)).fetchall()
-
-        conversations.append(convo_data)
-
-    conn.close()
-    print("Loaded messages route. Conversations found:", len(conversations))
-
-    return render_template('partials/my_messages.html', conversations=conversations, current_user_id=user_id)
+    to_param = request.args.get('to')
+    base = url_for('account.account')
+    if to_param:
+        return redirect(base + '?open_admin=1#messages')
+    return redirect(base + '#messages')
 
 @account_bp.route('/orders/api/<int:order_id>/order_sellers')
 def order_sellers(order_id):
@@ -1074,6 +1130,14 @@ def update_personal_info():
         # Check if email is being changed
         old_user = conn.execute('SELECT email FROM users WHERE id = ?', (user_id,)).fetchone()
         email_changed = old_user and new_email and old_user['email'] != new_email
+
+        if email_changed:
+            taken = conn.execute(
+                'SELECT id FROM users WHERE email = ? AND id != ?', (new_email, user_id)
+            ).fetchone()
+            if taken:
+                conn.close()
+                return jsonify({'success': False, 'message': 'That email is already in use by another account.'}), 409
 
         conn.execute('''
             UPDATE users
