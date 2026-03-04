@@ -2,6 +2,13 @@
 Checkout Routes
 
 Checkout routes: checkout page, order confirmation.
+
+Spot pricing at checkout:
+  All spot price lookups during checkout go through
+  services.checkout_spot_service.get_spot_map_for_checkout(), which reads from
+  the spot_price_snapshots time-series table and triggers at most ONE external
+  refresh if the data is stale.  Direct calls to get_current_spot_prices() or
+  the external spot API are NOT made during checkout.
 """
 
 from flask import render_template, redirect, url_for, request, session, flash, jsonify
@@ -10,11 +17,16 @@ from services.order_service import create_order
 from utils.cart_utils import build_cart_summary
 from services.notification_service import notify_listing_sold, notify_order_confirmed
 from services.pricing_service import get_effective_price, create_price_lock
+from services.checkout_spot_service import SpotUnavailableError, SpotExpiredError
 from utils.auth_utils import frozen_check
 from config import GRADING_FEE_PER_UNIT
 
 from . import checkout_bp
 
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _create_ledger_for_order(buyer_id, order_id, cart_data, conn):
     """
@@ -68,6 +80,75 @@ def _create_ledger_for_order(buyer_id, order_id, cart_data, conn):
         traceback.print_exc()
     return None
 
+
+def _fetch_listing_pricing_meta(conn, listing_ids):
+    """
+    Return {listing_id: {pricing_mode, spot_premium, pricing_metal, metal, weight}}
+    for the given listing IDs. Used to populate order_items audit columns.
+    """
+    if not listing_ids:
+        return {}
+    placeholders = ','.join('?' * len(listing_ids))
+    rows = conn.execute(
+        f"SELECT l.id, l.pricing_mode, l.spot_premium, l.pricing_metal, "
+        f"       l.price_per_coin, l.floor_price, "
+        f"       c.metal, c.weight "
+        f"FROM listings l JOIN categories c ON l.category_id = c.id "
+        f"WHERE l.id IN ({placeholders})",
+        listing_ids,
+    ).fetchall()
+    return {row['id']: dict(row) for row in rows}
+
+
+def _enrich_cart_data_with_spot_audit(cart_data, spot_map, listing_meta):
+    """
+    Add spot audit fields to each item in cart_data in-place.
+
+    Args:
+        cart_data:    list of cart item dicts (mutated in-place)
+        spot_map:     {metal_lower: spot_info_dict | None}
+        listing_meta: {listing_id: pricing metadata dict}
+    """
+    for item in cart_data:
+        meta = listing_meta.get(item['listing_id'], {})
+        item['pricing_mode_used'] = meta.get('pricing_mode')
+        item['spot_premium_used'] = meta.get('spot_premium')
+        item['weight_used'] = meta.get('weight')
+
+        if meta.get('pricing_mode') == 'premium_to_spot':
+            metal = (meta.get('pricing_metal') or meta.get('metal') or '').lower()
+            item['spot_info'] = spot_map.get(metal)
+        else:
+            item['spot_info'] = None
+
+
+def _get_cart_metals_for_spot(conn, user_id):
+    """
+    Return set of lower-case metal names needed for premium_to_spot listings
+    in the user's cart.  Used to pre-fetch spot prices before pricing.
+    """
+    rows = conn.execute(
+        "SELECT DISTINCT COALESCE(l.pricing_metal, c.metal) AS m "
+        "FROM cart ct "
+        "JOIN listings l ON ct.listing_id = l.id "
+        "JOIN categories c ON l.category_id = c.id "
+        "WHERE ct.user_id = ? AND l.pricing_mode = 'premium_to_spot'",
+        (user_id,),
+    ).fetchall()
+    return {row['m'].lower() for row in rows if row['m']}
+
+
+def _build_spot_prices_dict(spot_map):
+    """
+    Convert spot_map ({metal: spot_info | None}) to a plain {metal: price_usd}
+    dict suitable for passing to get_effective_price() / build_cart_summary().
+    """
+    return {m: info['price_usd'] for m, info in spot_map.items() if info}
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @checkout_bp.route('/checkout', methods=['GET', 'POST'])
 @frozen_check
@@ -137,11 +218,37 @@ def checkout():
 
             listings_raw = conn.execute(query, params).fetchall()
 
-            # Calculate effective prices for all listings
+            # ── Checkout spot pricing (bounded staleness, single-flight refresh) ──
+            # Collect metals needed for premium_to_spot listings; fetch once.
+            from services.checkout_spot_service import get_spot_map_for_checkout
+            bucket_metals = set()
+            for listing in listings_raw:
+                if listing['pricing_mode'] == 'premium_to_spot':
+                    m = (listing['pricing_metal'] or listing['metal'] or '').lower()
+                    if m:
+                        bucket_metals.add(m)
+
+            # Policy A: block checkout if live pricing cannot be refreshed within SLA.
+            try:
+                spot_map = get_spot_map_for_checkout(bucket_metals) if bucket_metals else {}
+            except SpotUnavailableError:
+                conn.close()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': False,
+                        'error_code': 'SPOT_UNAVAILABLE',
+                        'message': SpotUnavailableError.USER_MESSAGE,
+                    }), 503
+                flash(SpotUnavailableError.USER_MESSAGE, 'error')
+                return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
+
+            spot_prices_dict = _build_spot_prices_dict(spot_map)
+
+            # Calculate effective prices using checkout-validated spot prices
             listings_with_prices = []
             for listing in listings_raw:
                 listing_dict = dict(listing)
-                listing_dict['effective_price'] = get_effective_price(listing_dict)
+                listing_dict['effective_price'] = get_effective_price(listing_dict, spot_prices=spot_prices_dict)
                 listings_with_prices.append(listing_dict)
 
             # Sort by effective price (cheapest first)
@@ -166,10 +273,21 @@ def checkout():
                 if remaining <= 0:
                     break
                 take = min(listing['quantity'], remaining)
+                # Determine spot audit info for this listing
+                if listing['pricing_mode'] == 'premium_to_spot':
+                    metal = (listing.get('pricing_metal') or listing.get('metal') or '').lower()
+                    spot_info = spot_map.get(metal)
+                else:
+                    spot_info = None
+
                 selected.append({
                     'listing_id': listing['id'],
                     'quantity': take,
-                    'price_each': listing['effective_price']
+                    'price_each': listing['effective_price'],
+                    'spot_info': spot_info,
+                    'pricing_mode_used': listing.get('pricing_mode'),
+                    'spot_premium_used': listing.get('spot_premium'),
+                    'weight_used': listing.get('weight'),
                 })
                 selected_prices.append(listing['effective_price'])
                 remaining -= take
@@ -199,7 +317,12 @@ def checkout():
                 # Return JSON for AJAX requests (so modal can be shown before redirect)
                 print(f"[CHECKOUT] AJAX request. user_listings_skipped={user_listings_skipped}, items_selected={len(selected)}")
                 # Store selection in session for when user is redirected
-                session['checkout_items'] = selected
+                # Note: spot audit fields are NOT stored in session (not serializable);
+                # they will be re-derived from the DB at final POST time.
+                session['checkout_items'] = [
+                    {'listing_id': s['listing_id'], 'quantity': s['quantity'], 'price_each': s['price_each']}
+                    for s in selected
+                ]
                 session['checkout_tpg'] = buy_tpg_int
                 conn.close()
                 return jsonify({
@@ -215,58 +338,142 @@ def checkout():
                     print(f"[CHECKOUT] User listings were skipped. Setting session flag. User ID: {user_id}")
 
                 # Keep the selection in session for the GET render and final POST
-                session['checkout_items'] = selected
+                session['checkout_items'] = [
+                    {'listing_id': s['listing_id'], 'quantity': s['quantity'], 'price_each': s['price_each']}
+                    for s in selected
+                ]
                 session['checkout_tpg'] = buy_tpg_int
                 conn.close()
                 return redirect(url_for('checkout.checkout'))
 
         else:
-            # Not a bucket purchase - handle cart checkout
-            # Check if this is an AJAX request (from checkout modal)
+            # Not a bucket purchase - handle cart checkout (or bucket finalize via AJAX)
             is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-            # For AJAX cart checkout requests, expect JSON data
             if is_ajax:
+                # ── Unified AJAX finalize handler ──────────────────────────────
+                # Handles both bucket finalize (session_items present) and cart
+                # checkout.  Uses modal-first spot check: raises SPOT_EXPIRED if
+                # stale instead of auto-refreshing, so the frontend can prompt the
+                # user to recalculate before proceeding.
                 try:
-                    data = request.get_json()
+                    data = request.get_json() or {}
                     shipping_address = data.get('shipping_address', 'Default Address')
+                    recipient_first = data.get('recipient_first', '')
+                    recipient_last = data.get('recipient_last', '')
 
-                    # Use the authoritative cart summary (same source as cart page + account tab)
-                    summary = build_cart_summary(conn, user_id)
+                    from services.checkout_spot_service import check_spot_map_freshness
 
-                    if not summary['buckets']:
+                    session_items = session.pop('checkout_items', None)
+                    buy_tpg = bool(session.pop('checkout_tpg', 0))
+
+                    if session_items:
+                        # ── Bucket finalize: use locked prices from session ──
+                        cart_data = [
+                            {
+                                'listing_id': i['listing_id'],
+                                'quantity': i['quantity'],
+                                'price_each': i['price_each'],
+                                'requires_grading': buy_tpg,
+                            }
+                            for i in session_items
+                        ]
+
+                        # Check that spot used when prices were locked is still fresh.
+                        # No auto-refresh — stale → SPOT_EXPIRED so frontend shows modal.
+                        listing_ids_si = [i['listing_id'] for i in cart_data]
+                        listing_meta_si = _fetch_listing_pricing_meta(conn, listing_ids_si)
+                        si_metals = {
+                            (m.get('pricing_metal') or m.get('metal') or '').lower()
+                            for m in listing_meta_si.values()
+                            if m.get('pricing_mode') == 'premium_to_spot'
+                        }
+                        try:
+                            spot_map = check_spot_map_freshness(si_metals) if si_metals else {}
+                        except SpotExpiredError:
+                            # Restore session so recalculate endpoint can find items
+                            session['checkout_items'] = session_items
+                            session['checkout_tpg'] = int(buy_tpg)
+                            conn.close()
+                            return jsonify({
+                                'success': False,
+                                'error_code': 'SPOT_EXPIRED',
+                                'message': SpotExpiredError.USER_MESSAGE,
+                            }), 409
+                        except SpotUnavailableError:
+                            session['checkout_items'] = session_items
+                            session['checkout_tpg'] = int(buy_tpg)
+                            conn.close()
+                            return jsonify({
+                                'success': False,
+                                'error_code': 'SPOT_UNAVAILABLE',
+                                'message': SpotUnavailableError.USER_MESSAGE,
+                            }), 503
+
+                        _enrich_cart_data_with_spot_audit(cart_data, spot_map, listing_meta_si)
+
+                    else:
+                        # ── Cart checkout: build fresh cart summary ──
+                        cart_metals = _get_cart_metals_for_spot(conn, user_id)
+                        try:
+                            spot_map = check_spot_map_freshness(cart_metals) if cart_metals else {}
+                        except SpotExpiredError:
+                            conn.close()
+                            return jsonify({
+                                'success': False,
+                                'error_code': 'SPOT_EXPIRED',
+                                'message': SpotExpiredError.USER_MESSAGE,
+                            }), 409
+                        except SpotUnavailableError:
+                            conn.close()
+                            return jsonify({
+                                'success': False,
+                                'error_code': 'SPOT_UNAVAILABLE',
+                                'message': SpotUnavailableError.USER_MESSAGE,
+                            }), 503
+
+                        spot_prices_dict = _build_spot_prices_dict(spot_map)
+                        summary = build_cart_summary(conn, user_id, spot_prices=spot_prices_dict)
+
+                        if not summary['buckets']:
+                            conn.close()
+                            return jsonify({
+                                'success': False,
+                                'message': 'Your cart is empty or items are no longer available',
+                            })
+
+                        cart_data = [
+                            {
+                                'listing_id': listing['listing_id'],
+                                'quantity': listing['quantity'],
+                                'price_each': listing['effective_price'],
+                                'requires_grading': listing['requires_grading'],
+                            }
+                            for bucket in summary['buckets'].values()
+                            for listing in bucket['listings']
+                        ]
+                        listing_ids = [item['listing_id'] for item in cart_data]
+                        listing_meta = _fetch_listing_pricing_meta(conn, listing_ids)
+                        _enrich_cart_data_with_spot_audit(cart_data, spot_map, listing_meta)
+
+                    if not cart_data:
                         conn.close()
                         return jsonify({
                             'success': False,
-                            'message': 'Your cart is empty or items are no longer available'
+                            'message': 'Your cart is empty or items are no longer available',
                         })
 
-                    # Flatten buckets → per-listing cart_data for order creation
-                    cart_data = [
-                        {
-                            'listing_id': listing['listing_id'],
-                            'quantity': listing['quantity'],
-                            'price_each': listing['effective_price'],
-                            'requires_grading': listing['requires_grading'],
-                        }
-                        for bucket in summary['buckets'].values()
-                        for listing in bucket['listings']
-                    ]
-
-                    # Create order
-                    order_id = create_order(user_id, cart_data, shipping_address)
-
-                    # Create ledger records for this order
+                    # ── Create order ────────────────────────────────────────────
+                    order_id = create_order(
+                        user_id, cart_data, shipping_address, recipient_first, recipient_last
+                    )
                     _create_ledger_for_order(user_id, order_id, cart_data, conn)
 
-                    # Calculate totals for response (items + grading, no insurance)
-                    total_items = sum(item['quantity'] for item in cart_data)
-                    order_total = summary['subtotal'] + summary['grading_fee']
-
-                    # Collect notification data (will send after commit to avoid database locking)
+                    # Decrement inventory + collect notification data
+                    total_items = 0
+                    order_total = 0.0
                     notifications_to_send = []
 
-                    # Decrement inventory
                     for item in cart_data:
                         listing_info = conn.execute('''
                             SELECT listings.quantity, listings.seller_id, listings.category_id,
@@ -280,13 +487,17 @@ def checkout():
                             old_quantity = listing_info['quantity']
                             new_quantity = old_quantity - item['quantity']
 
-                            # Update inventory
                             if new_quantity <= 0:
-                                conn.execute('UPDATE listings SET quantity = 0, active = 0 WHERE id = ?', (item['listing_id'],))
+                                conn.execute(
+                                    'UPDATE listings SET quantity = 0, active = 0 WHERE id = ?',
+                                    (item['listing_id'],)
+                                )
                             else:
-                                conn.execute('UPDATE listings SET quantity = ? WHERE id = ?', (new_quantity, item['listing_id']))
+                                conn.execute(
+                                    'UPDATE listings SET quantity = ? WHERE id = ?',
+                                    (new_quantity, item['listing_id'])
+                                )
 
-                            # Collect notification data (will send after commit)
                             item_description = f"{listing_info['metal']} {listing_info['product_type']}"
                             is_partial = new_quantity > 0
                             notifications_to_send.append({
@@ -299,58 +510,52 @@ def checkout():
                                 'total_amount': item['quantity'] * item['price_each'],
                                 'shipping_address': shipping_address,
                                 'is_partial': is_partial,
-                                'remaining_quantity': new_quantity if is_partial else 0
+                                'remaining_quantity': new_quantity if is_partial else 0,
                             })
 
-                    # Clear cart
+                        total_items += item['quantity']
+                        order_total += item['quantity'] * item['price_each']
+
                     conn.execute('DELETE FROM cart WHERE user_id = ?', (user_id,))
                     conn.commit()
                     conn.close()
 
-                    # Send notifications AFTER commit (avoids database locking)
+                    # Send notifications after commit
                     for notif_data in notifications_to_send:
                         try:
                             notify_listing_sold(**notif_data)
                         except Exception as e:
                             print(f"[CHECKOUT] Failed to send seller notification: {e}")
 
-                    # Send buyer notification
                     try:
-                        # Calculate aggregate item description for the buyer
-                        item_descriptions = []
-                        for notif_data in notifications_to_send:
-                            item_descriptions.append(notif_data['item_description'])
-
-                        # Use first item description or "Multiple items" if more than one type
-                        if len(set(item_descriptions)) == 1:
-                            buyer_item_description = item_descriptions[0]
-                        else:
-                            buyer_item_description = f"{len(set(item_descriptions))} different items"
-
+                        item_descriptions = [n['item_description'] for n in notifications_to_send]
+                        buyer_item_description = (
+                            item_descriptions[0] if len(set(item_descriptions)) == 1
+                            else f"{len(set(item_descriptions))} different items"
+                        )
                         notify_order_confirmed(
                             buyer_id=user_id,
                             order_id=order_id,
                             item_description=buyer_item_description,
                             quantity_purchased=total_items,
                             price_per_unit=order_total / total_items if total_items > 0 else 0,
-                            total_amount=order_total
+                            total_amount=order_total,
                         )
                     except Exception as e:
                         print(f"[CHECKOUT] Failed to send buyer notification: {e}")
 
-                    # Return JSON response
                     return jsonify({
                         'success': True,
                         'order_id': order_id,
                         'total_items': total_items,
-                        'order_total': round(order_total, 2)
+                        'order_total': round(order_total, 2),
                     })
 
                 except Exception as e:
                     conn.close()
                     return jsonify({
                         'success': False,
-                        'message': f'Error processing order: {str(e)}'
+                        'message': f'Error processing order: {str(e)}',
                     }), 500
 
             # Final submit: create the order from either session-selected items or the cart
@@ -370,8 +575,25 @@ def checkout():
                     'requires_grading': buy_tpg,
                 } for item in session_items]
             else:
-                # Fallback to the user's cart via the authoritative summary
-                _summary = build_cart_summary(conn, user_id)
+                # Fallback to the user's cart via the authoritative summary.
+                # Pre-fetch checkout-validated spot prices first.
+                from services.checkout_spot_service import check_spot_map_freshness
+                cart_metals = _get_cart_metals_for_spot(conn, user_id)
+                # Modal-first: if snapshot is stale, redirect to checkout with a
+                # message so the user sees the recalculate prompt on reload.
+                try:
+                    spot_map_fb = check_spot_map_freshness(cart_metals) if cart_metals else {}
+                except SpotExpiredError:
+                    conn.close()
+                    flash(SpotExpiredError.USER_MESSAGE, 'error')
+                    return redirect(url_for('checkout.checkout'))
+                except SpotUnavailableError:
+                    conn.close()
+                    flash(SpotUnavailableError.USER_MESSAGE, 'error')
+                    return redirect(url_for('buy.view_cart'))
+                spot_prices_fb = _build_spot_prices_dict(spot_map_fb)
+
+                _summary = build_cart_summary(conn, user_id, spot_prices=spot_prices_fb)
                 cart_data = [
                     {
                         'listing_id': listing['listing_id'],
@@ -382,11 +604,40 @@ def checkout():
                     for bucket in _summary['buckets'].values()
                     for listing in bucket['listings']
                 ]
+                # Enrich with spot audit for cart fallback path
+                listing_ids_fb = [item['listing_id'] for item in cart_data]
+                listing_meta_fb = _fetch_listing_pricing_meta(conn, listing_ids_fb)
+                _enrich_cart_data_with_spot_audit(cart_data, spot_map_fb, listing_meta_fb)
 
             if not cart_data:
                 flash("Your cart is empty or items are no longer available.")
                 conn.close()
                 return redirect(url_for('buy.view_cart'))
+
+            # For session-items path: enrich with spot audit info from current snapshots
+            if session_items:
+                from services.checkout_spot_service import check_spot_map_freshness
+                listing_ids_si = [item['listing_id'] for item in cart_data]
+                listing_meta_si = _fetch_listing_pricing_meta(conn, listing_ids_si)
+                si_metals = {
+                    (meta.get('pricing_metal') or meta.get('metal') or '').lower()
+                    for meta in listing_meta_si.values()
+                    if meta.get('pricing_mode') == 'premium_to_spot'
+                }
+                # Modal-first: stale snapshot → restore session + redirect to checkout
+                try:
+                    spot_map_si = check_spot_map_freshness(si_metals) if si_metals else {}
+                except SpotExpiredError:
+                    session['checkout_items'] = session_items
+                    session['checkout_tpg'] = int(buy_tpg)
+                    conn.close()
+                    flash(SpotExpiredError.USER_MESSAGE, 'error')
+                    return redirect(url_for('checkout.checkout'))
+                except SpotUnavailableError:
+                    conn.close()
+                    flash(SpotUnavailableError.USER_MESSAGE, 'error')
+                    return redirect(url_for('buy.view_cart'))
+                _enrich_cart_data_with_spot_audit(cart_data, spot_map_si, listing_meta_si)
 
             # Create the order record (service inserts into orders & order_items)
             order_id = create_order(user_id, cart_data, shipping_address, recipient_first, recipient_last)
@@ -567,12 +818,13 @@ def checkout():
 
             item_count = sum(i['quantity'] for i in cart_items)
             grading_fee = round(GRADING_FEE_PER_UNIT * item_count, 2) if buy_tpg else 0.0
-            insurance = round(subtotal * 0.01, 2)
-            cart_total = round(subtotal + insurance + grading_fee, 2)
+            cart_total = round(subtotal + grading_fee, 2)
 
         else:
             # ── Cart checkout display — authoritative summary ─────────────────
-            summary = build_cart_summary(conn, user_id)
+            from services.reference_price_service import get_current_spots_from_snapshots
+            _spot_prices = get_current_spots_from_snapshots(conn)
+            summary = build_cart_summary(conn, user_id, spot_prices=_spot_prices)
 
             if not summary['buckets']:
                 conn.close()
@@ -606,8 +858,7 @@ def checkout():
             item_count = summary['item_count']
             subtotal = summary['subtotal']
             grading_fee = summary['grading_fee']
-            insurance = round(subtotal * 0.01, 2)
-            cart_total = round(subtotal + insurance + grading_fee, 2)
+            cart_total = round(subtotal + grading_fee, 2)
 
         # Fetch user info for auto-population (shared by both paths)
         user_info = conn.execute('''
@@ -622,12 +873,144 @@ def checkout():
             cart_items=cart_items,
             item_count=item_count,
             subtotal=round(subtotal, 2),
-            insurance=insurance,
             grading_fee=grading_fee,
             grading_fee_per_unit=GRADING_FEE_PER_UNIT,
             cart_total=cart_total,
             user_info=dict(user_info) if user_info else {}
         )
+
+
+@checkout_bp.route('/checkout/api/recalculate-spot', methods=['POST'])
+@frozen_check
+def recalculate_spot():
+    """
+    Refresh stale spot prices and recompute checkout totals.
+
+    Called by the frontend "Recalculate" button inside the spot-expired modal.
+    Uses get_spot_map_for_checkout() — which DOES trigger a live refresh if the
+    snapshot is stale — unlike the finalize path, which uses the check-only
+    variant.
+
+    If session contains checkout_items (bucket purchase flow), recomputes
+    price_each for each listing and updates the session so the next finalize
+    uses the fresh prices.
+
+    Returns JSON:
+      200 {success:true, subtotal, grading_fee, cart_total, spot_as_of,
+           updated_items:[{listing_id, quantity, price_each, total_price}]}
+      503 {success:false, error_code:'SPOT_UNAVAILABLE', message}
+    """
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+
+    user_id = session['user_id']
+    conn = get_db_connection()
+
+    try:
+        from services.checkout_spot_service import get_spot_map_for_checkout
+        from services.pricing_service import get_effective_price
+        from config import GRADING_FEE_PER_UNIT as _GFU
+
+        session_items = session.get('checkout_items')
+        buy_tpg = bool(session.get('checkout_tpg', 0))
+
+        if session_items:
+            # ── Bucket purchase: recompute price_each with fresh spot ──
+            listing_ids = [i['listing_id'] for i in session_items]
+            listing_meta = _fetch_listing_pricing_meta(conn, listing_ids)
+
+            metals = {
+                (m.get('pricing_metal') or m.get('metal') or '').lower()
+                for m in listing_meta.values()
+                if m.get('pricing_mode') == 'premium_to_spot'
+            }
+            try:
+                spot_map = get_spot_map_for_checkout(metals) if metals else {}
+            except SpotUnavailableError:
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error_code': 'SPOT_UNAVAILABLE',
+                    'message': SpotUnavailableError.USER_MESSAGE,
+                }), 503
+
+            spot_prices_dict = _build_spot_prices_dict(spot_map)
+
+            updated_items = []
+            subtotal = 0.0
+            for item in session_items:
+                meta = listing_meta.get(item['listing_id'], {})
+                new_price = get_effective_price(dict(meta), spot_prices=spot_prices_dict)
+                new_total = new_price * item['quantity']
+                subtotal += new_total
+                updated_items.append({
+                    'listing_id': item['listing_id'],
+                    'quantity': item['quantity'],
+                    'price_each': new_price,
+                    'total_price': new_total,
+                })
+
+            # Persist updated prices so the next finalize uses them
+            session['checkout_items'] = [
+                {'listing_id': i['listing_id'], 'quantity': i['quantity'],
+                 'price_each': i['price_each']}
+                for i in updated_items
+            ]
+
+            total_items = sum(i['quantity'] for i in updated_items)
+            grading_fee = round(_GFU * total_items, 2) if buy_tpg else 0.0
+
+        else:
+            # ── Cart checkout: rebuild summary with fresh spot ──
+            cart_metals = _get_cart_metals_for_spot(conn, user_id)
+            try:
+                spot_map = get_spot_map_for_checkout(cart_metals) if cart_metals else {}
+            except SpotUnavailableError:
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error_code': 'SPOT_UNAVAILABLE',
+                    'message': SpotUnavailableError.USER_MESSAGE,
+                }), 503
+
+            spot_prices_dict = _build_spot_prices_dict(spot_map)
+            summary = build_cart_summary(conn, user_id, spot_prices=spot_prices_dict)
+
+            subtotal = summary['subtotal']
+            grading_fee = summary['grading_fee']
+            total_items = summary['item_count']
+            updated_items = [
+                {
+                    'listing_id': l['listing_id'],
+                    'quantity': l['quantity'],
+                    'price_each': l['effective_price'],
+                    'total_price': l['quantity'] * l['effective_price'],
+                }
+                for b in summary['buckets'].values()
+                for l in b['listings']
+            ]
+
+        # Pull spot_as_of from any returned spot_info
+        spot_as_of = next(
+            (info['as_of'] for info in spot_map.values() if info and info.get('as_of')),
+            None,
+        )
+        cart_total = round(subtotal + grading_fee, 2)
+
+        conn.close()
+        return jsonify({
+            'success': True,
+            'subtotal': round(subtotal, 2),
+            'grading_fee': round(grading_fee, 2),
+            'cart_total': cart_total,
+            'total_items': total_items,
+            'spot_as_of': spot_as_of,
+            'updated_items': updated_items,
+        })
+
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @checkout_bp.route('/checkout/confirm/<int:order_id>')

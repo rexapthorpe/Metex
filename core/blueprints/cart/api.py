@@ -268,6 +268,11 @@ def get_price_breakdown(bucket_id):
 
     conn = get_db_connection()
     all_items = get_cart_items(conn)
+    # Compute effective prices using the same snapshot source as the cart/checkout pages.
+    # Must be done before conn.close() because get_current_spots_from_snapshots needs conn.
+    from services.reference_price_service import get_current_spots_from_snapshots
+    from services.pricing_service import get_effective_price
+    spot_prices = get_current_spots_from_snapshots(conn)
     conn.close()
 
     # Get removed listings for this bucket from session
@@ -298,11 +303,15 @@ def get_price_breakdown(bucket_id):
                 # stored relative to static, e.g. "uploads/listings/foo.jpg"
                 image_url = '/static/' + raw_path
 
+        # Use effective_price (accounts for spot + premium + floor) not the raw stored field.
+        effective_price = round(get_effective_price(item, spot_prices=spot_prices), 2)
+
         enriched.append({
             'listing_id'        : item['listing_id'],
             'seller_id'         : item['seller_id'],
             'seller_username'   : item['seller_username'],
-            'price_per_coin'    : float(item['price_per_coin']),
+            'price_per_coin'    : effective_price,   # effective price, not raw stored value
+            'effective_price'   : effective_price,   # explicit field for clarity
             'quantity'          : item['quantity'],
 
             # photo + core specs

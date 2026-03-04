@@ -494,8 +494,23 @@ function handleConfirmBuy() {
           openBuyItemSuccessModal(data);
         }, 350);
       } else {
-        // Check if this is a missing address error
-        if (data.message && data.message.includes('shipping address')) {
+        // Check error type
+        if (data.error_code === 'SPOT_EXPIRED') {
+          // Spot price expired — close modal; user must click Buy Item again
+          // (the preview call will use get_spot_map_for_checkout which auto-refreshes)
+          closeBuyItemConfirmModal();
+          setTimeout(() => {
+            alert(
+              'Spot prices have expired.\n\n' +
+              'Please click "Buy Item" again to see updated prices.'
+            );
+          }, 350);
+        } else if (data.error_code === 'SPOT_UNAVAILABLE') {
+          closeBuyItemConfirmModal();
+          setTimeout(() => {
+            alert(data.message || 'Live pricing temporarily unavailable. Please try again in a moment.');
+          }, 350);
+        } else if (data.message && data.message.includes('shipping address')) {
           // Close confirmation modal and show address error modal
           closeBuyItemConfirmModal();
           setTimeout(() => {

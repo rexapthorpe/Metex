@@ -269,11 +269,11 @@ function renderValueChart(historyData) {
                     borderWidth: isMobile ? 2 : 3,
                     fill: true,
                     tension: 0.4,
-                    pointRadius: isMobile ? 0 : 4,
+                    pointRadius: 0,
                     pointBackgroundColor: '#0066cc',
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2,
-                    pointHoverRadius: isMobile ? 4 : 7,
+                    pointHoverRadius: 7,
                     pointHoverBackgroundColor: '#0066cc',
                     pointHoverBorderColor: '#ffffff',
                     pointHoverBorderWidth: 2

@@ -87,11 +87,55 @@ function bindTileForm(tile) {
   });
 }
 
+// Parse "[Files: path, ...]" out of stored message text and render as inline images.
+function renderMessageContent(el) {
+  const raw = el.textContent || '';
+  const fileMatch = raw.match(/\[Files:\s*([^\]]+)\]/);
+  if (!fileMatch) return; // plain text, nothing to do
+
+  let displayText = raw
+    .replace(fileMatch[0], '')
+    .replace(/\[\d+ attachment\(s\)\]/, '')
+    .trim();
+
+  const paths = fileMatch[1].split(',').map(p => p.trim());
+  let imgHtml = '';
+  paths.forEach(path => {
+    const src = path.startsWith('/') ? path : '/' + path;
+    imgHtml += `<img class="msg-tab-image-attachment" src="${src}" alt="Image attachment">`;
+  });
+
+  el.innerHTML = (displayText ? escapeHtmlBasic(displayText) : '') + imgHtml;
+}
+
+function escapeHtmlBasic(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Clean up conversation preview: replace raw [Files: ...] with a tidy label.
+function cleanConvoPreview(el) {
+  const raw = el.textContent || '';
+  if (!raw.includes('[Files:')) return;
+  const textPart = raw
+    .replace(/\[Files:[^\]]+\]/, '')
+    .replace(/\[\d+ attachment\(s\)\]/, '')
+    .trim();
+  el.textContent = textPart ? `${textPart} · 📎 Image` : '📎 Image';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const tiles = document.querySelectorAll('.messages-tab .conversation-tile');
   tiles.forEach(tile => {
     bindTileForm(tile);
   });
+
+  // Render any server-side message content that includes image file paths.
+  document.querySelectorAll('.messages-tab .message-text').forEach(renderMessageContent);
+  document.querySelectorAll('.messages-tab .convo-preview').forEach(cleanConvoPreview);
 
   // On load, reconcile unread dots with localStorage timestamps
   tiles.forEach(tile => {

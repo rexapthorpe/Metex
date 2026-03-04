@@ -238,10 +238,16 @@ def dashboard():
             })
 
         # ========== ALL LISTINGS (for Listings tab) ==========
+        from services.pricing_service import get_effective_price
+
         all_listings_query = conn.execute('''
             SELECT
                 l.id,
                 l.price_per_coin,
+                l.pricing_mode,
+                l.spot_premium,
+                l.floor_price,
+                l.pricing_metal,
                 l.quantity,
                 l.active,
                 u.username as seller_username,
@@ -249,6 +255,12 @@ def dashboard():
                 c.product_type,
                 c.product_line,
                 c.weight,
+                c.purity,
+                c.finish,
+                c.year,
+                c.mint,
+                c.coin_series,
+                c.grade,
                 c.bucket_id
             FROM listings l
             JOIN users u ON l.seller_id = u.id
@@ -257,12 +269,32 @@ def dashboard():
             LIMIT 100
         ''').fetchall()
 
+        # Fetch latest spot prices from DB snapshot only — no external API calls.
+        metals_needed = set()
+        for row in all_listings_query:
+            if (row['pricing_mode'] or 'static') == 'premium_to_spot':
+                m = (row['pricing_metal'] or row['metal'] or '').lower()
+                if m:
+                    metals_needed.add(m)
+
+        snapshot_spot_prices = {}
+        for metal in metals_needed:
+            # Use REPLACE so rows stored with space-separator ("YYYY-MM-DD HH:MM:SS")
+            # sort correctly against T-format rows ("YYYY-MM-DDTHH:MM:SS").
+            snap = conn.execute(
+                "SELECT price_usd FROM spot_price_snapshots "
+                "WHERE metal = ? ORDER BY REPLACE(as_of, ' ', 'T') DESC LIMIT 1",
+                (metal,)
+            ).fetchone()
+            if snap:
+                snapshot_spot_prices[metal] = snap['price_usd']
+
         for listing in all_listings_query:
             time_ago = 'Recently'  # No created_at column in listings
 
             title_parts = []
             if listing['weight']:
-                title_parts.append(listing['weight'])
+                title_parts.append(str(listing['weight']))
             if listing['metal']:
                 title_parts.append(listing['metal'])
             if listing['product_line']:
@@ -271,12 +303,56 @@ def dashboard():
                 title_parts.append(listing['product_type'])
             title = ' '.join(title_parts) or 'Listing'
 
+            pricing_mode = listing['pricing_mode'] or 'static'
+            listing_dict = dict(listing)
+
+            # Compute effective price using DB snapshot spot prices only.
+            if pricing_mode == 'premium_to_spot':
+                pricing_metal = (listing['pricing_metal'] or listing['metal'] or '').lower()
+                spot_available = pricing_metal in snapshot_spot_prices
+                if spot_available:
+                    effective_price = get_effective_price(listing_dict, spot_prices=snapshot_spot_prices)
+                else:
+                    effective_price = None  # No snapshot available; show "—" in UI
+            else:
+                effective_price = get_effective_price(listing_dict, spot_prices={})
+                spot_available = True  # N/A for static listings
+
+            # "Stored" price: floor_price for premium_to_spot, price_per_coin for static.
+            stored_price = listing['floor_price'] if pricing_mode == 'premium_to_spot' else listing['price_per_coin']
+            stored_price = stored_price or listing['price_per_coin'] or 0
+
+            # Spot snapshot price used in computation (for the modal display).
+            spot_snapshot_price = None
+            if pricing_mode == 'premium_to_spot':
+                pm_key = (listing['pricing_metal'] or listing['metal'] or '').lower()
+                spot_snapshot_price = snapshot_spot_prices.get(pm_key)
+
             all_listings.append({
                 'id': listing['id'],
                 'title': title,
                 'seller': listing['seller_username'],
                 'metal': listing['metal'] or 'Unknown',
-                'price': listing['price_per_coin'] or 0,
+                'price': stored_price,
+                'effective_price': effective_price,
+                'pricing_mode': pricing_mode,
+                'spot_available': spot_available,
+                # Extra fields for the detail modal
+                'price_per_coin': listing['price_per_coin'] or 0,
+                'spot_premium': listing['spot_premium'],
+                'floor_price': listing['floor_price'],
+                'pricing_metal': listing['pricing_metal'] or listing['metal'] or '',
+                'spot_snapshot_price': spot_snapshot_price,
+                'quantity': listing['quantity'] or 0,
+                'product_type': listing['product_type'] or '',
+                'product_line': listing['product_line'] or '',
+                'weight': str(listing['weight']) if listing['weight'] else '',
+                'purity': listing['purity'] or '',
+                'finish': listing['finish'] or '',
+                'year': listing['year'] or '',
+                'mint': listing['mint'] or '',
+                'coin_series': listing['coin_series'] or '',
+                'grade': listing['grade'] or '',
                 'status': 'approved' if listing['active'] else 'pending',
                 'created': time_ago,
                 'bucket_id': listing['bucket_id']

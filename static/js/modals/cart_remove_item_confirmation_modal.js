@@ -15,7 +15,7 @@ function openRemoveItemModal(bucketId) {
         wrapper = document.getElementById(id);
         wrapper.style.display = 'flex';
       })
-      .catch(err => alert(err.message));
+      .catch(err => openErrorNotificationModal(err.message, 'Error'));
   } else {
    // Already exists: just show
     wrapper.style.display = 'flex';
@@ -42,7 +42,7 @@ function confirmRemoveCartBucket(bucketId) {
     })
     .catch(err => {
       console.error(err);
-      alert(err.message);
+      openErrorNotificationModal(err.message, 'Could Not Remove Item');
     });
 }
 

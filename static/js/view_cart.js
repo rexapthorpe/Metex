@@ -146,10 +146,15 @@ function handleQuantityChange(e) {
       input.value = data.quantity;
 
       // Update order summary for this bucket
-      const summaryQtyEl = document.getElementById(`summary-qty-${bucketId}`);
-      const summaryTotalEl = document.getElementById(`summary-total-${bucketId}`);
-      const gradingFeeEl   = document.getElementById(`summary-grading-fee-${bucketId}`);
-      const gradingLabelEl = document.getElementById(`summary-grading-label-${bucketId}`);
+      const summaryQtyEl      = document.getElementById(`summary-qty-${bucketId}`);
+      const summaryTotalEl    = document.getElementById(`summary-total-${bucketId}`);
+      const summaryAvgPriceEl = document.getElementById(`summary-avg-price-${bucketId}`);
+      const gradingFeeEl      = document.getElementById(`summary-grading-fee-${bucketId}`);
+      const gradingLabelEl    = document.getElementById(`summary-grading-label-${bucketId}`);
+
+      // Update tile price displays (left column)
+      const tileTotalEl    = document.getElementById(`tile-total-${bucketId}`);
+      const tileUnitEl     = document.getElementById(`tile-unit-price-${bucketId}`);
 
       if (summaryQtyEl) {
         summaryQtyEl.textContent = data.quantity;
@@ -163,17 +168,24 @@ function handleQuantityChange(e) {
         gradingLabelEl.textContent = `3rd Party Grading (×${data.quantity})`;
       }
 
-      // Subtotal = merchandise + grading fee
+      // Subtotal = merchandise + grading fee (both from backend effective price)
       const bucketSubtotal = data.total_price + (data.grading_fee || 0);
       if (summaryTotalEl) {
         summaryTotalEl.textContent = formatPrice(bucketSubtotal);
         bucketTotals[bucketId] = bucketSubtotal;
       }
 
-      // Update tile price display (average price)
-      const tilePrice = document.querySelector(`[data-bucket-id="${bucketId}"] .price`);
-      if (tilePrice) {
-        tilePrice.textContent = formatPrice(data.avg_price);
+      // Keep Average Price in Order Summary in sync with the same effective price
+      if (summaryAvgPriceEl) {
+        summaryAvgPriceEl.textContent = formatPrice(data.avg_price);
+      }
+
+      // Update tile totals so the left column stays in sync
+      if (tileTotalEl) {
+        tileTotalEl.textContent = formatPrice(data.total_price);
+      }
+      if (tileUnitEl) {
+        tileUnitEl.textContent = `${formatPrice(data.avg_price)} each`;
       }
 
       // Recalculate and update grand total
@@ -189,8 +201,7 @@ function handleQuantityChange(e) {
   })
   .catch(err => {
     console.error('Update error:', err);
-    alert(`Error updating quantity: ${err.message}`);
-    // Reload to show accurate state
+    openErrorNotificationModal(`Error updating quantity: ${err.message}`, 'Cart Error');
     location.reload();
   });
 }

@@ -13,6 +13,7 @@ Heavy routes extracted to:
 from flask import request, redirect, url_for, session, flash, jsonify
 from database import get_db_connection
 from services.pricing_service import get_effective_price
+from services.reference_price_service import get_current_spots_from_snapshots
 from config import GRADING_FEE_PER_UNIT
 
 from . import buy_bp
@@ -85,11 +86,15 @@ def auto_fill_bucket_purchase(bucket_id):
 
     listings_raw = cursor.execute(listings_query, params).fetchall()
 
+    # Fetch snapshot spot prices — same source as bucket page so that
+    # "cheapest listing" ordering matches what the buyer sees.
+    spot_prices = get_current_spots_from_snapshots(conn)
+
     # Calculate effective prices for all listings
     listings_with_prices = []
     for listing in listings_raw:
         listing_dict = dict(listing)
-        listing_dict['effective_price'] = get_effective_price(listing_dict)
+        listing_dict['effective_price'] = get_effective_price(listing_dict, spot_prices=spot_prices)
         listings_with_prices.append(listing_dict)
 
     # Sort by effective price (cheapest first)

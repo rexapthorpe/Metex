@@ -3,7 +3,7 @@
 from flask import render_template, request, session
 from database import get_db_connection
 from services.pricing_service import get_effective_price
-from services.spot_price_service import get_current_spot_prices
+from services.reference_price_service import get_current_spots_from_snapshots
 from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
 
 from . import buy_bp
@@ -136,8 +136,9 @@ def buy():
 
     listings = conn.execute(listings_query, params).fetchall()
 
-    # Pre-fetch spot prices once for all listings (avoids N DB queries)
-    spot_prices = get_current_spot_prices()
+    # Pre-fetch spot prices from DB snapshots — same source as the bucket page
+    # so that the tile price always matches the Best Ask shown on /bucket/<id>.
+    spot_prices = get_current_spots_from_snapshots(conn)
 
     # Calculate effective prices for all listings
     listings_with_prices = []

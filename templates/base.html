@@ -20,11 +20,17 @@
     <!-- ✅ Unified modal close button (must load first) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/modal-close-button.css') }}">
 
+    <!-- ✅ Confirmation/error modal base styles (global — used by error_notification_modal and all yes/no modals) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/confirmation_modal_base.css') }}">
+
     <!-- ✅ Add cart modal CSS globally so overlays render correctly on the cart page -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_sellers_modal.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_individual_listings_modal.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/remove_seller_confirmation_modal.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/cart_remove_item_confirmation_modal.css') }}">
+
+    <!-- ✅ System alert modal CSS (globally replaces browser alert/confirm/prompt) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/system_alert_modal.css') }}">
 
     <!-- ✅ Checkout modals CSS (slide-up pattern) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/sell_listing_modals.css') }}">
@@ -240,6 +246,13 @@
 
     <!-- Format utilities (must load first - used globally) -->
     <script src="{{ url_for('static', filename='js/format_utils.js') }}"></script>
+
+    <!-- System alert modal (must load early — overrides window.alert/confirm/prompt globally) -->
+    <script src="{{ url_for('static', filename='js/system_alert_modal.js') }}"></script>
+
+    <!-- Error Notification Modal (global — used by openErrorNotificationModal() calls) -->
+    {% include 'modals/error_notification_modal.html' %}
+    <script src="{{ url_for('static', filename='js/modals/error_notification_modal.js') }}"></script>
 
     <!-- modal js -->
     <script src="{{ url_for('static', filename='js/modals/tracking_modal.js') }}"></script>

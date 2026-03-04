@@ -423,19 +423,131 @@
   </div>
 </div>
 
-<!-- Hidden form for order submission -->
-<form id="orderForm" method="POST" action="{{ url_for('checkout.checkout') }}" style="display: none;">
-  <input type="hidden" name="shipping_address" id="shippingAddressInput">
-  <input type="hidden" name="payment_method" id="paymentMethodInput">
-  <input type="hidden" name="recipient_first_name" id="recipientFirstName">
-  <input type="hidden" name="recipient_last_name" id="recipientLastName">
-</form>
+<!-- Spot Expired Modal -->
+<div class="spot-expired-overlay" id="spotExpiredModal" style="display:none;" aria-modal="true" role="dialog">
+  <div class="spot-expired-dialog">
+    <div class="spot-expired-icon">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+    </div>
+    <h3 class="spot-expired-title">Spot Price Expired</h3>
+    <p class="spot-expired-body">
+      The spot price used to calculate your order total has expired.
+      Recalculate to see the latest prices before placing your order.
+    </p>
+    <div id="spotExpiredSpotInfo" class="spot-expired-info" style="display:none;"></div>
+    <div class="spot-expired-actions">
+      <button type="button" class="spot-expired-btn-cancel" onclick="closeSpotExpiredModal()">Cancel</button>
+      <button type="button" class="spot-expired-btn-recalc" id="recalcBtn" onclick="recalculateSpot()">
+        <i class="fa-solid fa-rotate"></i> Recalculate
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.spot-expired-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.spot-expired-dialog {
+  background: #fff;
+  border-radius: 16px;
+  padding: 36px 32px 28px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+}
+.spot-expired-icon {
+  width: 56px;
+  height: 56px;
+  background: #fef3c7;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+  font-size: 22px;
+  color: #d97706;
+}
+.spot-expired-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 10px;
+}
+.spot-expired-body {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 20px;
+  line-height: 1.6;
+}
+.spot-expired-info {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 20px;
+}
+.spot-expired-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.spot-expired-btn-cancel {
+  padding: 10px 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.spot-expired-btn-cancel:hover { background: #f9fafb; }
+.spot-expired-btn-recalc {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.spot-expired-btn-recalc:hover { background: #374151; }
+.spot-expired-btn-recalc:disabled { opacity: 0.6; cursor: not-allowed; }
+.spot-updated-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #065f46;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.spot-updated-toast.visible { opacity: 1; }
+</style>
+
+<!-- Toast element for "prices updated" confirmation -->
+<div class="spot-updated-toast" id="spotUpdatedToast"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
   window.checkoutSubtotal    = {{ subtotal }};
-  window.checkoutInsurance   = {{ insurance }};
   window.checkoutGradingFee  = {{ grading_fee }};
 </script>
 <script src="{{ url_for('static', filename='js/format_utils.js') }}"></script>

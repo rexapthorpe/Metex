@@ -298,98 +298,107 @@ def api_get_price_lock(listing_id):
 @api_bp.route('/api/search/autocomplete')
 def api_search_autocomplete():
     """
-    Autocomplete search suggestions for header search bar
-    Returns product lines, listing titles, and common item names
+    Autocomplete search suggestions for header search bar.
+    Searches all bucket specification fields (metal, product_line, coin_series,
+    product_type, mint, year, finish, weight, purity, listing_title, name).
     """
     query = request.args.get('q', '').strip()
 
-    if not query or len(query) < 2:
-        return jsonify({
-            'success': True,
-            'suggestions': []
-        })
+    if not query or len(query) < 1:
+        return jsonify({'success': True, 'suggestions': []})
 
     conn = get_db_connection()
 
     try:
-        # Search in multiple sources
-        suggestions = []
-        seen_texts = set()  # Avoid duplicates
+        like = f'%{query}%'
 
-        # 1. Search product lines (e.g., "Silver Eagle", "Gold Buffalo")
-        product_lines = conn.execute("""
-            SELECT DISTINCT product_line, bucket_id
-            FROM categories
-            WHERE product_line LIKE ?
-            AND product_line IS NOT NULL
-            AND product_line != ''
-            ORDER BY product_line
-            LIMIT 5
-        """, (f'%{query}%',)).fetchall()
-
-        for row in product_lines:
-            text = row['product_line']
-            if text and text.lower() not in seen_texts:
-                seen_texts.add(text.lower())
-                suggestions.append({
-                    'text': text,
-                    'type': 'bucket',
-                    'id': row['bucket_id']
-                })
-
-        # 2. Search listing names (for isolated/set listings)
-        listing_names = conn.execute("""
-            SELECT DISTINCT l.id, l.name
-            FROM listings l
-            WHERE l.name LIKE ?
-            AND l.name IS NOT NULL
-            AND l.name != ''
-            AND l.active = 1
-            ORDER BY l.id DESC
-            LIMIT 5
-        """, (f'%{query}%',)).fetchall()
-
-        for row in listing_names:
-            text = row['name']
-            if text and text.lower() not in seen_texts:
-                seen_texts.add(text.lower())
-                suggestions.append({
-                    'text': text,
-                    'type': 'listing',
-                    'id': row['id']
-                })
-
-        # 3. Search common combinations (metal + product_type)
-        metal_products = conn.execute("""
-            SELECT DISTINCT c.metal, c.product_type, c.bucket_id
+        # Search ALL bucket spec fields — same substring-includes logic as the
+        # sell page item filter inputs.
+        # listings join via category_id → categories.id (NOT bucket_id).
+        rows = conn.execute("""
+            SELECT DISTINCT
+                c.bucket_id,
+                c.id AS cat_id,
+                c.metal,
+                c.product_line,
+                c.coin_series,
+                c.product_type,
+                c.weight,
+                c.mint,
+                c.year,
+                c.finish,
+                c.purity,
+                l.listing_title,
+                l.name AS listing_name
             FROM categories c
-            WHERE (c.metal LIKE ? OR c.product_type LIKE ?)
-            AND c.metal IS NOT NULL
-            AND c.product_type IS NOT NULL
-            ORDER BY c.metal, c.product_type
-            LIMIT 5
-        """, (f'%{query}%', f'%{query}%')).fetchall()
-
-        for row in metal_products:
-            # Create combined text like "Silver Bar" or "Gold Coin"
-            text = f"{row['metal']} {row['product_type']}"
-            if text.lower() not in seen_texts:
-                seen_texts.add(text.lower())
-                suggestions.append({
-                    'text': text,
-                    'type': 'bucket',
-                    'id': row['bucket_id']
-                })
+            LEFT JOIN listings l
+                ON l.category_id = c.id
+                AND l.active = 1
+                AND l.quantity > 0
+            WHERE (
+                c.metal LIKE ?
+                OR c.product_line LIKE ?
+                OR c.coin_series LIKE ?
+                OR c.product_type LIKE ?
+                OR c.mint LIKE ?
+                OR c.year LIKE ?
+                OR c.finish LIKE ?
+                OR c.weight LIKE ?
+                OR c.purity LIKE ?
+                OR l.listing_title LIKE ?
+                OR l.name LIKE ?
+            )
+            ORDER BY c.mint, c.product_line, c.metal
+            LIMIT 10
+        """, (like,) * 11).fetchall()
 
         conn.close()
 
-        # Limit total suggestions to 6-8
-        suggestions = suggestions[:8]
+        suggestions = []
+        seen_buckets = set()
 
-        return jsonify({
-            'success': True,
-            'suggestions': suggestions
-        })
+        for row in rows:
+            bucket_id = row['bucket_id']
+            if bucket_id in seen_buckets:
+                continue
+            seen_buckets.add(bucket_id)
+
+            # Build the primary display text — match how the buy page tiles show titles:
+            # listing_title > name > mint + product_line/coin_series/product_type
+            custom_title = row['listing_title'] or row['listing_name']
+            if custom_title:
+                text = custom_title
+            else:
+                parts = []
+                if row['mint']:
+                    parts.append(row['mint'])
+                if row['product_line'] or row['coin_series']:
+                    parts.append(row['product_line'] or row['coin_series'])
+                elif row['product_type']:
+                    parts.append(row['product_type'])
+                text = ' '.join(parts) or row['metal'] or 'Item'
+
+            # Build the context/meta line shown beneath the title
+            meta_parts = []
+            if row['weight']:
+                meta_parts.append(row['weight'])
+            if row['year']:
+                meta_parts.append(row['year'])
+            if row['metal']:
+                meta_parts.append(row['metal'])
+            if row['finish']:
+                meta_parts.append(row['finish'])
+            if row['purity']:
+                meta_parts.append(row['purity'])
+
+            suggestions.append({
+                'text': text,
+                'meta': ' · '.join(meta_parts),
+                'type': 'bucket',
+                'id': bucket_id,
+            })
+
+        return jsonify({'success': True, 'suggestions': suggestions[:8]})
 
     except Exception as e:
         conn.close()

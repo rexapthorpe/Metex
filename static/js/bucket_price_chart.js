@@ -486,7 +486,7 @@ function renderBucketPriceChart(historyData, range) {
                     borderWidth: 3,
                     fill: true,
                     tension: 0,  // Straight lines between points (no curves)
-                    pointRadius: 4,
+                    pointRadius: 0,
                     pointBackgroundColor: '#0066cc',
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2,

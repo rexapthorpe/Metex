@@ -150,7 +150,7 @@
 
           if (isSent) {
             bubble.innerHTML = `
-              <div class="msg-text">${escapeHtml(m.message_text)}</div>
+              <div class="msg-text">${renderMessageContent(m.message_text)}</div>
               <div class="msg-meta sent">
                 <span class="timestamp">${timeStr}</span>
                 <span class="msg-checks">&#10003;&#10003;</span>
@@ -158,7 +158,7 @@
             `;
           } else {
             bubble.innerHTML = `
-              <div class="msg-text">${escapeHtml(m.message_text)}</div>
+              <div class="msg-text">${renderMessageContent(m.message_text)}</div>
               <div class="msg-meta received">
                 <span class="timestamp">${timeStr}</span>
               </div>
@@ -177,17 +177,37 @@
   function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
-    if (!text) return;
+    const fileInput = document.getElementById('msgImageInput');
+    const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+
+    if (!text && !hasFile) return;
 
     const p = participants[currentIndex];
-    fetch(`/orders/api/${currentOrderId}/messages/${p.id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message_text: text })
-    })
+
+    let fetchPromise;
+    if (hasFile) {
+      const fd = new FormData();
+      fd.append('message_text', text);
+      fd.append('image', fileInput.files[0]);
+      fetchPromise = fetch(`/orders/api/${currentOrderId}/messages/${p.id}`, {
+        method: 'POST',
+        body: fd
+      });
+    } else {
+      fetchPromise = fetch(`/orders/api/${currentOrderId}/messages/${p.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message_text: text })
+      });
+    }
+
+    fetchPromise
       .then(res => res.json())
       .then(resp => {
         if (resp.status === 'sent') {
+          // Clear file selection
+          if (fileInput) fileInput.value = '';
+          clearImagePreview();
           renderConversation();
           const now = new Date().toLocaleString();
           if (typeof window.notifyNewMessage === 'function') {
@@ -198,6 +218,13 @@
         }
       })
       .catch(err => console.error('Error sending message:', err));
+  }
+
+  function clearImagePreview() {
+    const preview = document.getElementById('msgImagePreview');
+    const previewImg = document.getElementById('msgImagePreviewImg');
+    if (preview) preview.style.display = 'none';
+    if (previewImg) previewImg.src = '';
   }
 
   // Format timestamp for display (time only: "02:30 PM")
@@ -224,6 +251,29 @@
     } catch(e) { return ''; }
   }
 
+  // Render message text, extracting any attached image file paths into <img> tags.
+  // Backend stores images as: originalText + " [Files: static/uploads/messages/...]"
+  function renderMessageContent(text) {
+    if (!text) return '';
+    const fileMatch = text.match(/\[Files:\s*([^\]]+)\]/);
+    let imgHtml = '';
+    let displayText = text;
+
+    if (fileMatch) {
+      displayText = text
+        .replace(fileMatch[0], '')
+        .replace(/\[\d+ attachment\(s\)\]/, '')
+        .trim();
+      const paths = fileMatch[1].split(',').map(p => p.trim());
+      paths.forEach(path => {
+        const src = path.startsWith('/') ? path : '/' + path;
+        imgHtml += `<img class="msg-image-attachment" src="${src}" alt="Image attachment">`;
+      });
+    }
+
+    return (displayText ? escapeHtml(displayText) : '') + imgHtml;
+  }
+
   function escapeHtml(str) {
     return String(str)
       .replace(/&/g, '&amp;')
@@ -248,6 +298,33 @@
     });
 
     document.getElementById('sendMessageBtn')?.addEventListener('click', sendMessage);
+
+    // Paperclip → open file picker
+    document.getElementById('msgPaperclipBtn')?.addEventListener('click', () => {
+      document.getElementById('msgImageInput')?.click();
+    });
+
+    // File selected → show preview thumbnail
+    document.getElementById('msgImageInput')?.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const preview = document.getElementById('msgImagePreview');
+      const previewImg = document.getElementById('msgImagePreviewImg');
+      if (!preview || !previewImg) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        previewImg.src = ev.target.result;
+        preview.style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Remove-preview button
+    document.getElementById('msgImagePreviewRemove')?.addEventListener('click', () => {
+      const fileInput = document.getElementById('msgImageInput');
+      if (fileInput) fileInput.value = '';
+      clearImagePreview();
+    });
 
     // Enter to send, Shift+Enter for new line
     const textarea = document.getElementById('messageInput');

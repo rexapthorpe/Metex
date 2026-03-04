@@ -1,4 +1,411 @@
+      <!-- ── Spot Snapshot Interval ───────────────────────────────────── -->
       <div class="section-header">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> Spot Price Snapshots</h3>
+      </div>
+
+      <div class="settings-card" style="cursor:default; padding: 20px 24px;">
+        <div style="display:flex; align-items:center; gap:14px; flex:1; flex-wrap:wrap;">
+          <div class="settings-icon" style="flex-shrink:0;">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <div class="settings-info" style="flex:1; min-width:200px;">
+            <h4 style="margin-bottom:4px;">Snapshot Interval</h4>
+            <p style="margin-bottom:10px;">How often the app captures a spot price snapshot
+              (drives the bucket reference-price chart).</p>
+
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <input
+                type="range"
+                id="spotIntervalSlider"
+                min="1" max="120" step="1" value="10"
+                style="flex:1; min-width:160px; max-width:320px; accent-color:#2563eb;"
+                oninput="document.getElementById('spotIntervalLabel').textContent = this.value + ' min';"
+              >
+              <span id="spotIntervalLabel" style="font-weight:600; min-width:60px;">10 min</span>
+              <button
+                class="btn-primary"
+                style="padding:6px 16px; font-size:13px;"
+                onclick="saveSpotInterval()"
+              >Save</button>
+            </div>
+            <p id="spotIntervalStatus" style="margin-top:8px; font-size:13px; color:#16a34a; display:none;"></p>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      (function () {
+        // Load current value on tab activation
+        function loadSpotInterval() {
+          fetch('/admin/api/system-settings/spot-interval')
+            .then(r => r.json())
+            .then(data => {
+              if (data.success) {
+                const slider = document.getElementById('spotIntervalSlider');
+                const label  = document.getElementById('spotIntervalLabel');
+                if (slider) {
+                  slider.min   = data.min_minutes;
+                  slider.max   = data.max_minutes;
+                  slider.value = data.interval_minutes;
+                  label.textContent = data.interval_minutes + ' min';
+                }
+              }
+            })
+            .catch(() => {});
+        }
+
+        window.saveSpotInterval = function () {
+          const slider  = document.getElementById('spotIntervalSlider');
+          const status  = document.getElementById('spotIntervalStatus');
+          const minutes = parseInt(slider.value, 10);
+
+          fetch('/admin/api/system-settings/spot-interval', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ interval_minutes: minutes }),
+          })
+            .then(r => r.json())
+            .then(data => {
+              status.style.display = 'block';
+              if (data.success) {
+                status.style.color = '#16a34a';
+                status.textContent = data.message || ('Updated to ' + minutes + ' min');
+              } else {
+                status.style.color = '#dc2626';
+                status.textContent = data.message || 'Failed to update.';
+              }
+              setTimeout(() => { status.style.display = 'none'; }, 4000);
+            })
+            .catch(() => {
+              status.style.display  = 'block';
+              status.style.color    = '#dc2626';
+              status.textContent    = 'Network error — please try again.';
+            });
+        };
+
+        // Load immediately if we're already on this tab, or wait for tab switch
+        if (document.getElementById('spotIntervalSlider')) {
+          loadSpotInterval();
+        } else {
+          document.addEventListener('DOMContentLoaded', loadSpotInterval);
+        }
+      })();
+      </script>
+
+      <!-- ── Checkout Spot Staleness ────────────────────────────────────── -->
+      <div class="section-header" style="margin-top: 32px;">
+        <h3><i class="fa-solid fa-cart-shopping"></i> Checkout Spot Pricing</h3>
+      </div>
+
+      <div class="settings-card" style="cursor:default; padding: 20px 24px;">
+        <div style="display:flex; align-items:flex-start; gap:14px; flex:1; flex-wrap:wrap;">
+          <div class="settings-icon" style="flex-shrink:0;">
+            <i class="fa-solid fa-stopwatch"></i>
+          </div>
+          <div class="settings-info" style="flex:1; min-width:200px;">
+            <h4 style="margin-bottom:4px;">Snapshot Staleness Limits</h4>
+            <p style="margin-bottom:14px;">
+              Controls how fresh the spot price must be when a customer checks out,
+              and how long checkout will wait for a concurrent refresh before falling
+              back to the best available data.
+            </p>
+
+            <!-- Max age slider -->
+            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">
+              Max snapshot age at checkout
+            </label>
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+              <input
+                type="range"
+                id="checkoutMaxAgeSlider"
+                min="30" max="600" step="10" value="120"
+                style="flex:1; min-width:160px; max-width:320px; accent-color:#2563eb;"
+                oninput="document.getElementById('checkoutMaxAgeLabel').textContent = this.value + 's';"
+              >
+              <span id="checkoutMaxAgeLabel" style="font-weight:600; min-width:55px;">120s</span>
+            </div>
+
+            <!-- Refresh timeout input -->
+            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">
+              Concurrent refresh wait timeout
+            </label>
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+              <input
+                type="number"
+                id="checkoutRefreshTimeout"
+                min="3" max="30" step="1" value="10"
+                style="width:80px; padding:4px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px;"
+              >
+              <span style="font-size:13px; color:#6b7280;">seconds (3–30)</span>
+            </div>
+
+            <button
+              class="btn-primary"
+              style="padding:6px 16px; font-size:13px;"
+              onclick="saveCheckoutSpotSettings()"
+            >Save</button>
+            <p id="checkoutSpotStatus" style="margin-top:8px; font-size:13px; color:#16a34a; display:none;"></p>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      (function () {
+        function loadCheckoutSpotSettings() {
+          fetch('/admin/api/system-settings/checkout-spot')
+            .then(r => r.json())
+            .then(data => {
+              if (data.success) {
+                const ageSlider = document.getElementById('checkoutMaxAgeSlider');
+                const ageLabel  = document.getElementById('checkoutMaxAgeLabel');
+                const toInput   = document.getElementById('checkoutRefreshTimeout');
+                if (ageSlider) {
+                  ageSlider.min   = data.max_age_min;
+                  ageSlider.max   = data.max_age_max;
+                  ageSlider.value = data.max_age_seconds;
+                  ageLabel.textContent = data.max_age_seconds + 's';
+                }
+                if (toInput) {
+                  toInput.min   = data.refresh_timeout_min;
+                  toInput.max   = data.refresh_timeout_max;
+                  toInput.value = data.refresh_timeout_seconds;
+                }
+              }
+            })
+            .catch(() => {});
+        }
+
+        window.saveCheckoutSpotSettings = function () {
+          const ageSlider = document.getElementById('checkoutMaxAgeSlider');
+          const toInput   = document.getElementById('checkoutRefreshTimeout');
+          const status    = document.getElementById('checkoutSpotStatus');
+
+          fetch('/admin/api/system-settings/checkout-spot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              max_age_seconds: parseInt(ageSlider.value, 10),
+              refresh_timeout_seconds: parseInt(toInput.value, 10),
+            }),
+          })
+            .then(r => r.json())
+            .then(data => {
+              status.style.display = 'block';
+              status.style.color   = data.success ? '#16a34a' : '#dc2626';
+              status.textContent   = data.message || (data.success ? 'Saved.' : 'Failed.');
+              setTimeout(() => { status.style.display = 'none'; }, 4000);
+            })
+            .catch(() => {
+              status.style.display = 'block';
+              status.style.color   = '#dc2626';
+              status.textContent   = 'Network error — please try again.';
+            });
+        };
+
+        if (document.getElementById('checkoutMaxAgeSlider')) {
+          loadCheckoutSpotSettings();
+        } else {
+          document.addEventListener('DOMContentLoaded', loadCheckoutSpotSettings);
+        }
+      })();
+      </script>
+
+      <!-- ── Manual Spot (Dev Only) ─────────────────────────────────── -->
+      {% if config.get('DEBUG') or config.get('ENV') == 'development' %}
+      <div class="section-header" style="margin-top: 32px;">
+        <h3 style="color:#d97706;">
+          <i class="fa-solid fa-flask"></i> Manual Spot Override
+          <span style="font-size:11px; font-weight:500; background:#fef3c7; color:#92400e;
+                       padding:2px 8px; border-radius:9999px; margin-left:8px; vertical-align:middle;">
+            DEV ONLY
+          </span>
+        </h3>
+      </div>
+
+      <div class="settings-card" style="cursor:default; padding:20px 24px; border-color:#fde68a;">
+        <div style="display:flex; align-items:flex-start; gap:14px; flex:1; flex-wrap:wrap;">
+          <div class="settings-icon" style="flex-shrink:0; background:#fef3c7; color:#d97706;">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </div>
+          <div class="settings-info" style="flex:1; min-width:200px;">
+            <h4 style="margin-bottom:4px;">Insert Spot Snapshot</h4>
+            <p style="margin-bottom:12px; font-size:13px; color:#6b7280;">
+              Dev-only tool. Writes <code>source=manual_admin</code> into
+              <code>spot_price_snapshots</code>. Instantly updates BestAsk for
+              variable-spot buckets — no restart required.
+            </p>
+
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+              <!-- Metal selector -->
+              <select id="manualSpotMetal"
+                style="padding:6px 10px; border:1px solid #d1d5db; border-radius:6px;
+                       font-size:14px; background:#fff;">
+                <option value="gold">Gold</option>
+                <option value="silver">Silver</option>
+                <option value="platinum">Platinum</option>
+                <option value="palladium">Palladium</option>
+              </select>
+
+              <!-- Price input -->
+              <input
+                type="number"
+                id="manualSpotPrice"
+                placeholder="Price (USD/oz)"
+                min="0.01" step="0.01"
+                style="width:160px; padding:6px 10px; border:1px solid #d1d5db;
+                       border-radius:6px; font-size:14px;"
+              >
+
+              <button
+                class="btn-primary"
+                style="padding:6px 16px; font-size:13px; background:#d97706;
+                       border-color:#d97706;"
+                onclick="insertManualSpot()"
+              >Insert Snapshot</button>
+            </div>
+
+            <p id="manualSpotStatus" style="font-size:13px; display:none; margin-top:6px;"></p>
+            <p id="manualSpotResult" style="font-size:12px; color:#6b7280; display:none; margin-top:4px;"></p>
+
+            <!-- Bucket check row -->
+            <div style="display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap;">
+              <label style="font-size:12px; color:#6b7280;">Check bucket ID:</label>
+              <input
+                type="number"
+                id="manualSpotBucketId"
+                value="1" min="1" step="1"
+                style="width:70px; padding:3px 8px; border:1px solid #d1d5db;
+                       border-radius:6px; font-size:13px;"
+              >
+              <button
+                style="padding:3px 10px; font-size:12px; border:1px solid #d97706;
+                       border-radius:6px; background:#fff; color:#d97706; cursor:pointer;"
+                onclick="checkBucketPrice()"
+              >Show current ref price</button>
+              <a id="manualSpotBucketLink" href="/bucket/1" target="_blank"
+                 style="font-size:12px; color:#d97706; text-decoration:underline;">
+                Open bucket ↗
+              </a>
+            </div>
+            <p id="manualSpotBucketResult"
+               style="font-size:12px; color:#374151; display:none; margin-top:4px;
+                      background:#fef9c3; padding:6px 10px; border-radius:6px;"></p>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      (function () {
+        function fmt(n) {
+          return '$' + parseFloat(n).toLocaleString('en-US', {
+            minimumFractionDigits: 2, maximumFractionDigits: 2
+          });
+        }
+
+        function syncBucketLink() {
+          var bid  = parseInt(document.getElementById('manualSpotBucketId').value, 10) || 1;
+          var link = document.getElementById('manualSpotBucketLink');
+          if (link) link.href = '/bucket/' + bid;
+        }
+        document.getElementById('manualSpotBucketId')
+          .addEventListener('input', syncBucketLink);
+
+        window.checkBucketPrice = function () {
+          var bid    = parseInt(document.getElementById('manualSpotBucketId').value, 10) || 1;
+          var el     = document.getElementById('manualSpotBucketResult');
+          el.style.display = 'block';
+          el.textContent   = 'Fetching…';
+
+          fetch('/api/buckets/' + bid + '/reference_price_history?range=1d')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (!data.success) { el.textContent = 'Error: ' + (data.error || '?'); return; }
+              var s = data.summary;
+              if (!s.has_data) {
+                el.textContent = 'Bucket ' + bid + ': no price data yet.';
+                return;
+              }
+              var spot = data.latest_spot_as_of
+                ? ' | spot as_of: ' + data.latest_spot_as_of.split('T')[1].slice(0,8)
+                : '';
+              el.textContent =
+                'Bucket ' + bid + ' current ref price: ' + fmt(s.current_price) + spot;
+            })
+            .catch(function () { el.textContent = 'Network error.'; });
+        };
+
+        window.insertManualSpot = function () {
+          var metal    = document.getElementById('manualSpotMetal').value;
+          var priceRaw = document.getElementById('manualSpotPrice').value;
+          var status   = document.getElementById('manualSpotStatus');
+          var result   = document.getElementById('manualSpotResult');
+
+          var price = parseFloat(priceRaw);
+          if (!priceRaw || isNaN(price) || price <= 0) {
+            status.style.display  = 'block';
+            status.style.color    = '#dc2626';
+            status.textContent    = 'Enter a valid price > 0.';
+            result.style.display  = 'none';
+            return;
+          }
+
+          status.style.display = 'block';
+          status.style.color   = '#6b7280';
+          status.textContent   = 'Inserting…';
+          result.style.display = 'none';
+
+          fetch('/admin/api/system-settings/manual-spot', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ metal: metal, price_usd: price }),
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.success) {
+                status.style.color  = '#16a34a';
+                status.textContent  = 'Snapshot inserted — spot as_of ' +
+                  data.inserted.as_of.split('T')[1].slice(0, 8);
+                result.style.display = 'block';
+                result.textContent  =
+                  data.inserted.metal.charAt(0).toUpperCase() +
+                  data.inserted.metal.slice(1) +
+                  ' spot set to ' + fmt(data.inserted.price_usd) +
+                  '. Checking bucket price…';
+
+                // Immediately show the computed bucket reference price
+                var bid = parseInt(document.getElementById('manualSpotBucketId').value, 10) || 1;
+                fetch('/api/buckets/' + bid + '/reference_price_history?range=1d')
+                  .then(function (r2) { return r2.json(); })
+                  .then(function (d2) {
+                    if (d2.success && d2.summary.has_data) {
+                      result.textContent +=
+                        ' → Bucket ' + bid + ' ref price: ' +
+                        fmt(d2.summary.current_price);
+                    }
+                  })
+                  .catch(function () {});
+              } else {
+                status.style.color = '#dc2626';
+                status.textContent = data.message || 'Insert failed.';
+                result.style.display = 'none';
+              }
+              setTimeout(function () {
+                status.style.display = 'none';
+                result.style.display = 'none';
+              }, 12000);
+            })
+            .catch(function () {
+              status.style.color  = '#dc2626';
+              status.textContent  = 'Network error — please try again.';
+              result.style.display = 'none';
+            });
+        };
+      })();
+      </script>
+      {% endif %}
+
+      <!-- ── Quick Settings ──────────────────────────────────────────── -->
+      <div class="section-header" style="margin-top: 32px;">
         <h3>Quick Settings</h3>
       </div>
 

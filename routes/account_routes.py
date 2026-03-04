@@ -605,7 +605,8 @@ def account():
 
     # 6) Cart — single authoritative source for all pricing and totals
     validate_and_refill_cart(conn, user_id)
-    cart_summary = build_cart_summary(conn, user_id)
+    from services.reference_price_service import get_current_spots_from_snapshots
+    cart_summary = build_cart_summary(conn, user_id, spot_prices=get_current_spots_from_snapshots(conn))
     buckets = cart_summary['buckets']
     cart_total = cart_summary['subtotal']
     grand_total = cart_summary['grand_total']

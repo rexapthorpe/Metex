@@ -9,7 +9,7 @@ Contains routes for viewing bucket details and availability:
 from flask import render_template, request, redirect, url_for, session, flash
 from database import get_db_connection
 from services.pricing_service import get_effective_price, get_effective_bid_price
-from services.spot_price_service import get_current_spot_prices
+from services.reference_price_service import get_current_spots_from_snapshots
 from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
 from . import buy_bp
 
@@ -154,8 +154,10 @@ def view_bucket(bucket_id):
         listings_query += f' AND l.packaging_type IN ({packaging_placeholders})'
         listings_params.extend(packaging_styles)
 
-    # Pre-fetch spot prices once for all listings (avoids N DB queries)
-    spot_prices = get_current_spot_prices()
+    # Pre-fetch spot prices from DB snapshots (no external API call).
+    # Uses the same data source as the price history chart so that Best Ask
+    # and chart always agree on the effective price.
+    spot_prices = get_current_spots_from_snapshots(conn)
 
     # Execute listings query
     listings_raw = conn.execute(listings_query, listings_params).fetchall()
@@ -550,6 +552,9 @@ def bucket_availability_json(bucket_id):
         params.append(user_id)
 
     listings = conn.execute(query, params).fetchall()
+
+    # Fetch spot prices from snapshots before closing conn (same source as chart).
+    spot_prices = get_current_spots_from_snapshots(conn)
     conn.close()
 
     # Calculate effective prices and aggregate
@@ -558,7 +563,7 @@ def bucket_availability_json(bucket_id):
         total_available = 0
         for listing in listings:
             listing_dict = dict(listing)
-            effective_price = get_effective_price(listing_dict)
+            effective_price = get_effective_price(listing_dict, spot_prices)
             if lowest_price is None or effective_price < lowest_price:
                 lowest_price = effective_price
             total_available += listing_dict['quantity']

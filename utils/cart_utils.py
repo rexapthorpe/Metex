@@ -453,7 +453,7 @@ def get_cart_data(conn):
     return dict(buckets), cart_total
 
 
-def build_cart_summary(conn, user_id=None):
+def build_cart_summary(conn, user_id=None, spot_prices=None):
     """
     Single authoritative source of truth for cart contents and pricing.
 
@@ -492,7 +492,7 @@ def build_cart_summary(conn, user_id=None):
     total_grading_fee = 0.0
 
     for item in raw_items:
-        effective_price = get_effective_price(item)
+        effective_price = get_effective_price(item, spot_prices=spot_prices)
         qty = item['quantity']
         line_total = effective_price * qty
 

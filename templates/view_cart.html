@@ -79,8 +79,8 @@
             <div class="cart-item-qty-price">
               <!-- Price -->
               <div class="cart-item-price-block">
-                <div class="cart-item-total" id="cart-total-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price) }}</div>
-                <div class="cart-item-per-unit">${{ '{:,.2f}'.format(bucket.avg_price) }} each</div>
+                <div class="cart-item-total" id="tile-total-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price) }}</div>
+                <div class="cart-item-per-unit" id="tile-unit-price-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.avg_price) }} each</div>
               </div>
 
               <!-- Qty Stepper -->
@@ -165,7 +165,7 @@
           </div>
           <div class="summary-line">
             <span class="summary-label">Average Price:</span>
-            <span class="summary-value">${{ '{:,.2f}'.format(bucket.avg_price) }}</span>
+            <span class="summary-value" id="summary-avg-price-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.avg_price) }}</span>
           </div>
           {% if bucket.requires_grading %}
           <div class="summary-line">
@@ -251,20 +251,7 @@
 </div>
 {% endif %}
 
-<!-- Pass per‐unit price arrays to JS -->
-<script>
-  const cartData = {
-  {% for bucket_id, bucket in buckets.items() %}
-    "{{ bucket_id }}": [
-      {% for listing in bucket.listings %}
-        {% for _ in range(listing.quantity) %}
-          {{ listing.price_each }},
-        {% endfor %}
-      {% endfor %}
-    ],
-  {% endfor %}
-  };
-</script>
+{# cartData removed — pricing is server-authoritative; no client-side price math #}
 
 <!-- Flash Messages -->
 {% set flashed = get_flashed_messages(with_categories=true) %}

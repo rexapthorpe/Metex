@@ -43,7 +43,6 @@
   {% include 'modals/delete_address_confirmation_modal.html' %}
   {% include 'modals/change_password_confirmation_modal.html' %}
   {% include 'modals/logout_confirmation_modal.html' %}
-  {% include 'modals/error_notification_modal.html' %}
   {% include 'modals/field_validation_modal.html' %}
   {% include 'modals/cancel_order_modal.html' %}
   {% include 'modals/report_user_modal.html' %}
@@ -270,8 +269,6 @@
   <script src="{{ url_for('static', filename='js/modals/delete_address_confirmation_modal.js') }}"></script>
   <script src="{{ url_for('static', filename='js/modals/change_password_confirmation_modal.js') }}"></script>
   <script src="{{ url_for('static', filename='js/modals/logout_confirmation_modal.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/modals/error_notification_modal.js') }}"></script>
-
   <!-- Tracking Number Modal -->
   <div id="trackingModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:12px; padding:28px 32px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); position:relative;">

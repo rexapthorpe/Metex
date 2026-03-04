@@ -11,6 +11,7 @@ Routes:
 from flask import render_template, request, redirect, url_for, session, flash
 from database import get_db_connection
 from services.pricing_service import get_effective_price
+from services.reference_price_service import get_current_spots_from_snapshots
 from utils.auth_utils import frozen_check
 
 from . import buy_bp
@@ -86,7 +87,9 @@ def view_cart():
     else:
         validate_guest_cart(conn)
 
-    summary = build_cart_summary(conn, user_id)
+    # Use snapshot-based spot prices — same source as bucket page so prices are consistent.
+    spot_prices = get_current_spots_from_snapshots(conn)
+    summary = build_cart_summary(conn, user_id, spot_prices=spot_prices)
     buckets = summary['buckets']
 
     # Build suggested items based on metals in cart
@@ -132,7 +135,7 @@ def view_cart():
             for row in rows:
                 rd = dict(row)
                 # get_effective_price needs metal/weight/product_type on the dict
-                ep = get_effective_price(rd)
+                ep = get_effective_price(rd, spot_prices=spot_prices)
                 bid = rd['bucket_id']
                 if bid not in bucket_map:
                     bucket_map[bid] = {

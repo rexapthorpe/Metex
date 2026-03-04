@@ -82,7 +82,9 @@
       "Bash(python3.12 -m pytest --version)",
       "Bash(python3.11 -m pytest --version)",
       "Bash(.venv/bin/pytest:*)",
-      "Bash(venv/bin/pytest:*)"
+      "Bash(venv/bin/pytest:*)",
+      "Bash(/Users/rexapthorpe/Library/Python/3.12/bin/pytest:*)",
+      "Bash(ls venv*:*)"
     ],
     "deny": [],
     "ask": []

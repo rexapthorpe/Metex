@@ -44,14 +44,18 @@
     <!-- Input area -->
     <div class="message-input">
       <div class="msg-tool-btns">
-        <button class="msg-tool-btn" type="button" aria-label="Image">
-          <i class="fa-regular fa-image"></i>
-        </button>
-        <button class="msg-tool-btn" type="button" aria-label="Attach">
+        <button class="msg-tool-btn" id="msgPaperclipBtn" type="button" aria-label="Attach image">
           <i class="fa-solid fa-paperclip"></i>
         </button>
       </div>
-      <textarea id="messageInput" class="msg-textarea" placeholder="Type a message..." rows="1"></textarea>
+      <input type="file" id="msgImageInput" accept="image/*" style="display:none">
+      <div class="msg-input-wrap">
+        <div id="msgImagePreview" class="msg-image-preview" style="display:none">
+          <img id="msgImagePreviewImg" src="" alt="Preview">
+          <button class="msg-image-preview-remove" id="msgImagePreviewRemove" type="button" aria-label="Remove image">&times;</button>
+        </div>
+        <textarea id="messageInput" class="msg-textarea" placeholder="Type a message..." rows="1"></textarea>
+      </div>
       <button id="sendMessageBtn" class="message-send-btn" type="button">
         <i class="fa-solid fa-paper-plane"></i>
       </button>

@@ -43,24 +43,61 @@ def get_spot_at_time(conn, metal, as_of):
 
     Reads from spot_price_snapshots — never calls the external API.
 
+    Normalizes both the stored timestamps and the `as_of` parameter to
+    ISO-8601 T-format before comparison so that rows with legacy
+    "YYYY-MM-DD HH:MM:SS" (space-separator) sort correctly alongside
+    rows with the canonical "YYYY-MM-DDTHH:MM:SS" format.
+
     Args:
         conn:  open DB connection
         metal: metal name ('gold', 'silver', etc.)
-        as_of: datetime or ISO-8601 string
+        as_of: datetime or ISO-8601 string (space or T separator accepted)
 
     Returns:
         float or None
     """
+    # Normalize as_of to T-format for consistent string comparison
+    if isinstance(as_of, str):
+        as_of_norm = as_of.replace(' ', 'T')
+    else:
+        as_of_norm = as_of.isoformat()
+
     row = conn.execute(
         """
         SELECT price_usd FROM spot_price_snapshots
-        WHERE metal = ? AND as_of <= ?
-        ORDER BY as_of DESC
+        WHERE metal = ? AND REPLACE(as_of, ' ', 'T') <= ?
+        ORDER BY REPLACE(as_of, ' ', 'T') DESC
         LIMIT 1
         """,
-        (metal, as_of)
+        (metal, as_of_norm)
     ).fetchone()
     return row['price_usd'] if row else None
+
+
+_TRACKED_METALS = ('gold', 'silver', 'platinum', 'palladium')
+
+
+def get_current_spots_from_snapshots(conn):
+    """
+    Return {metal: latest_price_usd} from the most recent snapshot for each
+    tracked metal in spot_price_snapshots.  Never calls an external API.
+
+    Only includes metals that have at least one snapshot row.  Falls back
+    gracefully to an empty dict if no snapshots exist at all.
+
+    Args:
+        conn: open DB connection
+
+    Returns:
+        dict {metal_lower: float}
+    """
+    now_iso = datetime.now().isoformat()
+    result = {}
+    for metal in _TRACKED_METALS:
+        price = get_spot_at_time(conn, metal, now_iso)
+        if price is not None:
+            result[metal] = price
+    return result
 
 
 def get_best_ask_at_time(conn, bucket_id, listings, as_of):
@@ -252,80 +289,77 @@ def get_reference_price_history(bucket_id, days=30):
                 metals.add(m)
 
         for metal in metals:
+            # Use REPLACE so rows stored with a space separator ("YYYY-MM-DD HH:MM:SS")
+            # are compared correctly against the T-format start_iso parameter.
             rows = conn.execute(
                 """
-                SELECT as_of FROM spot_price_snapshots
-                WHERE metal = ? AND as_of >= ?
-                ORDER BY as_of ASC
+                SELECT REPLACE(as_of, ' ', 'T') AS as_of_norm
+                FROM spot_price_snapshots
+                WHERE metal = ? AND REPLACE(as_of, ' ', 'T') >= ?
+                ORDER BY REPLACE(as_of, ' ', 'T') ASC
                 """,
                 (metal, start_iso)
             ).fetchall()
             for row in rows:
-                as_of_val = row['as_of']
-                event_times.add(as_of_val if isinstance(as_of_val, str) else as_of_val.isoformat())
+                event_times.add(row['as_of_norm'])
 
         # Track the most recent spot snapshot (for polling metadata)
         row = conn.execute(
             """
-            SELECT MAX(as_of) AS latest FROM spot_price_snapshots
+            SELECT MAX(REPLACE(as_of, ' ', 'T')) AS latest FROM spot_price_snapshots
             WHERE metal IN ({})
             """.format(','.join('?' * len(metals))),
             list(metals)
         ).fetchone() if metals else None
         if row and row['latest']:
-            latest_spot_as_of = row['latest'] if isinstance(row['latest'], str) else row['latest'].isoformat()
+            latest_spot_as_of = row['latest']
 
     # b) Bid creation events for this bucket
     latest_bid_as_of = None
     bid_rows = conn.execute(
         """
-        SELECT b.created_at FROM bids b
+        SELECT REPLACE(b.created_at, ' ', 'T') AS ts FROM bids b
         JOIN categories c ON b.category_id = c.id
-        WHERE c.bucket_id = ? AND b.created_at >= ?
-        ORDER BY b.created_at ASC
+        WHERE c.bucket_id = ? AND REPLACE(b.created_at, ' ', 'T') >= ?
+        ORDER BY ts ASC
         """,
         (bucket_id, start_iso)
     ).fetchall()
     for row in bid_rows:
-        val = row['created_at']
-        event_times.add(val if isinstance(val, str) else val.isoformat())
+        event_times.add(row['ts'])
     if bid_rows:
-        val = bid_rows[-1]['created_at']
-        latest_bid_as_of = val if isinstance(val, str) else val.isoformat()
+        latest_bid_as_of = bid_rows[-1]['ts']
 
     # c) Executed trade timestamps
     latest_clear_as_of = None
     trade_rows = conn.execute(
         """
-        SELECT o.created_at FROM order_items oi
+        SELECT REPLACE(o.created_at, ' ', 'T') AS ts FROM order_items oi
         JOIN orders o     ON oi.order_id  = o.id
         JOIN listings l   ON oi.listing_id = l.id
         JOIN categories c ON l.category_id = c.id
-        WHERE c.bucket_id = ? AND o.created_at >= ?
+        WHERE c.bucket_id = ? AND REPLACE(o.created_at, ' ', 'T') >= ?
         GROUP BY o.id
-        ORDER BY o.created_at ASC
+        ORDER BY ts ASC
         """,
         (bucket_id, start_iso)
     ).fetchall()
     for row in trade_rows:
-        val = row['created_at']
-        event_times.add(val if isinstance(val, str) else val.isoformat())
+        event_times.add(row['ts'])
     if trade_rows:
-        val = trade_rows[-1]['created_at']
-        latest_clear_as_of = val if isinstance(val, str) else val.isoformat()
+        latest_clear_as_of = trade_rows[-1]['ts']
 
     # d) Existing bucket_price_history events (captures listing create/edit/delete)
     ph_rows = conn.execute(
         """
-        SELECT timestamp FROM bucket_price_history
-        WHERE bucket_id = ? AND timestamp >= ?
-        ORDER BY timestamp ASC
+        SELECT REPLACE(timestamp, ' ', 'T') AS ts FROM bucket_price_history
+        WHERE bucket_id = ? AND REPLACE(timestamp, ' ', 'T') >= ?
+        ORDER BY ts ASC
         """,
         (bucket_id, start_iso)
     ).fetchall()
     for row in ph_rows:
-        val = row['timestamp']
-        event_times.add(val if isinstance(val, str) else val.isoformat())
+        event_times.add(row['ts'])
 
     # e) Always include "now" so the series extends to the present
     event_times.add(now_iso)

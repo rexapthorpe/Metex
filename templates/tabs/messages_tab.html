@@ -79,7 +79,9 @@
                 data-order-id="{{ convo.order_id }}"
                 data-is-admin="{{ 'true' if is_admin else 'false' }}">
             <input type="text" class="message-input" placeholder="{% if is_admin %}Message admin…{% else %}Type a message…{% endif %}" />
-            <button type="submit" class="send-button{% if is_admin %} send-button-admin{% endif %}">Send</button>
+            <button type="submit" class="send-button{% if is_admin %} send-button-admin{% endif %}">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
           </form>
         </div>
       </div>

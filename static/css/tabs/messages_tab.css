@@ -1,5 +1,16 @@
 /* messages_tab.css */
 
+/* Inline image attachments inside message bubbles */
+.msg-tab-image-attachment {
+  display: block;
+  max-width: 220px;
+  max-height: 200px;
+  border-radius: 10px;
+  margin-top: 6px;
+  object-fit: cover;
+  cursor: pointer;
+}
+
 .conversation-list {
   display: flex;
   flex-direction: column;
@@ -161,18 +172,23 @@
 .message-input:focus { border-color: #3da6ff; }
 
 .send-button {
-  padding: 8px 16px;
-  background: #3da6ff;
+  width: 42px;
+  height: 42px;
+  background: #6b7280;
   color: #ffffff;
   border: none;
-  border-radius: 9999px;
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: 50%;
+  font-size: 0.9375rem;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   transition: background 0.15s ease;
+  padding: 0;
 }
 
-.send-button:hover { background: #1e74f0; }
+.send-button:hover { background: #4b5563; }
 
 /* ===================================
    ADMIN CONVERSATION STYLING
@@ -231,17 +247,50 @@
 
 @media (max-width: 600px) {
   .convo-row { padding: 12px 14px; gap: 10px; }
-  .convo-avatar { width: 36px; height: 36px; font-size: 12px; }
-  .convo-name { font-size: 13px; }
-  .convo-preview { font-size: 12px; }
+  .convo-avatar { width: 38px; height: 38px; font-size: 12px; }
 
-  .message-history { max-height: 220px; }
-  .message { max-width: 85%; }
+  /* Header row: name + handle on line 1 with badge pushed right;
+     timestamp drops to its own line 2 */
+  .convo-header-row {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 5px;
+  }
 
-  .message-body { padding: 10px 14px; }
-}
+  .convo-name { font-size: 14px; font-weight: 700; }
+  .convo-username { font-size: 12px; }
 
-@media (max-width: 400px) {
-  .message-input-row { gap: 6px; }
-  .send-button { padding: 8px 12px; font-size: 12px; }
+  /* Unread badge stays on line 1, pushed to the far right */
+  .convo-unread-badge {
+    margin-left: auto;
+    order: 2;
+  }
+
+  /* Timestamp drops to its own line below name + handle */
+  .convo-time {
+    flex-basis: 100%;
+    order: 3;
+    margin-left: 0;
+    font-size: 11px;
+    color: #94a3b8;
+  }
+
+  .convo-preview { font-size: 12px; margin-top: 2px; }
+
+  /* Message thread */
+  .message-body { padding: 10px 12px; }
+  .message-history { max-height: 260px; margin-bottom: 10px; }
+  .message { max-width: 88%; }
+  .message-text { font-size: 13px; padding: 8px 11px; }
+
+  /* Attachment images go full-width of bubble on mobile */
+  .msg-tab-image-attachment {
+    max-width: 100%;
+    max-height: 240px;
+  }
+
+  /* Input row */
+  .message-input-row { gap: 8px; }
+  .message-input { font-size: 14px; padding: 9px 13px; }
+  .send-button { width: 40px; height: 40px; font-size: 0.9rem; flex-shrink: 0; }
 }

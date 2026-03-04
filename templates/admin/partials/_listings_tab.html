@@ -29,7 +29,8 @@
               <th>Listing</th>
               <th>Seller</th>
               <th>Metal</th>
-              <th>Price</th>
+              <th>Effective Price</th>
+              <th>Floor / Stored</th>
               <th>Status</th>
               <th>Created</th>
               <th>Actions</th>
@@ -41,19 +42,40 @@
               <td class="listing-title">{{ listing.title }}</td>
               <td>@{{ listing.seller }}</td>
               <td><span class="metal-badge metal-{{ listing.metal | lower }}">{{ listing.metal }}</span></td>
-              <td>${{ '{:,.2f}'.format(listing.price) }}</td>
+              <td>
+                {% if listing.effective_price is not none %}
+                  ${{ '{:,.2f}'.format(listing.effective_price) }}
+                {% else %}
+                  <span style="color:#9ca3af" title="No spot snapshot available">—</span>
+                {% endif %}
+                {% if listing.pricing_mode == 'premium_to_spot' %}
+                  <span class="status-badge" style="background:#fef3c7;color:#92400e;font-size:10px;margin-left:4px" title="Spot + Premium pricing">spot</span>
+                {% endif %}
+              </td>
+              <td style="color:#6b7280;font-size:13px">${{ '{:,.2f}'.format(listing.price) }}</td>
               <td><span class="status-badge status-{{ listing.status | lower }}">{{ listing.status }}</span></td>
               <td>{{ listing.created }}</td>
               <td class="actions-cell">
+                <button class="action-icon" title="Price Details" onclick="openListingDetailModal({{ listing.id }})"><i class="fa-solid fa-circle-info"></i></button>
                 <a href="{{ url_for('buy.view_bucket', bucket_id=listing.bucket_id) }}" class="action-icon" title="View Bucket"><i class="fa-solid fa-eye"></i></a>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="7" style="text-align: center; color: #6b7280; padding: 40px;">No listings found</td>
+              <td colspan="8" style="text-align: center; color: #6b7280; padding: 40px;">No listings found</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+
+<script>
+// Listing detail data — populated server-side, consumed by listings-modal.js
+window.LISTING_DETAILS = {
+  {% for listing in listings %}
+  {{ listing.id }}: {{ listing | tojson }}{% if not loop.last %},{% endif %}
+
+  {% endfor %}
+};
+</script>

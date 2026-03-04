@@ -14,6 +14,9 @@ from datetime import datetime
 from database import get_db_connection
 from services.pricing_service import get_effective_price, create_price_lock
 from services.notification_service import notify_listing_sold, notify_order_confirmed
+from services.checkout_spot_service import (
+    check_spot_map_freshness, SpotExpiredError, SpotUnavailableError
+)
 from config import GRADING_FEE_PER_UNIT, GRADING_SERVICE_DEFAULT, GRADING_STATUS_NOT_REQUESTED, GRADING_STATUS_PENDING_SELLER_SHIP
 
 from . import buy_bp
@@ -260,6 +263,35 @@ def direct_buy_item(bucket_id):
             conn.close()
             return jsonify(success=False, message='No matching listings available for purchase.'), 400
 
+        # ── Modal-first spot freshness check ─────────────────────────────────
+        # Collect metals needed for premium_to_spot listings; check freshness
+        # WITHOUT auto-refresh (check_spot_map_freshness).  If stale → 409
+        # SPOT_EXPIRED so the frontend can show the recalculate prompt.
+        spot_metals = {
+            (dict(l).get('pricing_metal') or dict(l).get('metal') or '').lower()
+            for l in listings_raw
+            if dict(l).get('pricing_mode') == 'premium_to_spot'
+        }
+        spot_prices_dict = {}  # {metal: price_usd}
+        if spot_metals:
+            try:
+                spot_map = check_spot_map_freshness(spot_metals)
+                spot_prices_dict = {m: info['price_usd'] for m, info in spot_map.items() if info}
+            except SpotExpiredError:
+                conn.close()
+                return jsonify(
+                    success=False,
+                    error_code='SPOT_EXPIRED',
+                    message=SpotExpiredError.USER_MESSAGE,
+                ), 409
+            except SpotUnavailableError:
+                conn.close()
+                return jsonify(
+                    success=False,
+                    error_code='SPOT_UNAVAILABLE',
+                    message=SpotUnavailableError.USER_MESSAGE,
+                ), 503
+
         # Calculate effective prices for ALL listings
         # Use locked prices when available, otherwise calculate current effective price
         listings_with_prices = []
@@ -272,7 +304,9 @@ def direct_buy_item(bucket_id):
                 listing_dict['effective_price'] = price_lock_map[listing_id]
                 listing_dict['price_was_locked'] = True
             else:
-                listing_dict['effective_price'] = get_effective_price(listing_dict)
+                listing_dict['effective_price'] = get_effective_price(
+                    listing_dict, spot_prices=spot_prices_dict or None
+                )
                 listing_dict['price_was_locked'] = False
 
             listings_with_prices.append(listing_dict)

@@ -1,5 +1,9 @@
-from database import get_db_connection
+import database as _db_module
 from config import GRADING_FEE_PER_UNIT
+
+
+def _get_conn():
+    return _db_module.get_db_connection()
 
 
 def calculate_cart_total(cart_items):
@@ -29,7 +33,7 @@ def create_order(buyer_id, cart_items, shipping_address, recipient_first='', rec
     Grading fee (GRADING_FEE_PER_UNIT × qty) is added per item and included
     in orders.total_price.  grading_fee_charged is written to each order_item.
     """
-    conn = get_db_connection()
+    conn = _get_conn()
     cursor = conn.cursor()
 
     items_total = calculate_cart_total(cart_items)
@@ -53,13 +57,28 @@ def create_order(buyer_id, cart_items, shipping_address, recipient_first='', rec
         grading_fee_charged = round(GRADING_FEE_PER_UNIT * item['quantity'], 2) if requires_grading else 0.0
         grading_status = 'requested' if requires_grading else 'not_requested'
 
+        # Spot audit fields (populated when checkout_spot_service was used)
+        spot_info = item.get('spot_info')  # {price_usd, as_of, source} or None
+        spot_price_at_purchase = spot_info['price_usd'] if spot_info else None
+        spot_as_of_used = spot_info['as_of'] if spot_info else None
+        spot_source_used = spot_info['source'] if spot_info else None
+        pricing_mode_at_purchase = item.get('pricing_mode_used')
+        spot_premium_used = item.get('spot_premium_used')
+        weight_used = item.get('weight_used')
+
         cursor.execute('''
             INSERT INTO order_items (order_id, listing_id, quantity, price_each,
                                      third_party_grading_requested, grading_fee_charged,
-                                     grading_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                                     grading_status,
+                                     spot_price_at_purchase, spot_as_of_used,
+                                     spot_source_used, pricing_mode_at_purchase,
+                                     spot_premium_used, weight_used)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (order_id, item['listing_id'], item['quantity'], item['price_each'],
-              tpg_requested, grading_fee_charged, grading_status))
+              tpg_requested, grading_fee_charged, grading_status,
+              spot_price_at_purchase, spot_as_of_used,
+              spot_source_used, pricing_mode_at_purchase,
+              spot_premium_used, weight_used))
 
     conn.commit()
     conn.close()

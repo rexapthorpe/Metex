@@ -6,11 +6,49 @@ These functions handle automatic matching of bids to listings and vice versa,
 using the spread model pricing system.
 """
 
+import logging
+
 from services.pricing_service import (
     get_effective_price,
     get_effective_bid_price,
     can_bid_fill_listing,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _get_spot_prices_from_cursor(cursor):
+    """
+    Fetch spot prices using the canonical source: spot_price_snapshots.
+
+    This is the SAME source used by cart, checkout, and bucket page so bid
+    matching always prices against the most recently committed snapshot
+    (including manual admin inserts and scheduler ticks).
+
+    Falls back to the legacy spot_prices cache table if no snapshots exist
+    (backward-compatible with test environments that only populate spot_prices).
+
+    Never calls an external API.
+    """
+    try:
+        # MAX(rowid) per metal == most recently inserted row for that metal.
+        rows = cursor.execute(
+            "SELECT metal, price_usd FROM spot_price_snapshots "
+            "WHERE rowid IN (SELECT MAX(rowid) FROM spot_price_snapshots GROUP BY metal)"
+        ).fetchall()
+        if rows:
+            return {row["metal"].lower(): float(row["price_usd"]) for row in rows}
+    except Exception:
+        pass  # table may not exist in minimal test environments
+
+    # Fallback: legacy spot_prices cache table
+    try:
+        rows = cursor.execute(
+            "SELECT metal, price_usd_per_oz FROM spot_prices"
+        ).fetchall()
+        return {row["metal"].lower(): float(row["price_usd_per_oz"]) for row in rows}
+    except Exception:
+        return {}
 
 
 def auto_match_bid_to_listings(bid_id, cursor):
@@ -46,10 +84,10 @@ def auto_match_bid_to_listings(bid_id, cursor):
     recipient_first_name = bid['recipient_first_name']
     recipient_last_name = bid['recipient_last_name']
 
-    # Fetch spot prices from the SAME database connection
-    # This ensures test databases and production use consistent spot prices
-    spot_prices_rows = cursor.execute('SELECT metal, price_usd_per_oz FROM spot_prices').fetchall()
-    spot_prices = {row['metal'].lower(): row['price_usd_per_oz'] for row in spot_prices_rows}
+    # Fetch spot prices from spot_price_snapshots (canonical source, same as cart/checkout/
+    # bucket page).  Falls back to spot_prices legacy cache if no snapshots exist.
+    # Never calls an external API.
+    spot_prices = _get_spot_prices_from_cursor(cursor)
 
     # Calculate effective bid price (handles both static and premium-to-spot modes)
     # For premium-to-spot, this calculates spot + premium and enforces ceiling
@@ -311,9 +349,8 @@ def auto_match_listing_to_bids(listing_id, cursor):
     seller_id = listing['seller_id']
     quantity_available = listing['quantity']
 
-    # Fetch spot prices from the database
-    spot_prices_rows = cursor.execute('SELECT metal, price_usd_per_oz FROM spot_prices').fetchall()
-    spot_prices = {row['metal'].lower(): row['price_usd_per_oz'] for row in spot_prices_rows}
+    # Fetch spot prices from spot_price_snapshots (canonical source).
+    spot_prices = _get_spot_prices_from_cursor(cursor)
 
     # Calculate effective listing price
     listing_dict = dict(listing)
@@ -543,3 +580,35 @@ def check_all_pending_matches(conn):
         'bids_matched': bids_matched,
         'notifications': notifications_to_send
     }
+
+
+def run_bid_rematch_after_spot_update(metals=None):
+    """
+    Re-evaluate all active bids after a spot price update.
+
+    Opens its own DB connection, runs check_all_pending_matches(), then closes.
+    Safe to call synchronously from both the scheduler and manual-insert paths.
+
+    Args:
+        metals: Optional list of metal names that were updated (for logging only).
+
+    Returns:
+        dict: {total_filled, orders_created, bids_matched, notifications}
+    """
+    import database as _db_module
+    try:
+        conn = _db_module.get_db_connection()
+        try:
+            result = check_all_pending_matches(conn)
+            if result.get('bids_matched', 0) > 0:
+                logger.info(
+                    "[bid_rematch] %d bid(s) matched, %d order(s) created "
+                    "after spot update (metals=%s)",
+                    result['bids_matched'], result['orders_created'], metals,
+                )
+            return result
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.error("[bid_rematch] Failed after spot update (metals=%s): %s", metals, exc)
+        return {'total_filled': 0, 'orders_created': 0, 'bids_matched': 0, 'notifications': []}

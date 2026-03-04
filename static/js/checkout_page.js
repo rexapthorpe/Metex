@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
   loadUserInfo();
   loadSavedPaymentMethods();
   updateOrderSummary();
+  _restoreCheckoutDraft();
 });
 
 // Current step tracking
@@ -354,11 +355,10 @@ function updateOrderSummary() {
   const isACH = method === 'ach';
 
   const subtotal    = window.checkoutSubtotal   || 0;
-  const insurance   = window.checkoutInsurance  || 0;
   const gradingFee  = window.checkoutGradingFee || 0;
-  const processingFee = isACH ? 0 : (subtotal + insurance + gradingFee) * 0.0299;
+  const processingFee = isACH ? 0 : (subtotal + gradingFee) * 0.0299;
 
-  const total = subtotal + insurance + gradingFee + processingFee;
+  const total = subtotal + gradingFee + processingFee;
 
   const feeEl = document.getElementById('summary-processing-fee');
   if (feeEl) {
@@ -616,50 +616,223 @@ function saveCardToAccount() {
 }
 
 /**
- * Place the order
+ * Gather shipping address from form fields and return formatted string + parts.
  */
-async function placeOrder() {
-  const btn = document.getElementById('placeOrderBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
-
-  // Check if save card checkbox is checked
-  const saveCardCheckbox = document.getElementById('saveCard');
-  const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
-
-  // Save card if checkbox is checked and using new card
-  if (saveCardCheckbox && saveCardCheckbox.checked && paymentMethod === 'card') {
-    await saveCardToAccount();
-  }
-
-  // Gather shipping address
+function _gatherShippingInfo() {
   const firstName = document.getElementById('firstName').value;
-  const lastName = document.getElementById('lastName').value;
-  const street = document.getElementById('streetAddress').value;
+  const lastName  = document.getElementById('lastName').value;
+  const street    = document.getElementById('streetAddress').value;
   const apartment = document.getElementById('apartment').value;
-  const city = document.getElementById('city').value;
-  const state = document.getElementById('state').value;
-  const zipCode = document.getElementById('zipCode').value;
-  const country = document.getElementById('country').value;
-  const email = document.getElementById('email').value;
-  const phone = document.getElementById('phone').value;
+  const city      = document.getElementById('city').value;
+  const state     = document.getElementById('state').value;
+  const zipCode   = document.getElementById('zipCode').value;
+  const country   = document.getElementById('country').value;
+  const email     = document.getElementById('email').value;
+  const phone     = document.getElementById('phone').value;
 
-  // Format shipping address
   let addressParts = [`${firstName} ${lastName}`, street];
   if (apartment) addressParts.push(apartment);
   addressParts.push(`${city}, ${state} ${zipCode}`);
   if (country && country !== 'United States') addressParts.push(country);
   addressParts.push(`Email: ${email}`, `Phone: ${phone}`);
 
-  const shippingAddress = addressParts.join(' • ');
+  return {
+    shippingAddress: addressParts.join(' • '),
+    firstName,
+    lastName,
+  };
+}
 
-  // Set hidden form values
-  document.getElementById('shippingAddressInput').value = shippingAddress;
-  document.getElementById('paymentMethodInput').value = paymentMethod;
-  document.getElementById('recipientFirstName').value = firstName;
-  document.getElementById('recipientLastName').value = lastName;
+/**
+ * Place the order via AJAX.
+ * On success: redirect to confirmation page.
+ * On SPOT_EXPIRED: show recalculate modal.
+ * On SPOT_UNAVAILABLE / other error: show alert.
+ */
+async function placeOrder() {
+  const btn = document.getElementById('placeOrderBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
 
-  // Submit the form
-  document.getElementById('orderForm').submit();
+  try {
+    const saveCardCheckbox = document.getElementById('saveCard');
+    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+
+    if (saveCardCheckbox && saveCardCheckbox.checked && paymentMethod === 'card') {
+      await saveCardToAccount();
+    }
+
+    const { shippingAddress, firstName, lastName } = _gatherShippingInfo();
+
+    const response = await fetch('/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({
+        shipping_address: shippingAddress,
+        payment_method: paymentMethod,
+        recipient_first: firstName,
+        recipient_last: lastName,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      window.location.href = `/checkout/confirm/${data.order_id}`;
+      return; // keep button disabled during redirect
+    }
+
+    if (data.error_code === 'SPOT_EXPIRED') {
+      showSpotExpiredModal();
+    } else if (data.error_code === 'SPOT_UNAVAILABLE') {
+      alert(data.message || 'Live pricing temporarily unavailable. Please try again in a moment.');
+    } else {
+      alert(data.message || 'Error processing order. Please try again.');
+    }
+  } catch (err) {
+    console.error('[placeOrder] network error:', err);
+    alert('Network error. Please check your connection and try again.');
+  }
+
+  // Re-enable button on any non-redirect outcome
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-lock"></i> Place Order • <span id="place-order-total">' +
+    document.getElementById('place-order-total').textContent + '</span>';
 }
 window.placeOrder = placeOrder;
+
+// ---------------------------------------------------------------------------
+// Spot-expired modal
+// ---------------------------------------------------------------------------
+
+function showSpotExpiredModal() {
+  const modal = document.getElementById('spotExpiredModal');
+  if (modal) modal.style.display = 'flex';
+}
+window.showSpotExpiredModal = showSpotExpiredModal;
+
+function closeSpotExpiredModal() {
+  const modal = document.getElementById('spotExpiredModal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeSpotExpiredModal = closeSpotExpiredModal;
+
+// ---------------------------------------------------------------------------
+// Checkout form draft — save/restore across spot-price page reload
+// ---------------------------------------------------------------------------
+
+const _CHECKOUT_DRAFT_KEY = 'checkoutFormDraft';
+
+function _saveCheckoutDraft() {
+  const v = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const radio = name => {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : '';
+  };
+  const chk = id => { const el = document.getElementById(id); return el ? el.checked : false; };
+
+  sessionStorage.setItem(_CHECKOUT_DRAFT_KEY, JSON.stringify({
+    step:           currentStep,
+    firstName:      v('firstName'),
+    lastName:       v('lastName'),
+    email:          v('email'),
+    phone:          v('phone'),
+    streetAddress:  v('streetAddress'),
+    apartment:      v('apartment'),
+    city:           v('city'),
+    state:          v('state'),
+    zipCode:        v('zipCode'),
+    paymentMethod:  radio('payment_method'),
+    cardNumber:     v('cardNumber'),
+    cardholderName: v('cardholderName'),
+    expiryDate:     v('expiryDate'),
+    routingNumber:  v('routingNumber'),
+    accountNumber:  v('accountNumber'),
+    accountType:    v('accountType'),
+    saveCard:       chk('saveCard'),
+  }));
+}
+
+function _restoreCheckoutDraft() {
+  const raw = sessionStorage.getItem(_CHECKOUT_DRAFT_KEY);
+  if (!raw) return;
+  sessionStorage.removeItem(_CHECKOUT_DRAFT_KEY);
+
+  let d;
+  try { d = JSON.parse(raw); } catch (e) { return; }
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+
+  set('firstName',      d.firstName);
+  set('lastName',       d.lastName);
+  set('email',          d.email);
+  set('phone',          d.phone);
+  set('streetAddress',  d.streetAddress);
+  set('apartment',      d.apartment);
+  set('city',           d.city);
+  set('state',          d.state);
+  set('zipCode',        d.zipCode);
+  set('cardNumber',     d.cardNumber);
+  set('cardholderName', d.cardholderName);
+  set('expiryDate',     d.expiryDate);
+  set('routingNumber',  d.routingNumber);
+  set('accountNumber',  d.accountNumber);
+  set('accountType',    d.accountType);
+
+  if (d.saveCard !== undefined) {
+    const el = document.getElementById('saveCard');
+    if (el) el.checked = d.saveCard;
+  }
+
+  // Restore payment method — click the wrapper div so show/hide and fee update run
+  if (d.paymentMethod) {
+    const radio = document.querySelector(`input[name="payment_method"][value="${d.paymentMethod}"]`);
+    if (radio) {
+      const option = radio.closest('.payment-option');
+      if (option) option.click();
+      else radio.checked = true;
+    }
+  }
+
+  // Restore the step the user was on
+  if (d.step && d.step > 1) {
+    _goToStepDirect(d.step);
+  }
+
+  _showSpotUpdatedToast('Prices refreshed with latest spot rate');
+}
+
+function _goToStepDirect(step) {
+  updateProgress(step);
+  document.querySelectorAll('.checkout-step').forEach(s => s.classList.remove('active'));
+  const stepIds = ['step-shipping', 'step-payment', 'step-review'];
+  const target = document.getElementById(stepIds[step - 1]);
+  if (target) target.classList.add('active');
+  currentStep = step;
+  if (step === 3) populateReviewData();
+}
+
+/**
+ * Save form state, then reload the page so the server re-renders prices
+ * using the latest spot snapshot. _restoreCheckoutDraft() on DOMContentLoaded
+ * puts everything back where the user left off.
+ */
+function recalculateSpot() {
+  const btn = document.getElementById('recalcBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating...';
+  _saveCheckoutDraft();
+  location.reload();
+}
+window.recalculateSpot = recalculateSpot;
+
+function _showSpotUpdatedToast(msg) {
+  const toast = document.getElementById('spotUpdatedToast');
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 3500);
+}

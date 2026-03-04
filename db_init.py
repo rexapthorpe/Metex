@@ -72,6 +72,69 @@ def ensure_password_reset_tokens_table():
         print(f'Error ensuring password_reset_tokens table: {e}')
 
 
+def ensure_system_settings_table():
+    """
+    Ensure the system_settings table exists.
+    Creates it on first run if missing.
+    """
+    try:
+        conn = get_db_connection()
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key        TEXT PRIMARY KEY,
+                value      TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f'Error ensuring system_settings table: {e}')
+
+
+def ensure_order_items_audit_columns():
+    """
+    Ensure order_items has columns for auditing the spot price used at checkout.
+
+    Columns added (idempotent):
+        spot_as_of_used    TEXT NULL  — ISO-8601 timestamp of the snapshot used
+        spot_source_used   TEXT NULL  — 'metalpriceapi' | 'metals_live' | ...
+        spot_premium_used  REAL NULL  — listing's spot_premium at purchase time
+        weight_used        REAL NULL  — listing's weight at purchase time
+
+    The existing nullable columns spot_price_at_purchase and
+    pricing_mode_at_purchase are already in the schema and are populated by
+    create_order(); this function only adds the four new fields.
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(order_items)")
+        existing = {col[1] for col in cursor.fetchall()}
+
+        new_cols = [
+            ("spot_as_of_used",   "TEXT"),
+            ("spot_source_used",  "TEXT"),
+            ("spot_premium_used", "REAL"),
+            ("weight_used",       "REAL"),
+        ]
+        added = []
+        for col_name, col_type in new_cols:
+            if col_name not in existing:
+                cursor.execute(
+                    f"ALTER TABLE order_items ADD COLUMN {col_name} {col_type}"
+                )
+                added.append(col_name)
+
+        if added:
+            conn.commit()
+            print(f"✅ order_items audit columns added: {added}")
+
+        conn.close()
+    except Exception as e:
+        print(f"Error ensuring order_items audit columns: {e}")
+
+
 def init_database():
     """
     Run all database initialization checks
@@ -79,3 +142,5 @@ def init_database():
     """
     ensure_admin_column()
     ensure_password_reset_tokens_table()
+    ensure_system_settings_table()
+    ensure_order_items_audit_columns()

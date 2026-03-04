@@ -35,6 +35,7 @@ from . import buckets
 from . import reports
 from . import orders
 from . import metrics
+from . import system
 
 # Re-export for compatibility
 __all__ = ['admin_bp']

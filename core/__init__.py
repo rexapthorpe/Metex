@@ -200,7 +200,24 @@ def create_app(test_config=None):
     def index():
         return redirect(url_for('buy.buy'))
 
+    # Start background spot snapshot scheduler (skipped when TESTING=True)
+    if not (test_config and test_config.get('TESTING')):
+        _start_spot_scheduler(app)
+
     return app
+
+
+def _start_spot_scheduler(app):
+    """Start the background spot price snapshot scheduler."""
+    try:
+        from services.spot_scheduler import start_scheduler
+        start_scheduler(app)
+    except Exception as exc:
+        # Never crash the app if the scheduler fails to start
+        import logging
+        logging.getLogger(__name__).warning(
+            "Could not start spot snapshot scheduler: %s", exc
+        )
 
 
 def _register_context_processors(app):

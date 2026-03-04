@@ -378,38 +378,76 @@ def update_bucket_quantity(category_id):
     from utils.cart_utils import validate_and_refill_cart
     validate_and_refill_cart(conn, user_id)
 
-    # 1) Get current cart items for this category+grading bucket only
-    current_items = cursor.execute('''
-        SELECT cart.id, cart.listing_id, cart.quantity, listings.price_per_coin
+    # Pre-fetch spot prices ONCE — shared by listing selection and response computation.
+    # Uses DB snapshots only; no external API calls.
+    from services.pricing_service import get_effective_price
+    from services.reference_price_service import get_current_spots_from_snapshots
+    from config import GRADING_FEE_PER_UNIT
+    spot_prices = get_current_spots_from_snapshots(conn)
+
+    # 1) Get current cart items for this category+grading bucket only.
+    #    Fetch all pricing fields so we can sort by effective_price, not price_per_coin.
+    raw_current = cursor.execute('''
+        SELECT cart.id, cart.listing_id, cart.quantity,
+               listings.price_per_coin, listings.pricing_mode,
+               listings.spot_premium, listings.floor_price, listings.pricing_metal,
+               categories.metal, categories.weight, categories.product_type
           FROM cart
           JOIN listings ON cart.listing_id = listings.id
+          JOIN categories ON listings.category_id = categories.id
          WHERE cart.user_id = ?
            AND listings.category_id = ?
            AND cart.third_party_grading_requested = ?
-         ORDER BY listings.price_per_coin ASC
     ''', (user_id, category_id, requires_grading)).fetchall()
+
+    current_items = []
+    for row in raw_current:
+        d = dict(row)
+        d['effective_price'] = get_effective_price(d, spot_prices=spot_prices)
+        current_items.append(d)
+    current_items.sort(key=lambda x: x['effective_price'])
 
     current_qty = sum(item['quantity'] for item in current_items)
 
-    # 2) If target equals current, nothing to do
+    # 2) If target equals current, nothing to do — still return full response with grading_fee
     if target_qty == current_qty:
+        existing_price = sum(item['quantity'] * item['effective_price'] for item in current_items)
+        existing_avg = existing_price / current_qty if current_qty > 0 else 0.0
+        grading_fee = round(GRADING_FEE_PER_UNIT * current_qty, 2) if requires_grading else 0.0
         conn.close()
-        return jsonify({'success': True, 'quantity': target_qty})
+        return jsonify({
+            'success': True,
+            'quantity': current_qty,
+            'avg_price': round(existing_avg, 2),
+            'total_price': round(existing_price, 2),
+            'grading_fee': grading_fee,
+        })
 
     # 3) If we need to add more items
     if target_qty > current_qty:
         needed = target_qty - current_qty
         grading_pref_str = 'ANY' if requires_grading else 'NONE'
 
-        # Get all available listings for this category (excluding user's own), sorted by price
-        available = cursor.execute('''
-            SELECT id, quantity, price_per_coin
-              FROM listings
-             WHERE category_id = ?
-               AND active = 1
-               AND seller_id != ?
-             ORDER BY price_per_coin ASC
+        # Get all available listings for this category (excluding user's own).
+        # Fetch pricing fields so we can sort by effective_price.
+        raw_available = cursor.execute('''
+            SELECT l.id, l.quantity,
+                   l.price_per_coin, l.pricing_mode, l.spot_premium,
+                   l.floor_price, l.pricing_metal,
+                   c.metal, c.weight, c.product_type
+              FROM listings l
+              JOIN categories c ON l.category_id = c.id
+             WHERE l.category_id = ?
+               AND l.active = 1
+               AND l.seller_id != ?
         ''', (category_id, user_id)).fetchall()
+
+        available = []
+        for row in raw_available:
+            d = dict(row)
+            d['effective_price'] = get_effective_price(d, spot_prices=spot_prices)
+            available.append(d)
+        available.sort(key=lambda x: x['effective_price'])
 
         for listing in available:
             if needed <= 0:
@@ -448,7 +486,7 @@ def update_bucket_quantity(category_id):
     else:
         to_remove = current_qty - target_qty
 
-        # Remove from most expensive first (reverse order), only touching this grading bucket
+        # Remove most expensive first (reverse of cheapest-first effective-price order)
         for item in reversed(current_items):
             if to_remove <= 0:
                 break
@@ -466,9 +504,7 @@ def update_bucket_quantity(category_id):
 
     conn.commit()
 
-    # Get updated category data for this grading bucket only
-    from services.pricing_service import get_effective_price
-
+    # Re-read updated cart items and compute totals using the same spot_prices fetched above
     updated_items = cursor.execute('''
         SELECT
             cart.quantity,
@@ -488,18 +524,18 @@ def update_bucket_quantity(category_id):
           AND cart.third_party_grading_requested = ?
     ''', (user_id, category_id, requires_grading)).fetchall()
 
-    # Calculate new total quantity and average price
     new_total_qty = 0
     new_total_price = 0.0
 
     for item in updated_items:
         item_dict = dict(item)
-        effective_price = get_effective_price(item_dict)
+        effective_price = get_effective_price(item_dict, spot_prices=spot_prices)
         qty = item['quantity']
         new_total_qty += qty
         new_total_price += qty * effective_price
 
     new_avg_price = new_total_price / new_total_qty if new_total_qty > 0 else 0.0
+    grading_fee = round(GRADING_FEE_PER_UNIT * new_total_qty, 2) if requires_grading else 0.0
 
     conn.close()
 
@@ -507,5 +543,6 @@ def update_bucket_quantity(category_id):
         'success': True,
         'quantity': new_total_qty,
         'avg_price': round(new_avg_price, 2),
-        'total_price': round(new_total_price, 2)
+        'total_price': round(new_total_price, 2),
+        'grading_fee': grading_fee,
     })

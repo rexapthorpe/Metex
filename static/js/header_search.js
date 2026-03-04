@@ -80,10 +80,10 @@
         // Debounced search
         clearTimeout(searchTimeout);
 
-        if (this.value.trim().length >= 2) {
+        if (this.value.trim().length >= 1) {
             searchTimeout = setTimeout(() => {
                 performSearch(this.value.trim());
-            }, 250);
+            }, 200);
         } else {
             hideDropdown();
         }
@@ -169,12 +169,18 @@
 
         let html = '';
 
-        // Add suggestion items
+        // Add suggestion items — two-line layout (title + meta context)
         suggestions.forEach(suggestion => {
+            const metaHtml = suggestion.meta
+                ? `<span class="header-search-result-meta">${escapeHtml(suggestion.meta)}</span>`
+                : '';
             html += `
                 <div class="header-search-result-item" data-type="${suggestion.type}" data-id="${suggestion.id || ''}" data-query="${escapeHtml(suggestion.text)}">
                     <i class="fa-solid fa-magnifying-glass header-search-result-icon"></i>
-                    <span class="header-search-result-text">${escapeHtml(suggestion.text)}</span>
+                    <div class="header-search-result-body">
+                        <span class="header-search-result-text">${escapeHtml(suggestion.text)}</span>
+                        ${metaHtml}
+                    </div>
                 </div>
             `;
         });
@@ -183,7 +189,9 @@
         html += `
             <div class="header-search-result-item search-action" data-type="search" data-query="${escapeHtml(query)}">
                 <i class="fa-solid fa-magnifying-glass header-search-result-icon"></i>
-                <span class="header-search-result-text">Search for '${escapeHtml(query)}'</span>
+                <div class="header-search-result-body">
+                    <span class="header-search-result-text">Search for '${escapeHtml(query)}'</span>
+                </div>
             </div>
         `;
 
@@ -194,16 +202,16 @@
             item.addEventListener('click', function() {
                 const type = this.dataset.type;
                 const id = this.dataset.id;
-                const query = this.dataset.query;
+                const q = this.dataset.query;
 
                 if (type === 'search') {
-                    navigateToSearch(query);
+                    navigateToSearch(q);
                 } else if (type === 'bucket') {
                     navigateToBucket(id);
                 } else if (type === 'listing') {
                     navigateToListing(id);
                 } else {
-                    navigateToSearch(query);
+                    navigateToSearch(q);
                 }
             });
         });
@@ -217,7 +225,7 @@
     }
 
     function navigateToBucket(bucketId) {
-        window.location.href = `/buy/bucket/${bucketId}`;
+        window.location.href = `/bucket/${bucketId}`;
     }
 
     function navigateToListing(listingId) {
