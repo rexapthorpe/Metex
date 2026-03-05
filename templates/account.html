@@ -271,7 +271,7 @@
   <script src="{{ url_for('static', filename='js/modals/logout_confirmation_modal.js') }}"></script>
   <!-- Tracking Number Modal -->
   <div id="trackingModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
-    <div style="background:#fff; border-radius:12px; padding:28px 32px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); position:relative;">
+    <div class="tracking-modal-content" style="background:#fff; border-radius:12px; padding:28px 32px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); position:relative;">
       <button type="button" onclick="closeTrackingModal()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;">&times;</button>
       <h2 style="margin:0 0 6px;font-size:1.1rem;font-weight:700;color:#0f172a;">Add Tracking Number</h2>
       <p style="margin:0 0 20px;font-size:13px;color:#64748b;">Order #<span id="tracking-order-id-display">—</span></p>

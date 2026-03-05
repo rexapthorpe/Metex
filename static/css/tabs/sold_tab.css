@@ -282,12 +282,31 @@
 .sold-confirm-btn--accept { background: #16a34a; color: #ffffff; border-color: #16a34a; }
 .sold-confirm-btn--accept:hover { background: #15803d; }
 
-/* ===== Card Footer ===== */
-.sold-card-footer {
+/* ===== Quick Actions Toggle (desktop: hidden; mobile: collapsible) ===== */
+.sold-actions-toggle {
+  display: none;
+}
+.sold-actions-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+}
+/* .order-actions-chevron shared from orders_tab.css via base */
+
+.sold-actions-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 10px 20px;
+}
+
+/* ===== Card Footer ===== */
+.sold-card-footer {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
   border-top: 1px solid #e2e8f0;
   background: #f8fafc;
 }
@@ -354,6 +373,89 @@
   .sold-action-bar-right {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  /* Quick actions toggle — show on mobile */
+  .sold-actions-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+  }
+  .sold-actions-toggle:hover { background: #f8fafc; }
+  .sold-actions-toggle .order-actions-chevron {
+    display: block;
+    font-size: 12px;
+    color: #9ca3af;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+  }
+  .sold-actions-toggle[aria-expanded="true"] .order-actions-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* Body: hidden by default */
+  .sold-actions-body {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 0;
+    gap: 0;
+  }
+  .sold-actions-body.expanded {
+    display: flex;
+  }
+
+  /* Date hidden inside collapsed body — not needed visually */
+  .sold-footer-date { display: none; }
+
+  /* Flatten actions wrapper — children stack in column */
+  .sold-footer-actions {
+    display: contents;
+  }
+
+  /* Single-column full-width buttons matching order-quick-action */
+  .sold-footer-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: background 0.15s ease;
+  }
+  .sold-footer-btn i { width: 16px; text-align: center; color: #64748b; }
+  .sold-footer-btn:hover { background: #f1f5f9; }
+
+  .sold-footer-btn--track {
+    background: #3da6ff;
+    color: #fff;
+    border-radius: 8px;
+    margin: 4px 16px;
+    width: calc(100% - 32px);
+    padding: 12px 16px;
+    justify-content: center;
+    font-weight: 600;
+  }
+  .sold-footer-btn--track i { color: #fff; width: auto; }
+  .sold-footer-btn--track:hover { background: #1e74f0; }
+
+  .sold-footer-btn--rated {
+    opacity: 0.6;
+    cursor: default;
+    pointer-events: none;
   }
 
 }

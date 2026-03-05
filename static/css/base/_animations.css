@@ -7,7 +7,7 @@
 @keyframes modalSlideUp {
     0% {
         opacity: 0;
-        transform: translateY(30px);
+        transform: translateY(100%);
     }
     100% {
         opacity: 1;
@@ -23,7 +23,7 @@
     }
     100% {
         opacity: 0;
-        transform: translateY(30px);
+        transform: translateY(100%);
     }
 }
 
@@ -50,7 +50,7 @@
 .listing-items-modal-content,
 [class*="-modal-content"],
 [class*="-modal-dialog"] {
-    animation: modalSlideUp 0.3s ease-out;
+    animation: modalSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Overlay fade-in animation */

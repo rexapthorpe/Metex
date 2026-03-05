@@ -448,21 +448,28 @@ def respond_to_cancellation(order_id):
                 WHERE id = ?
             """, (cancel_request['id'],))
 
-            # Update stats
-            update_cancellation_stats(conn, order_id, cancel_request['buyer_id'], seller_ids,
-                                     cancel_request['total_price'], is_approved=False)
-
-            # Notify buyer of denial
-            create_notification(
-                user_id=cancel_request['buyer_id'],
-                notification_type='cancellation_denied',
-                title='Cancel Request Denied',
-                message=f'Your cancellation request for order #ORD-2026-{order_id:06d} has been denied by a seller.',
-                related_order_id=order_id
-            )
-
             conn.commit()
             conn.close()
+
+            try:
+                stats_conn = get_db_connection()
+                update_cancellation_stats(stats_conn, order_id, cancel_request['buyer_id'], seller_ids,
+                                         cancel_request['total_price'], is_approved=False)
+                stats_conn.commit()
+                stats_conn.close()
+            except Exception as stats_err:
+                print(f"[CANCELLATION] Stats update failed (non-fatal): {stats_err}")
+
+            try:
+                create_notification(
+                    user_id=cancel_request['buyer_id'],
+                    notification_type='cancellation_denied',
+                    title='Cancel Request Denied',
+                    message=f'Your cancellation request for order #ORD-2026-{order_id:06d} has been denied by a seller.',
+                    related_order_id=order_id
+                )
+            except Exception as notif_err:
+                print(f"[CANCELLATION] Notification failed (non-fatal): {notif_err}")
 
             return jsonify({
                 'success': True,
@@ -503,31 +510,38 @@ def respond_to_cancellation(order_id):
             # Restore inventory
             items_restored = restore_inventory(conn, order_id)
 
-            # Update stats
-            update_cancellation_stats(conn, order_id, cancel_request['buyer_id'], seller_ids,
-                                     cancel_request['total_price'], is_approved=True)
-
-            # Notify buyer of success
-            create_notification(
-                user_id=cancel_request['buyer_id'],
-                notification_type='cancellation_approved',
-                title='Order Canceled Successfully',
-                message=f'Order #ORD-2026-{order_id:06d} has been successfully canceled. You will receive a full refund.',
-                related_order_id=order_id
-            )
-
-            # Notify all sellers of success
-            for seller_id in seller_ids:
-                create_notification(
-                    user_id=seller_id,
-                    notification_type='cancellation_approved',
-                    title='Order Canceled',
-                    message=f'Order #ORD-2026-{order_id:06d} has been canceled. Inventory has been returned to your available listings.',
-                    related_order_id=order_id
-                )
-
+            # Commit critical changes FIRST so stats/notification failures can't roll them back
             conn.commit()
             conn.close()
+
+            # Non-critical: update stats and send notifications (failures don't affect the cancellation)
+            try:
+                stats_conn = get_db_connection()
+                update_cancellation_stats(stats_conn, order_id, cancel_request['buyer_id'], seller_ids,
+                                         cancel_request['total_price'], is_approved=True)
+                stats_conn.commit()
+                stats_conn.close()
+            except Exception as stats_err:
+                print(f"[CANCELLATION] Stats update failed (non-fatal): {stats_err}")
+
+            try:
+                create_notification(
+                    user_id=cancel_request['buyer_id'],
+                    notification_type='cancellation_approved',
+                    title='Order Canceled Successfully',
+                    message=f'Order #ORD-2026-{order_id:06d} has been successfully canceled. You will receive a full refund.',
+                    related_order_id=order_id
+                )
+                for seller_id in seller_ids:
+                    create_notification(
+                        user_id=seller_id,
+                        notification_type='cancellation_approved',
+                        title='Order Canceled',
+                        message=f'Order #ORD-2026-{order_id:06d} has been canceled. Inventory has been returned to your available listings.',
+                        related_order_id=order_id
+                    )
+            except Exception as notif_err:
+                print(f"[CANCELLATION] Notification failed (non-fatal): {notif_err}")
 
             return jsonify({
                 'success': True,

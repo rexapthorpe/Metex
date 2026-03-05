@@ -103,7 +103,11 @@
 
           <!-- Right: Quick Actions -->
           <div class="order-card-actions">
-            <div class="order-actions-label">QUICK ACTIONS</div>
+            <button class="order-actions-toggle" onclick="toggleOrderActions(this)" aria-expanded="false">
+              <span class="order-actions-label">QUICK ACTIONS</span>
+              <i class="fa-solid fa-chevron-down order-actions-chevron"></i>
+            </button>
+            <div class="order-actions-body">
             <button class="order-quick-action" onclick="openOrderSellerPopup({{ order.id }})">
               <i class="fa-regular fa-user"></i> Seller
             </button>
@@ -170,6 +174,7 @@
               <i class="fa-{% if order.report_status %}solid{% else %}regular{% endif %} fa-flag"></i>
               {% if order.report_status %}Reported{% else %}Report User{% endif %}
             </button>
+            </div>{# end order-actions-body #}
           </div>
         </div>
       {% endfor %}
@@ -192,6 +197,14 @@
 </div>
 
 <script>
+function toggleOrderActions(btn) {
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', !expanded);
+  const body = btn.nextElementSibling;
+  body.classList.toggle('expanded', !expanded);
+}
+window.toggleOrderActions = toggleOrderActions;
+
 function filterOrders(filter) {
   document.querySelectorAll('.orders-tab .filter-pill').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === filter);

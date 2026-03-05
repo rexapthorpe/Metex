@@ -7,6 +7,7 @@
 let currentCancelOrderId = null;
 let currentSellerResponseOrderId = null;
 let currentSellerResponseType = null;
+let sellerResponseSubmitted = false; // true after a successful API response
 
 /**
  * Open the cancel order modal for a buyer
@@ -319,6 +320,8 @@ function closeSellerCancelResponseModal() {
     denySuccess.classList.remove('show');
     denySuccess.style.display = 'none';
   }
+
+  sellerResponseSubmitted = false;
 }
 
 /**
@@ -326,7 +329,11 @@ function closeSellerCancelResponseModal() {
  */
 function closeSellerCancelResponseModalOnOverlay(event) {
   if (event.target.classList.contains('cancel-order-overlay')) {
-    closeSellerCancelResponseModal();
+    if (sellerResponseSubmitted) {
+      closeSellerCancelResponseModalAndRefresh();
+    } else {
+      closeSellerCancelResponseModal();
+    }
   }
 }
 
@@ -359,6 +366,7 @@ async function confirmSellerResponse() {
     const data = await response.json();
 
     if (data.success) {
+      sellerResponseSubmitted = true;
       // Show success animation based on response type
       showSellerResponseSuccessAnimation(currentSellerResponseType);
     } else {
@@ -410,6 +418,11 @@ function showSellerResponseSuccessAnimation(responseType) {
   dialog.classList.add('success');
 
   console.log('[SELLER RESPONSE] Animation should be showing now');
+
+  // Auto-refresh after 2s so tile state updates even if user doesn't click Done
+  setTimeout(() => {
+    window.location.reload();
+  }, 2000);
 }
 
 /**
@@ -513,7 +526,11 @@ document.addEventListener('keydown', function(e) {
       closeCancelOrderModal();
     }
     if (document.getElementById('sellerCancelResponseModal').style.display === 'flex') {
-      closeSellerCancelResponseModal();
+      if (sellerResponseSubmitted) {
+        closeSellerCancelResponseModalAndRefresh();
+      } else {
+        closeSellerCancelResponseModal();
+      }
     }
   }
 });

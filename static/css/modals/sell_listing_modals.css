@@ -684,21 +684,22 @@ body.dark-mode .proceeds-note i {
 .confirm-modal-close {
   width: 30px;
   height: 30px;
-  border: 1.5px solid #94a3b8;
+  border: none;
   border-radius: 7px;
   background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #64748b;
+  color: #6b7280;
   font-size: 13px;
   line-height: 1;
-  transition: background 0.15s;
+  transition: color 0.15s;
 }
 
 .confirm-modal-close:hover {
-  background: #e2e8f0;
+  background: transparent;
+  color: #374151;
 }
 
 /* Title */

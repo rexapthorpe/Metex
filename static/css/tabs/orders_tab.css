@@ -377,6 +377,20 @@
 .order-action-report--reported i { color: #f59e0b !important; }
 .order-action-report--reported:hover { background: #fff7ed; }
 
+/* ===== Quick Actions Toggle (desktop: label only; mobile: collapsible) ===== */
+.order-actions-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  pointer-events: none;
+}
+.order-actions-chevron { display: none; }
+
 /* ===================================
    RESPONSIVE — ORDERS TAB
    =================================== */
@@ -401,18 +415,65 @@
   /* Actions move below info */
   .order-card-actions {
     width: 100%;
-    flex-direction: row;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+  }
+
+  /* Toggle row: clickable, shows label + chevron */
+  .order-actions-toggle {
+    pointer-events: auto;
+    cursor: pointer;
+    padding: 10px 16px;
+    justify-content: space-between;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .order-actions-toggle:hover { background: #f8fafc; }
+
+  .order-actions-chevron {
+    display: block;
+    font-size: 12px;
+    color: #9ca3af;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+  }
+  .order-actions-toggle[aria-expanded="true"] .order-actions-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* Body: hidden by default, shown when expanded */
+  .order-actions-body {
+    display: none;
     flex-wrap: wrap;
     padding: 12px 16px;
     gap: 6px;
-    align-items: center;
+  }
+  .order-actions-body.expanded {
+    display: flex;
   }
 
-  .order-actions-label { width: 100%; margin-bottom: 0; }
+  /* Flatten the bottom wrapper so its children join the 3-col grid */
+  .order-actions-bottom {
+    display: contents;
+  }
 
-  .order-quick-action { width: auto; flex: 1 1 auto; }
+  /* Hide divider — not needed in grid layout */
+  .order-actions-divider {
+    display: none;
+  }
 
-  .order-actions-bottom { flex: 1 1 100%; }
+  .order-actions-label { width: auto; margin-bottom: 0; font-size: 11px; }
+
+  /* All action buttons: full-width single column */
+  .order-quick-action,
+  .order-action-track,
+  .order-action-cancel,
+  .order-action-report {
+    flex: 1 1 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+  }
 }
 
 @media (max-width: 480px) {

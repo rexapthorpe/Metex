@@ -3,7 +3,7 @@
 from flask import render_template, request, session
 from database import get_db_connection
 from services.pricing_service import get_effective_price
-from services.reference_price_service import get_current_spots_from_snapshots
+from services.reference_price_service import get_current_spots_from_snapshots, compute_reference_price
 from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
 
 from . import buy_bp
@@ -172,6 +172,51 @@ def buy():
             if not is_user_listing:
                 bucket_data[bucket_id]['has_non_user_listings'] = True
                 bucket_data[bucket_id]['total_non_user_available'] += listing['quantity']
+
+    # Apply the same reference-price formula used by the bucket page chart so
+    # that the tile price always matches the chart's current_price.
+    # P(t=now) = (BestAsk + BestBid) / 2  when both sides are active
+    #          = LastClearedPrice          when only one side or no side (no bid)
+    #          = BestAsk                   when no bids and no past trades
+    #
+    # Two lightweight batch queries — one round-trip each regardless of bucket count.
+
+    # Best active bid per bucket (same as chart's get_best_bid_at_time at now)
+    _bid_rows = conn.execute('''
+        SELECT c.bucket_id, MAX(b.price_per_coin) AS best_bid
+        FROM bids b
+        JOIN categories c ON b.category_id = c.id
+        WHERE b.active = 1 AND b.remaining_quantity > 0 AND c.bucket_id IS NOT NULL
+        GROUP BY c.bucket_id
+    ''').fetchall()
+    _best_bid_by_bucket = {r['bucket_id']: float(r['best_bid']) for r in _bid_rows}
+
+    # Last executed trade price per bucket (same as chart's get_last_cleared_price_at_time)
+    _cleared_rows = conn.execute('''
+        SELECT c.bucket_id, oi.price_each
+        FROM order_items oi
+        JOIN listings l  ON oi.listing_id = l.id
+        JOIN categories c ON l.category_id = c.id
+        INNER JOIN (
+            SELECT c2.bucket_id, MAX(oi2.order_id) AS max_order_id
+            FROM order_items oi2
+            JOIN listings l2  ON oi2.listing_id = l2.id
+            JOIN categories c2 ON l2.category_id = c2.id
+            WHERE c2.bucket_id IS NOT NULL
+            GROUP BY c2.bucket_id
+        ) latest ON c.bucket_id = latest.bucket_id
+                AND oi.order_id = latest.max_order_id
+    ''').fetchall()
+    _last_cleared_by_bucket = {r['bucket_id']: float(r['price_each']) for r in _cleared_rows}
+
+    # Update each bucket's display price to the reference price
+    for _bid_key in bucket_data:
+        _ref = compute_reference_price(
+            bucket_data[_bid_key].get('lowest_price'),
+            _best_bid_by_bucket.get(_bid_key),
+            _last_cleared_by_bucket.get(_bid_key),
+        )
+        bucket_data[_bid_key]['lowest_price'] = _ref
 
     # Merge bucket data with standard categories
     standard_buckets = []

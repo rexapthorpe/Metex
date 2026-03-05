@@ -475,16 +475,6 @@
           </div>
         {% endif %}
 
-        <!-- Dynamic Pricing Info Notice -->
-        {% set has_dynamic_pricing = listings|selectattr('pricing_mode', 'equalto', 'premium_to_spot')|list|length > 0 %}
-        {% if has_dynamic_pricing %}
-        <div class="dynamic-pricing-info">
-          <div class="dynamic-pricing-info-title">Dynamic Pricing Active</div>
-          <div class="dynamic-pricing-info-text">
-            Some listings use Premium-to-Spot pricing and may change based on live metal prices.
-          </div>
-        </div>
-        {% endif %}
 
         <div class="qty-row">
           <div class="dial-pill buy-qty-pill" id="buyQtyPill" aria-label="Quantity selector" data-max="{{ availability['total_available'] }}">

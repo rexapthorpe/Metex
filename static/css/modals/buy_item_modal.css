@@ -33,18 +33,18 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   border-radius: 20px;
   overflow: hidden; /* Ensure border-radius clips child elements properly */
-  transform: scale(1);
+  transform: translateY(0);
   transition: transform 0.3s ease, opacity 0.3s ease;
   position: relative; /* Positioning context for close button */
 }
 
 .buy-modal-overlay:not(.active) .buy-modal-dialog {
-  transform: scale(0.9);
+  transform: translateY(100%);
   opacity: 0;
 }
 
 .buy-modal-overlay.active .buy-modal-dialog {
-  transform: scale(1);
+  transform: translateY(0);
   opacity: 1;
 }
 

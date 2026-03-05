@@ -5,12 +5,15 @@
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.5);
   z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Modal box - Specific to #sellerModal */
 #sellerModal .modal-content {
   background: #fff;
-  margin: 60px auto;
+  margin: 0;
   border-radius: 20px;
   width: 90%; max-width: 350px;
   max-height: 500px;

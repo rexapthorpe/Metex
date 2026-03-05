@@ -57,7 +57,7 @@
 
 #bidModal .modal-close:hover {
   color: #374151;
-  background: #f3f4f6;
+  background: transparent;
 }
 
 /* ── Loading state ── */
@@ -873,15 +873,20 @@
 
 /* ── Responsive ── */
 @media (max-width: 600px) {
-  #bidModal .modal-content { padding: 16px !important; }
+  #bidModal .modal-content { padding: 16px 8px !important; }
+
+  /* Anchor the full parent chain so the wizard width is never content-driven */
+  #bidModal #bidModalContent,
+  #bidModal #bid-form {
+    width: calc(100vw - 16px);
+    min-width: calc(100vw - 16px);
+  }
 
   #bidModal .bm-wizard {
-    /* Use an explicit vw-based width so the modal doesn't change size
-       as steps are navigated, regardless of which CSS file wins for the
-       parent .modal-content padding. 16px margins on each side = 32px total. */
-    width: calc(100vw - 32px) !important;
-    max-width: calc(100vw - 32px) !important;
-    border-radius: 16px;
+    width: calc(100vw - 16px) !important;
+    min-width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    border-radius: 20px;
   }
 
   #bidModal .bm-header,

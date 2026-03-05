@@ -30,6 +30,40 @@
   position: relative;
 }
 
+/* Close (×) button */
+.confirmation-modal-content .modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.confirmation-modal-content .modal-close:hover {
+  background: transparent;
+  color: #374151;
+}
+
+/* Mobile: add horizontal margin so modal doesn't touch screen edges */
+@media (max-width: 480px) {
+  .confirmation-modal-content {
+    width: calc(100% - 40px);
+    margin: 0 20px;
+  }
+}
+
 /* ── Bid-closed success animation ── */
 .bid-closed-success {
   display: flex;

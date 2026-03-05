@@ -268,7 +268,7 @@ function renderValueChart(historyData) {
                     backgroundColor: gradient,
                     borderWidth: isMobile ? 2 : 3,
                     fill: true,
-                    tension: 0.4,
+                    tension: 0,
                     pointRadius: 0,
                     pointBackgroundColor: '#0066cc',
                     pointBorderColor: '#ffffff',
@@ -285,7 +285,7 @@ function renderValueChart(historyData) {
                     borderWidth: isMobile ? 1 : 2,
                     borderDash: [4, 4],
                     fill: false,
-                    tension: 0.4,
+                    tension: 0,
                     pointRadius: 0,
                     pointBackgroundColor: '#9ca3af',
                     pointBorderColor: '#ffffff',
@@ -789,8 +789,15 @@ function toggleHoldingMenu(event, btn) {
 
     if (!isOpen) {
         const rect = btn.getBoundingClientRect();
-        dropdown.style.top   = (rect.bottom + 4) + 'px';
-        dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+        dropdown.style.top = (rect.bottom + 4) + 'px';
+        // Anchor to left when there's room, otherwise anchor to right edge
+        if (window.innerWidth - rect.left >= 180) {
+            dropdown.style.left  = rect.left + 'px';
+            dropdown.style.right = '';
+        } else {
+            dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+            dropdown.style.left  = '';
+        }
         dropdown.classList.add('open');
     }
 }

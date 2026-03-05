@@ -19,7 +19,7 @@
   width: 32px;
   height: 32px;
   border: none;
-  background: rgba(0, 0, 0, 0.05);
+  background: transparent;
   border-radius: 50%;
   font-size: 24px;
   line-height: 1;
@@ -28,21 +28,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
-  transition: all 0.2s ease;
+  color: #6b7280;
+  transition: color 0.15s;
   padding: 0;
 }
 
 .modal-close:hover,
 .close-button:hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: #333;
-  transform: scale(1.1);
+  background: transparent;
+  color: #374151;
 }
 
 .modal-close:active,
 .close-button:active {
-  transform: scale(0.95);
+  color: #111827;
 }
 
 /* Mobile responsive sizing */

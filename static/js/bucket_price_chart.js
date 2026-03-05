@@ -348,45 +348,44 @@ function renderBucketPriceChart(historyData, range) {
 
     // Determine time range boundaries (using browser's local timezone)
     const now = new Date();
-    let minTime, maxTime, timeUnit, stepSize;
+    let minTime, maxTime, timeUnit, xMaxTicks;
 
     switch(range) {
         case '1d':
-            // Rolling 24-hour window in user's local timezone
             minTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
             maxTime = now;
             timeUnit = 'hour';
-            stepSize = 3; // Every 3 hours
+            xMaxTicks = 7;   // ~every 3-4 h
             break;
         case '1w':
             minTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             maxTime = now;
             timeUnit = 'day';
-            stepSize = 1; // Every day
+            xMaxTicks = 7;   // one per day
             break;
         case '1m':
             minTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
             maxTime = now;
             timeUnit = 'day';
-            stepSize = 5; // Every 5 days
+            xMaxTicks = 6;   // ~every 5 days
             break;
         case '3m':
             minTime = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
             maxTime = now;
             timeUnit = 'week';
-            stepSize = 2; // Every 2 weeks
+            xMaxTicks = 7;   // ~every 2 weeks
             break;
         case '1y':
             minTime = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
             maxTime = now;
             timeUnit = 'month';
-            stepSize = 1; // Every month
+            xMaxTicks = 12;  // one per month
             break;
         default:
             minTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
             maxTime = now;
             timeUnit = 'day';
-            stepSize = 5;
+            xMaxTicks = 6;
     }
 
     // Apply backfill and forward-fill to ensure line spans full interval
@@ -425,30 +424,35 @@ function renderBucketPriceChart(historyData, range) {
         };
     });
 
-    // Calculate Y-axis range with 10% margin
-    const prices = dataPoints.map(p => p.y);
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
+    // Calculate Y-axis domain — never allow negative values for price history
+    const prices = dataPoints.map(p => p.y).filter(v => typeof v === 'number' && isFinite(v));
+    const minPrice = prices.length ? Math.min(...prices) : 0;
+    const maxPrice = prices.length ? Math.max(...prices) : 100;
     const priceRange = maxPrice - minPrice;
 
     let yMin, yMax;
-    if (priceRange === 0) {
-        // All prices are equal - add symmetric margin (10% of the price value, or $1 minimum)
-        const margin = Math.max(minPrice * 0.1, 1);
-        yMin = minPrice - margin;
+    if (prices.length === 0) {
+        yMin = 0;
+        yMax = 100;
+    } else if (priceRange === 0) {
+        // Flat line — pad by 5% of the value (min $1) symmetrically, floor at 0
+        const margin = Math.max(minPrice * 0.05, 1);
+        yMin = Math.max(0, minPrice - margin);
         yMax = maxPrice + margin;
-        console.log('[BucketChart] All prices equal at', minPrice, '- using symmetric margin:', margin);
     } else {
-        // Add 10% margin based on the actual price range
+        // Normal case — pad by 10% of the range, floor yMin at 0
         const margin = priceRange * 0.1;
-        yMin = minPrice - margin;
+        yMin = Math.max(0, minPrice - margin);
         yMax = maxPrice + margin;
-        console.log('[BucketChart] Price range:', minPrice, 'to', maxPrice, '- adding 10% margin:', margin);
     }
+
+    // Snap to clean integers so tick labels land on round numbers
+    yMin = Math.floor(yMin);
+    yMax = Math.ceil(yMax);
 
     console.log('[BucketChart] Chart data points:', dataPoints.length);
     console.log('[BucketChart] Time range:', minTime.toLocaleString(), 'to', maxTime.toLocaleString());
-    console.log('[BucketChart] Using time scale with unit:', timeUnit, 'step:', stepSize);
+    console.log('[BucketChart] Using time scale with unit:', timeUnit, 'maxTicks:', xMaxTicks);
     console.log('[BucketChart] Y-axis range:', yMin.toFixed(2), 'to', yMax.toFixed(2));
 
     // Destroy existing chart if it exists
@@ -528,7 +532,9 @@ function renderBucketPriceChart(historyData, range) {
                                 size: 12
                             },
                             color: '#6b7280',
+                            maxTicksLimit: 6,
                             callback: function(value) {
+                                if (value < 0) return '';  // Defensive: never show negative labels
                                 return '$' + formatWithCommas(value, 0);
                             }
                         }
@@ -555,9 +561,12 @@ function renderBucketPriceChart(historyData, range) {
                                 size: 12
                             },
                             color: '#6b7280',
-                            maxRotation: 45,
-                            autoSkip: true,       // Skip overlapping labels, but every point is still plotted
-                            source: 'data'        // Tick at every actual data point, not uniform intervals
+                            maxRotation: 0,
+                            minRotation: 0,
+                            autoSkip: true,
+                            autoSkipPadding: 20,
+                            maxTicksLimit: xMaxTicks,
+                            source: 'auto'        // Uniform distribution, not one-per-data-point
                         }
                     }
                 },

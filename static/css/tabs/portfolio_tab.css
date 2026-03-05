@@ -619,100 +619,6 @@
   }
 }
 
-/* ─── Mobile: holdings — 2-row card layout ───────────────── */
-@media (max-width: 640px) {
-  /* Hide column header row */
-  .holdings-table-header {
-    display: none;
-  }
-
-  /* Each row: 2-row grid — row 1: item info + menu; row 2: price stats */
-  .holding-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto 36px;
-    grid-template-rows: auto auto;
-    column-gap: 10px;
-    row-gap: 10px;
-    padding: 14px 16px;
-    align-items: start;
-  }
-
-  /* Row 1, cols 1–3: item image + name + sub */
-  .holding-item-cell {
-    grid-column: 1 / 4;
-    grid-row: 1;
-  }
-
-  /* Row 1, col 4: ⋯ menu button */
-  .holding-menu-wrapper {
-    grid-column: 4;
-    grid-row: 1;
-    align-self: center;
-  }
-
-  /* Larger image on mobile */
-  .holding-image {
-    width: 48px;
-    height: 48px;
-    border-radius: 8px;
-  }
-
-  /* Qty column hidden */
-  .quantity-value {
-    display: none;
-  }
-
-  /* Row 2, col 1: current price with label */
-  .current-price-value {
-    grid-column: 1;
-    grid-row: 2;
-    text-align: left;
-    font-size: 14px;
-    font-weight: 600;
-    color: #0f172a;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .current-price-value::before {
-    content: 'Current';
-    display: block;
-    font-size: 11px;
-    font-weight: 500;
-    color: #94a3b8;
-  }
-
-  /* Row 2, col 2: purchase price with label */
-  .purchase-price-value {
-    grid-column: 2;
-    grid-row: 2;
-    text-align: left;
-    font-size: 14px;
-    font-weight: 600;
-    color: #0f172a;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .purchase-price-value::before {
-    content: 'Cost';
-    display: block;
-    font-size: 11px;
-    font-weight: 500;
-    color: #94a3b8;
-  }
-
-  /* Row 2, cols 3–4: gain/loss right-aligned */
-  .gain-loss-value {
-    grid-column: 3 / 5;
-    grid-row: 2;
-    text-align: right;
-    font-size: 13px;
-    align-self: flex-end;
-  }
-}
 
 /* ─── Smallest phones ────────────────────────────────────── */
 @media (max-width: 480px) {
@@ -750,19 +656,11 @@
     padding: 6px 8px;
   }
 
-  .holding-item-name {
-    font-size: 13px;
-  }
+  .holding-item-name { font-size: 13px; }
+  .holding-item-sub  { font-size: 11px; }
 
-  .holding-item-sub {
-    font-size: 11px;
-  }
-
+  .purchase-price-value,
   .current-price-value,
-  .purchase-price-value {
-    font-size: 13px;
-  }
-
   .gain-loss-value {
     font-size: 12px;
   }
@@ -1114,3 +1012,76 @@
 }
 
 .confirmation-btn-no:hover { background: #e2e8f0; }
+
+/* ─── Mobile: holdings card layout (must be LAST to override desktop grid) ─ */
+@media (max-width: 768px) {
+  /* Hide the desktop column header */
+  .holdings-table-header { display: none !important; }
+
+  /* Flex layout: wraps into 3 natural rows */
+  .holding-row {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 14px 16px;
+    row-gap: 10px;
+    column-gap: 8px;
+  }
+
+  /* Row 1: item image + name (full width) */
+  .holding-item-cell {
+    flex: 0 0 100%;
+    min-width: 0;
+    order: 1;
+  }
+
+  /* Hide quantity */
+  .quantity-value { display: none !important; }
+
+  /* Stats: each full-width, left-aligned, stacked */
+  .purchase-price-value,
+  .current-price-value,
+  .gain-loss-value {
+    flex: 0 0 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    text-align: left !important;
+    align-items: flex-start !important;
+  }
+  .purchase-price-value { order: 2; }
+  .current-price-value  { order: 3; }
+  .gain-loss-value      { order: 4; }
+
+  /* Stat labels */
+  .purchase-price-value::before {
+    content: 'Cost';
+    font-size: 10px; font-weight: 500; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .current-price-value::before {
+    content: 'Current';
+    font-size: 10px; font-weight: 500; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .gain-loss-value::before {
+    content: 'Gain / Loss';
+    font-size: 10px; font-weight: 500; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+
+  /* ⋯ menu: bottom left */
+  .holding-menu-wrapper {
+    flex: 0 0 auto;
+    order: 5;
+    margin-right: auto;
+  }
+
+  .holding-image { width: 40px; height: 40px; border-radius: 6px; }
+  .holding-item-name { font-size: 13px; }
+  .holding-item-sub  { font-size: 11px; }
+}

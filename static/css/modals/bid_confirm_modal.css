@@ -33,18 +33,18 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   border-radius: 20px;
   overflow: hidden; /* Ensure border-radius clips child elements properly */
-  transform: scale(1);
+  transform: translateY(0);
   transition: transform 0.3s ease;
   position: relative; /* Positioning context for close button */
 }
 
 .bid-confirm-overlay:not(.active) .bid-confirm-dialog {
-  transform: scale(0.9);
+  transform: translateY(100%);
   opacity: 0;
 }
 
 .bid-confirm-overlay.active .bid-confirm-dialog {
-  transform: scale(1);
+  transform: translateY(0);
   opacity: 1;
 }
 
@@ -315,7 +315,7 @@
 /* Base modal dialog - centered pop-up with scale animation */
 .bid-success-dialog {
   background: #fff;
-  width: 600px;
+  width: 560px;
   max-width: 90vw;
   max-height: 90vh;
   display: flex;
@@ -323,18 +323,18 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   border-radius: 20px;
   overflow: hidden; /* Ensure border-radius clips child elements properly */
-  transform: scale(1);
+  transform: translateY(0);
   transition: transform 0.3s ease, opacity 0.3s ease;
   position: relative; /* Positioning context for close button */
 }
 
 .bid-success-overlay:not(.active) .bid-success-dialog {
-  transform: scale(0.9);
+  transform: translateY(100%);
   opacity: 0;
 }
 
 .bid-success-overlay.active .bid-success-dialog {
-  transform: scale(1);
+  transform: translateY(0);
   opacity: 1;
 }
 

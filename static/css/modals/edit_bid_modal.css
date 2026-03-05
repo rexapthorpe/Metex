@@ -31,7 +31,7 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 50px 50px !important;      /* ← 22px left/right margin */
+  padding: 40px !important;
   background: transparent !important;
   box-sizing: border-box !important;
   overflow: hidden !important;         /* page itself should not scroll */
@@ -49,7 +49,7 @@
 
   /* Width large enough for 3×333px + 2×1px vdiv + gaps; but never overflow viewport */
   width: 1160px !important;
-  max-width: calc(100vw - 100px) !important; /* ← honors the 22px side margins */
+  max-width: 100vw !important;
 
   /* Fixed vertical size */
   min-height: 500px !important;
@@ -415,7 +415,7 @@
   }
 
   #bidModal .bm-wizard {
-    width: calc(100vw - 32px) !important;
+    width: 100% !important;
     max-width: calc(100vw - 32px) !important;
   }
 }

@@ -148,6 +148,11 @@
 
           <!-- Card Footer -->
           <div class="sold-card-footer">
+            <button class="sold-actions-toggle" onclick="toggleOrderActions(this)" aria-expanded="false">
+              <span class="sold-actions-label">QUICK ACTIONS</span>
+              <i class="fa-solid fa-chevron-down order-actions-chevron"></i>
+            </button>
+            <div class="sold-actions-body">
             <span class="sold-footer-date">
               <i class="fa-regular fa-calendar"></i>
               {{ sale.order_date }}
@@ -211,6 +216,7 @@
                 </button>
               {% endif %}
             </div>
+            </div>{# end sold-actions-body #}
           </div>
 
         </div>
@@ -289,6 +295,15 @@
 </div>
 
 <script>
+if (!window.toggleOrderActions) {
+  window.toggleOrderActions = function(btn) {
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', !expanded);
+    const body = btn.nextElementSibling;
+    body.classList.toggle('expanded', !expanded);
+  };
+}
+
 function filterSold(filter) {
   document.querySelectorAll('.sold-tab .filter-pill').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === filter);

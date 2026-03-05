@@ -565,12 +565,22 @@
 
     .bids-actions {
         flex-direction: row;
+        flex-wrap: nowrap;
         gap: 10px;
+    }
+
+    .bids-selection-summary {
+        flex-shrink: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .header-bid-btn,
     .accept-bids-btn {
         flex: 1;
+        flex-shrink: 0;
         height: 44px;
         font-size: 14px;
         border-radius: 9999px;

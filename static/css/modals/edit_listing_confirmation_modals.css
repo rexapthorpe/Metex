@@ -25,26 +25,26 @@
 /* Modal dialog - centered pop-up */
 .edit-confirm-dialog {
   background: #fff;
-  width: 560px;
-  max-width: 90vw;
+  width: 90%;
+  max-width: 700px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   border-radius: 20px;
   overflow: hidden;
-  transform: scale(1);
+  transform: translateY(0);
   transition: transform 0.3s ease;
   position: relative;
 }
 
 .edit-confirm-overlay:not(.active) .edit-confirm-dialog {
-  transform: scale(0.9);
+  transform: translateY(100%);
   opacity: 0;
 }
 
 .edit-confirm-overlay.active .edit-confirm-dialog {
-  transform: scale(1);
+  transform: translateY(0);
   opacity: 1;
 }
 
@@ -221,26 +221,26 @@
 /* Base modal dialog - centered pop-up with scale animation */
 .edit-success-dialog {
   background: #fff;
-  width: 600px;
-  max-width: 90vw;
+  width: 90%;
+  max-width: 700px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   border-radius: 20px;
   overflow: hidden;
-  transform: scale(1);
+  transform: translateY(0);
   transition: transform 0.3s ease, opacity 0.3s ease;
   position: relative;
 }
 
 .edit-success-overlay:not(.active) .edit-success-dialog {
-  transform: scale(0.9);
+  transform: translateY(100%);
   opacity: 0;
 }
 
 .edit-success-overlay.active .edit-success-dialog {
-  transform: scale(1);
+  transform: translateY(0);
   opacity: 1;
 }
 
