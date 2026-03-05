@@ -13,6 +13,7 @@ from services.portfolio_service import (
     include_holding,
     create_portfolio_snapshot
 )
+from database import get_db_connection
 from datetime import datetime, timedelta
 
 portfolio_bp = Blueprint('portfolio', __name__)
@@ -131,6 +132,17 @@ def exclude_item(order_item_id):
 
     user_id = session['user_id']
 
+    # SECURITY: Verify the order item belongs to this buyer
+    conn = get_db_connection()
+    item = conn.execute("""
+        SELECT oi.id FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        WHERE oi.id = ? AND o.buyer_id = ?
+    """, (order_item_id, user_id)).fetchone()
+    conn.close()
+    if not item:
+        return jsonify({'error': 'Order item not found or access denied'}), 403
+
     try:
         success = exclude_holding(user_id, order_item_id)
 
@@ -160,6 +172,17 @@ def include_item(order_item_id):
         return jsonify({'error': 'Not authenticated'}), 401
 
     user_id = session['user_id']
+
+    # SECURITY: Verify the order item belongs to this buyer
+    conn = get_db_connection()
+    item = conn.execute("""
+        SELECT oi.id FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        WHERE oi.id = ? AND o.buyer_id = ?
+    """, (order_item_id, user_id)).fetchone()
+    conn.close()
+    if not item:
+        return jsonify({'error': 'Order item not found or access denied'}), 403
 
     try:
         success = include_holding(user_id, order_item_id)

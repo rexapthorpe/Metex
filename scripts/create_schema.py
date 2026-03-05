@@ -126,6 +126,9 @@ class SchemaManager:
         self.add_column('users', 'username', 'TEXT')
         self.add_column('users', 'password_hash', 'TEXT')
         self.add_column('users', 'is_admin', 'INTEGER DEFAULT 0')
+        self.add_column('users', 'is_banned', 'INTEGER DEFAULT 0')
+        self.add_column('users', 'is_frozen', 'INTEGER DEFAULT 0')
+        self.add_column('users', 'freeze_reason', 'TEXT')
         self.add_column('users', 'first_name', 'TEXT')
         self.add_column('users', 'last_name', 'TEXT')
         self.add_column('users', 'phone', 'TEXT')
@@ -253,6 +256,9 @@ class SchemaManager:
         # Edition numbering for one-of-a-kind listings
         self.add_column('listings', 'edition_number', 'INTEGER')
         self.add_column('listings', 'edition_total', 'INTEGER')
+        # Photo filename and display title (added via photo upload migration)
+        self.add_column('listings', 'photo_filename', 'TEXT')
+        self.add_column('listings', 'listing_title', 'TEXT')
 
         # Create indexes
         self.create_index('idx_listings_isolated', 'listings', 'is_isolated, isolated_type')
@@ -332,6 +338,8 @@ class SchemaManager:
         self.add_column('orders', 'delivery_address', 'TEXT')
         self.add_column('orders', 'recipient_first_name', 'TEXT')
         self.add_column('orders', 'recipient_last_name', 'TEXT')
+        self.add_column('orders', 'canceled_at', 'TIMESTAMP')
+        self.add_column('orders', 'cancellation_reason', 'TEXT')
 
     def create_order_items_table(self):
         """Create the order_items table"""
@@ -1009,6 +1017,27 @@ class SchemaManager:
         # Create index
         self.create_index('idx_report_attachments_report', 'report_attachments', 'report_id')
 
+    def create_notification_settings_table(self):
+        """Create the notification_settings table (migration 025)"""
+        print("\n[29/29] Creating NOTIFICATION_SETTINGS table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS notification_settings (
+            user_id           INTEGER NOT NULL,
+            notification_type TEXT    NOT NULL,
+            enabled           INTEGER NOT NULL DEFAULT 1,
+            updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, notification_type),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """
+
+        if not self.table_exists('notification_settings'):
+            self.cursor.execute(sql)
+            self.log_change("Created notification_settings table")
+        else:
+            self.log_skip("Table 'notification_settings' already exists")
+
     def run(self):
         """Run the complete schema creation/update process"""
         print("=" * 70)
@@ -1051,8 +1080,9 @@ class SchemaManager:
             self.create_reports_table()
             self.create_report_attachments_table()
             self.create_spot_price_snapshots_table()
+            self.create_notification_settings_table()
 
-            # Add cancellation columns to orders table
+            # Add cancellation columns to orders table (idempotent — also in create_orders_table)
             self.add_column('orders', 'canceled_at', 'TIMESTAMP')
             self.add_column('orders', 'cancellation_reason', 'TEXT')
 

@@ -231,9 +231,9 @@ class TestAuthorizationIDOR:
         # Create an order belonging to admin user
         conn = database.get_db_connection()
         conn.execute("""
-            INSERT INTO orders (buyer_id, seller_id, total_price, status)
-            VALUES (?, ?, 100.00, 'pending')
-        """, (admin_id, user_id))
+            INSERT INTO orders (buyer_id, total_price, status)
+            VALUES (?, 100.00, 'pending')
+        """, (admin_id,))
         order_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         conn.commit()
         conn.close()

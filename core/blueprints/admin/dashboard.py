@@ -8,10 +8,17 @@ Routes:
 IMPORTANT: All route URLs and endpoint names are preserved from original admin_routes.py
 """
 
-from flask import render_template
+from flask import render_template, redirect, url_for
 from datetime import datetime
 from utils.auth_utils import admin_required
 from . import admin_bp
+
+
+@admin_bp.route('/')
+@admin_required
+def admin_index():
+    """Redirect /admin/ to the dashboard."""
+    return redirect(url_for('admin.dashboard'))
 
 
 @admin_bp.route('/dashboard')

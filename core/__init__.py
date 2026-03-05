@@ -79,7 +79,11 @@ def create_app(test_config=None):
     # Security: Initialize CSRF Protection
     # =========================================================================
     csrf_initialized = False
-    if not test_config or not test_config.get('WTF_CSRF_ENABLED', True):
+    # Init CSRF unless test_config explicitly sets WTF_CSRF_ENABLED=False.
+    # Production (no test_config): always init.
+    # Tests with WTF_CSRF_ENABLED=True: init (so CSRF tests work).
+    # Tests with WTF_CSRF_ENABLED=False: skip (so other tests don't need tokens).
+    if not test_config or test_config.get('WTF_CSRF_ENABLED', True):
         try:
             from utils.csrf import init_csrf
             result = init_csrf(app)

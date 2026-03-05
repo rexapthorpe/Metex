@@ -7,6 +7,7 @@ using the spread model pricing system.
 """
 
 import logging
+import threading
 
 from services.pricing_service import (
     get_effective_price,
@@ -15,6 +16,11 @@ from services.pricing_service import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Prevents concurrent rematch runs (scheduler tick + manual spot insert) from
+# processing the same bids simultaneously and creating duplicate orders.
+# Scoped to one process; with Gunicorn --workers>1 use --workers 1 --threads N.
+_rematch_lock = threading.Lock()
 
 
 def _get_spot_prices_from_cursor(cursor):
@@ -197,12 +203,15 @@ def auto_match_bid_to_listings(bid_id, cursor):
         available = listing['quantity']
         fill_qty = min(available, quantity_needed - total_filled)
 
-        # Update listing quantity
-        new_qty = available - fill_qty
-        if new_qty <= 0:
-            cursor.execute('UPDATE listings SET quantity = 0, active = 0 WHERE id = ?', (listing['id'],))
-        else:
-            cursor.execute('UPDATE listings SET quantity = ? WHERE id = ?', (new_qty, listing['id']))
+        # Atomically deduct listing inventory; skip if already taken
+        _r = cursor.execute('''
+            UPDATE listings
+               SET quantity = quantity - ?,
+                   active   = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
+             WHERE id = ? AND quantity >= ? AND active = 1
+        ''', (fill_qty, fill_qty, listing['id'], fill_qty))
+        if _r.rowcount == 0:
+            continue
 
         # Track fill for this seller with BOTH prices
         if seller_id not in seller_fills:
@@ -589,12 +598,22 @@ def run_bid_rematch_after_spot_update(metals=None):
     Opens its own DB connection, runs check_all_pending_matches(), then closes.
     Safe to call synchronously from both the scheduler and manual-insert paths.
 
+    A module-level lock prevents two concurrent calls (e.g. scheduler tick +
+    manual admin spot insert arriving within the same second) from both
+    processing the same bids and producing duplicate orders.
+
     Args:
         metals: Optional list of metal names that were updated (for logging only).
 
     Returns:
         dict: {total_filled, orders_created, bids_matched, notifications}
     """
+    if not _rematch_lock.acquire(blocking=False):
+        logger.info(
+            "[bid_rematch] Skipping — another rematch is already in progress (metals=%s)", metals
+        )
+        return {'total_filled': 0, 'orders_created': 0, 'bids_matched': 0, 'notifications': []}
+
     import database as _db_module
     try:
         conn = _db_module.get_db_connection()
@@ -612,3 +631,5 @@ def run_bid_rematch_after_spot_update(metals=None):
     except Exception as exc:
         logger.error("[bid_rematch] Failed after spot update (metals=%s): %s", metals, exc)
         return {'total_filled': 0, 'orders_created': 0, 'bids_matched': 0, 'notifications': []}
+    finally:
+        _rematch_lock.release()

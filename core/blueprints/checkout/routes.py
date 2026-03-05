@@ -475,6 +475,23 @@ def checkout():
                     notifications_to_send = []
 
                     for item in cart_data:
+                        # Atomic decrement: only deducts if quantity >= purchase amount
+                        # This prevents overselling under concurrent checkout (race condition fix)
+                        result = conn.execute('''
+                            UPDATE listings
+                               SET quantity = quantity - ?,
+                                   active = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
+                             WHERE id = ? AND quantity >= ? AND active = 1
+                        ''', (item['quantity'], item['quantity'], item['listing_id'], item['quantity']))
+
+                        if result.rowcount == 0:
+                            # Concurrent buyer took the last stock; abort this order
+                            conn.close()
+                            return jsonify({
+                                'success': False,
+                                'message': 'One or more items are no longer available. Please refresh your cart.',
+                            }), 409
+
                         listing_info = conn.execute('''
                             SELECT listings.quantity, listings.seller_id, listings.category_id,
                                    categories.metal, categories.product_type
@@ -484,20 +501,7 @@ def checkout():
                         ''', (item['listing_id'],)).fetchone()
 
                         if listing_info:
-                            old_quantity = listing_info['quantity']
-                            new_quantity = old_quantity - item['quantity']
-
-                            if new_quantity <= 0:
-                                conn.execute(
-                                    'UPDATE listings SET quantity = 0, active = 0 WHERE id = ?',
-                                    (item['listing_id'],)
-                                )
-                            else:
-                                conn.execute(
-                                    'UPDATE listings SET quantity = ? WHERE id = ?',
-                                    (new_quantity, item['listing_id'])
-                                )
-
+                            new_quantity = listing_info['quantity']
                             item_description = f"{listing_info['metal']} {listing_info['product_type']}"
                             is_partial = new_quantity > 0
                             notifications_to_send.append({
@@ -645,9 +649,22 @@ def checkout():
             # Create ledger records for this order
             _create_ledger_for_order(user_id, order_id, cart_data, conn)
 
-            # Decrement inventory and deactivate when needed + Send notifications to sellers
+            # Decrement inventory atomically to prevent overselling (race condition fix)
             for item in cart_data:
-                # Get listing details including seller info and category
+                # Atomic decrement: only updates if sufficient quantity remains
+                result = conn.execute('''
+                    UPDATE listings
+                       SET quantity = quantity - ?,
+                           active = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
+                     WHERE id = ? AND quantity >= ? AND active = 1
+                ''', (item['quantity'], item['quantity'], item['listing_id'], item['quantity']))
+
+                if result.rowcount == 0:
+                    # Concurrent buyer took the last stock; abort
+                    conn.close()
+                    flash('One or more items are no longer available. Please review your cart.', 'error')
+                    return redirect(url_for('buy.view_cart'))
+
                 listing_info = conn.execute('''
                     SELECT listings.quantity, listings.seller_id, listings.category_id,
                            categories.metal, categories.product_type
@@ -657,15 +674,7 @@ def checkout():
                 ''', (item['listing_id'],)).fetchone()
 
                 if listing_info:
-                    old_quantity = listing_info['quantity']
-                    new_quantity = old_quantity - item['quantity']
-
-                    # Update inventory
-                    if new_quantity <= 0:
-                        conn.execute('UPDATE listings SET quantity = 0, active = 0 WHERE id = ?', (item['listing_id'],))
-                    else:
-                        conn.execute('UPDATE listings SET quantity = ? WHERE id = ?', (new_quantity, item['listing_id']))
-
+                    new_quantity = listing_info['quantity']
                     # Send notification to seller
                     try:
                         item_description = f"{listing_info['metal']} {listing_info['product_type']}"

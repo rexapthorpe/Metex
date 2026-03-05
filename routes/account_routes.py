@@ -859,12 +859,33 @@ def my_messages():
         return redirect(base + '?open_admin=1#messages')
     return redirect(base + '#messages')
 
+def _verify_order_participant(conn, order_id, user_id):
+    """Return True if user is buyer or a seller in this order."""
+    row = conn.execute("""
+        SELECT 1 FROM orders o
+        WHERE o.id = ? AND (
+            o.buyer_id = ?
+            OR EXISTS (
+                SELECT 1 FROM order_items oi
+                JOIN listings l ON oi.listing_id = l.id
+                WHERE oi.order_id = o.id AND l.seller_id = ?
+            )
+        )
+        LIMIT 1
+    """, (order_id, user_id, user_id)).fetchone()
+    return row is not None
+
+
 @account_bp.route('/orders/api/<int:order_id>/order_sellers')
 def order_sellers(order_id):
     if 'user_id' not in session:
         return jsonify(error="Authentication required"), 401
 
     conn = get_db_connection()
+    if not _verify_order_participant(conn, order_id, session['user_id']):
+        conn.close()
+        return jsonify(error="Access denied"), 403
+
     rows = conn.execute("""
         SELECT
           u.id                     AS seller_id,
@@ -902,6 +923,10 @@ def order_items(order_id):
         return jsonify(error="Authentication required"), 401
 
     conn = get_db_connection()
+    if not _verify_order_participant(conn, order_id, session['user_id']):
+        conn.close()
+        return jsonify(error="Access denied"), 403
+
     cur = conn.cursor()
 
     # 1) Pull all item-level data, including listing_photos and seller
@@ -1598,6 +1623,101 @@ def include_order_in_portfolio(order_id):
     except Exception as e:
         conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ── Payment Methods ──────────────────────────────────────────────────────────
+
+@account_bp.route('/api/payment-methods', methods=['GET'])
+def get_payment_methods():
+    """List saved payment methods for current user."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    user_id = session['user_id']
+    conn = get_db_connection()
+    methods = conn.execute(
+        'SELECT id, card_type, last_four, expiry_month, expiry_year, '
+        'cardholder_name, is_default, created_at FROM payment_methods WHERE user_id = ? ORDER BY is_default DESC, created_at DESC',
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return jsonify({'success': True, 'payment_methods': [dict(m) for m in methods]})
+
+
+@account_bp.route('/api/payment-methods', methods=['POST'])
+def add_payment_method():
+    """Add a new payment method."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    user_id = session['user_id']
+    data = request.get_json() or {}
+    card_type = data.get('card_type', '')
+    last_four = data.get('last_four', '')
+    expiry_month = data.get('expiry_month')
+    expiry_year = data.get('expiry_year')
+    cardholder_name = data.get('cardholder_name', '')
+    if not card_type or not last_four or not expiry_month or not expiry_year:
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    conn = get_db_connection()
+    count = conn.execute(
+        'SELECT COUNT(*) as count FROM payment_methods WHERE user_id = ?', (user_id,)
+    ).fetchone()['count']
+    is_default = 1 if count == 0 else 0
+    conn.execute(
+        'INSERT INTO payment_methods (user_id, card_type, last_four, expiry_month, expiry_year, cardholder_name, is_default) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)',
+        (user_id, card_type, last_four, expiry_month, expiry_year, cardholder_name, is_default)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'message': 'Payment method added'})
+
+
+@account_bp.route('/api/payment-methods/<int:method_id>', methods=['DELETE'])
+def delete_payment_method(method_id):
+    """Delete a saved payment method."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    user_id = session['user_id']
+    conn = get_db_connection()
+    method = conn.execute(
+        'SELECT id, is_default FROM payment_methods WHERE id = ? AND user_id = ?',
+        (method_id, user_id)
+    ).fetchone()
+    if not method:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Payment method not found'}), 403
+    conn.execute('DELETE FROM payment_methods WHERE id = ?', (method_id,))
+    if method['is_default']:
+        other = conn.execute(
+            'SELECT id FROM payment_methods WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
+            (user_id,)
+        ).fetchone()
+        if other:
+            conn.execute('UPDATE payment_methods SET is_default = 1 WHERE id = ?', (other['id'],))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'message': 'Payment method deleted'})
+
+
+@account_bp.route('/api/payment-methods/<int:method_id>/default', methods=['POST'])
+def set_default_payment_method(method_id):
+    """Set a payment method as the default."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    user_id = session['user_id']
+    conn = get_db_connection()
+    method = conn.execute(
+        'SELECT id FROM payment_methods WHERE id = ? AND user_id = ?',
+        (method_id, user_id)
+    ).fetchone()
+    if not method:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Payment method not found'}), 403
+    conn.execute('UPDATE payment_methods SET is_default = 0 WHERE user_id = ?', (user_id,))
+    conn.execute('UPDATE payment_methods SET is_default = 1 WHERE id = ?', (method_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'message': 'Default payment method updated'})
 
 
 # API: Update order delivery address

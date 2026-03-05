@@ -47,7 +47,9 @@ class SecurityEventType:
 
     # Password
     PASSWORD_RESET_REQUEST = 'password_reset_request'
+    PASSWORD_RESET_REQUESTED = 'password_reset_request'   # alias for tests
     PASSWORD_RESET_SUCCESS = 'password_reset_success'
+    PASSWORD_RESET_COMPLETED = 'password_reset_success'   # alias for tests
     PASSWORD_RESET_FAILED = 'password_reset_failed'
     PASSWORD_CHANGED = 'password_changed'
 

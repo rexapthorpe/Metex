@@ -340,12 +340,17 @@ def direct_buy_item(bucket_id):
             available = listing['quantity']
             fill_qty = min(available, quantity - total_filled)
 
-            # Update listing quantity
-            new_qty = available - fill_qty
-            if new_qty <= 0:
-                cursor.execute('UPDATE listings SET quantity = 0, active = 0 WHERE id = ?', (listing['id'],))
-            else:
-                cursor.execute('UPDATE listings SET quantity = ? WHERE id = ?', (new_qty, listing['id']))
+            # Atomically deduct inventory; skip if a concurrent buyer already took it
+            result = cursor.execute('''
+                UPDATE listings
+                   SET quantity = quantity - ?,
+                       active   = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
+                 WHERE id = ? AND quantity >= ? AND active = 1
+            ''', (fill_qty, fill_qty, listing['id'], fill_qty))
+
+            if result.rowcount == 0:
+                # Race condition: another buyer took the stock between our read and this update
+                continue
 
             # Track fill for this seller (using effective price)
             if seller_id not in seller_fills:

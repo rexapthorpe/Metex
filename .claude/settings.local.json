@@ -85,7 +85,8 @@
       "Bash(venv/bin/pytest:*)",
       "Bash(/Users/rexapthorpe/Library/Python/3.12/bin/pytest:*)",
       "Bash(ls venv*:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []
