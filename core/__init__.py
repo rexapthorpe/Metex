@@ -34,7 +34,44 @@ def create_app(test_config=None):
     app = Flask(__name__, template_folder='../templates', static_folder='../static')
 
     # Configure the app
-    app.secret_key = app_config.SECRET_KEY
+    # SECURITY: Validate SECRET_KEY strength.
+    # In production: hard-fail on well-known insecure defaults.
+    # In development: warn loudly but continue.
+    # Generate a real key with: python -c "import secrets; print(secrets.token_hex(32))"
+    _INSECURE_DEFAULTS = frozenset({
+        'your-very-random-fallback-key-here',
+        'your-random-secret-key-here-change-this',
+        'secret',
+        'dev',
+        '',
+    })
+    # Minimum acceptable key length (32 bytes = 256 bits of entropy when random).
+    _MIN_KEY_LENGTH = 32
+
+    _secret = app_config.SECRET_KEY or ''
+    _is_prod = os.getenv('FLASK_ENV') == 'production'
+
+    def _key_is_insecure(key: str) -> bool:
+        """Return True if key is a known default or too short to be secure."""
+        return key in _INSECURE_DEFAULTS or len(key) < _MIN_KEY_LENGTH
+
+    if not test_config and _key_is_insecure(_secret):
+        if _is_prod:
+            raise RuntimeError(
+                "SECURITY ERROR: SECRET_KEY is set to an insecure value.\n"
+                "It must not be a known default and must be at least 32 characters.\n"
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        else:
+            import warnings
+            warnings.warn(
+                "WARNING: SECRET_KEY is set to an insecure value (known default or too short). "
+                "This is only acceptable during local development. "
+                "Set a strong SECRET_KEY (≥32 chars) before deploying to production. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"",
+                stacklevel=2
+            )
+    app.secret_key = _secret
 
     # =========================================================================
     # Security: Session Cookie Configuration

@@ -215,6 +215,11 @@ function filterListings(filter) {
 window.filterListings = filterListings;
 
 // ===== Listing Specs Modal =====
+function escHtml(s) {
+  // Escape user-supplied text before injecting into innerHTML
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function openListingSpecsModal(btn) {
   const d = btn.dataset;
 
@@ -232,7 +237,7 @@ function openListingSpecsModal(btn) {
   subtitle.textContent = title;
 
   const imgSrc = d.photoFilename
-    ? `/static/${d.photoFilename}`
+    ? `/static/${escHtml(d.photoFilename)}`
     : null;
   const imgHtml = imgSrc
     ? `<img class="oim-item-image" src="${imgSrc}" alt="Product image" onerror="this.style.display='none'">`
@@ -243,8 +248,8 @@ function openListingSpecsModal(btn) {
     if (!show(value)) return '';
     return `<div class="oim-spec-item">
       <span class="oim-spec-icon">${icon}</span>
-      <span class="oim-spec-label">${label}:</span>
-      <span class="oim-spec-value">${value}</span>
+      <span class="oim-spec-label">${escHtml(label)}:</span>
+      <span class="oim-spec-value">${escHtml(value)}</span>
     </div>`;
   };
 
@@ -271,7 +276,7 @@ function openListingSpecsModal(btn) {
       ${imgHtml}
       <div class="oim-item-details">
         <div class="oim-item-title-row">
-          <div class="oim-item-title">${title}</div>
+          <div class="oim-item-title">${escHtml(title)}</div>
         </div>
         <div class="oim-item-qty-row">
           <span class="oim-qty-badge">Qty: ${d.quantity || '—'}</span>

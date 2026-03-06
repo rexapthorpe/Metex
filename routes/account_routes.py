@@ -1152,7 +1152,16 @@ def update_personal_info():
     conn = get_db_connection()
 
     try:
-        new_email = request.form.get('email')
+        new_email = (request.form.get('email') or '').strip()[:255]
+        first_name = (request.form.get('first_name', '') or '')[:100]
+        last_name = (request.form.get('last_name', '') or '')[:100]
+        phone = (request.form.get('phone', '') or '')[:30]
+
+        # Validate email format if provided
+        if new_email and '@' not in new_email:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Invalid email address.'}), 400
+
         # Check if email is being changed
         old_user = conn.execute('SELECT email FROM users WHERE id = ?', (user_id,)).fetchone()
         email_changed = old_user and new_email and old_user['email'] != new_email
@@ -1169,13 +1178,7 @@ def update_personal_info():
             UPDATE users
             SET first_name = ?, last_name = ?, phone = ?, email = ?
             WHERE id = ?
-        ''', (
-            request.form.get('first_name', ''),
-            request.form.get('last_name', ''),
-            request.form.get('phone', ''),
-            new_email,
-            user_id
-        ))
+        ''', (first_name, last_name, phone, new_email, user_id))
         conn.commit()
         conn.close()
         if email_changed:
@@ -1208,6 +1211,10 @@ def change_password():
         conn.close()
         return jsonify({'success': False, 'message': 'User not found'}), 404
 
+    if not new_password or len(new_password) < 8:
+        conn.close()
+        return jsonify({'success': False, 'message': 'New password must be at least 8 characters.'}), 400
+
     # Use the same password verification as login
     if not check_password_hash(user['password_hash'], current_password):
         conn.close()
@@ -1219,6 +1226,12 @@ def change_password():
         conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
         conn.commit()
         conn.close()
+        # Invalidate current session and reissue it so the user stays logged in
+        # but any other sessions (other browsers/devices) are effectively invalidated
+        # because their session_version will be older than the new password change timestamp.
+        import time
+        session['session_version'] = int(time.time())
+        session.modified = True
         try:
             from services.notification_types import notify_password_changed
             notify_password_changed(user_id)
@@ -1269,14 +1282,12 @@ def update_profile():
     conn = get_db_connection()
 
     try:
+        bio = (request.form.get('bio', '') or '')[:1000]
         conn.execute('''
             UPDATE users
             SET bio = ?
             WHERE id = ?
-        ''', (
-            request.form.get('bio', ''),
-            user_id
-        ))
+        ''', (bio, user_id))
         conn.commit()
         conn.close()
         return jsonify({'success': True})
@@ -1327,13 +1338,13 @@ def add_address():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             user_id,
-            request.form.get('name'),
-            request.form.get('street'),
-            request.form.get('street_line2', ''),
-            request.form.get('city'),
-            request.form.get('state'),
-            request.form.get('zip_code'),
-            request.form.get('country', 'USA')
+            (request.form.get('name') or '')[:100],
+            (request.form.get('street') or '')[:200],
+            (request.form.get('street_line2', '') or '')[:200],
+            (request.form.get('city') or '')[:100],
+            (request.form.get('state') or '')[:50],
+            (request.form.get('zip_code') or '')[:20],
+            (request.form.get('country', 'USA') or 'USA')[:50],
         ))
         conn.commit()
         conn.close()
@@ -1367,13 +1378,13 @@ def edit_address(address_id):
             SET name = ?, street = ?, street_line2 = ?, city = ?, state = ?, zip_code = ?, country = ?
             WHERE id = ?
         ''', (
-            request.form.get('name'),
-            request.form.get('street'),
-            request.form.get('street_line2', ''),
-            request.form.get('city'),
-            request.form.get('state'),
-            request.form.get('zip_code'),
-            request.form.get('country', 'USA'),
+            (request.form.get('name') or '')[:100],
+            (request.form.get('street') or '')[:200],
+            (request.form.get('street_line2', '') or '')[:200],
+            (request.form.get('city') or '')[:100],
+            (request.form.get('state') or '')[:50],
+            (request.form.get('zip_code') or '')[:20],
+            (request.form.get('country', 'USA') or 'USA')[:50],
             address_id
         ))
         conn.commit()

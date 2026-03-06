@@ -55,8 +55,22 @@ def rate_order(order_id):
 
     if request.method == 'POST':
         # 3) Read form values
-        rating  = int(request.form.get('rating', 0))
+        try:
+            rating = int(request.form.get('rating', 0))
+        except (ValueError, TypeError):
+            rating = 0
         comment = request.form.get('comment', '').strip()
+
+        # Validate rating is within 1–5
+        if not (1 <= rating <= 5):
+            conn.close()
+            if is_ajax:
+                return jsonify({'error': 'Rating must be between 1 and 5'}), 400
+            flash("❌ Invalid rating value.", "error")
+            return redirect(url_for('account.account'))
+
+        # Limit comment length
+        comment = comment[:2000]
 
         if not ratee_id:
             conn.close()

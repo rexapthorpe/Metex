@@ -179,7 +179,7 @@ def get_report_details_admin(report_id):
 
         attachments_list = [{
             'id': a['id'],
-            'file_path': '/' + a['file_path'] if not a['file_path'].startswith('/') else a['file_path'],
+            'url': f'/api/reports/{report_id}/attachments/{a["id"]}',
             'original_filename': a['original_filename']
         } for a in attachments]
 
@@ -532,11 +532,19 @@ def admin_get_report_detail(report_id):
         # Determine if reported is buyer or seller
         report_data['reported_is_buyer'] = report['reported_user_id'] == report['buyer_id']
 
-        # Get attachments
+        # Get attachments — return secure serve URLs, not raw filesystem paths
         attachments = conn.execute('''
-            SELECT * FROM report_attachments WHERE report_id = ?
+            SELECT id, original_filename, created_at FROM report_attachments WHERE report_id = ?
         ''', (report_id,)).fetchall()
-        report_data['attachments'] = [dict(a) for a in attachments]
+        report_data['attachments'] = [
+            {
+                'id': a['id'],
+                'url': f'/api/reports/{report_id}/attachments/{a["id"]}',
+                'original_filename': a['original_filename'],
+                'created_at': a['created_at'],
+            }
+            for a in attachments
+        ]
 
         # Get order payouts status
         payouts = conn.execute('''

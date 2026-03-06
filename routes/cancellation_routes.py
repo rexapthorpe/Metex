@@ -494,17 +494,31 @@ def respond_to_cancellation(order_id):
         )
 
         if all_approved and all_responded:
-            # All sellers approved - cancel the order
-            conn.execute("""
+            # Atomically claim the approved transition.
+            # Only one concurrent request can win the WHERE status='pending' predicate.
+            # The loser gets rowcount=0 and exits early — preventing double inventory restore.
+            claim = conn.execute("""
                 UPDATE cancellation_requests
                 SET status = 'approved', resolved_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                WHERE id = ? AND status = 'pending'
             """, (cancel_request['id'],))
 
+            if claim.rowcount == 0:
+                # Another concurrent request already claimed the approval — idempotent success.
+                conn.commit()
+                conn.close()
+                return jsonify({
+                    'success': True,
+                    'message': 'Order has already been canceled.',
+                    'final_status': 'approved',
+                    'items_restored': 0
+                })
+
+            # We own the transition — update the order and restore inventory inside one commit.
             conn.execute("""
                 UPDATE orders
                 SET status = 'Canceled', canceled_at = CURRENT_TIMESTAMP, cancellation_reason = ?
-                WHERE id = ?
+                WHERE id = ? AND status NOT IN ('Canceled', 'Cancelled')
             """, (cancel_request['reason'], order_id))
 
             # Restore inventory
@@ -636,11 +650,22 @@ def auto_deny_on_tracking(order_id):
 
 @cancellation_bp.route('/api/seller/<int:seller_id>/cancellation-stats', methods=['GET'])
 def get_seller_cancellation_stats(seller_id):
-    """Get cancellation statistics for a seller (for analytics)"""
+    """Get cancellation statistics for a seller.
+
+    Only accessible by the seller themselves or an admin.
+    """
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Authentication required'}), 401
 
+    user_id = session['user_id']
+
+    # Only allow users to view their own stats (admins may view any)
     conn = get_db_connection()
+    if user_id != seller_id:
+        admin_row = conn.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not admin_row or not admin_row['is_admin']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Not authorized'}), 403
 
     stats = conn.execute("""
         SELECT * FROM user_cancellation_stats WHERE user_id = ?

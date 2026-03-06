@@ -295,21 +295,23 @@ def handle_sell_post():
             options = get_dropdown_options()
             return _render_sell_template(options)
 
-        # Save the main/cover photo
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-        safe_name = secure_filename(photo_file.filename)
+        # Save the main/cover photo with full content validation (magic bytes + image decode)
+        from utils.upload_security import save_secure_upload
+        upload_result = save_secure_upload(
+            photo_file,
+            upload_dir='uploads/listings',
+            allowed_types=['image/png'],
+            category='listing_photo'
+        )
+        if not upload_result['success']:
+            error_msg = f"Photo rejected: {upload_result['error']}"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify(success=False, message=error_msg), 400
+            flash(error_msg, "error")
+            options = get_dropdown_options()
+            return _render_sell_template(options)
 
-        # Make filename unique by adding numeric suffix if needed
-        base, ext = os.path.splitext(safe_name)
-        candidate = safe_name
-        i = 1
-        while os.path.exists(os.path.join(UPLOAD_FOLDER, candidate)):
-            candidate = f"{base}_{i}{ext}"
-            i += 1
-
-        photo_filename = candidate
-        photo_path = os.path.join(UPLOAD_FOLDER, photo_filename)
-        photo_file.save(photo_path)
+        photo_filename = os.path.basename(upload_result['path'])
 
         # ========== BUCKET/CATEGORY CREATION WITH ISOLATION LOGIC ==========
         cursor = conn.cursor()
@@ -434,17 +436,15 @@ def handle_sell_post():
         if extra_photos:
             for idx, std_photo in enumerate(extra_photos, start=2):
                 if std_photo and std_photo.filename:
-                    # Save each additional photo with unique filename
-                    safe_name = secure_filename(std_photo.filename)
-                    base, ext = os.path.splitext(safe_name)
-                    candidate = safe_name
-                    i = 1
-                    while os.path.exists(os.path.join(UPLOAD_FOLDER, candidate)):
-                        candidate = f"{base}_{i}{ext}"
-                        i += 1
-                    std_photo_path = os.path.join(UPLOAD_FOLDER, candidate)
-                    std_photo.save(std_photo_path)
-                    std_file_path = f"uploads/listings/{candidate}"
+                    extra_result = save_secure_upload(
+                        std_photo,
+                        upload_dir='uploads/listings',
+                        allowed_types=['image/png'],
+                        category='listing_photo'
+                    )
+                    if not extra_result['success']:
+                        continue  # Skip rejected photos silently (main photo already accepted)
+                    std_file_path = f"uploads/listings/{os.path.basename(extra_result['path'])}"
 
                     cursor.execute('''
                         INSERT INTO listing_photos (listing_id, uploader_id, file_path)
@@ -626,24 +626,21 @@ def _create_set_items(cursor, conn, listing_id, set_item_indices, options):
         conn.close()
         return _render_sell_template(options)
 
-    # Helper function to save set item photo
+    from utils.upload_security import save_secure_upload
+
+    # Helper function to save set item photo with full content validation
     def save_set_item_photo(photo_file):
         if not photo_file or photo_file.filename == "":
             return None
-        if not allowed_file(photo_file.filename):
+        result = save_secure_upload(
+            photo_file,
+            upload_dir='uploads/listings',
+            allowed_types=['image/png'],
+            category='listing_photo'
+        )
+        if not result['success']:
             return None
-
-        safe_name = secure_filename(photo_file.filename)
-        base, ext = os.path.splitext(safe_name)
-        candidate = safe_name
-        i = 1
-        while os.path.exists(os.path.join(UPLOAD_FOLDER, candidate)):
-            candidate = f"{base}_{i}{ext}"
-            i += 1
-
-        photo_path_full = os.path.join(UPLOAD_FOLDER, candidate)
-        photo_file.save(photo_path_full)
-        return f"uploads/listings/{candidate}"  # Relative path for database
+        return f"uploads/listings/{os.path.basename(result['path'])}"
 
     # Process all items from set_items[N] array
     # Main form is not used for set listings with 2+ items

@@ -179,6 +179,10 @@ def trigger_price_update(bucket_id):
     Returns:
         JSON with the updated price
     """
+    from flask import session
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
     try:
         current_price = update_bucket_price(bucket_id)
 

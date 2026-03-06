@@ -134,11 +134,16 @@
           if (msgDate && msgDate !== lastDate) {
             const sep = document.createElement('div');
             sep.className = 'msg-date-separator';
-            sep.innerHTML = `
-              <div class="msg-date-separator-line"></div>
-              <span class="msg-date-separator-text">${formatDate(m.timestamp)}</span>
-              <div class="msg-date-separator-line"></div>
-            `;
+            const line1 = document.createElement('div');
+            line1.className = 'msg-date-separator-line';
+            const dateSpan = document.createElement('span');
+            dateSpan.className = 'msg-date-separator-text';
+            dateSpan.textContent = formatDate(m.timestamp);
+            const line2 = document.createElement('div');
+            line2.className = 'msg-date-separator-line';
+            sep.appendChild(line1);
+            sep.appendChild(dateSpan);
+            sep.appendChild(line2);
             body.appendChild(sep);
             lastDate = msgDate;
           }
@@ -148,22 +153,26 @@
 
           const timeStr = formatTime(m.timestamp);
 
+          // Build message content via DOM (not innerHTML) to prevent XSS
+          const msgTextDiv = document.createElement('div');
+          msgTextDiv.className = 'msg-text';
+          msgTextDiv.appendChild(renderMessageContent(m.message_text));
+
+          const metaDiv = document.createElement('div');
+          metaDiv.className = isSent ? 'msg-meta sent' : 'msg-meta received';
+          const tsSpan = document.createElement('span');
+          tsSpan.className = 'timestamp';
+          tsSpan.textContent = timeStr;
+          metaDiv.appendChild(tsSpan);
           if (isSent) {
-            bubble.innerHTML = `
-              <div class="msg-text">${renderMessageContent(m.message_text)}</div>
-              <div class="msg-meta sent">
-                <span class="timestamp">${timeStr}</span>
-                <span class="msg-checks">&#10003;&#10003;</span>
-              </div>
-            `;
-          } else {
-            bubble.innerHTML = `
-              <div class="msg-text">${renderMessageContent(m.message_text)}</div>
-              <div class="msg-meta received">
-                <span class="timestamp">${timeStr}</span>
-              </div>
-            `;
+            const checksSpan = document.createElement('span');
+            checksSpan.className = 'msg-checks';
+            checksSpan.textContent = '\u2713\u2713';
+            metaDiv.appendChild(checksSpan);
           }
+
+          bubble.appendChild(msgTextDiv);
+          bubble.appendChild(metaDiv);
 
           body.appendChild(bubble);
         });
@@ -251,14 +260,15 @@
     } catch(e) { return ''; }
   }
 
-  // Render message text, extracting any attached image file paths into <img> tags.
+  // Render message text into a DOM fragment, extracting any attached image file paths.
   // Backend stores images as: originalText + " [Files: static/uploads/messages/...]"
+  // Returns a DocumentFragment — safe: no innerHTML with user data.
   function renderMessageContent(text) {
-    if (!text) return '';
+    const frag = document.createDocumentFragment();
+    if (!text) return frag;
     const fileMatch = text.match(/\[Files:\s*([^\]]+)\]/);
-    let imgHtml = '';
-    let displayText = text;
 
+    let displayText = text;
     if (fileMatch) {
       displayText = text
         .replace(fileMatch[0], '')
@@ -266,12 +276,22 @@
         .trim();
       const paths = fileMatch[1].split(',').map(p => p.trim());
       paths.forEach(path => {
-        const src = path.startsWith('/') ? path : '/' + path;
-        imgHtml += `<img class="msg-image-attachment" src="${src}" alt="Image attachment">`;
+        const safePath = path.startsWith('/') ? path : '/' + path;
+        // Only allow paths within the uploads directory
+        if (!/^\/static\/uploads\/[a-zA-Z0-9_./-]+$/.test(safePath)) return;
+        const img = document.createElement('img');
+        img.className = 'msg-image-attachment';
+        img.src = safePath; // setAttribute is safe here because safePath is allowlisted
+        img.alt = 'Image attachment';
+        frag.appendChild(img);
       });
     }
 
-    return (displayText ? escapeHtml(displayText) : '') + imgHtml;
+    if (displayText) {
+      const textNode = document.createTextNode(displayText);
+      frag.insertBefore(textNode, frag.firstChild);
+    }
+    return frag;
   }
 
   function escapeHtml(str) {

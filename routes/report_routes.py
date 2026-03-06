@@ -4,7 +4,7 @@ Routes for handling user reports
 """
 
 import os
-from flask import Blueprint, request, session, jsonify
+from flask import Blueprint, request, session, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from database import get_db_connection
@@ -12,7 +12,12 @@ from services.notification_service import notify_report_submitted
 
 report_bp = Blueprint('reports', __name__)
 
-# Upload configuration
+# Report attachments are stored OUTSIDE static/ so they are NOT publicly accessible.
+# The absolute path is constructed at runtime relative to this file.
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPORT_ATTACH_DIR = os.path.join(_APP_ROOT, 'data', 'uploads', 'reports')
+
+# Legacy constant kept for reference only — no longer used for new uploads.
 UPLOAD_FOLDER = 'static/uploads/reports'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB per file
@@ -138,35 +143,41 @@ def create_report():
         ''', (reporter_id, reported_user_id, order_id, reason, comment))
         report_id = cursor.lastrowid
 
-        # Handle file uploads
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        # Handle file uploads — stored OUTSIDE static/ (access-controlled, not publicly served).
+        from utils.upload_security import validate_upload, generate_secure_filename
+        import secrets as _secrets
+        os.makedirs(REPORT_ATTACH_DIR, exist_ok=True)
         uploaded_files = []
 
         for key in request.files:
             file = request.files[key]
-            if file and file.filename and allowed_file(file.filename):
-                # Check file size
-                file.seek(0, 2)  # Seek to end
-                size = file.tell()
-                file.seek(0)  # Reset
+            if not file or not file.filename:
+                continue
 
-                if size > MAX_FILE_SIZE:
-                    continue  # Skip files that are too large
+            # Content-validate (magic bytes + PIL decode)
+            validation = validate_upload(
+                file,
+                allowed_types=['image/png', 'image/jpeg', 'image/webp'],
+                category='report_evidence'
+            )
+            if not validation['valid']:
+                continue  # Skip rejected files silently
 
-                # Generate unique filename
-                unique_filename = generate_unique_filename(file.filename)
-                filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+            # Secure randomised filename, no path prefix stored in DB
+            secure_name = generate_secure_filename(file.filename)
+            dest_path = os.path.join(REPORT_ATTACH_DIR, secure_name)
 
-                # Save file
-                file.save(filepath)
+            file.seek(0)
+            with open(dest_path, 'wb') as fh:
+                fh.write(file.read())
 
-                # Store attachment in database
-                conn.execute('''
-                    INSERT INTO report_attachments (report_id, file_path, original_filename)
-                    VALUES (?, ?, ?)
-                ''', (report_id, filepath, file.filename))
+            # Store only the filename — full path reconstructed at serve time
+            conn.execute('''
+                INSERT INTO report_attachments (report_id, file_path, original_filename)
+                VALUES (?, ?, ?)
+            ''', (report_id, secure_name, file.filename))
 
-                uploaded_files.append(filepath)
+            uploaded_files.append(secure_name)
 
         conn.commit()
 
@@ -436,7 +447,8 @@ def get_report_details(report_id):
 
         attachments_list = [{
             'id': a['id'],
-            'file_path': '/' + a['file_path'] if not a['file_path'].startswith('/') else a['file_path'],
+            # Return a secure serve URL, not the raw filesystem path
+            'url': f'/api/reports/{report_id}/attachments/{a["id"]}',
             'original_filename': a['original_filename'],
             'created_at': a['created_at']
         } for a in attachments]
@@ -485,5 +497,59 @@ def get_report_details(report_id):
     except Exception as e:
         print(f"Error getting report details: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@report_bp.route('/api/reports/<int:report_id>/attachments/<int:attachment_id>')
+def serve_report_attachment(report_id, attachment_id):
+    """
+    Serve a report attachment — access-controlled.
+
+    Only the reporter or an admin may retrieve the file.
+    Files live in data/uploads/reports/ which is NOT under static/ and
+    therefore NOT publicly accessible by Flask's static file handler.
+    """
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Login required'}), 401
+
+    user_id = session['user_id']
+    conn = get_db_connection()
+    try:
+        # Fetch the attachment and its parent report in one query
+        row = conn.execute('''
+            SELECT ra.file_path, ra.original_filename,
+                   r.reporter_user_id
+            FROM report_attachments ra
+            JOIN reports r ON ra.report_id = r.id
+            WHERE ra.id = ? AND ra.report_id = ?
+        ''', (attachment_id, report_id)).fetchone()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'Attachment not found'}), 404
+
+        # Check authorisation: reporter or admin
+        is_reporter = row['reporter_user_id'] == user_id
+        if not is_reporter:
+            admin_row = conn.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,)).fetchone()
+            if not admin_row or not admin_row['is_admin']:
+                return jsonify({'success': False, 'error': 'Not authorized'}), 403
+
+        # Resolve filesystem path — file_path is just the filename (no directory)
+        filename = os.path.basename(row['file_path'])  # defence-in-depth: strip any path components
+        full_path = os.path.join(REPORT_ATTACH_DIR, filename)
+
+        if not os.path.exists(full_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+
+        return send_file(
+            full_path,
+            as_attachment=False,
+            download_name=row['original_filename'] or filename
+        )
+
+    except Exception as e:
+        print(f"Error serving report attachment: {e}")
+        return jsonify({'success': False, 'error': 'Could not serve file'}), 500
     finally:
         conn.close()

@@ -69,10 +69,14 @@ function bindTileForm(tile) {
         const history = tile.querySelector('.message-history');
         const msgDiv  = document.createElement('div');
         msgDiv.className = 'message sent';
-        msgDiv.innerHTML = `
-          <div class="message-text">${text}</div>
-          <div class="message-time">${(function(d){const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'),day=d.toLocaleDateString('en-US',{weekday:'long'}),mon=d.toLocaleDateString('en-US',{month:'long'}),y=d.getFullYear();return `${hh}:${mm}, ${dd}, ${day}, ${mon}, ${y}`;})(new Date())}</div>
-        `;
+        const textDiv = document.createElement('div');
+        textDiv.className = 'message-text';
+        textDiv.textContent = text; // XSS-safe: textContent never interprets HTML
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = (function(d){const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'),day=d.toLocaleDateString('en-US',{weekday:'long'}),mon=d.toLocaleDateString('en-US',{month:'long'}),y=d.getFullYear();return `${hh}:${mm}, ${dd}, ${day}, ${mon}, ${y}`;})(new Date());
+        msgDiv.appendChild(textDiv);
+        msgDiv.appendChild(timeDiv);
         history.appendChild(msgDiv);
         history.scrollTop = history.scrollHeight;
         input.value = '';
@@ -99,13 +103,19 @@ function renderMessageContent(el) {
     .trim();
 
   const paths = fileMatch[1].split(',').map(p => p.trim());
-  let imgHtml = '';
-  paths.forEach(path => {
-    const src = path.startsWith('/') ? path : '/' + path;
-    imgHtml += `<img class="msg-tab-image-attachment" src="${src}" alt="Image attachment">`;
-  });
 
-  el.innerHTML = (displayText ? escapeHtmlBasic(displayText) : '') + imgHtml;
+  // Use textContent for safe display text, then append images via DOM (never innerHTML with user data)
+  el.textContent = displayText;
+  paths.forEach(path => {
+    // Validate path is a relative static upload path before rendering
+    const safePath = path.startsWith('/') ? path : '/' + path;
+    if (!/^\/static\/uploads\/[a-zA-Z0-9_./-]+$/.test(safePath)) return;
+    const img = document.createElement('img');
+    img.className = 'msg-tab-image-attachment';
+    img.src = safePath;
+    img.alt = 'Image attachment';
+    el.appendChild(img);
+  });
 }
 
 function escapeHtmlBasic(str) {

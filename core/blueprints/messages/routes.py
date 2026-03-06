@@ -157,6 +157,24 @@ def post_message(order_id, participant_id):
     except AuthorizationError:
         return jsonify({'error': 'Order not found or access denied'}), 403
 
+    # SECURITY: Verify participant_id is the OTHER party in this specific order
+    # (prevents messaging arbitrary users by guessing IDs)
+    conn2 = get_db_connection()
+    counterparty_check = conn2.execute("""
+        SELECT 1 FROM orders o
+        LEFT JOIN order_items oi ON oi.order_id = o.id
+        LEFT JOIN listings l ON oi.listing_id = l.id
+        WHERE o.id = ?
+          AND (
+            (o.buyer_id = ? AND l.seller_id = ?)
+            OR (l.seller_id = ? AND o.buyer_id = ?)
+          )
+        LIMIT 1
+    """, (order_id, user_id, participant_id, user_id, participant_id)).fetchone()
+    conn2.close()
+    if not counterparty_check:
+        return jsonify({'error': 'Recipient is not a party to this order'}), 403
+
     # Check if request has files (FormData) or JSON
     if request.is_json:
         data = request.get_json() or {}
@@ -173,29 +191,36 @@ def post_message(order_id, participant_id):
     file_paths = []
     if request.files:
         import os
-        from werkzeug.utils import secure_filename
-
-        upload_folder = 'static/uploads/messages'
-        os.makedirs(upload_folder, exist_ok=True)
+        from utils.upload_security import save_secure_upload
 
         for file_key in request.files:
             file = request.files[file_key]
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                # Add timestamp to avoid collisions
-                from datetime import datetime
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                unique_filename = f"{timestamp}_{filename}"
-                filepath = os.path.join(upload_folder, unique_filename)
-                file.save(filepath)
-                file_paths.append(filepath)
+            if not file or not file.filename:
+                continue
+
+            # Validate and save the upload securely (content-type + size checked)
+            result = save_secure_upload(
+                file,
+                upload_dir='uploads/messages',
+                allowed_types=['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+                category='message_attachment'
+            )
+            if not result['success']:
+                return jsonify({'error': f'File upload rejected: {result["error"]}'}), 400
+
+            # Store the relative path (e.g. uploads/messages/abc123.jpg)
+            # Prefix with /static/ for web-accessible URL construction
+            file_paths.append('static/' + result['path'])
+
+    # Reject messages that try to inject [Files: ...] through text content
+    if '[Files:' in text:
+        text = text.replace('[Files:', '[files:')
 
     # If we have files but no text, use placeholder
     if file_paths and not text:
         text = f"[{len(file_paths)} attachment(s)]"
 
-    # Store message with file paths (could be stored as JSON or in separate table)
-    # For now, append file info to message text
+    # Append file references to message text (web-relative paths only)
     if file_paths:
         text = text + " [Files: " + ", ".join(file_paths) + "]"
 
@@ -462,7 +487,7 @@ def send_admin_message_reply(admin_id=None):
         return jsonify({'error': 'Unauthorized'}), 401
 
     data = request.form if request.form else request.get_json() or {}
-    message_text = data.get('message_text', '').strip()
+    message_text = data.get('message_text', '').strip()[:4000]
 
     if not message_text:
         return jsonify({'error': 'Message cannot be empty'}), 400

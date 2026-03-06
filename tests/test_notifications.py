@@ -614,14 +614,16 @@ class TestNotificationEndpoints:
         settings2 = client.get('/notifications/settings').get_json()['settings']
         assert settings2.get('order_created') is True
 
-    def test_settings_post_unknown_type_ignored(self, auth_client):
+    def test_settings_post_unknown_type_rejected(self, auth_client):
+        """Unknown notification type keys must now be explicitly rejected (400)."""
         client, _ = auth_client
         resp = client.post(
             '/notifications/settings',
             json={'completely_fake_type': True},
         )
-        # Should succeed (unknown keys are silently ignored by update_notification_settings)
-        assert resp.status_code == 200
+        assert resp.status_code == 400
+        assert 'Unknown' in resp.get_json().get('error', '') or \
+               'unknown' in resp.get_json().get('error', '')
 
     def test_settings_post_unauthenticated(self, client):
         resp = client.post('/notifications/settings', json={'order_created': False})

@@ -323,16 +323,27 @@ def get_user_notifications(user_id, unread_only=False, limit=50, offset=0):
     return result
 
 
-def mark_notification_read(notification_id):
-    """Mark a notification as read."""
+def mark_notification_read(notification_id, user_id=None):
+    """Mark a notification as read.
+
+    If user_id is supplied the update is scoped to that owner (ownership check).
+    Returns True if a row was updated, False if not found / not owned.
+    """
     conn = _get_conn()
-    conn.execute(
-        'UPDATE notifications SET is_read = 1, read_at = ? WHERE id = ?',
-        (datetime.now(), notification_id),
-    )
+    if user_id is not None:
+        result = conn.execute(
+            'UPDATE notifications SET is_read = 1, read_at = ? WHERE id = ? AND user_id = ?',
+            (datetime.now(), notification_id, user_id),
+        )
+    else:
+        result = conn.execute(
+            'UPDATE notifications SET is_read = 1, read_at = ? WHERE id = ?',
+            (datetime.now(), notification_id),
+        )
+    updated = result.rowcount > 0
     conn.commit()
     conn.close()
-    return True
+    return updated
 
 
 def mark_all_notifications_read(user_id):

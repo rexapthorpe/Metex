@@ -64,12 +64,15 @@ def mark_all_read():
 
 @notification_bp.route('/notifications/<int:notification_id>/read', methods=['POST'])
 def mark_read(notification_id):
-    """Mark a notification as read"""
+    """Mark a notification as read — ownership-checked."""
     if 'user_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
 
+    user_id = session['user_id']
     try:
-        mark_notification_read(notification_id)
+        marked = mark_notification_read(notification_id, user_id)
+        if not marked:
+            return jsonify({'error': 'Notification not found or unauthorized'}), 404
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -117,6 +120,14 @@ def save_settings():
 
     if not data:
         return jsonify({'error': 'No settings provided'}), 400
+
+    # Import allowlist from the service so there is a single source of truth
+    from services.notification_service import NOTIFICATION_DEFAULTS
+    unknown = [k for k in data if k not in NOTIFICATION_DEFAULTS]
+    if unknown:
+        return jsonify({
+            'error': f'Unknown notification type(s): {", ".join(unknown)}'
+        }), 400
 
     # Coerce values to bool
     settings = {}
