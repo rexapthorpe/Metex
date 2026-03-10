@@ -13,6 +13,16 @@ from services.pricing_service import create_price_lock, get_active_price_lock, g
 from . import api_bp
 
 
+@api_bp.route('/api/maintenance-status')
+def maintenance_status():
+    """Public endpoint — returns current maintenance mode state for client polling."""
+    try:
+        from services.system_settings_service import get_maintenance_mode
+        return jsonify({'maintenance': get_maintenance_mode()})
+    except Exception:
+        return jsonify({'maintenance': False})
+
+
 @api_bp.route('/api/product_lines')
 def api_product_lines():
     metal = request.args.get('metal')

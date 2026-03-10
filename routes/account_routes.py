@@ -4,7 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from database import get_db_connection
 from utils.cart_utils import build_cart_summary, validate_and_refill_cart
 from services.pricing_service import get_effective_price, get_effective_bid_price
-from services.spot_price_service import get_current_spot_prices
+from services.reference_price_service import get_current_spots_from_snapshots
 from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
 from core.services.ledger.fee_config import calculate_fee
 from collections import defaultdict
@@ -59,8 +59,8 @@ def account():
         """, (user_id,)
     ).fetchall()
 
-    # Get spot prices for calculating effective prices
-    spot_prices = get_current_spot_prices()
+    # Get spot prices from snapshots (consistent with cart/bucket/checkout)
+    spot_prices = get_current_spots_from_snapshots(conn)
 
     # Process each bid to calculate effective prices
     bids = []
@@ -106,6 +106,10 @@ def account():
                 min_listing_effective_price = listing_effective
 
         bid['listing_effective_price'] = min_listing_effective_price
+
+        # Current spot price for this bid's metal
+        metal_key = (bid.get('metal') or '').strip().lower()
+        bid['current_spot_price'] = spot_prices.get(metal_key)
 
         # Format bid creation date
         if bid.get('created_at'):
@@ -293,8 +297,15 @@ def account():
                  AND pe.user_id = ?
              ) AS excluded_count,
              o.tracking_number,
-             (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_status,
-             (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_reason,
+             (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_status,
+             (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_reason,
+             (SELECT COUNT(*) FROM cancellation_seller_responses csr
+                JOIN cancellation_requests cr2 ON csr.request_id = cr2.id
+               WHERE cr2.order_id = o.id AND cr2.created_at >= o.created_at
+                 AND csr.response = 'approved') AS cancel_approved_count,
+             (SELECT COUNT(*) FROM cancellation_seller_responses csr
+                JOIN cancellation_requests cr2 ON csr.request_id = cr2.id
+               WHERE cr2.order_id = o.id AND cr2.created_at >= o.created_at) AS cancel_seller_count,
              (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status,
              (SELECT lp.file_path FROM listing_photos lp WHERE lp.listing_id IN (SELECT oi2.listing_id FROM order_items oi2 WHERE oi2.order_id = o.id) LIMIT 1) AS photo_path
            FROM orders o
@@ -344,7 +355,7 @@ def account():
                WHERE oi2.order_id = o.id
                  AND pe.user_id = ?
              ) AS excluded_count,
-             (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_status,
+             (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_status,
              (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status,
              (SELECT lp.file_path FROM listing_photos lp WHERE lp.listing_id IN (SELECT oi2.listing_id FROM order_items oi2 WHERE oi2.order_id = o.id) LIMIT 1) AS photo_path
            FROM orders o
@@ -358,6 +369,20 @@ def account():
           ORDER BY o.created_at DESC
         """, (user_id, user_id, user_id, user_id)
     ).fetchall()
+
+    # Self-heal: fix orders where cancellation was approved but order status was never updated.
+    # This can happen if a prior code version or rare failure left cancellation_requests='approved'
+    # while orders.status remained in a pending state.
+    stuck = [o for o in raw_pending if o['cancel_status'] == 'approved']
+    if stuck:
+        for o in stuck:
+            conn.execute(
+                "UPDATE orders SET status='Canceled', canceled_at=CURRENT_TIMESTAMP,"
+                " cancellation_reason=? WHERE id=? AND status NOT IN ('Canceled','Cancelled')",
+                (o['cancel_reason'] or '', o['id'])
+            )
+        conn.commit()
+        raw_pending = [o for o in raw_pending if o['cancel_status'] != 'approved']
 
     pending_orders   = attach_sellers(raw_pending)
     completed_orders = attach_sellers(raw_completed)
@@ -498,8 +523,8 @@ def account():
                   oil.seller_net_amount AS ledger_seller_net,
                   oil.gross_amount AS ledger_gross_amount,
                   op.payout_status,
-                  (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_status,
-                  (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id LIMIT 1) AS cancel_reason,
+                  (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_status,
+                  (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_reason,
                   (SELECT csr.response
                      FROM cancellation_seller_responses csr
                      JOIN cancellation_requests cr2 ON csr.request_id = cr2.id
@@ -605,7 +630,6 @@ def account():
 
     # 6) Cart — single authoritative source for all pricing and totals
     validate_and_refill_cart(conn, user_id)
-    from services.reference_price_service import get_current_spots_from_snapshots
     cart_summary = build_cart_summary(conn, user_id, spot_prices=get_current_spots_from_snapshots(conn))
     buckets = cart_summary['buckets']
     cart_total = cart_summary['subtotal']
@@ -692,6 +716,8 @@ def account():
         """, (user_id, user_id, user_id, user_id)
     ).fetchall()
 
+    # Merge order-based conversations by person (one tile per user)
+    _person_convos = {}
     for r in conv_rows:
         history = conn.execute(
             """
@@ -705,20 +731,35 @@ def account():
             (r['order_id'], user_id, r['other_user_id'], r['other_user_id'], user_id)
         ).fetchall()
         raw_lmt = r['last_message_time'] or ''
-        conversations.append({
-            'order_id':                 r['order_id'],
-            'other_user_id':            r['other_user_id'],
-            'other_username':           r['other_username'],
-            'last_message_content':     r['last_message_content'],
-            'last_message_time':        _fmt_ts(raw_lmt),
-            'last_message_time_raw':    raw_lmt,
-            'unread_count':             r['unread_count'],
-            'type': 'seller' if r['order_buyer_id'] == user_id else 'buyer',
-            'messages': [
-                {'sender_id': m['sender_id'], 'content': m['content'], 'timestamp': _fmt_ts(m['timestamp'])}
-                for m in history
-            ],
-        })
+        msgs = [
+            {'sender_id': m['sender_id'], 'content': m['content'],
+             'timestamp': _fmt_ts(m['timestamp']), '_ts_raw': m['timestamp'] or ''}
+            for m in history
+        ]
+        other_id = r['other_user_id']
+        if other_id not in _person_convos:
+            _person_convos[other_id] = {
+                'order_id':              r['order_id'],
+                'other_user_id':         other_id,
+                'other_username':        r['other_username'],
+                'last_message_content':  r['last_message_content'],
+                'last_message_time':     _fmt_ts(raw_lmt),
+                'last_message_time_raw': raw_lmt,
+                'unread_count':          r['unread_count'],
+                'type': 'seller' if r['order_buyer_id'] == user_id else 'buyer',
+                'messages': msgs,
+            }
+        else:
+            existing = _person_convos[other_id]
+            existing['unread_count'] += r['unread_count']
+            if raw_lmt > existing['last_message_time_raw']:
+                existing['last_message_content'] = r['last_message_content']
+                existing['last_message_time']     = _fmt_ts(raw_lmt)
+                existing['last_message_time_raw'] = raw_lmt
+                existing['order_id']              = r['order_id']
+            existing['messages'].extend(msgs)
+            existing['messages'].sort(key=lambda m: m['_ts_raw'])
+    conversations.extend(_person_convos.values())
 
     conn.close()
 

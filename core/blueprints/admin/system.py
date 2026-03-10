@@ -195,6 +195,31 @@ def insert_manual_spot():
         return jsonify({"success": False, "message": f"DB error: {exc}"}), 500
 
 
+@admin_bp.route("/api/system-settings/maintenance-mode", methods=["GET"])
+@admin_required
+def get_maintenance_mode():
+    """Return current maintenance mode state."""
+    from services.system_settings_service import get_maintenance_mode as _get
+    return jsonify({"success": True, "enabled": _get()})
+
+
+@admin_bp.route("/api/system-settings/maintenance-mode", methods=["POST"])
+@admin_required
+def set_maintenance_mode():
+    """Enable or disable maintenance mode."""
+    from services.system_settings_service import set_maintenance_mode as _set
+    data = request.get_json(silent=True) or {}
+    if "enabled" not in data:
+        return jsonify({"success": False, "message": "enabled is required"}), 400
+    new_state = bool(data["enabled"])
+    _set(new_state)
+    return jsonify({
+        "success": True,
+        "enabled": new_state,
+        "message": "Maintenance mode enabled." if new_state else "Maintenance mode disabled.",
+    })
+
+
 def _trigger_immediate_snapshot_async():
     """
     Fire-and-forget: run one snapshot in a background thread immediately

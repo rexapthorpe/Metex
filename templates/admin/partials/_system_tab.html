@@ -1,5 +1,124 @@
-      <!-- ── Spot Snapshot Interval ───────────────────────────────────── -->
+      <!-- ── Maintenance Mode ───────────────────────────────────────────── -->
       <div class="section-header">
+        <h3><i class="fa-solid fa-circle-pause"></i> Site Status</h3>
+      </div>
+
+      <div class="settings-card" style="cursor:default; padding: 20px 24px; border-color: #fca5a5;" id="maintenanceCard">
+        <div style="display:flex; align-items:center; gap:14px; flex:1; flex-wrap:wrap;">
+          <div class="settings-icon" style="flex-shrink:0; background:#fee2e2; color:#dc2626;" id="maintenanceIcon">
+            <i class="fa-solid fa-circle-pause"></i>
+          </div>
+          <div class="settings-info" style="flex:1; min-width:200px;">
+            <h4 style="margin-bottom:4px;">Take Site Down for Maintenance</h4>
+            <p style="margin-bottom:12px;">
+              When enabled, displays a global banner to all users and blocks all buying,
+              bid placing, and listing/bid edits. Admin access is unaffected.
+            </p>
+            <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+              <!-- Toggle switch -->
+              <label style="display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;">
+                <div style="position:relative; width:52px; height:28px; flex-shrink:0;">
+                  <input type="checkbox" id="maintenanceToggle"
+                    style="opacity:0; width:0; height:0; position:absolute;"
+                    onchange="setMaintenanceMode(this.checked)">
+                  <span id="maintenanceTrack" style="
+                    position:absolute; top:0; left:0; right:0; bottom:0;
+                    border-radius:28px; transition:background 0.2s;
+                    background:#d1d5db;
+                  "></span>
+                  <span id="maintenanceThumb" style="
+                    position:absolute; top:3px; left:3px;
+                    width:22px; height:22px; border-radius:50%;
+                    background:#ffffff; box-shadow:0 1px 3px rgba(0,0,0,0.3);
+                    transition:transform 0.2s;
+                  "></span>
+                </div>
+                <span id="maintenanceLabel" style="font-weight:600; font-size:14px; color:#374151;">Off</span>
+              </label>
+              <span id="maintenanceStatus" style="font-size:13px; display:none;"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      (function () {
+        var toggle   = document.getElementById('maintenanceToggle');
+        var track    = document.getElementById('maintenanceTrack');
+        var thumb    = document.getElementById('maintenanceThumb');
+        var label    = document.getElementById('maintenanceLabel');
+        var card     = document.getElementById('maintenanceCard');
+        var icon     = document.getElementById('maintenanceIcon');
+        var status   = document.getElementById('maintenanceStatus');
+
+        function applyVisualState(enabled) {
+          if (enabled) {
+            track.style.background = '#dc2626';
+            thumb.style.transform  = 'translateX(24px)';
+            label.textContent      = 'ON — Site is in maintenance';
+            label.style.color      = '#dc2626';
+            card.style.borderColor = '#fca5a5';
+            card.style.background  = '#fff5f5';
+            icon.style.background  = '#fee2e2';
+            icon.style.color       = '#dc2626';
+          } else {
+            track.style.background = '#d1d5db';
+            thumb.style.transform  = 'translateX(0)';
+            label.textContent      = 'Off';
+            label.style.color      = '#374151';
+            card.style.borderColor = '#fca5a5';
+            card.style.background  = '';
+            icon.style.background  = '#fee2e2';
+            icon.style.color       = '#dc2626';
+          }
+        }
+
+        function showStatus(msg, ok) {
+          status.style.display  = 'inline';
+          status.style.color    = ok ? '#16a34a' : '#dc2626';
+          status.textContent    = msg;
+          clearTimeout(status._timer);
+          status._timer = setTimeout(function () { status.style.display = 'none'; }, 4000);
+        }
+
+        // Load current state
+        fetch('/admin/api/system-settings/maintenance-mode')
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.success) {
+              toggle.checked = data.enabled;
+              applyVisualState(data.enabled);
+            }
+          })
+          .catch(function () {});
+
+        window.setMaintenanceMode = function (enabled) {
+          applyVisualState(enabled);
+          fetch('/admin/api/system-settings/maintenance-mode', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ enabled: enabled }),
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              showStatus(data.message || (data.success ? 'Saved.' : 'Failed.'), data.success);
+              if (!data.success) {
+                // Revert toggle on failure
+                toggle.checked = !enabled;
+                applyVisualState(!enabled);
+              }
+            })
+            .catch(function () {
+              showStatus('Network error — please try again.', false);
+              toggle.checked = !enabled;
+              applyVisualState(!enabled);
+            });
+        };
+      })();
+      </script>
+
+      <!-- ── Spot Snapshot Interval ───────────────────────────────────── -->
+      <div class="section-header" style="margin-top: 32px;">
         <h3><i class="fa-solid fa-clock-rotate-left"></i> Spot Price Snapshots</h3>
       </div>
 

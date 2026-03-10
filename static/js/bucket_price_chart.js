@@ -36,6 +36,9 @@ function initBucketPriceChart(bucketId) {
     // Setup time range selector
     setupBucketTimeRangeSelector(bucketId);
 
+    // Setup transaction panel toggle
+    setupTxToggle(bucketId);
+
     // Load initial data
     loadBucketPriceHistory(bucketId, currentBucketTimeRange);
 
@@ -67,7 +70,7 @@ function startChartPolling(bucketId) {
     if (_chartPollTimer) return; // Already running
 
     _chartPollTimer = setInterval(function() {
-        const url = `/api/buckets/${bucketId}/reference_price_history?range=${currentBucketTimeRange}`;
+        const url = `/api/buckets/${bucketId}/trade_price_history?range=${currentBucketTimeRange}`;
         fetch(url)
             .then(r => r.json())
             .then(data => {
@@ -120,7 +123,7 @@ function loadBucketPriceHistory(bucketId, range) {
         return;
     }
 
-    fetch(`/api/buckets/${bucketId}/reference_price_history?range=${encodeURIComponent(range)}`)
+    fetch(`/api/buckets/${bucketId}/trade_price_history?range=${encodeURIComponent(range)}`)
         .then(response => {
             console.log('[BucketChart] History response status:', response.status);
             if (!response.ok) {
@@ -467,12 +470,7 @@ function renderBucketPriceChart(historyData, range) {
         bucketChartMouseLeaveHandler = null;
     }
 
-    // Create gradient
     try {
-        const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(0, 102, 204, 0.15)');
-        gradient.addColorStop(1, 'rgba(0, 102, 204, 0)');
-
         console.log('[BucketChart] Creating Chart.js chart...');
 
         // Store normalized data for hover functionality
@@ -486,10 +484,10 @@ function renderBucketPriceChart(historyData, range) {
                     label: 'Reference Price',
                     data: dataPoints,  // Use {x, y} format with Date objects
                     borderColor: '#0066cc',
-                    backgroundColor: gradient,
+                    backgroundColor: 'rgba(0, 102, 204, 0.08)', // placeholder; overwritten by plugin below
                     borderWidth: 3,
                     fill: true,
-                    tension: 0,  // Straight lines between points (no curves)
+                    tension: 0,  // Straight diagonal lines point-to-point
                     pointRadius: 0,
                     pointBackgroundColor: '#0066cc',
                     pointBorderColor: '#ffffff',
@@ -594,6 +592,19 @@ function renderBucketPriceChart(historyData, range) {
                 }
             },
             plugins: [{
+                // Recreate the fill gradient on every draw so it matches the
+                // current chart area after any resize (e.g. tx panel open/close).
+                id: 'dynamicGradient',
+                beforeDraw: function(chart) {
+                    const area = chart.chartArea;
+                    if (!area) return;
+                    const c = chart.ctx;
+                    const grad = c.createLinearGradient(0, area.top, 0, area.bottom);
+                    grad.addColorStop(0, 'rgba(0, 102, 204, 0.15)');
+                    grad.addColorStop(1, 'rgba(0, 102, 204, 0)');
+                    chart.data.datasets[0].backgroundColor = grad;
+                }
+            }, {
                 id: 'verticalHoverLine',
                 afterDatasetsDraw: function(chart) {
                     if (chart.tooltip._active && chart.tooltip._active.length) {
@@ -686,6 +697,178 @@ function setupBucketTimeRangeSelector(bucketId) {
             loadBucketPriceHistory(bucketId, range);
         });
     });
+}
+
+// ============================================================
+// Transaction Panel
+// ============================================================
+
+let _txPanelOpen   = false;
+let _txDataLoaded  = false;
+
+/**
+ * Wire up the Transactions toggle button.
+ * Called once from initBucketPriceChart.
+ */
+function setupTxToggle(bucketId) {
+    const btn = document.getElementById('bucket-tx-toggle-btn');
+    if (btn) {
+        btn.addEventListener('click', function() {
+            _txPanelOpen = !_txPanelOpen;
+            _applyTxPanelState(bucketId);
+        });
+    }
+
+    // Mobile back button inside the tx panel header
+    const backBtn = document.getElementById('bucket-tx-mobile-back');
+    if (backBtn) {
+        backBtn.addEventListener('click', function() {
+            _txPanelOpen = false;
+            _applyTxPanelState(bucketId);
+        });
+    }
+}
+
+/**
+ * Apply the current open/closed state to the DOM.
+ */
+function _applyTxPanelState(bucketId) {
+    const splitView = document.getElementById('bucket-split-view');
+    const panel     = document.getElementById('bucket-tx-panel');
+    const btn       = document.getElementById('bucket-tx-toggle-btn');
+
+    if (!splitView || !panel || !btn) return;
+
+    const card = splitView ? splitView.closest('.bucket-price-card') : null;
+
+    if (_txPanelOpen) {
+        panel.style.overflow = 'hidden';  // clip during slide-in
+        splitView.classList.add('tx-open');
+        if (card) card.classList.add('tx-open');
+        panel.setAttribute('aria-hidden', 'false');
+        btn.classList.add('active');
+        btn.title = 'Close transaction history';
+        btn.innerHTML = '<i class="fa-solid fa-chart-line"></i>';
+
+        // Load once
+        if (!_txDataLoaded) {
+            _loadTransactions(bucketId);
+        }
+
+        // After transition: allow internal scroll + resize chart to its new width
+        setTimeout(function() {
+            panel.style.overflow = 'visible';
+            if (bucketPriceChart) bucketPriceChart.resize();
+        }, 450);
+
+    } else {
+        // Re-clip before sliding out so content doesn't bleed
+        panel.style.overflow = 'hidden';
+        splitView.classList.remove('tx-open');
+        if (card) card.classList.remove('tx-open');
+        panel.setAttribute('aria-hidden', 'true');
+        btn.classList.remove('active');
+        btn.title = 'View transaction history';
+        btn.innerHTML = '<i class="fa-solid fa-list-ul"></i>';
+
+        // Resize chart back to full width after transition
+        setTimeout(function() {
+            if (bucketPriceChart) bucketPriceChart.resize();
+        }, 450);
+    }
+}
+
+/**
+ * Fetch transaction history for the bucket and render it.
+ */
+function _loadTransactions(bucketId) {
+    const loadingEl = document.getElementById('bucket-tx-loading');
+    const emptyEl   = document.getElementById('bucket-tx-empty');
+    const listEl    = document.getElementById('bucket-tx-list');
+    const countEl   = document.getElementById('bucket-tx-count');
+
+    if (loadingEl) {
+        loadingEl.style.display = 'flex';
+        loadingEl.style.flexDirection = 'column';
+    }
+    if (emptyEl)  emptyEl.style.display = 'none';
+
+    fetch('/api/buckets/' + bucketId + '/transactions')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            _txDataLoaded = true;
+            if (loadingEl) loadingEl.style.display = 'none';
+
+            if (!data.success || !data.transactions || data.transactions.length === 0) {
+                if (emptyEl) emptyEl.style.display = 'flex';
+                if (countEl) countEl.textContent = '';
+                return;
+            }
+
+            if (countEl) {
+                countEl.textContent = data.total_count === 1
+                    ? '1 trade'
+                    : data.total_count + ' trades';
+            }
+
+            _renderTransactions(data.transactions, listEl);
+        })
+        .catch(function() {
+            _txDataLoaded = false;
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (emptyEl) {
+                emptyEl.style.display = 'flex';
+                var p = emptyEl.querySelector('p');
+                if (p) p.textContent = 'Failed to load.';
+            }
+        });
+}
+
+/**
+ * Render transaction rows into the list container.
+ */
+function _renderTransactions(transactions, container) {
+    // Remove any previously rendered rows
+    var existing = container.querySelectorAll('.bucket-tx-row');
+    existing.forEach(function(el) { el.remove(); });
+
+    transactions.forEach(function(tx, idx) {
+        var date = new Date(tx.created_at);
+        var dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        var timeStr = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+        // Direction: compare this trade's price against the prior (older) trade.
+        // Array is newest-first, so the older trade is at idx+1.
+        var dir = '';
+        if (idx + 1 < transactions.length) {
+            var prevPrice = transactions[idx + 1].price_each;
+            if (tx.price_each > prevPrice)      dir = 'tx-up';
+            else if (tx.price_each < prevPrice) dir = 'tx-down';
+        }
+
+        var totalFmt  = '$' + formatWithCommas(tx.total, 2);
+        var priceEach = '$' + formatWithCommas(tx.price_each, 2);
+        var qtyLabel  = tx.quantity > 1 ? tx.quantity + '\u00d7 @ ' + priceEach : priceEach;
+
+        var row = document.createElement('div');
+        row.className = 'bucket-tx-row' + (dir ? ' ' + dir : '');
+        row.innerHTML =
+            '<div class="bucket-tx-row-top">' +
+                '<span class="bucket-tx-date">' + dateStr + ' \u00b7 ' + timeStr + '</span>' +
+                '<span class="bucket-tx-total' + (dir ? ' ' + dir : '') + '">' + totalFmt + '</span>' +
+            '</div>';
+
+        container.appendChild(row);
+    });
+}
+
+/** Minimal HTML escape to avoid XSS on user-supplied usernames. */
+function _esc(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 // Expose functions globally

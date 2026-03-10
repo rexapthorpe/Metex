@@ -55,7 +55,7 @@
     <!-- Page-specific CSS -->
     {% block page_css %}{% endblock %}
 </head>
-<body>
+<body class="{% if maintenance_mode and not is_user_admin %}maintenance-banner-visible{% endif %}">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="flash-container">
@@ -75,6 +75,13 @@
         {% endif %}
     </div>
     {% endif %}
+
+    <!-- Maintenance Mode Banner (shown below header when maintenance is active) -->
+    <div id="maintenanceBanner" class="maintenance-banner{% if not (maintenance_mode and not is_user_admin) %} maintenance-banner-hidden{% endif %}" role="alert">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>This website is currently down for maintenance. It will be back up shortly.</span>
+        <i class="fa-solid fa-triangle-exclamation"></i>
+    </div>
 
     <!-- Admin Message Banner (shown by JS when user has unread admin messages) -->
     {% if session.get('user_id') %}
@@ -314,9 +321,9 @@
                 <ul class="footer-links">
                     <li>
                         {% if session.get('user_id') %}
-                        <a href="#" id="openContactSupport"><i class="fa-regular fa-message" style="margin-right:5px;"></i>Contact Support</a>
+                        <a href="#" id="openContactSupport">Contact Support</a>
                         {% else %}
-                        <a href="{{ url_for('auth.login') }}"><i class="fa-regular fa-message" style="margin-right:5px;"></i>Contact Support</a>
+                        <a href="{{ url_for('auth.login') }}">Contact Support</a>
                         {% endif %}
                     </li>
                     <li><a href="mailto:support@metex.com">support@metex.com</a></li>
@@ -590,5 +597,35 @@
         };
     })();
     </script>
+
+    <!-- Maintenance mode banner polling (non-admin users only) -->
+    {% if not is_user_admin %}
+    <script>
+    (function() {
+        var banner = document.getElementById('maintenanceBanner');
+        if (!banner) return;
+
+        function applyState(on) {
+            if (on) {
+                banner.classList.remove('maintenance-banner-hidden');
+                document.body.classList.add('maintenance-banner-visible');
+            } else {
+                banner.classList.add('maintenance-banner-hidden');
+                document.body.classList.remove('maintenance-banner-visible');
+            }
+        }
+
+        function poll() {
+            fetch('/api/maintenance-status')
+                .then(function(r) { return r.json(); })
+                .then(function(d) { applyState(!!d.maintenance); })
+                .catch(function() {});
+        }
+
+        // Poll every 30 seconds
+        setInterval(poll, 30000);
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>

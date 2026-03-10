@@ -162,7 +162,7 @@
               <div class="bid-detail-item">
                 <span class="bid-detail-label">Current Spot</span>
                 <span class="bid-detail-value">
-                  {% if bid.listing_effective_price is not none %}${{ '{:,.2f}'.format(bid.listing_effective_price) }}{% else %}—{% endif %}
+                  {% if bid.current_spot_price is not none %}${{ '{:,.2f}'.format(bid.current_spot_price) }}{% else %}—{% endif %}
                 </span>
               </div>
               <div class="bid-detail-item">

@@ -243,6 +243,15 @@
   opacity: 0.6;
 }
 
+/* "Add Item to Set" button (sidebarAddSetItemBtn) — disabled state */
+#sidebarAddSetItemBtn:disabled {
+  background: #d1d5db;
+  color: #374151;
+  border: 2px dashed #6b7280;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 /* Add Another Item button in sidebar */
 .sidebar-add-item-btn {
   width: 100%;
@@ -266,9 +275,9 @@
 }
 
 .sidebar-add-item-btn:disabled {
-  background: #f3f4f6;  /* Gray when disabled */
-  color: #9ca3af;
-  border: 2px dashed #d1d5db;
+  background: #e5e7eb;
+  color: #6b7280;
+  border: 2px dashed #9ca3af;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;

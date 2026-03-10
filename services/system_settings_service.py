@@ -147,3 +147,21 @@ def set_checkout_spot_refresh_timeout(seconds) -> int:
     clamped = max(CHECKOUT_SPOT_REFRESH_TIMEOUT_MIN, min(CHECKOUT_SPOT_REFRESH_TIMEOUT_MAX, val))
     set_setting(CHECKOUT_SPOT_REFRESH_TIMEOUT_KEY, str(clamped))
     return clamped
+
+
+# ---------------------------------------------------------------------------
+# Maintenance mode
+# ---------------------------------------------------------------------------
+
+MAINTENANCE_MODE_KEY = "maintenance_mode"
+
+
+def get_maintenance_mode() -> bool:
+    """Return True if the site is currently in maintenance mode."""
+    return get_setting(MAINTENANCE_MODE_KEY, "0") == "1"
+
+
+def set_maintenance_mode(enabled: bool) -> bool:
+    """Enable or disable maintenance mode. Returns the new state."""
+    set_setting(MAINTENANCE_MODE_KEY, "1" if enabled else "0")
+    return enabled

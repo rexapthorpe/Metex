@@ -53,7 +53,6 @@ NOTIFICATION_DEFAULTS = {  # type: dict[str, bool]
     'outbid':                               True,
     'bid_now_leading':                      False,   # noisy – OFF
     'bid_accepted':                         True,
-    'bid_rejected_or_expired':              True,
     'bid_partially_accepted':               True,
     'bid_fully_filled':                     True,
     # ── Orders (buyer) ────────────────────────────────────────────────────

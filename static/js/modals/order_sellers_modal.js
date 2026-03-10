@@ -101,9 +101,7 @@ function renderOrderSeller() {
     ? Number(s.transaction_count).toLocaleString()
     : '--';
   const fulfillmentPct = (s.fulfillment_pct != null) ? `${s.fulfillment_pct}%` : '--';
-  const repeatBuyersPct = (s.repeat_buyers_pct != null) ? `${s.repeat_buyers_pct}%` : '--';
   const memberSince = s.member_since || '--';
-  const avgShipTime = s.avg_ship_time || '--';
   const unitsListed = s.total_qty != null ? Number(s.total_qty).toLocaleString() : '--';
   const avgPrice = s.avg_price != null
     ? '$' + Number(s.avg_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -171,13 +169,6 @@ function renderOrderSeller() {
           </div>
         </div>
         ` : `
-        <div class="osm-stat-item">
-          <div class="osm-stat-icon"><i class="fa-solid fa-truck"></i></div>
-          <div>
-            <div class="osm-stat-label">Avg. ship time</div>
-            <div class="osm-stat-value">${avgShipTime}</div>
-          </div>
-        </div>
         <div class="osm-stat-item">
           <div class="osm-stat-icon"><i class="fa-regular fa-calendar"></i></div>
           <div>
@@ -274,7 +265,6 @@ function openOrderBuyerPopup(orderId) {
         ? `<span class="osm-verified-badge"><i class="fa-solid fa-shield-halved"></i> Verified Buyer</span>`
         : '';
       const transactions = data.transaction_count != null ? Number(data.transaction_count).toLocaleString() : '--';
-      const repeatSellersPct = data.repeat_sellers_pct != null ? `${data.repeat_sellers_pct}%` : '--';
       const memberSince = data.member_since || '--';
 
       const titleEl = document.querySelector('#orderSellersModal .osm-title');
@@ -307,13 +297,6 @@ function openOrderBuyerPopup(orderId) {
             </div>
           </div>
           <div class="osm-stats-bottom">
-            <div class="osm-stat-item">
-              <div class="osm-stat-icon green"><i class="fa-solid fa-arrow-trend-up"></i></div>
-              <div>
-                <div class="osm-stat-label">Repeat Sellers</div>
-                <div class="osm-stat-value">${repeatSellersPct}</div>
-              </div>
-            </div>
             <div class="osm-stat-item">
               <div class="osm-stat-icon"><i class="fa-regular fa-calendar"></i></div>
               <div>

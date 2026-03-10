@@ -18,16 +18,50 @@ def get_bucket_sellers(bucket_id):
     """
     conn = get_db_connection()
 
-    # Get all active sellers for this bucket
-    # Join through categories to filter by bucket_id (not category_id)
-    # This is important for isolated listings where bucket_id != category_id
+    # Fetch spot prices once for effective-price calculation
+    from services.reference_price_service import get_current_spots_from_snapshots
+    from services.pricing_service import get_effective_price
+    spot_prices = get_current_spots_from_snapshots(conn)
+
+    # Fetch every active listing in this bucket with the columns needed
+    # for effective-price calculation, keyed by seller.
+    listings_rows = conn.execute('''
+        SELECT
+            l.seller_id,
+            l.quantity,
+            l.pricing_mode,
+            l.price_per_coin,
+            l.spot_premium,
+            l.floor_price,
+            l.pricing_metal,
+            c.metal
+        FROM listings l
+        JOIN categories c ON l.category_id = c.id
+        WHERE c.bucket_id = ? AND l.active = 1 AND l.quantity > 0
+    ''', (bucket_id,)).fetchall()
+
+    # Group listings by seller and compute effective-price aggregates
+    from collections import defaultdict
+    seller_listings = defaultdict(list)
+    for row in listings_rows:
+        seller_listings[row['seller_id']].append(dict(row))
+
+    # Build per-seller price stats using effective prices
+    seller_price_stats = {}
+    for sid, listings in seller_listings.items():
+        effective_prices = [get_effective_price(l, spot_prices) for l in listings]
+        quantities = [l['quantity'] for l in listings]
+        seller_price_stats[sid] = {
+            'lowest_price': min(effective_prices),
+            'avg_price': sum(effective_prices) / len(effective_prices),
+            'total_qty': sum(quantities),
+        }
+
+    # Get sellers with rating aggregates, ordered by effective lowest price
     sellers_query = conn.execute('''
         SELECT
             u.id as seller_id,
             u.username,
-            MIN(l.price_per_coin) as lowest_price,
-            AVG(l.price_per_coin) as avg_price,
-            SUM(l.quantity) as total_qty,
             COALESCE(AVG(r.rating), 0) as rating,
             COUNT(DISTINCT r.id) as num_reviews
         FROM listings l
@@ -36,20 +70,26 @@ def get_bucket_sellers(bucket_id):
         LEFT JOIN ratings r ON u.id = r.ratee_id
         WHERE c.bucket_id = ? AND l.active = 1 AND l.quantity > 0
         GROUP BY u.id, u.username
-        ORDER BY MIN(l.price_per_coin) ASC
     ''', (bucket_id,)).fetchall()
+
+    # Sort by effective lowest price ascending
+    sellers_query = sorted(
+        sellers_query,
+        key=lambda r: seller_price_stats.get(r['seller_id'], {}).get('lowest_price', 0)
+    )
 
     enriched_sellers = []
     for row in sellers_query:
         seller_id = row['seller_id']
+        stats = seller_price_stats.get(seller_id, {})
         seller_data = {
             'seller_id': seller_id,
             'username': row['username'],
             'rating': row['rating'] or 0,
             'num_reviews': row['num_reviews'] or 0,
-            'lowest_price': row['lowest_price'],
-            'avg_price': row['avg_price'],
-            'total_qty': row['total_qty']
+            'lowest_price': stats.get('lowest_price'),
+            'avg_price': stats.get('avg_price'),
+            'total_qty': stats.get('total_qty', 0),
         }
 
         # Get user info (member since, display name)

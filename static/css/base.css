@@ -261,6 +261,71 @@ body.admin-banner-visible main {
     body.admin-banner-visible main { padding-top: calc(115px + 44px); }
 }
 
+/* =========================================================================
+   Maintenance Mode Banner
+   Fixed strip below the header. Shown server-side when maintenance is active.
+   ========================================================================= */
+.maintenance-banner {
+    display: flex;
+    position: fixed;
+    top: 90px;
+    left: 0;
+    right: 0;
+    z-index: 989; /* just below admin-msg-banner */
+    background: #4b5563;
+    color: #f9fafb;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 20px;
+    min-height: 44px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    text-align: center;
+}
+
+.maintenance-banner.maintenance-banner-hidden {
+    display: none;
+}
+
+.maintenance-banner i {
+    opacity: 0.75;
+    flex-shrink: 0;
+    color: #d1d5db;
+}
+
+/* Push main content down so banner doesn't overlap */
+body.maintenance-banner-visible main {
+    padding-top: calc(90px + 44px);
+}
+
+/* If both maintenance and admin-message banners are visible, stack admin-msg below */
+body.maintenance-banner-visible .admin-msg-banner {
+    top: calc(90px + 44px);
+}
+body.maintenance-banner-visible.admin-banner-visible main {
+    padding-top: calc(90px + 44px + 44px);
+}
+
+@media (max-width: 768px) {
+    .maintenance-banner { top: 120px; }
+    body.maintenance-banner-visible main { padding-top: calc(120px + 44px); }
+    body.maintenance-banner-visible .admin-msg-banner { top: calc(120px + 44px); }
+    body.maintenance-banner-visible.admin-banner-visible main { padding-top: calc(120px + 44px + 44px); }
+}
+
+@media (max-width: 480px) {
+    .maintenance-banner {
+        top: 115px;
+        font-size: 13px;
+        padding: 10px 14px;
+    }
+    body.maintenance-banner-visible main { padding-top: calc(115px + 44px); }
+    body.maintenance-banner-visible .admin-msg-banner { top: calc(115px + 44px); }
+    body.maintenance-banner-visible.admin-banner-visible main { padding-top: calc(115px + 44px + 44px); }
+}
+
 /* === Global Modal Responsive Defaults ===
    These ensure modal content never overflows on mobile.
    Individual modal CSS files may override with more specific styles. */
@@ -273,24 +338,25 @@ body.admin-banner-visible main {
         padding: 16px;
     }
 
-    /* Modal content boxes */
+    /* Modal content boxes — 16px side margin so modals never touch screen edges */
     .modal-content,
     .modal-box,
     [class*="-modal-content"],
     [class*="-modal-box"] {
-        max-width: 100% !important;
-        width: 100% !important;
-        margin: 0 !important;
+        max-width: calc(100% - 32px) !important;
+        width: calc(100% - 32px) !important;
+        margin: 0 auto !important;
         border-radius: 14px !important;
     }
 }
 
 @media (max-width: 480px) {
-    /* On small phones, modals may go nearly full-screen */
     .modal-content,
     .modal-box,
     [class*="-modal-content"],
     [class*="-modal-box"] {
+        max-width: calc(100% - 32px) !important;
+        width: calc(100% - 32px) !important;
         border-radius: 10px !important;
     }
 }

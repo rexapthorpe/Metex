@@ -140,15 +140,28 @@
                 <i class="fa-regular fa-message"></i> Message
               </button>
               {% if not is_canceled %}
-              <button class="order-action-track" onclick="addTrackingNumber({{ order.id }})">
+              <button class="order-quick-action" onclick="addTrackingNumber({{ order.id }})">
                 <i class="fa-solid fa-truck"></i> Track
               </button>
               {% endif %}
             </div>
             {% if not is_canceled %}
               {% if order.cancel_status == 'pending' %}
+                {% set approved = order.cancel_approved_count or 0 %}
+                {% set total = order.cancel_seller_count or 0 %}
+                {% set pct = ((approved / total * 100) | int) if total > 0 else 0 %}
                 <div class="order-cancel-status order-cancel-status--pending">
-                  <i class="fa-regular fa-clock"></i> Cancellation Pending
+                  <div class="cancel-pending-top">
+                    <i class="fa-regular fa-clock"></i> Cancellation Pending
+                  </div>
+                  {% if total > 0 %}
+                  <div class="cancel-pending-progress">
+                    <div class="cancel-progress-bar-track">
+                      <div class="cancel-progress-bar-fill" style="width: {{ pct }}%"></div>
+                    </div>
+                    <div class="cancel-progress-label">{{ approved }} of {{ total }} seller{{ 's' if total != 1 }} approved</div>
+                  </div>
+                  {% endif %}
                 </div>
               {% elif order.cancel_status == 'denied' %}
                 <button class="order-action-cancel order-action-cancel--locked" disabled>

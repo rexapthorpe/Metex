@@ -280,8 +280,8 @@
   gap: 6px;
   padding: 6px 10px;
   border-radius: 7px;
-  background: #3da6ff;
-  color: #ffffff;
+  background: transparent;
+  color: #374151;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -290,7 +290,8 @@
   flex: 1;
 }
 
-.order-action-track:hover { background: #1e74f0; }
+.order-action-track:hover { background: #f1f5f9; }
+.order-action-track i { color: #64748b; }
 
 .order-action-cancel {
   display: flex;
@@ -342,6 +343,39 @@
   background: #fff7ed;
   color: #92400e;
   border: 1px solid #fed7aa;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+.cancel-pending-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.cancel-pending-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cancel-progress-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #fed7aa;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.cancel-progress-bar-fill {
+  height: 100%;
+  background: #d97706;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+.cancel-progress-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #92400e;
+  text-align: center;
 }
 .order-cancel-status--denied {
   background: #fef2f2;

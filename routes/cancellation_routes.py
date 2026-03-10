@@ -202,10 +202,11 @@ def get_cancellation_status(order_id):
         conn.close()
         return jsonify({'success': False, 'error': 'Not authorized'}), 403
 
-    # Check for existing cancellation request
+    # Check for existing cancellation request (only requests created after the order itself)
     cancel_request = conn.execute("""
-        SELECT * FROM cancellation_requests WHERE order_id = ?
-    """, (order_id,)).fetchone()
+        SELECT * FROM cancellation_requests
+        WHERE order_id = ? AND created_at >= (SELECT created_at FROM orders WHERE id = ?)
+    """, (order_id, order_id)).fetchone()
 
     # Check cancellation eligibility
     can_cancel = (
@@ -279,10 +280,11 @@ def request_cancellation(order_id):
             conn.close()
             return jsonify({'success': False, 'error': 'This order cannot be canceled'}), 400
 
-        # Check for existing cancellation request
+        # Check for existing cancellation request (only consider requests created after the order)
         existing = conn.execute("""
-            SELECT * FROM cancellation_requests WHERE order_id = ?
-        """, (order_id,)).fetchone()
+            SELECT * FROM cancellation_requests
+            WHERE order_id = ? AND created_at >= (SELECT created_at FROM orders WHERE id = ?)
+        """, (order_id, order_id)).fetchone()
 
         if existing:
             conn.close()
@@ -329,19 +331,7 @@ def request_cancellation(order_id):
                 VALUES (?, ?)
             """, (request_id, seller_id))
 
-            # Notify each seller immediately
-            create_notification(
-                user_id=seller_id,
-                notification_type='cancellation_request',
-                title='Buyer Requested Order Cancellation',
-                message=f'A buyer has requested to cancel order #ORD-2026-{order_id:06d}. Please review and respond in your Sold Items tab.',
-                related_order_id=order_id,
-                metadata={'reason': reason, 'buyer_id': user_id}
-            )
-
-        conn.commit()
-
-        # Get item description for the notification
+        # Get item description while connection is still open
         order_item = conn.execute("""
             SELECT c.metal, c.product_line, c.weight, c.year
             FROM order_items oi
@@ -350,6 +340,13 @@ def request_cancellation(order_id):
             WHERE oi.order_id = ?
             LIMIT 1
         """, (order_id,)).fetchone()
+
+        # Commit and release the write lock BEFORE sending notifications.
+        # create_notification opens its own connection to write; calling it while
+        # this transaction is still open causes SQLite write-lock contention and
+        # a ~5 s timeout delay per notification call.
+        conn.commit()
+        conn.close()
 
         item_desc_parts = []
         if order_item:
@@ -361,7 +358,19 @@ def request_cancellation(order_id):
                 item_desc_parts.append(order_item['weight'])
         item_description = ' '.join(item_desc_parts) if item_desc_parts else f'Order #{order_id}'
 
-        conn.close()
+        # Notify sellers (write lock is now free)
+        for seller_id in seller_ids:
+            try:
+                create_notification(
+                    user_id=seller_id,
+                    notification_type='cancellation_request',
+                    title='Buyer Requested Order Cancellation',
+                    message=f'A buyer has requested to cancel order #ORD-2026-{order_id:06d}. Please review and respond in your Sold Items tab.',
+                    related_order_id=order_id,
+                    metadata={'reason': reason, 'buyer_id': user_id}
+                )
+            except Exception as e:
+                print(f"[NOTIFICATION ERROR] Failed to notify seller {seller_id}: {e}")
 
         # Notify the buyer that their cancellation request was submitted
         try:
@@ -505,6 +514,13 @@ def respond_to_cancellation(order_id):
 
             if claim.rowcount == 0:
                 # Another concurrent request already claimed the approval — idempotent success.
+                # Defensively ensure the order status is also updated in case a prior winner
+                # committed cancellation_requests='approved' but not the orders update.
+                conn.execute("""
+                    UPDATE orders
+                    SET status = 'Canceled', canceled_at = CURRENT_TIMESTAMP, cancellation_reason = ?
+                    WHERE id = ? AND status NOT IN ('Canceled', 'Cancelled')
+                """, (cancel_request['reason'], order_id))
                 conn.commit()
                 conn.close()
                 return jsonify({

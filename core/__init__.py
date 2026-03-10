@@ -224,6 +224,9 @@ def create_app(test_config=None):
     # Register context processors
     _register_context_processors(app)
 
+    # Register maintenance mode hook
+    _register_maintenance_mode(app)
+
     # Register blueprints
     _register_blueprints(app)
 
@@ -259,6 +262,76 @@ def _start_spot_scheduler(app):
         logging.getLogger(__name__).warning(
             "Could not start spot snapshot scheduler: %s", exc
         )
+
+
+def _register_maintenance_mode(app):
+    """
+    Register a before_request hook that blocks transactional actions when
+    maintenance mode is active, and a context processor that injects the
+    maintenance_mode flag into every template.
+    """
+    # Endpoints that must be blocked during maintenance (all require POST).
+    # Admin routes are always exempt — admins can still use the dashboard.
+    _BLOCKED_ENDPOINTS = frozenset([
+        # Buying
+        'checkout.checkout',
+        'buy.auto_fill_bucket_purchase',
+        'buy.direct_buy_item',
+        'buy.refresh_price_lock',
+        'buy.preview_buy',
+        'buy.replace_cart_grading',
+        'buy.readd_seller_to_cart',
+        'buy.add_to_cart',
+        # Bids
+        'bid.place_bid',
+        'bid.create_bid_unified',
+        'bid.update_bid',
+        # Listings
+        'listings.edit_listing',
+    ])
+
+    @app.context_processor
+    def inject_maintenance_mode():
+        try:
+            from services.system_settings_service import get_maintenance_mode
+            return dict(maintenance_mode=get_maintenance_mode())
+        except Exception:
+            return dict(maintenance_mode=False)
+
+    @app.before_request
+    def check_maintenance_mode():
+        from flask import request, session, jsonify, flash, redirect
+        endpoint = request.endpoint or ''
+
+        # Always allow admin routes and non-blocked endpoints through.
+        if endpoint.startswith('admin.') or endpoint not in _BLOCKED_ENDPOINTS:
+            return None
+
+        # Only POST requests to blocked endpoints are stopped.
+        if request.method != 'POST':
+            return None
+
+        try:
+            from services.system_settings_service import get_maintenance_mode
+            if not get_maintenance_mode():
+                return None
+        except Exception:
+            return None  # If we can't read the setting, don't block
+
+        # Return appropriate response based on request type.
+        is_ajax = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or (request.content_type or '').startswith('application/json')
+        )
+        if is_ajax:
+            return jsonify({
+                'success': False,
+                'error': 'maintenance',
+                'message': 'The site is currently undergoing maintenance. Please try again shortly.',
+            }), 503
+
+        flash('The site is currently undergoing maintenance. Transactions are temporarily unavailable.', 'warning')
+        return redirect(request.referrer or '/')
 
 
 def _register_context_processors(app):

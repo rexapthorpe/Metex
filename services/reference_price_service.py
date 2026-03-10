@@ -26,7 +26,7 @@ external spot API directly.
 
 import database as _db_module
 from datetime import datetime, timedelta
-from services.pricing_service import get_effective_price
+from services.pricing_service import get_effective_price, get_effective_bid_price
 
 
 def _get_conn():
@@ -142,7 +142,11 @@ def get_best_ask_at_time(conn, bucket_id, listings, as_of):
 
 def get_best_bid_at_time(conn, bucket_id, as_of):
     """
-    Return the highest bid price for a bucket from bids created at or before `as_of`.
+    Return the highest effective bid price for a bucket from bids created at or before `as_of`.
+
+    For variable (premium_to_spot) bids the effective price is spot+premium capped at
+    ceiling_price, using the spot snapshot at or before `as_of`. For static bids the
+    effective price is price_per_coin.
 
     Approximation: uses bids that are currently active (active=1) but
     were created before the target time. Bids deactivated since their
@@ -156,9 +160,10 @@ def get_best_bid_at_time(conn, bucket_id, as_of):
     Returns:
         float or None
     """
-    row = conn.execute(
+    rows = conn.execute(
         """
-        SELECT MAX(b.price_per_coin) AS max_bid
+        SELECT b.price_per_coin, b.pricing_mode, b.spot_premium, b.ceiling_price,
+               b.pricing_metal, c.metal, c.weight
         FROM bids b
         JOIN categories c ON b.category_id = c.id
         WHERE c.bucket_id = ?
@@ -166,10 +171,26 @@ def get_best_bid_at_time(conn, bucket_id, as_of):
           AND b.created_at <= ?
         """,
         (bucket_id, as_of)
-    ).fetchone()
-    if row and row['max_bid'] is not None:
-        return float(row['max_bid'])
-    return None
+    ).fetchall()
+
+    if not rows:
+        return None
+
+    max_effective = None
+    for row in rows:
+        bid = dict(row)
+        if bid.get('pricing_mode') == 'premium_to_spot':
+            metal = (bid.get('pricing_metal') or bid.get('metal', 'gold')).lower()
+            spot = get_spot_at_time(conn, metal, as_of)
+            spot_prices = {metal: spot} if spot is not None else None
+            effective = get_effective_bid_price(bid, spot_prices=spot_prices)
+        else:
+            effective = get_effective_bid_price(bid)
+
+        if effective is not None and (max_effective is None or effective > max_effective):
+            max_effective = effective
+
+    return max_effective
 
 
 def get_last_cleared_price_at_time(conn, bucket_id, as_of):

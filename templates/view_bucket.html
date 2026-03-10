@@ -4,7 +4,7 @@
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bucket.css') }}?v=v11-col-reorder"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pricing_badges.css') }}?v=1"/>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bucket_price_chart.css') }}?v=1"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bucket_price_chart.css') }}?v=7"/>
 
 <!-- Chart.js library for price history chart -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -511,6 +511,7 @@
             <strong>You can't buy your own listing.</strong> There are no other sellers for this item.
           </div>
           <form method="POST" action="{{ url_for('checkout.checkout') }}" class="action-buttons">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="bucket_id" value="{{ bucket['bucket_id'] }}">
             <button type="submit" class="btn buy-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Buy Item</button>
           </form>
@@ -519,11 +520,22 @@
           <button type="button" class="btn bid-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Make a Bid</button>
 
           <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn add-cart-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Add to Cart</button>
+          </form>
+        {% elif maintenance_mode and not is_user_admin %}
+          <!-- Maintenance mode: all transactional buttons disabled -->
+          <form class="action-buttons">
+            <button type="button" class="btn buy-btn" disabled style="opacity: 0.5; cursor: not-allowed;" title="Site is under maintenance">Buy Item</button>
+          </form>
+          <button type="button" class="btn bid-btn" disabled style="opacity: 0.5; cursor: not-allowed;" title="Site is under maintenance">Make a Bid</button>
+          <form class="action-buttons">
+            <button type="button" class="btn add-cart-btn" disabled style="opacity: 0.5; cursor: not-allowed;" title="Site is under maintenance">Add to Cart</button>
           </form>
         {% else %}
           <!-- Normal case: User can buy -->
           <form method="POST" action="{{ url_for('checkout.checkout') }}" class="action-buttons">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="bucket_id" value="{{ bucket['bucket_id'] }}">
             <input type="hidden" name="quantity" id="buyQuantityInput">
             <input type="hidden" name="third_party_grading" id="buyTPG" value="0">
@@ -541,6 +553,7 @@
           -->
 
           <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
             <input type="hidden" name="third_party_grading" id="cartTPG" value="0">
             <input type="hidden" name="grading_preference" id="cartGradingPref" value="NONE">
@@ -558,12 +571,13 @@
         type="button"
         id="outOfStockBidBtn"
         class="btn bid-btn"
-        {% if availability.get('all_listings_are_users', False) and session.get('user_id') %}
+        {% if availability.get('all_listings_are_users', False) and session.get('user_id') or (maintenance_mode and not is_user_admin) %}
           disabled
         {% else %}
           onclick="openBidModal({{ bucket['id'] }})"
         {% endif %}
-        style="{% if in_stock %}display:none{% elif availability.get('all_listings_are_users', False) and session.get('user_id') %}opacity: 0.5; cursor: not-allowed;{% endif %}"
+        style="{% if in_stock %}display:none{% elif availability.get('all_listings_are_users', False) and session.get('user_id') or (maintenance_mode and not is_user_admin) %}opacity: 0.5; cursor: not-allowed;{% endif %}"
+        {% if maintenance_mode and not is_user_admin %}title="Site is under maintenance"{% endif %}
       >
         Make a Bid
       </button>
@@ -599,40 +613,80 @@
 <!-- ================== FULL-WIDTH PRICE HISTORY SECTION ================== -->
 <section class="content-tile bucket-price-history-section">
   <div class="bucket-price-card">
-    <div class="bucket-price-header">
-      <div class="bucket-price-title">
-        <h2>Price History</h2>
-        <div class="bucket-price-display">
-          <span class="bucket-current-price" id="bucket-current-price">--</span>
-          <span class="bucket-price-change neutral" id="bucket-price-change">
-            <span id="bucket-price-change-amount">$0.00</span>
-            <span id="bucket-price-change-percent">(0.00%)</span>
-          </span>
+
+    <!-- Left column: price header + chart stacked vertically -->
+    <div class="bucket-split-view" id="bucket-split-view">
+      <div class="bucket-chart-side" id="bucket-chart-side">
+
+        <!-- Price header lives here so it's flush with the top of the tile -->
+        <div class="bucket-price-header">
+          <div class="bucket-price-title">
+            <h2>Price History</h2>
+            <div class="bucket-price-display">
+              <span class="bucket-current-price" id="bucket-current-price">--</span>
+              <span class="bucket-price-change neutral" id="bucket-price-change">
+                <span id="bucket-price-change-amount">$0.00</span>
+                <span id="bucket-price-change-percent">(0.00%)</span>
+              </span>
+            </div>
+            <div class="bucket-price-datetime" id="bucket-price-datetime"></div>
+          </div>
+          <!-- Toggle button -->
+          <button class="bucket-tx-toggle-btn" id="bucket-tx-toggle-btn" title="View transaction history">
+            <i class="fa-solid fa-list-ul"></i>
+          </button>
         </div>
-        <div class="bucket-price-datetime" id="bucket-price-datetime"></div>
+
+        <!-- Time Range Selector -->
+        <div class="bucket-time-range-selector">
+          <button class="bucket-time-btn active" data-range="1d">1D</button>
+          <button class="bucket-time-btn" data-range="1w">1W</button>
+          <button class="bucket-time-btn" data-range="1m">1M</button>
+          <button class="bucket-time-btn" data-range="3m">3M</button>
+          <button class="bucket-time-btn" data-range="1y">1Y</button>
+        </div>
+
+        <!-- Chart Container -->
+        <div class="bucket-price-chart-container" id="bucket-price-chart-container">
+          <canvas id="bucket-price-chart"></canvas>
+        </div>
+
+        <!-- Empty State -->
+        <div class="bucket-price-empty-state" id="bucket-price-empty-state">
+          <i class="fas fa-chart-line"></i>
+          <p><strong>This item has no price history.</strong></p>
+          <p>List an item to get it going!</p>
+        </div>
+
+      </div><!-- /.bucket-chart-side -->
+    </div><!-- /.bucket-split-view -->
+
+    <!-- Right column: transaction panel — direct child of card so it spans full height -->
+    <div class="bucket-tx-panel" id="bucket-tx-panel" aria-hidden="true">
+      <div class="bucket-tx-inner">
+        <div class="bucket-tx-panel-header">
+          <button class="bucket-tx-mobile-back" id="bucket-tx-mobile-back" title="Back to chart">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <span class="bucket-tx-panel-title">
+            <i class="fa-solid fa-arrow-right-arrow-left bucket-tx-panel-icon"></i>
+            Transaction History
+          </span>
+          <span class="bucket-tx-count" id="bucket-tx-count"></span>
+        </div>
+        <div class="bucket-tx-list" id="bucket-tx-list">
+          <div class="bucket-tx-loading" id="bucket-tx-loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Loading…</span>
+          </div>
+          <div class="bucket-tx-empty" id="bucket-tx-empty">
+            <i class="fas fa-receipt"></i>
+            <p>No transactions yet.</p>
+          </div>
+        </div>
       </div>
-    </div>
+    </div><!-- /.bucket-tx-panel -->
 
-    <!-- Time Range Selector -->
-    <div class="bucket-time-range-selector">
-      <button class="bucket-time-btn active" data-range="1d">1D</button>
-      <button class="bucket-time-btn" data-range="1w">1W</button>
-      <button class="bucket-time-btn" data-range="1m">1M</button>
-      <button class="bucket-time-btn" data-range="3m">3M</button>
-      <button class="bucket-time-btn" data-range="1y">1Y</button>
-    </div>
-
-    <!-- Chart Container -->
-    <div class="bucket-price-chart-container" id="bucket-price-chart-container">
-      <canvas id="bucket-price-chart"></canvas>
-    </div>
-
-    <!-- Empty State -->
-    <div class="bucket-price-empty-state" id="bucket-price-empty-state">
-      <i class="fas fa-chart-line"></i>
-      <p><strong>This item has no price history.</strong></p>
-      <p>List an item to get it going!</p>
-    </div>
   </div>
 </section>
 
@@ -734,6 +788,7 @@
   {% endif %}
 
   <form method="POST" action="{{ url_for('bid.accept_bid', bucket_id=bucket['id']) }}" id="accept-bids-form" class="bids-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="bids-header">
       <div class="bids-header-left">
         <h3 class="bids-panel-heading">All Open Bids</h3>
@@ -746,8 +801,9 @@
             <i class="fa-solid fa-check"></i> Accept Selected
           </button>
         {% endif %}
-        {% if availability.get('all_listings_are_users', False) and session.get('user_id') %}
-        <button type="button" class="btn header-bid-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+        {% if availability.get('all_listings_are_users', False) and session.get('user_id') or (maintenance_mode and not is_user_admin) %}
+        <button type="button" class="btn header-bid-btn" disabled style="opacity: 0.5; cursor: not-allowed;"
+          {% if maintenance_mode and not is_user_admin %}title="Site is under maintenance"{% endif %}>
           + Create a Bid
         </button>
         {% else %}
@@ -1117,7 +1173,7 @@
 <script src="{{ url_for('static', filename='js/modals/accept_bid_modals.js') }}?v=3"></script>
 <script src="{{ url_for('static', filename='js/modals/buy_item_modal.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/modals/close_bid_buy_page_confirmation_modal.js') }}"></script>
-<script src="{{ url_for('static', filename='js/bucket_price_chart.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/bucket_price_chart.js') }}?v=12"></script>
 <script src="{{ url_for('static', filename='js/modals/own_listings_skipped_modal.js') }}"></script>
 <script src="{{ url_for('static', filename='js/add_to_cart_ajax.js') }}"></script>
 <script src="{{ url_for('static', filename='js/modals/address_modal.js') }}"></script>
