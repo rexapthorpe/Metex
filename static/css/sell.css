@@ -151,6 +151,8 @@
   position: absolute;
   opacity: 0;
   pointer-events: none;
+  width: 0;
+  height: 0;
 }
 
 .mode-card {
@@ -1194,6 +1196,12 @@ body.dark-mode .sidebar-add-item-btn:disabled {
     gap: 1rem;
   }
 
+  /* Prevent grid blowout: all grid items must be able to shrink below content size */
+  .sell-form .input-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .sell-form .input-grid {
     grid-template-columns: 1fr;
   }
@@ -1206,9 +1214,32 @@ body.dark-mode .sidebar-add-item-btn:disabled {
     min-height: auto;
   }
 
+  /* Photo row containers (inline flex wrappers) must not exceed parent */
+  #standardPhotoContainer,
+  #multiPhotoContainer,
+  #coverPhotoGroup {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* Photo boxes: shrink to prevent row overflow. !important needed to
+     override the inline style="width: 140px / 200px" on each element. */
+  #standardPhotoBox1, #standardPhotoBox2, #standardPhotoBox3,
+  #setPhotoBox1, #setPhotoBox2, #setPhotoBox3 {
+    width: 90px !important;
+    height: 90px !important;
+  }
+
+  #coverPhotoUploadBox {
+    width: 140px !important;
+    height: 140px !important;
+  }
+
+  /* Edition numbering inputs: override inline width: 100px */
   #editionNumberingGroup input[type="number"] {
     flex: 1;
-    width: auto;
+    width: auto !important;
     min-width: 0;
   }
 
@@ -1262,10 +1293,16 @@ body.dark-mode .sidebar-add-item-btn:disabled {
 
 @media (max-width: 360px) {
   .sell-page-wrapper {
-    padding: 0.25rem;
+    padding: 0.5rem 0.25rem;
   }
 
   .pm-spot-container {
     padding: 14px;
+  }
+
+  #standardPhotoBox1, #standardPhotoBox2, #standardPhotoBox3,
+  #setPhotoBox1, #setPhotoBox2, #setPhotoBox3 {
+    width: 76px !important;
+    height: 76px !important;
   }
 }

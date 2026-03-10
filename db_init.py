@@ -2,8 +2,14 @@
 Database initialization and schema checks
 Ensures required columns exist before the app starts
 """
-import sqlite3
-from database import get_db_connection
+from database import get_db_connection, get_table_columns, IS_POSTGRES
+
+
+def _ddl(sql):
+    """Translate SQLite-specific DDL to PostgreSQL when IS_POSTGRES is True."""
+    if IS_POSTGRES:
+        sql = sql.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY')
+    return sql
 
 
 def ensure_admin_column():
@@ -18,9 +24,7 @@ def ensure_admin_column():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Check if is_admin column exists
-        cursor.execute("PRAGMA table_info(users)")
-        columns = [column[1] for column in cursor.fetchall()]
+        columns = get_table_columns(conn, 'users')
 
         if 'is_admin' not in columns:
             print('\n⚠️  is_admin column missing - adding it now...')
@@ -31,7 +35,7 @@ def ensure_admin_column():
             # Create index for performance
             try:
                 cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin)')
-            except sqlite3.OperationalError:
+            except Exception:
                 # Index might already exist, ignore
                 pass
 
@@ -54,7 +58,7 @@ def ensure_password_reset_tokens_table():
     """
     try:
         conn = get_db_connection()
-        conn.execute('''
+        conn.execute(_ddl('''
             CREATE TABLE IF NOT EXISTS password_reset_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -65,7 +69,7 @@ def ensure_password_reset_tokens_table():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
-        ''')
+        '''))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -108,9 +112,7 @@ def ensure_order_items_audit_columns():
     """
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(order_items)")
-        existing = {col[1] for col in cursor.fetchall()}
+        existing = get_table_columns(conn, 'order_items')
 
         new_cols = [
             ("spot_as_of_used",   "TEXT"),
@@ -119,6 +121,7 @@ def ensure_order_items_audit_columns():
             ("weight_used",       "REAL"),
         ]
         added = []
+        cursor = conn.cursor()
         for col_name, col_type in new_cols:
             if col_name not in existing:
                 cursor.execute(
@@ -139,7 +142,7 @@ def ensure_security_audit_log_table():
     """Ensure the security_audit_log table exists with all required columns."""
     try:
         conn = get_db_connection()
-        conn.execute('''
+        conn.execute(_ddl('''
             CREATE TABLE IF NOT EXISTS security_audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
@@ -155,14 +158,13 @@ def ensure_security_audit_log_table():
                 severity TEXT DEFAULT 'INFO',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
+        '''))
         conn.commit()
 
         # Add any columns that may be missing from pre-migration tables
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(security_audit_log)")
-        existing = {col[1] for col in cursor.fetchall()}
+        existing = get_table_columns(conn, 'security_audit_log')
         added = []
+        cursor = conn.cursor()
         for col_name, col_def in [
             ('target_user_id', 'INTEGER'),
             ('target_resource_type', 'TEXT'),
@@ -187,7 +189,7 @@ def ensure_payment_methods_table():
     """Ensure the payment_methods table exists."""
     try:
         conn = get_db_connection()
-        conn.execute('''
+        conn.execute(_ddl('''
             CREATE TABLE IF NOT EXISTS payment_methods (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -200,7 +202,7 @@ def ensure_payment_methods_table():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
-        ''')
+        '''))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -214,10 +216,9 @@ def ensure_cancellation_columns():
     """
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(orders)")
-        existing = {col[1] for col in cursor.fetchall()}
+        existing = get_table_columns(conn, 'orders')
         added = []
+        cursor = conn.cursor()
         for col_name, col_def in [
             ('canceled_at', 'TIMESTAMP'),
             ('cancellation_reason', 'TEXT'),
@@ -240,10 +241,9 @@ def ensure_user_status_columns():
     """
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(users)")
-        existing = {col[1] for col in cursor.fetchall()}
+        existing = get_table_columns(conn, 'users')
         added = []
+        cursor = conn.cursor()
         for col_name, col_def in [
             ('is_banned', 'INTEGER DEFAULT 0'),
             ('is_frozen', 'INTEGER DEFAULT 0'),
@@ -267,10 +267,9 @@ def ensure_listing_photo_columns():
     """
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(listings)")
-        existing = {col[1] for col in cursor.fetchall()}
+        existing = get_table_columns(conn, 'listings')
         added = []
+        cursor = conn.cursor()
         for col_name, col_def in [
             ('photo_filename', 'TEXT'),
             ('listing_title', 'TEXT'),

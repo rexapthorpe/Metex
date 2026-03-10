@@ -445,8 +445,9 @@ def exclude_holding(user_id, order_item_id):
 
     try:
         conn.execute("""
-            INSERT OR IGNORE INTO portfolio_exclusions (user_id, order_item_id)
+            INSERT INTO portfolio_exclusions (user_id, order_item_id)
             VALUES (?, ?)
+            ON CONFLICT (user_id, order_item_id) DO NOTHING
         """, (user_id, order_item_id))
 
         conn.commit()

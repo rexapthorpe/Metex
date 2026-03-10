@@ -85,12 +85,21 @@ def update_preferences():
         inapp_messages = 1 if data.get('inapp_messages') else 0
         inapp_price_alerts = 1 if data.get('inapp_price_alerts') else 0
 
-        # Use INSERT OR REPLACE to handle both insert and update
         conn.execute('''
-            INSERT OR REPLACE INTO user_preferences
+            INSERT INTO user_preferences
             (user_id, email_listing_sold, email_bid_filled, email_price_alerts, email_newsletter,
              inapp_listing_sold, inapp_bid_filled, inapp_messages, inapp_price_alerts, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id) DO UPDATE SET
+                email_listing_sold = EXCLUDED.email_listing_sold,
+                email_bid_filled = EXCLUDED.email_bid_filled,
+                email_price_alerts = EXCLUDED.email_price_alerts,
+                email_newsletter = EXCLUDED.email_newsletter,
+                inapp_listing_sold = EXCLUDED.inapp_listing_sold,
+                inapp_bid_filled = EXCLUDED.inapp_bid_filled,
+                inapp_messages = EXCLUDED.inapp_messages,
+                inapp_price_alerts = EXCLUDED.inapp_price_alerts,
+                updated_at = EXCLUDED.updated_at
         ''', (user_id, email_listing_sold, email_bid_filled, email_price_alerts, email_newsletter,
               inapp_listing_sold, inapp_bid_filled, inapp_messages, inapp_price_alerts))
 

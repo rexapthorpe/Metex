@@ -8,10 +8,25 @@ import database
 
 MARKETPLACE_FEE_RATE = 0.05
 
+# Maps SQLite strftime format strings to PostgreSQL TO_CHAR format strings.
+_PG_DATE_FMT = {
+    '%Y-%m-%d': 'YYYY-MM-DD',
+    '%Y-W%W':   'IYYY-"W"IW',
+    '%Y-%m':    'YYYY-MM',
+}
+
 
 def get_db_connection():
     """Get database connection - wrapper for late binding in tests"""
     return database.get_db_connection()
+
+
+def _period_expr(date_format, col='o.created_at'):
+    """Return a SQL date-grouping expression for both SQLite and PostgreSQL."""
+    if database.IS_POSTGRES:
+        pg_fmt = _PG_DATE_FMT.get(date_format, 'YYYY-MM-DD')
+        return f"TO_CHAR({col}, '{pg_fmt}')"
+    return f"strftime('{date_format}', {col})"
 
 
 def get_timeseries(start_date, end_date, group_by='day', metric='volume'):
@@ -41,38 +56,39 @@ def get_timeseries(start_date, end_date, group_by='day', metric='volume'):
         date_format = '%Y-%m-%d'
 
     # Query based on metric
+    period = _period_expr(date_format)
     if metric == 'volume':
         query = f"""
             SELECT
-                strftime('{date_format}', o.created_at) as period,
+                {period} as period,
                 COALESCE(SUM(o.total_price), 0) as value
             FROM orders o
             WHERE o.status IN ('Delivered', 'Complete')
             AND o.created_at BETWEEN ? AND ?
-            GROUP BY period
-            ORDER BY period
+            GROUP BY 1
+            ORDER BY 1
         """
     elif metric == 'revenue':
         query = f"""
             SELECT
-                strftime('{date_format}', o.created_at) as period,
+                {period} as period,
                 COALESCE(SUM(o.total_price) * {MARKETPLACE_FEE_RATE}, 0) as value
             FROM orders o
             WHERE o.status IN ('Delivered', 'Complete')
             AND o.created_at BETWEEN ? AND ?
-            GROUP BY period
-            ORDER BY period
+            GROUP BY 1
+            ORDER BY 1
         """
     else:  # trades
         query = f"""
             SELECT
-                strftime('{date_format}', o.created_at) as period,
+                {period} as period,
                 COUNT(*) as value
             FROM orders o
             WHERE o.status IN ('Delivered', 'Complete')
             AND o.created_at BETWEEN ? AND ?
-            GROUP BY period
-            ORDER BY period
+            GROUP BY 1
+            ORDER BY 1
         """
 
     cursor.execute(query, [start_date, end_date])
@@ -101,9 +117,10 @@ def get_timeseries_by_category(start_date, end_date, group_by='day'):
     else:
         date_format = '%Y-%m-%d'
 
+    period = _period_expr(date_format)
     query = f"""
         SELECT
-            strftime('{date_format}', o.created_at) as period,
+            {period} as period,
             c.product_type,
             COALESCE(SUM(oi.price_each * oi.quantity), 0) as value
         FROM orders o
@@ -112,8 +129,8 @@ def get_timeseries_by_category(start_date, end_date, group_by='day'):
         JOIN categories c ON l.category_id = c.id
         WHERE o.status IN ('Delivered', 'Complete')
         AND o.created_at BETWEEN ? AND ?
-        GROUP BY period, c.product_type
-        ORDER BY period, c.product_type
+        GROUP BY 1, c.product_type
+        ORDER BY 1, c.product_type
     """
 
     cursor.execute(query, [start_date, end_date])

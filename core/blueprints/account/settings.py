@@ -85,9 +85,14 @@ def update_notifications():
         # Create or update notification preferences
         # You may need to create a notifications table first
         conn.execute('''
-            INSERT OR REPLACE INTO notification_preferences
+            INSERT INTO notification_preferences
             (user_id, email_orders, email_bids, email_messages, email_promotions)
             VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (user_id) DO UPDATE SET
+                email_orders = EXCLUDED.email_orders,
+                email_bids = EXCLUDED.email_bids,
+                email_messages = EXCLUDED.email_messages,
+                email_promotions = EXCLUDED.email_promotions
         ''', (
             user_id,
             1 if request.form.get('email_orders') else 0,

@@ -86,7 +86,18 @@
       "Bash(/Users/rexapthorpe/Library/Python/3.12/bin/pytest:*)",
       "Bash(ls venv*:*)",
       "Bash(done)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(sed -n '235,245p' /Users/rexapthorpe/Desktop/Metex/static/css/sell.css\nsed -n '744,752p' /Users/rexapthorpe/Desktop/Metex/static/css/sell.css\nsed -n '835,843p' /Users/rexapthorpe/Desktop/Metex/static/css/sell.css)",
+      "Bash(PYTHONPATH=/Users/rexapthorpe/Desktop/Metex /Users/rexapthorpe/Desktop/Metex/venv/bin/python3:*)",
+      "Bash(kill %1:*)",
+      "Bash(for file in /Users/rexapthorpe/Desktop/Metex/core/blueprints/sell/routes.py /Users/rexapthorpe/Desktop/Metex/core/blueprints/messages/routes.py /Users/rexapthorpe/Desktop/Metex/services/notification_service.py /Users/rexapthorpe/Desktop/Metex/services/spot_snapshot_service.py /Users/rexapthorpe/Desktop/Metex/services/portfolio_service.py /Users/rexapthorpe/Desktop/Metex/services/system_settings_service.py /Users/rexapthorpe/Desktop/Metex/services/spot_price_service.py)",
+      "Bash(do)",
+      "Bash(echo \"=== $file ===\")",
+      "Read(//Users/rexapthorpe/Desktop/Metex/**)",
+      "Bash(for file in /Users/rexapthorpe/Desktop/Metex/routes/account_routes.py /Users/rexapthorpe/Desktop/Metex/routes/cancellation_routes.py /Users/rexapthorpe/Desktop/Metex/core/blueprints/account/settings.py /Users/rexapthorpe/Desktop/Metex/core/blueprints/account/preferences_api.py /Users/rexapthorpe/Desktop/Metex/core/blueprints/admin/users.py)",
+      "Bash(DATABASE_URL=\"postgresql://fake_user:fake_pass@localhost/fake_db\" python:*)",
+      "Bash(__NEW_LINE_ea8d00f84ea4b226__ for:*)",
+      "Bash(do echo:*)"
     ],
     "deny": [],
     "ask": []

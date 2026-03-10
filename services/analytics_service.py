@@ -3,7 +3,25 @@ Analytics service for admin dashboard
 Provides data aggregation and metrics calculation for marketplace analytics
 """
 from datetime import datetime, timedelta
-from database import get_db_connection
+from database import get_db_connection, IS_POSTGRES
+
+# Maps SQLite strftime format strings to PostgreSQL TO_CHAR format strings.
+_PG_DATE_FMT = {
+    '%Y-%m-%d': 'YYYY-MM-DD',
+    '%Y-W%W':   'IYYY-"W"IW',
+    '%Y-%m':    'YYYY-MM',
+}
+
+
+def _period_expr(date_format, col='o.created_at'):
+    """Return a SQL expression that groups timestamps by the given period format.
+
+    Works with both SQLite (strftime) and PostgreSQL (TO_CHAR).
+    """
+    if IS_POSTGRES:
+        pg_fmt = _PG_DATE_FMT.get(date_format, 'YYYY-MM-DD')
+        return f"TO_CHAR({col}, '{pg_fmt}')"
+    return f"strftime('{date_format}', {col})"
 
 
 class AnalyticsService:
@@ -166,38 +184,39 @@ class AnalyticsService:
             date_format = '%Y-%m-%d'
 
         # Query based on metric
+        period = _period_expr(date_format)
         if metric == 'volume':
             query = f"""
                 SELECT
-                    strftime('{date_format}', o.created_at) as period,
+                    {period} as period,
                     COALESCE(SUM(o.total_price), 0) as value
                 FROM orders o
                 WHERE o.status IN ('Delivered', 'Complete')
                 AND o.created_at BETWEEN ? AND ?
-                GROUP BY period
-                ORDER BY period
+                GROUP BY 1
+                ORDER BY 1
             """
         elif metric == 'revenue':
             query = f"""
                 SELECT
-                    strftime('{date_format}', o.created_at) as period,
+                    {period} as period,
                     COALESCE(SUM(o.total_price) * {AnalyticsService.MARKETPLACE_FEE_RATE}, 0) as value
                 FROM orders o
                 WHERE o.status IN ('Delivered', 'Complete')
                 AND o.created_at BETWEEN ? AND ?
-                GROUP BY period
-                ORDER BY period
+                GROUP BY 1
+                ORDER BY 1
             """
         else:  # trades
             query = f"""
                 SELECT
-                    strftime('{date_format}', o.created_at) as period,
+                    {period} as period,
                     COUNT(*) as value
                 FROM orders o
                 WHERE o.status IN ('Delivered', 'Complete')
                 AND o.created_at BETWEEN ? AND ?
-                GROUP BY period
-                ORDER BY period
+                GROUP BY 1
+                ORDER BY 1
             """
 
         cursor.execute(query, [start_date, end_date])
@@ -226,9 +245,10 @@ class AnalyticsService:
         else:
             date_format = '%Y-%m-%d'
 
+        period = _period_expr(date_format)
         query = f"""
             SELECT
-                strftime('{date_format}', o.created_at) as period,
+                {period} as period,
                 c.product_type,
                 COALESCE(SUM(oi.price_each * oi.quantity), 0) as value
             FROM orders o
@@ -237,8 +257,8 @@ class AnalyticsService:
             JOIN categories c ON l.category_id = c.id
             WHERE o.status IN ('Delivered', 'Complete')
             AND o.created_at BETWEEN ? AND ?
-            GROUP BY period, c.product_type
-            ORDER BY period, c.product_type
+            GROUP BY 1, c.product_type
+            ORDER BY 1, c.product_type
         """
 
         cursor.execute(query, [start_date, end_date])

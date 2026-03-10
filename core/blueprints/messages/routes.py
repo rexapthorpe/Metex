@@ -534,8 +534,10 @@ def mark_admin_message_read(admin_id=None):
             return jsonify({'error': 'No admin available'}), 404
 
         conn.execute("""
-            INSERT OR REPLACE INTO message_reads (user_id, participant_id, order_id, last_read_ts)
+            INSERT INTO message_reads (user_id, participant_id, order_id, last_read_ts)
             VALUES (?, ?, 0, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, participant_id, order_id) DO UPDATE SET
+                last_read_ts = CURRENT_TIMESTAMP
         """, (user_id, actual_admin_id))
         conn.commit()
 

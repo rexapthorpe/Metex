@@ -15,9 +15,15 @@ Usage:
 The script will print a detailed log of all changes made.
 """
 
-import sqlite3
 import sys
-from database import get_db_connection
+from database import get_db_connection, get_table_columns, IS_POSTGRES
+
+
+def _ddl(sql):
+    """Translate SQLite-specific DDL to PostgreSQL when running against PostgreSQL."""
+    if IS_POSTGRES:
+        sql = sql.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY')
+    return sql
 
 
 class SchemaManager:
@@ -44,29 +50,46 @@ class SchemaManager:
         self.errors.append(message)
 
     def column_exists(self, table_name, column_name):
-        """Check if a column exists in a table"""
+        """Check if a column exists in a table (works for both SQLite and PostgreSQL)."""
         try:
-            self.cursor.execute(f"PRAGMA table_info({table_name})")
-            columns = [row[1] for row in self.cursor.fetchall()]
-            return column_name in columns
-        except sqlite3.OperationalError:
+            cols = get_table_columns(self.conn, table_name)
+            return column_name in cols
+        except Exception:
             return False
 
     def table_exists(self, table_name):
-        """Check if a table exists"""
-        self.cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-            (table_name,)
-        )
-        return self.cursor.fetchone() is not None
+        """Check if a table exists (works for both SQLite and PostgreSQL)."""
+        try:
+            if IS_POSTGRES:
+                row = self.cursor.execute(
+                    "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename=%s",
+                    (table_name,)
+                ).fetchone()
+            else:
+                row = self.cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    (table_name,)
+                ).fetchone()
+            return row is not None
+        except Exception:
+            return False
 
     def index_exists(self, index_name):
-        """Check if an index exists"""
-        self.cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='index' AND name=?",
-            (index_name,)
-        )
-        return self.cursor.fetchone() is not None
+        """Check if an index exists (works for both SQLite and PostgreSQL)."""
+        try:
+            if IS_POSTGRES:
+                row = self.cursor.execute(
+                    "SELECT indexname FROM pg_indexes WHERE schemaname='public' AND indexname=%s",
+                    (index_name,)
+                ).fetchone()
+            else:
+                row = self.cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index' AND name=?",
+                    (index_name,)
+                ).fetchone()
+            return row is not None
+        except Exception:
+            return False
 
     def add_column(self, table, column, column_def):
         """Add a column to a table if it doesn't exist"""
@@ -75,7 +98,7 @@ class SchemaManager:
                 self.cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_def}")
                 self.log_change(f"Added column '{column}' to {table}")
                 return True
-            except sqlite3.OperationalError as e:
+            except Exception as e:
                 self.log_error(f"Failed to add column '{column}' to {table}: {e}")
                 return False
         else:
@@ -89,7 +112,7 @@ class SchemaManager:
                 self.cursor.execute(f"CREATE INDEX {index_name} ON {table}({columns})")
                 self.log_change(f"Created index '{index_name}'")
                 return True
-            except sqlite3.OperationalError as e:
+            except Exception as e:
                 self.log_error(f"Failed to create index '{index_name}': {e}")
                 return False
         else:
@@ -495,6 +518,7 @@ class SchemaManager:
             user_id INTEGER NOT NULL,
             name TEXT NOT NULL,
             street TEXT NOT NULL,
+            street_line2 TEXT,
             city TEXT NOT NULL,
             state TEXT NOT NULL,
             zip_code TEXT NOT NULL,
@@ -509,6 +533,9 @@ class SchemaManager:
             self.log_change("Created addresses table")
         else:
             self.log_skip("Table 'addresses' already exists")
+
+        # Ensure street_line2 exists on pre-existing databases
+        self.add_column('addresses', 'street_line2', 'TEXT')
 
         # Create index
         self.create_index('idx_addresses_user_id', 'addresses', 'user_id')
@@ -632,11 +659,12 @@ class SchemaManager:
 
             # Seed initial spot prices
             self.cursor.execute("""
-                INSERT OR IGNORE INTO spot_prices (metal, price_usd_per_oz, source) VALUES
+                INSERT INTO spot_prices (metal, price_usd_per_oz, source) VALUES
                     ('gold', 2000.00, 'initial_seed'),
                     ('silver', 25.00, 'initial_seed'),
                     ('platinum', 950.00, 'initial_seed'),
                     ('palladium', 1000.00, 'initial_seed')
+                ON CONFLICT (metal) DO NOTHING
             """)
             self.log_change("Seeded initial spot prices (will be updated by API)")
         else:
@@ -1038,6 +1066,297 @@ class SchemaManager:
         else:
             self.log_skip("Table 'notification_settings' already exists")
 
+    def create_notifications_table(self):
+        """Create the notifications table (migration 004)"""
+        print("\n[30/38] Creating NOTIFICATIONS table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            is_read INTEGER DEFAULT 0,
+            related_order_id INTEGER,
+            related_bid_id INTEGER,
+            related_listing_id INTEGER,
+            metadata TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            read_at TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (related_order_id) REFERENCES orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (related_bid_id) REFERENCES bids(id) ON DELETE CASCADE,
+            FOREIGN KEY (related_listing_id) REFERENCES listings(id) ON DELETE CASCADE
+        )
+        """
+
+        if not self.table_exists('notifications'):
+            self.cursor.execute(sql)
+            self.log_change("Created notifications table")
+        else:
+            self.log_skip("Table 'notifications' already exists")
+
+        self.create_index('idx_notifications_user_id', 'notifications', 'user_id')
+        self.create_index('idx_notifications_user_read', 'notifications', 'user_id, is_read')
+        self.create_index('idx_notifications_created_at', 'notifications', 'created_at DESC')
+
+    def create_failed_login_attempts_table(self):
+        """Create the failed_login_attempts table (migration 024)"""
+        print("\n[31/38] Creating FAILED_LOGIN_ATTEMPTS table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS failed_login_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip_address TEXT NOT NULL,
+            username TEXT NOT NULL,
+            attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+
+        if not self.table_exists('failed_login_attempts'):
+            self.cursor.execute(sql)
+            self.log_change("Created failed_login_attempts table")
+        else:
+            self.log_skip("Table 'failed_login_attempts' already exists")
+
+        self.create_index('idx_failed_logins_ip_time', 'failed_login_attempts', 'ip_address, attempted_at')
+        self.create_index('idx_failed_logins_username_time', 'failed_login_attempts', 'username, attempted_at')
+
+    def create_orders_ledger_table(self):
+        """Create the orders_ledger table (migration 021)"""
+        print("\n[32/38] Creating ORDERS_LEDGER table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS orders_ledger (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER UNIQUE NOT NULL,
+            buyer_id INTEGER NOT NULL,
+            order_status TEXT NOT NULL DEFAULT 'CHECKOUT_INITIATED' CHECK(order_status IN (
+                'CHECKOUT_INITIATED', 'PAYMENT_PENDING', 'PAID_IN_ESCROW', 'UNDER_REVIEW',
+                'AWAITING_SHIPMENT', 'PARTIALLY_SHIPPED', 'SHIPPED', 'COMPLETED',
+                'CANCELLED', 'REFUNDED'
+            )),
+            payment_method TEXT,
+            gross_amount REAL NOT NULL,
+            platform_fee_amount REAL NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """
+
+        if not self.table_exists('orders_ledger'):
+            self.cursor.execute(sql)
+            self.log_change("Created orders_ledger table")
+        else:
+            self.log_skip("Table 'orders_ledger' already exists")
+
+        self.create_index('idx_orders_ledger_order_id', 'orders_ledger', 'order_id')
+        self.create_index('idx_orders_ledger_buyer_id', 'orders_ledger', 'buyer_id')
+        self.create_index('idx_orders_ledger_status', 'orders_ledger', 'order_status')
+        self.create_index('idx_orders_ledger_created_at', 'orders_ledger', 'created_at')
+
+    def create_order_items_ledger_table(self):
+        """Create the order_items_ledger table (migration 021)"""
+        print("\n[33/38] Creating ORDER_ITEMS_LEDGER table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS order_items_ledger (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_ledger_id INTEGER NOT NULL,
+            order_id INTEGER NOT NULL,
+            seller_id INTEGER NOT NULL,
+            listing_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL,
+            unit_price REAL NOT NULL,
+            gross_amount REAL NOT NULL,
+            fee_type TEXT NOT NULL DEFAULT 'percent' CHECK(fee_type IN ('percent', 'flat')),
+            fee_value REAL NOT NULL DEFAULT 0,
+            fee_amount REAL NOT NULL DEFAULT 0,
+            seller_net_amount REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (order_ledger_id) REFERENCES orders_ledger(id) ON DELETE CASCADE,
+            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
+        )
+        """
+
+        if not self.table_exists('order_items_ledger'):
+            self.cursor.execute(sql)
+            self.log_change("Created order_items_ledger table")
+        else:
+            self.log_skip("Table 'order_items_ledger' already exists")
+
+        self.create_index('idx_order_items_ledger_order_ledger_id', 'order_items_ledger', 'order_ledger_id')
+        self.create_index('idx_order_items_ledger_order_id', 'order_items_ledger', 'order_id')
+        self.create_index('idx_order_items_ledger_seller_id', 'order_items_ledger', 'seller_id')
+        self.create_index('idx_order_items_ledger_listing_id', 'order_items_ledger', 'listing_id')
+
+    def create_order_payouts_table(self):
+        """Create the order_payouts table (migration 021)"""
+        print("\n[34/38] Creating ORDER_PAYOUTS table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS order_payouts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_ledger_id INTEGER NOT NULL,
+            order_id INTEGER NOT NULL,
+            seller_id INTEGER NOT NULL,
+            payout_status TEXT NOT NULL DEFAULT 'PAYOUT_NOT_READY' CHECK(payout_status IN (
+                'PAYOUT_NOT_READY', 'PAYOUT_READY', 'PAYOUT_ON_HOLD', 'PAYOUT_SCHEDULED',
+                'PAYOUT_IN_PROGRESS', 'PAID_OUT', 'PAYOUT_CANCELLED'
+            )),
+            seller_gross_amount REAL NOT NULL,
+            fee_amount REAL NOT NULL DEFAULT 0,
+            seller_net_amount REAL NOT NULL,
+            scheduled_for TIMESTAMP,
+            provider_transfer_id TEXT,
+            provider_payout_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (order_ledger_id) REFERENCES orders_ledger(id) ON DELETE CASCADE,
+            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(order_ledger_id, seller_id)
+        )
+        """
+
+        if not self.table_exists('order_payouts'):
+            self.cursor.execute(sql)
+            self.log_change("Created order_payouts table")
+        else:
+            self.log_skip("Table 'order_payouts' already exists")
+
+        self.create_index('idx_order_payouts_order_ledger_id', 'order_payouts', 'order_ledger_id')
+        self.create_index('idx_order_payouts_order_id', 'order_payouts', 'order_id')
+        self.create_index('idx_order_payouts_seller_id', 'order_payouts', 'seller_id')
+        self.create_index('idx_order_payouts_status', 'order_payouts', 'payout_status')
+        self.create_index('idx_order_payouts_scheduled', 'order_payouts', 'scheduled_for')
+
+    def create_order_events_table(self):
+        """Create the order_events audit table (migration 021)"""
+        print("\n[35/38] Creating ORDER_EVENTS table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS order_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            event_type TEXT NOT NULL,
+            actor_type TEXT NOT NULL CHECK(actor_type IN ('system', 'admin', 'buyer', 'seller', 'payment_provider')),
+            actor_id INTEGER,
+            payload_json TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+        )
+        """
+
+        if not self.table_exists('order_events'):
+            self.cursor.execute(sql)
+            self.log_change("Created order_events table")
+        else:
+            self.log_skip("Table 'order_events' already exists")
+
+        self.create_index('idx_order_events_order_id', 'order_events', 'order_id')
+        self.create_index('idx_order_events_type', 'order_events', 'event_type')
+        self.create_index('idx_order_events_created_at', 'order_events', 'created_at')
+        self.create_index('idx_order_events_order_created', 'order_events', 'order_id, created_at')
+
+    def create_fee_config_table(self):
+        """Create the fee_config table and seed default row (migration 021)"""
+        print("\n[36/38] Creating FEE_CONFIG table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS fee_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            config_key TEXT UNIQUE NOT NULL,
+            fee_type TEXT NOT NULL DEFAULT 'percent' CHECK(fee_type IN ('percent', 'flat')),
+            fee_value REAL NOT NULL DEFAULT 0,
+            description TEXT,
+            active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+
+        if not self.table_exists('fee_config'):
+            self.cursor.execute(sql)
+            self.log_change("Created fee_config table")
+        else:
+            self.log_skip("Table 'fee_config' already exists")
+
+        # Seed default platform fee row (idempotent — skip if already present)
+        try:
+            if IS_POSTGRES:
+                self.cursor.execute(
+                    "INSERT INTO fee_config (config_key, fee_type, fee_value, description) "
+                    "VALUES (%s, %s, %s, %s) ON CONFLICT (config_key) DO NOTHING",
+                    ('default_platform_fee', 'percent', 2.5,
+                     'Default platform fee applied to all transactions')
+                )
+            else:
+                self.cursor.execute(
+                    "INSERT OR IGNORE INTO fee_config (config_key, fee_type, fee_value, description) "
+                    "VALUES (?, ?, ?, ?)",
+                    ('default_platform_fee', 'percent', 2.5,
+                     'Default platform fee applied to all transactions')
+                )
+            self.log_change("Ensured default_platform_fee row in fee_config")
+        except Exception as e:
+            self.log_error(f"Failed to seed default fee_config row: {e}")
+
+    def create_bucket_fee_events_table(self):
+        """Create the bucket_fee_events audit table (migration 022)"""
+        print("\n[37/38] Creating BUCKET_FEE_EVENTS table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS bucket_fee_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bucket_id INTEGER NOT NULL,
+            old_fee_type TEXT,
+            old_fee_value REAL,
+            new_fee_type TEXT NOT NULL,
+            new_fee_value REAL NOT NULL,
+            admin_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (admin_id) REFERENCES users(id)
+        )
+        """
+
+        if not self.table_exists('bucket_fee_events'):
+            self.cursor.execute(sql)
+            self.log_change("Created bucket_fee_events table")
+        else:
+            self.log_skip("Table 'bucket_fee_events' already exists")
+
+        self.create_index('idx_bucket_fee_events_bucket_id', 'bucket_fee_events', 'bucket_id')
+
+    def create_listing_set_item_photos_table(self):
+        """Create the listing_set_item_photos table for multi-photo set items"""
+        print("\n[38/38] Creating LISTING_SET_ITEM_PHOTOS table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS listing_set_item_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            set_item_id INTEGER NOT NULL,
+            file_path TEXT NOT NULL,
+            position_index INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (set_item_id) REFERENCES listing_set_items(id) ON DELETE CASCADE
+        )
+        """
+
+        if not self.table_exists('listing_set_item_photos'):
+            self.cursor.execute(sql)
+            self.log_change("Created listing_set_item_photos table")
+        else:
+            self.log_skip("Table 'listing_set_item_photos' already exists")
+
+        self.create_index('idx_set_item_photos_set_item', 'listing_set_item_photos', 'set_item_id')
+        self.create_index('idx_set_item_photos_position', 'listing_set_item_photos', 'set_item_id, position_index')
+
     def run(self):
         """Run the complete schema creation/update process"""
         print("=" * 70)
@@ -1081,6 +1400,15 @@ class SchemaManager:
             self.create_report_attachments_table()
             self.create_spot_price_snapshots_table()
             self.create_notification_settings_table()
+            self.create_notifications_table()
+            self.create_failed_login_attempts_table()
+            self.create_orders_ledger_table()
+            self.create_order_items_ledger_table()
+            self.create_order_payouts_table()
+            self.create_order_events_table()
+            self.create_fee_config_table()
+            self.create_bucket_fee_events_table()
+            self.create_listing_set_item_photos_table()
 
             # Add cancellation columns to orders table (idempotent — also in create_orders_table)
             self.add_column('orders', 'canceled_at', 'TIMESTAMP')

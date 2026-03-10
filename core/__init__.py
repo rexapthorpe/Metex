@@ -11,10 +11,10 @@ IMPORTANT: This factory must produce an app that behaves IDENTICALLY to the
 original app.py. No behavior changes are permitted during refactoring.
 """
 import os
-import sqlite3
 import click
 from flask import Flask, redirect, url_for, request
 from flask.cli import with_appcontext
+from database import get_db_connection, IS_POSTGRES
 
 
 def create_app(test_config=None):
@@ -629,11 +629,12 @@ def _register_cli_commands(app):
                 return
 
         try:
-            conn = sqlite3.connect('data/database.db')
+            conn = get_db_connection()
             cursor = conn.cursor()
 
-            # Disable foreign key constraints temporarily for easier deletion
-            cursor.execute('PRAGMA foreign_keys = OFF')
+            # Disable foreign key constraints temporarily (SQLite only)
+            if not IS_POSTGRES:
+                cursor.execute('PRAGMA foreign_keys = OFF')
 
             click.echo('\n  Clearing marketplace data...\n')
 
@@ -663,14 +664,16 @@ def _register_cli_commands(app):
                 # Delete all records
                 cursor.execute(f'DELETE FROM {table_name}')
 
-                # Reset autoincrement counter
-                cursor.execute(f"DELETE FROM sqlite_sequence WHERE name = '{table_name}'")
+                # Reset autoincrement counter (SQLite only; PostgreSQL sequences are irrelevant here)
+                if not IS_POSTGRES:
+                    cursor.execute(f"DELETE FROM sqlite_sequence WHERE name = '{table_name}'")
 
                 deleted_counts[description] = count
                 click.echo(f'  Cleared {count:,} {description}')
 
-            # Re-enable foreign key constraints
-            cursor.execute('PRAGMA foreign_keys = ON')
+            # Re-enable foreign key constraints (SQLite only)
+            if not IS_POSTGRES:
+                cursor.execute('PRAGMA foreign_keys = ON')
 
             # Commit all changes
             conn.commit()
@@ -683,11 +686,8 @@ def _register_cli_commands(app):
                 if count > 0:
                     click.echo(f'     {description}: {count:,}')
 
-        except sqlite3.Error as e:
-            click.echo(f'\n  Database error: {e}', err=True)
-            return 1
         except Exception as e:
-            click.echo(f'\n  Unexpected error: {e}', err=True)
+            click.echo(f'\n  Database error: {e}', err=True)
             return 1
 
     @app.cli.command('make-admin')
@@ -698,7 +698,7 @@ def _register_cli_commands(app):
         Promote a user to admin by their email address.
         """
         try:
-            conn = sqlite3.connect('data/database.db')
+            conn = get_db_connection()
             cursor = conn.cursor()
 
             # Find user by email
@@ -725,11 +725,8 @@ def _register_cli_commands(app):
             click.echo(f'  User promoted to admin: {user_email}')
             return 0
 
-        except sqlite3.Error as e:
-            click.echo(f'  Database error: {e}', err=True)
-            return 1
         except Exception as e:
-            click.echo(f'  Unexpected error: {e}', err=True)
+            click.echo(f'  Database error: {e}', err=True)
             return 1
 
     @app.cli.command('remove-admin')
@@ -740,7 +737,7 @@ def _register_cli_commands(app):
         Revoke admin privileges from a user by their email address.
         """
         try:
-            conn = sqlite3.connect('data/database.db')
+            conn = get_db_connection()
             cursor = conn.cursor()
 
             # Find user by email
@@ -767,11 +764,8 @@ def _register_cli_commands(app):
             click.echo(f'  Admin privileges revoked: {user_email}')
             return 0
 
-        except sqlite3.Error as e:
-            click.echo(f'  Database error: {e}', err=True)
-            return 1
         except Exception as e:
-            click.echo(f'  Unexpected error: {e}', err=True)
+            click.echo(f'  Database error: {e}', err=True)
             return 1
 
     @app.cli.command('list-admins')
@@ -781,7 +775,7 @@ def _register_cli_commands(app):
         List all admin users.
         """
         try:
-            conn = sqlite3.connect('data/database.db')
+            conn = get_db_connection()
             cursor = conn.cursor()
 
             cursor.execute(
@@ -807,11 +801,8 @@ def _register_cli_commands(app):
 
             return 0
 
-        except sqlite3.Error as e:
-            click.echo(f'  Database error: {e}', err=True)
-            return 1
         except Exception as e:
-            click.echo(f'  Unexpected error: {e}', err=True)
+            click.echo(f'  Database error: {e}', err=True)
             return 1
 
 

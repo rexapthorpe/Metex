@@ -37,10 +37,10 @@ def _get_spot_prices_from_cursor(cursor):
     Never calls an external API.
     """
     try:
-        # MAX(rowid) per metal == most recently inserted row for that metal.
+        # MAX(id) per metal == most recently inserted row for that metal.
         rows = cursor.execute(
             "SELECT metal, price_usd FROM spot_price_snapshots "
-            "WHERE rowid IN (SELECT MAX(rowid) FROM spot_price_snapshots GROUP BY metal)"
+            "WHERE id IN (SELECT MAX(id) FROM spot_price_snapshots GROUP BY metal)"
         ).fetchall()
         if rows:
             return {row["metal"].lower(): float(row["price_usd"]) for row in rows}

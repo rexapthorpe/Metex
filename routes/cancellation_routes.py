@@ -4,7 +4,7 @@ Handles buyer cancellation requests and seller responses
 """
 
 from flask import Blueprint, jsonify, request, session
-from database import get_db_connection
+from database import get_db_connection, IS_POSTGRES
 from datetime import datetime, timedelta
 from services.notification_service import create_notification, notify_cancel_request_submitted
 
@@ -71,13 +71,19 @@ def check_and_auto_deny_expired_requests():
     """Auto-deny any pending requests that have passed the 2-day window"""
     conn = get_db_connection()
 
+    # Build date-arithmetic condition compatible with both SQLite and PostgreSQL.
+    if IS_POSTGRES:
+        date_condition = "AND o.created_at + (? || ' days')::INTERVAL < CURRENT_TIMESTAMP"
+    else:
+        date_condition = "AND datetime(o.created_at, '+' || ? || ' days') < datetime('now')"
+
     # Find pending requests where the order is past the cancellation window
-    expired_requests = conn.execute("""
+    expired_requests = conn.execute(f"""
         SELECT cr.id, cr.order_id, cr.buyer_id
         FROM cancellation_requests cr
         JOIN orders o ON cr.order_id = o.id
         WHERE cr.status = 'pending'
-        AND datetime(o.created_at, '+' || ? || ' days') < datetime('now')
+        {date_condition}
     """, (CANCELLATION_WINDOW_DAYS,)).fetchall()
 
     for req in expired_requests:

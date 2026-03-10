@@ -751,8 +751,10 @@ def get_admin_user_messages(user_id):
 
         # Mark messages as read
         conn.execute('''
-            INSERT OR REPLACE INTO message_reads (user_id, participant_id, order_id, last_read_ts)
+            INSERT INTO message_reads (user_id, participant_id, order_id, last_read_ts)
             VALUES (?, ?, 0, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, participant_id, order_id) DO UPDATE SET
+                last_read_ts = CURRENT_TIMESTAMP
         ''', (admin_id, user_id))
         conn.commit()
 
