@@ -97,7 +97,10 @@
       "Bash(for file in /Users/rexapthorpe/Desktop/Metex/routes/account_routes.py /Users/rexapthorpe/Desktop/Metex/routes/cancellation_routes.py /Users/rexapthorpe/Desktop/Metex/core/blueprints/account/settings.py /Users/rexapthorpe/Desktop/Metex/core/blueprints/account/preferences_api.py /Users/rexapthorpe/Desktop/Metex/core/blueprints/admin/users.py)",
       "Bash(DATABASE_URL=\"postgresql://fake_user:fake_pass@localhost/fake_db\" python:*)",
       "Bash(__NEW_LINE_ea8d00f84ea4b226__ for:*)",
-      "Bash(do echo:*)"
+      "Bash(do echo:*)",
+      "Bash(METALPRICE_API_KEY=8dc91bf48c4415ff9af31933620821a9 python3 -c \"\nfrom services.spot_price_service import fetch_spot_prices_from_api, get_api_key\nprint\\('API Key:', get_api_key\\(\\)\\)\nprices = fetch_spot_prices_from_api\\(\\)\nprint\\('Prices:', prices\\)\n\")",
+      "Bash(METALPRICE_API_KEY=8dc91bf48c4415ff9af31933620821a9 python3 -c \"\nfrom services.spot_price_service import get_current_spot_prices\nprices = get_current_spot_prices\\(force_refresh=True\\)\nprint\\('Spot prices:', prices\\)\n\" 2>&1 | grep -v NotOpenSSLWarning | grep -v warnings.warn)",
+      "Bash(METALPRICE_API_KEY=8dc91bf48c4415ff9af31933620821a9 python3 -c \"\nfrom services.spot_snapshot_service import run_snapshot\nresult = run_snapshot\\(use_lock=False, verbose=True, force=True\\)\nprint\\('Result:', result\\)\n\" 2>&1 | grep -v NotOpenSSLWarning | grep -v warnings.warn)"
     ],
     "deny": [],
     "ask": []

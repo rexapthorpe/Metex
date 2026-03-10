@@ -174,16 +174,8 @@ def update_bid():
         (session['user_id'],)
     ).fetchone()
 
-    if not user_info or not user_info['first_name'] or not user_info['last_name']:
-        conn.close()
-        return jsonify(
-            success=False,
-            message="Please add your full name in Account Details before updating a bid.",
-            redirect_to="/account#personal-info"
-        ), 400
-
-    recipient_first = user_info['first_name']
-    recipient_last = user_info['last_name']
+    recipient_first = (user_info['first_name'] if user_info and user_info['first_name'] else '')
+    recipient_last = (user_info['last_name'] if user_info and user_info['last_name'] else '')
 
     # Ensure ownership & fetch existing address so we can preserve if blank
     existing = cursor.execute(

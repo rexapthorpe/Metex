@@ -90,11 +90,6 @@ def place_bid(bucket_id):
         (session['user_id'],)
     ).fetchone()
 
-    if not user_info or not user_info['first_name'] or not user_info['last_name']:
-        conn.close()
-        flash("Please add your full name in Account Details before placing a bid.", "error")
-        return redirect('/account#personal-info')
-
     # Block bid if all active listings in this bucket belong to the current user
     counts = cursor.execute('''
         SELECT COUNT(*) AS total,
@@ -108,8 +103,8 @@ def place_bid(bucket_id):
         flash("You can't bid on a bucket where your listings are the only ones available.", "error")
         return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
-    recipient_first = user_info['first_name']
-    recipient_last = user_info['last_name']
+    recipient_first = (user_info['first_name'] if user_info and user_info['first_name'] else '')
+    recipient_last = (user_info['last_name'] if user_info and user_info['last_name'] else '')
 
     cursor.execute(
         '''
@@ -239,14 +234,6 @@ def create_bid_unified(bucket_id):
         (session['user_id'],)
     ).fetchone()
 
-    if not user_info or not user_info['first_name'] or not user_info['last_name']:
-        conn.close()
-        return jsonify(
-            success=False,
-            message="Please add your full name in Account Details before placing a bid.",
-            redirect_to="/account#personal-info"
-        ), 400
-
     # Block bid if all active listings in this bucket belong to the current user
     counts = cursor.execute('''
         SELECT COUNT(*) AS total,
@@ -262,8 +249,8 @@ def create_bid_unified(bucket_id):
             message="You can't bid on a bucket where your listings are the only ones available."
         ), 403
 
-    recipient_first = user_info['first_name']
-    recipient_last = user_info['last_name']
+    recipient_first = (user_info['first_name'] if user_info and user_info['first_name'] else '')
+    recipient_last = (user_info['last_name'] if user_info and user_info['last_name'] else '')
 
     # Insert bid into database
     try:

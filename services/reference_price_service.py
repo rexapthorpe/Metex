@@ -25,12 +25,36 @@ external spot API directly.
 """
 
 import database as _db_module
+from database import IS_POSTGRES
 from datetime import datetime, timedelta
 from services.pricing_service import get_effective_price, get_effective_bid_price
 
 
 def _get_conn():
     return _db_module.get_db_connection()
+
+
+def _ts_str(col):
+    """SQL expression that formats a timestamp column as an ISO-8601 T-format string.
+
+    PostgreSQL: TO_CHAR(col, 'YYYY-MM-DD"T"HH24:MI:SS')
+    SQLite:     REPLACE(col, ' ', 'T')  — normalises the space-separated text storage
+    """
+    if IS_POSTGRES:
+        return f"TO_CHAR({col}, 'YYYY-MM-DD\"T\"HH24:MI:SS')"
+    return f"REPLACE({col}, ' ', 'T')"
+
+
+def _ts_cmp(col):
+    """SQL expression for a timestamp column used in WHERE / ORDER BY comparisons.
+
+    PostgreSQL: raw column name — the TIMESTAMP type compares directly to an ISO
+                string parameter (psycopg2 / PostgreSQL auto-cast).
+    SQLite:     REPLACE(col, ' ', 'T') — normalises text storage before string compare.
+    """
+    if IS_POSTGRES:
+        return col
+    return f"REPLACE({col}, ' ', 'T')"
 
 
 # ---------------------------------------------------------------------------
@@ -63,10 +87,10 @@ def get_spot_at_time(conn, metal, as_of):
         as_of_norm = as_of.isoformat()
 
     row = conn.execute(
-        """
+        f"""
         SELECT price_usd FROM spot_price_snapshots
-        WHERE metal = ? AND REPLACE(as_of, ' ', 'T') <= ?
-        ORDER BY REPLACE(as_of, ' ', 'T') DESC
+        WHERE metal = ? AND {_ts_cmp('as_of')} <= ?
+        ORDER BY {_ts_cmp('as_of')} DESC
         LIMIT 1
         """,
         (metal, as_of_norm)
@@ -313,11 +337,11 @@ def get_reference_price_history(bucket_id, days=30):
             # Use REPLACE so rows stored with a space separator ("YYYY-MM-DD HH:MM:SS")
             # are compared correctly against the T-format start_iso parameter.
             rows = conn.execute(
-                """
-                SELECT REPLACE(as_of, ' ', 'T') AS as_of_norm
+                f"""
+                SELECT {_ts_str('as_of')} AS as_of_norm
                 FROM spot_price_snapshots
-                WHERE metal = ? AND REPLACE(as_of, ' ', 'T') >= ?
-                ORDER BY REPLACE(as_of, ' ', 'T') ASC
+                WHERE metal = ? AND {_ts_cmp('as_of')} >= ?
+                ORDER BY {_ts_cmp('as_of')} ASC
                 """,
                 (metal, start_iso)
             ).fetchall()
@@ -325,23 +349,27 @@ def get_reference_price_history(bucket_id, days=30):
                 event_times.add(row['as_of_norm'])
 
         # Track the most recent spot snapshot (for polling metadata)
-        row = conn.execute(
-            """
-            SELECT MAX(REPLACE(as_of, ' ', 'T')) AS latest FROM spot_price_snapshots
-            WHERE metal IN ({})
-            """.format(','.join('?' * len(metals))),
-            list(metals)
-        ).fetchone() if metals else None
+        metals_ph = ','.join('?' * len(metals))
+        row = (
+            conn.execute(
+                f"""
+                SELECT {_ts_str('MAX(as_of)')} AS latest FROM spot_price_snapshots
+                WHERE metal IN ({metals_ph})
+                """,
+                list(metals)
+            ).fetchone()
+            if metals else None
+        )
         if row and row['latest']:
             latest_spot_as_of = row['latest']
 
     # b) Bid creation events for this bucket
     latest_bid_as_of = None
     bid_rows = conn.execute(
-        """
-        SELECT REPLACE(b.created_at, ' ', 'T') AS ts FROM bids b
+        f"""
+        SELECT {_ts_str('b.created_at')} AS ts FROM bids b
         JOIN categories c ON b.category_id = c.id
-        WHERE c.bucket_id = ? AND REPLACE(b.created_at, ' ', 'T') >= ?
+        WHERE c.bucket_id = ? AND {_ts_cmp('b.created_at')} >= ?
         ORDER BY ts ASC
         """,
         (bucket_id, start_iso)
@@ -354,12 +382,12 @@ def get_reference_price_history(bucket_id, days=30):
     # c) Executed trade timestamps
     latest_clear_as_of = None
     trade_rows = conn.execute(
-        """
-        SELECT REPLACE(o.created_at, ' ', 'T') AS ts FROM order_items oi
+        f"""
+        SELECT {_ts_str('o.created_at')} AS ts FROM order_items oi
         JOIN orders o     ON oi.order_id  = o.id
         JOIN listings l   ON oi.listing_id = l.id
         JOIN categories c ON l.category_id = c.id
-        WHERE c.bucket_id = ? AND REPLACE(o.created_at, ' ', 'T') >= ?
+        WHERE c.bucket_id = ? AND {_ts_cmp('o.created_at')} >= ?
         GROUP BY o.id
         ORDER BY ts ASC
         """,
@@ -372,9 +400,9 @@ def get_reference_price_history(bucket_id, days=30):
 
     # d) Existing bucket_price_history events (captures listing create/edit/delete)
     ph_rows = conn.execute(
-        """
-        SELECT REPLACE(timestamp, ' ', 'T') AS ts FROM bucket_price_history
-        WHERE bucket_id = ? AND REPLACE(timestamp, ' ', 'T') >= ?
+        f"""
+        SELECT {_ts_str('timestamp')} AS ts FROM bucket_price_history
+        WHERE bucket_id = ? AND {_ts_cmp('timestamp')} >= ?
         ORDER BY ts ASC
         """,
         (bucket_id, start_iso)

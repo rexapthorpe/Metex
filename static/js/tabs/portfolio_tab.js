@@ -144,13 +144,10 @@ function renderValueChart(historyData) {
 
     let chartData = [...historyData];
 
-    // Filter leading zeros — only show from the first data point where the
-    // portfolio had actual value (avoids ugly hockey-stick from zero-padded history)
-    const firstNonZeroIdx = chartData.findIndex(item => (item.value || 0) > 0 || (item.cost_basis || 0) > 0);
-    if (firstNonZeroIdx > 1) {
-        // Keep one zero point before the first real value so the line starts cleanly
-        chartData = chartData.slice(firstNonZeroIdx - 1);
-    }
+    // Keep all data points so the x-axis always spans the full selected interval.
+    // Leading zero points (before any purchases) are intentional — they anchor the
+    // left edge of the x-axis to the start of the selected range (e.g. 7 days ago
+    // for 1W, 30 days ago for 1M, etc.).
 
     // If only 1 data point, pad with earlier point to show a line
     if (chartData.length === 1) {

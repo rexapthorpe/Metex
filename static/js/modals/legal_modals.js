@@ -63,14 +63,13 @@ function closeLegalModal(modalId) {
  */
 function handleEscapeKey(event) {
   if (event.key === 'Escape') {
-    // Find which modal is open and close it
-    const termsModal = document.getElementById('termsModal');
-    const privacyModal = document.getElementById('privacyModal');
-
-    if (termsModal && termsModal.style.display === 'flex') {
-      closeLegalModal('termsModal');
-    } else if (privacyModal && privacyModal.style.display === 'flex') {
-      closeLegalModal('privacyModal');
+    const modalIds = ['termsModal', 'privacyModal', 'authenticityModal', 'marketPriceModal', 'shippingDisputesModal'];
+    for (const id of modalIds) {
+      const modal = document.getElementById(id);
+      if (modal && modal.style.display === 'flex') {
+        closeLegalModal(id);
+        break;
+      }
     }
   }
 }
@@ -93,23 +92,20 @@ function handleOutsideClick(event) {
  * Initialize legal modal triggers on page load
  */
 document.addEventListener('DOMContentLoaded', function() {
-  // Find all links with href="#terms" or href="#privacy"
-  const termsLinks = document.querySelectorAll('a[href="#terms"]');
-  const privacyLinks = document.querySelectorAll('a[href="#privacy"]');
+  const linkModalMap = {
+    '#terms': 'termsModal',
+    '#privacy': 'privacyModal',
+    '#authenticity': 'authenticityModal',
+    '#market-price': 'marketPriceModal',
+    '#shipping-disputes': 'shippingDisputesModal',
+  };
 
-  // Attach click handlers to Terms of Service links
-  termsLinks.forEach(link => {
-    link.addEventListener('click', function(event) {
-      event.preventDefault();
-      openLegalModal('termsModal');
-    });
-  });
-
-  // Attach click handlers to Privacy Policy links
-  privacyLinks.forEach(link => {
-    link.addEventListener('click', function(event) {
-      event.preventDefault();
-      openLegalModal('privacyModal');
+  Object.entries(linkModalMap).forEach(([href, modalId]) => {
+    document.querySelectorAll(`a[href="${href}"]`).forEach(link => {
+      link.addEventListener('click', function(event) {
+        event.preventDefault();
+        openLegalModal(modalId);
+      });
     });
   });
 });

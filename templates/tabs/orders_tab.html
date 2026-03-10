@@ -29,10 +29,6 @@
             <!-- Status + Order Number + Price -->
             <div class="order-card-top">
               <div class="order-card-badges">
-                <span class="order-status-badge order-status-badge--{{ order_filter }}">
-                  <span class="order-status-dot"></span>
-                  {{ order.status }}
-                </span>
                 <span class="order-number">#ORD-{{ '%04d' % order.id }}</span>
               </div>
               <div class="order-card-price-block">

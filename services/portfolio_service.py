@@ -367,11 +367,23 @@ def _compute_dynamic_history(user_id, days=30):
         for i in range(num_days):
             time_points.append(start_date + timedelta(days=i))
 
-    # Ensure the last point is exactly 'now' for current market value
-    time_points[-1] = now
+    # Also include exact purchase timestamps that fall within the range.
+    # This ensures every purchase event creates a visible step on all intervals,
+    # not just on 1D where hourly granularity happens to capture them.
+    _utc_offset_hours = (
+        time.localtime().tm_gmtoff if hasattr(time.localtime(), 'tm_gmtoff') else -time.timezone
+    ) / 3600
+    for item in all_items:
+        purchase_dt_utc = datetime.fromisoformat(item['purchase_date'])
+        purchase_dt_local = purchase_dt_utc + timedelta(hours=_utc_offset_hours)
+        if start_date <= purchase_dt_local:
+            time_points.append(purchase_dt_local)
 
-    # Remove any points beyond 'now' and sort
-    time_points = sorted([tp for tp in time_points if tp <= now])
+    # Ensure the last point is exactly 'now' for current market value
+    time_points.append(now)
+
+    # Remove any points beyond 'now', deduplicate, and sort
+    time_points = sorted(set([tp for tp in time_points if tp <= now]))
 
     # Log for debugging
     print(f"[Portfolio History] Computing for {len(time_points)} time points")

@@ -192,6 +192,48 @@ def is_cache_fresh():
         return False, None
 
 
+def fetch_spot_prices_from_yahoo():
+    """
+    Fetch current spot prices from Yahoo Finance futures contracts.
+    No API key required.  Used as a fallback when the primary API is unavailable.
+
+    Returns dict: {metal: price_per_oz} or None on failure.
+    """
+    _SYMBOLS = {
+        'gold':      'GC=F',
+        'silver':    'SI=F',
+        'platinum':  'PL=F',
+        'palladium': 'PA=F',
+    }
+    results = {}
+    try:
+        for metal, symbol in _SYMBOLS.items():
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+            resp = requests.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=8
+            )
+            if resp.status_code != 200:
+                logger.warning(f"[yahoo] HTTP {resp.status_code} for {symbol}")
+                continue
+            data = resp.json()
+            price = (
+                data.get('chart', {})
+                    .get('result', [{}])[0]
+                    .get('meta', {})
+                    .get('regularMarketPrice')
+            )
+            if price:
+                results[metal] = round(float(price), 2)
+        if results:
+            logger.info(f"[yahoo] Fetched spot prices: {results}")
+            return results
+    except Exception as exc:
+        logger.warning(f"[yahoo] Fetch failed: {exc}")
+    return None
+
+
 def get_current_spot_prices(force_refresh=False):
     """
     Get current spot prices, using cache if fresh or fetching from API if stale
@@ -215,23 +257,28 @@ def get_current_spot_prices(force_refresh=False):
     else:
         logger.info("Force refresh requested, fetching fresh data from API...")
 
-    # Fetch fresh prices from API
+    # Fetch fresh prices from primary API
     fresh_prices = fetch_spot_prices_from_api()
+
+    if not fresh_prices:
+        # Primary API failed — try Yahoo Finance
+        logger.warning("Primary API failed, trying Yahoo Finance fallback...")
+        fresh_prices = fetch_spot_prices_from_yahoo()
 
     if fresh_prices:
         # Save to cache
         save_spot_prices_to_cache(fresh_prices)
         return fresh_prices
     else:
-        # API failed - fall back to cache even if stale
-        logger.warning("API fetch failed, falling back to cached prices (may be stale)")
+        # All sources failed - fall back to cache even if stale
+        logger.warning("All API sources failed, falling back to cached prices (may be stale)")
         cached_prices = get_cached_spot_prices()
 
         if cached_prices:
             return cached_prices
         else:
             # No cache available - return empty dict
-            logger.error("No cached prices available and API fetch failed")
+            logger.error("No cached prices available and all API fetches failed")
             return {}
 
 

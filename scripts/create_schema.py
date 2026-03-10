@@ -449,7 +449,7 @@ class SchemaManager:
             sender_id INTEGER NOT NULL,
             receiver_id INTEGER NOT NULL,
             content TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (order_id) REFERENCES orders(id),
             FOREIGN KEY (sender_id) REFERENCES users(id),
             FOREIGN KEY (receiver_id) REFERENCES users(id)
@@ -471,7 +471,7 @@ class SchemaManager:
             user_id INTEGER NOT NULL,
             participant_id INTEGER NOT NULL,
             order_id INTEGER NOT NULL,
-            last_read_ts DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_read_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (user_id, participant_id, order_id)
         )
         """
@@ -494,7 +494,7 @@ class SchemaManager:
             ratee_id INTEGER NOT NULL,
             rating INTEGER NOT NULL,
             comment TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (order_id) REFERENCES orders(id),
             FOREIGN KEY (rater_id) REFERENCES users(id),
             FOREIGN KEY (ratee_id) REFERENCES users(id),
@@ -710,8 +710,7 @@ class SchemaManager:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             bucket_id INTEGER NOT NULL,
             best_ask_price REAL NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (bucket_id) REFERENCES categories(bucket_id) ON DELETE CASCADE
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
 

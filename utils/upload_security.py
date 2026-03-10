@@ -20,7 +20,7 @@ Usage:
 """
 import os
 import io
-import imghdr
+from PIL import Image
 import secrets
 import hashlib
 from datetime import datetime
@@ -99,11 +99,12 @@ def get_image_type_from_content(file_content: bytes) -> Optional[str]:
             else:
                 return img_type
 
-    # Fallback to imghdr
+    # Fallback to Pillow
     try:
-        detected = imghdr.what(None, h=file_content)
-        if detected:
-            return detected
+        img = Image.open(io.BytesIO(file_content))
+        fmt = img.format  # e.g. 'PNG', 'JPEG', 'GIF', 'WEBP'
+        if fmt:
+            return fmt.lower()
     except Exception:
         pass
 

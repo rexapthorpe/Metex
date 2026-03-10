@@ -161,14 +161,14 @@ def account():
            WHERE o.buyer_id = ?
              AND o.status IN {completed_statuses}
              AND o.id NOT IN (SELECT order_id FROM ratings WHERE rater_id = ?)
-           GROUP BY o.id ORDER BY o.created_at DESC
+           GROUP BY o.id, o.created_at ORDER BY o.created_at DESC
         """, (user_id, user_id)
     ).fetchall()
 
     pending_ratings_seller = conn.execute(
         f"""SELECT o.id AS order_id, o.created_at AS order_date,
                'seller' AS user_role,
-               bu.username AS other_username, bu.id AS other_user_id,
+               MIN(bu.username) AS other_username, MIN(bu.id) AS other_user_id,
                MIN(c.metal) AS metal, MIN(c.product_type) AS product_type,
                MIN(c.weight) AS weight,
                SUM(oi.quantity * oi.price_each) AS total_amount
@@ -180,7 +180,7 @@ def account():
            WHERE l.seller_id = ?
              AND o.status IN {completed_statuses}
              AND o.id NOT IN (SELECT order_id FROM ratings WHERE rater_id = ?)
-           GROUP BY o.id ORDER BY o.created_at DESC
+           GROUP BY o.id, o.created_at ORDER BY o.created_at DESC
         """, (user_id, user_id)
     ).fetchall()
 
@@ -296,7 +296,7 @@ def account():
                WHERE oi2.order_id = o.id
                  AND pe.user_id = ?
              ) AS excluded_count,
-             o.tracking_number,
+             (SELECT tracking_number FROM tracking WHERE order_id = o.id LIMIT 1) AS tracking_number,
              (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_status,
              (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_reason,
              (SELECT COUNT(*) FROM cancellation_seller_responses csr
@@ -642,9 +642,8 @@ def account():
         SELECT
           CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END
             AS other_user_id,
-          u.username AS other_username,
-          m.content  AS last_message_content,
-          m.timestamp AS last_message_time,
+          MIN(u.username) AS other_username,
+          MAX(m.timestamp) AS last_message_time,
           SUM(CASE WHEN m.receiver_id = ? AND m.sender_id != ? THEN 1 ELSE 0 END)
             AS unread_count
         FROM messages m
@@ -678,11 +677,12 @@ def account():
             (user_id, r['other_user_id'], r['other_user_id'], user_id)
         ).fetchall()
         raw_lmt = r['last_message_time'] or ''
+        last_content = history[-1]['content'] if history else ''
         conversations.append({
             'order_id':                 0,
             'other_user_id':            r['other_user_id'],
             'other_username':           r['other_username'],
-            'last_message_content':     r['last_message_content'],
+            'last_message_content':     last_content,
             'last_message_time':        _fmt_ts(raw_lmt),
             'last_message_time_raw':    raw_lmt,
             'unread_count':             r['unread_count'],
@@ -698,22 +698,21 @@ def account():
         """
         SELECT
           m.order_id,
-          o.buyer_id                    AS order_buyer_id,
+          MIN(o.buyer_id)               AS order_buyer_id,
           CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END
             AS other_user_id,
-          u.username            AS other_username,
-          m.content             AS last_message_content,
-          m.timestamp           AS last_message_time,
+          MIN(u.username)       AS other_username,
+          MAX(m.timestamp)      AS last_message_time,
           SUM(CASE WHEN m.receiver_id = ? THEN 1 ELSE 0 END)
             AS unread_count
         FROM messages m
         JOIN orders o ON o.id = m.order_id
-        JOIN users u  ON u.id = other_user_id
+        JOIN users u  ON u.id = (CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END)
         WHERE (m.sender_id = ? OR m.receiver_id = ?)
           AND m.order_id != 0
-        GROUP BY m.order_id, other_user_id
+        GROUP BY m.order_id, (CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END)
         ORDER BY last_message_time DESC
-        """, (user_id, user_id, user_id, user_id)
+        """, (user_id, user_id, user_id, user_id, user_id, user_id)
     ).fetchall()
 
     # Merge order-based conversations by person (one tile per user)
@@ -731,6 +730,7 @@ def account():
             (r['order_id'], user_id, r['other_user_id'], r['other_user_id'], user_id)
         ).fetchall()
         raw_lmt = r['last_message_time'] or ''
+        last_content = history[-1]['content'] if history else ''
         msgs = [
             {'sender_id': m['sender_id'], 'content': m['content'],
              'timestamp': _fmt_ts(m['timestamp']), '_ts_raw': m['timestamp'] or ''}
@@ -742,7 +742,7 @@ def account():
                 'order_id':              r['order_id'],
                 'other_user_id':         other_id,
                 'other_username':        r['other_username'],
-                'last_message_content':  r['last_message_content'],
+                'last_message_content':  last_content,
                 'last_message_time':     _fmt_ts(raw_lmt),
                 'last_message_time_raw': raw_lmt,
                 'unread_count':          r['unread_count'],
@@ -753,7 +753,7 @@ def account():
             existing = _person_convos[other_id]
             existing['unread_count'] += r['unread_count']
             if raw_lmt > existing['last_message_time_raw']:
-                existing['last_message_content'] = r['last_message_content']
+                existing['last_message_content'] = last_content
                 existing['last_message_time']     = _fmt_ts(raw_lmt)
                 existing['last_message_time_raw'] = raw_lmt
                 existing['order_id']              = r['order_id']

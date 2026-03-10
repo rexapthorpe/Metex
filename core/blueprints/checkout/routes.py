@@ -28,6 +28,25 @@ from . import checkout_bp
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _parse_weight_oz(weight_str):
+    """
+    Parse a display weight string (e.g. '1 oz', '1/4 oz', '10 g') to a float
+    suitable for insertion into the REAL column weight_used.
+
+    Returns float or None if the string is absent or unparseable.
+    """
+    if not weight_str:
+        return None
+    import re
+    s = str(weight_str).strip()
+    # Match optional fraction or decimal followed by optional unit
+    m = re.match(r'^(\d+)\s*/\s*(\d+)|^(\d+(?:\.\d+)?)', s)
+    if not m:
+        return None
+    if m.group(1) and m.group(2):          # fraction: "1/4 oz"
+        return float(m.group(1)) / float(m.group(2))
+    return float(m.group(3))               # integer or decimal: "1 oz", "2.5 g"
+
 def _create_ledger_for_order(buyer_id, order_id, cart_data, conn):
     """
     Create ledger records for an order.
@@ -113,7 +132,7 @@ def _enrich_cart_data_with_spot_audit(cart_data, spot_map, listing_meta):
         meta = listing_meta.get(item['listing_id'], {})
         item['pricing_mode_used'] = meta.get('pricing_mode')
         item['spot_premium_used'] = meta.get('spot_premium')
-        item['weight_used'] = meta.get('weight')
+        item['weight_used'] = _parse_weight_oz(meta.get('weight'))
 
         if meta.get('pricing_mode') == 'premium_to_spot':
             metal = (meta.get('pricing_metal') or meta.get('metal') or '').lower()
@@ -287,7 +306,7 @@ def checkout():
                     'spot_info': spot_info,
                     'pricing_mode_used': listing.get('pricing_mode'),
                     'spot_premium_used': listing.get('spot_premium'),
-                    'weight_used': listing.get('weight'),
+                    'weight_used': _parse_weight_oz(listing.get('weight')),
                 })
                 selected_prices.append(listing['effective_price'])
                 remaining -= take

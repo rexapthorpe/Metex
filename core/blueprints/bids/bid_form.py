@@ -106,7 +106,7 @@ def bid_form_unified(bucket_id, bid_id=None):
 
     # Calculate current market price and get pricing mode information
     lowest = cursor.execute('''
-        SELECT MIN(price_per_coin) as min_price,
+        SELECT price_per_coin as min_price,
                pricing_mode,
                spot_premium,
                floor_price,

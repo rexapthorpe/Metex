@@ -97,41 +97,52 @@ def _primary_is_stale(conn, metal, current_primary_price):
 
 def _fetch_secondary_prices():
     """
-    Fetch spot prices from api.metals.live — a free secondary source that
-    requires no API key.
-
-    Response format: list of single-key dicts, e.g.
-        [{"gold": 2050.43}, {"silver": 28.12}, ...]
-    OR a plain dict: {"gold": 2050.43, "silver": 28.12, ...}
+    Fetch spot prices from secondary free sources (no API key required).
+    Tries api.metals.live first, falls back to Yahoo Finance futures.
 
     Returns {metal: price_usd} or None on any failure.
     Only called by run_snapshot() when primary is stale; never called during
     chart rendering.
     """
+    from services.spot_price_service import fetch_spot_prices_from_yahoo
     import requests as _req
     _SUPPORTED = {"gold", "silver", "platinum", "palladium"}
+
+    # Try api.metals.live first
     try:
         resp = _req.get(_SECONDARY_URL, timeout=8)
-        if resp.status_code != 200:
-            logger.warning(
-                "[spot_snapshot] Secondary source returned HTTP %s", resp.status_code
-            )
-            return None
-        data = resp.json()
-        prices = {}
-        if isinstance(data, list):
-            for item in data:
-                for k, v in item.items():
+        if resp.status_code == 200:
+            data = resp.json()
+            prices = {}
+            if isinstance(data, list):
+                for item in data:
+                    for k, v in item.items():
+                        if k.lower() in _SUPPORTED and isinstance(v, (int, float)):
+                            prices[k.lower()] = float(v)
+            elif isinstance(data, dict):
+                for k, v in data.items():
                     if k.lower() in _SUPPORTED and isinstance(v, (int, float)):
                         prices[k.lower()] = float(v)
-        elif isinstance(data, dict):
-            for k, v in data.items():
-                if k.lower() in _SUPPORTED and isinstance(v, (int, float)):
-                    prices[k.lower()] = float(v)
-        return prices if prices else None
+            if prices:
+                return prices
+        else:
+            logger.warning(
+                "[spot_snapshot] metals.live returned HTTP %s", resp.status_code
+            )
     except Exception as exc:
-        logger.warning("[spot_snapshot] Secondary source fetch failed: %s", exc)
-        return None
+        logger.warning("[spot_snapshot] metals.live fetch failed: %s", exc)
+
+    # Fall back to Yahoo Finance
+    logger.info("[spot_snapshot] Trying Yahoo Finance as secondary fallback...")
+    try:
+        prices = fetch_spot_prices_from_yahoo()
+        if prices:
+            logger.info("[spot_snapshot] Yahoo Finance returned prices for: %s", sorted(prices.keys()))
+            return prices
+    except Exception as exc:
+        logger.warning("[spot_snapshot] Yahoo Finance fetch failed: %s", exc)
+
+    return None
 
 
 def _should_insert(last_price, last_as_of, new_price):

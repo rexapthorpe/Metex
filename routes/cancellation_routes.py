@@ -38,22 +38,12 @@ def get_order_sellers(conn, order_id):
 
 def has_any_tracking(conn, order_id):
     """Check if any seller has added tracking for this order"""
-    # Check seller_order_tracking table (per-seller tracking)
     tracking = conn.execute("""
         SELECT 1 FROM seller_order_tracking
         WHERE order_id = ? AND tracking_number IS NOT NULL AND tracking_number != ''
         LIMIT 1
     """, (order_id,)).fetchone()
-
-    if tracking:
-        return True
-
-    # Also check legacy tracking in orders table
-    order = conn.execute("""
-        SELECT tracking_number FROM orders WHERE id = ?
-    """, (order_id,)).fetchone()
-
-    return order and order['tracking_number']
+    return tracking is not None
 
 
 def is_within_cancellation_window(order_created_at):
