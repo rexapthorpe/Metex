@@ -198,16 +198,25 @@ def get_cart_sellers(bucket_id):
             seller_data['response_time'] = None
 
         # Avg ship time: days from order creation to tracking number entry
-        ship_time_result = conn.execute('''
-            SELECT AVG(julianday(sot.created_at) - julianday(o.created_at)) AS avg_days
+        # Computed in Python to avoid julianday() (SQLite-only) vs EXTRACT (PostgreSQL)
+        ship_rows = conn.execute('''
+            SELECT sot.created_at AS shipped_at, o.created_at AS ordered_at
             FROM seller_order_tracking sot
             JOIN orders o ON sot.order_id = o.id
             WHERE sot.seller_id = ?
               AND sot.tracking_number IS NOT NULL
-              AND sot.tracking_number != ''
-        ''', (seller_id,)).fetchone()
-        avg_days = ship_time_result['avg_days'] if ship_time_result and ship_time_result['avg_days'] is not None else None
-        if avg_days is not None:
+              AND sot.tracking_number != ?
+        ''', (seller_id, '')).fetchall()
+        ship_deltas = []
+        for sr in ship_rows:
+            try:
+                t0 = datetime.fromisoformat(str(sr['ordered_at']).replace('Z', ''))
+                t1 = datetime.fromisoformat(str(sr['shipped_at']).replace('Z', ''))
+                ship_deltas.append((t1 - t0).total_seconds() / 86400)
+            except Exception:
+                pass
+        if ship_deltas:
+            avg_days = sum(ship_deltas) / len(ship_deltas)
             d = round(avg_days)
             seller_data['avg_ship_time'] = f"{d} day{'s' if d != 1 else ''}"
         else:

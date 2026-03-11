@@ -104,8 +104,13 @@ def get_bucket_sellers(bucket_id):
                 display_name = user_info['username']
             seller_data['display_name'] = display_name
 
-            if user_info['created_at']:
-                seller_data['member_since'] = user_info['created_at'][:4]
+            raw_date = user_info['created_at']
+            if raw_date:
+                try:
+                    dt = datetime.fromisoformat(str(raw_date).replace('Z', ''))
+                    seller_data['member_since'] = dt.strftime('%b %Y')
+                except (ValueError, TypeError):
+                    seller_data['member_since'] = str(raw_date)[:4]
             else:
                 seller_data['member_since'] = None
 

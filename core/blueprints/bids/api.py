@@ -3,6 +3,7 @@
 from flask import jsonify, session
 from database import get_db_connection
 from services.pricing_service import get_effective_bid_price
+from datetime import datetime
 from . import bid_bp
 
 
@@ -82,9 +83,14 @@ def get_bidder_info(bid_id):
                 display_name = user_info['username']
             result['display_name'] = display_name
 
-            # Member since year
-            if user_info['created_at']:
-                result['member_since'] = user_info['created_at'][:4]
+            # Member since (formatted as "Mon YYYY")
+            raw_date = user_info['created_at']
+            if raw_date:
+                try:
+                    dt = datetime.fromisoformat(str(raw_date).replace('Z', ''))
+                    result['member_since'] = dt.strftime('%b %Y')
+                except (ValueError, TypeError):
+                    result['member_since'] = str(raw_date)[:4]
             else:
                 result['member_since'] = None
 

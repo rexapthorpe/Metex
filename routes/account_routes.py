@@ -937,7 +937,13 @@ def order_sellers(order_id):
           COALESCE((SELECT COUNT(r.id)
                     FROM ratings r
                     WHERE r.ratee_id = u.id), 0) AS num_reviews,
-          SUM(oi.quantity)         AS total_quantity
+          SUM(oi.quantity)         AS total_quantity,
+          COALESCE((SELECT COUNT(DISTINCT o2.id)
+                    FROM orders o2
+                    JOIN order_items oi2 ON o2.id = oi2.order_id
+                    JOIN listings l2     ON oi2.listing_id = l2.id
+                    WHERE l2.seller_id = u.id
+                      AND o2.status IN ('Delivered', 'Complete')), 0) AS transaction_count
         FROM order_items oi
         JOIN listings l      ON oi.listing_id = l.id
         JOIN users u         ON l.seller_id = u.id
@@ -948,11 +954,12 @@ def order_sellers(order_id):
     conn.close()
 
     sellers = [{
-        'seller_id':   row['seller_id'],
-        'username':    row['username'],
-        'rating':      row['rating'],
-        'num_reviews': row['num_reviews'],
-        'quantity':    row['total_quantity']
+        'seller_id':        row['seller_id'],
+        'username':         row['username'],
+        'rating':           row['rating'],
+        'num_reviews':      row['num_reviews'],
+        'quantity':         row['total_quantity'],
+        'transaction_count': row['transaction_count']
     } for row in rows]
 
     return jsonify(sellers)

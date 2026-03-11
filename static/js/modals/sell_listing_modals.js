@@ -493,6 +493,11 @@ function showListingSuccessAnimation() {
     return;
   }
 
+  const title = document.getElementById('successAnimTitle');
+  const subtitle = document.getElementById('successAnimSubtitle');
+  if (title) title.textContent = 'Listing Created!';
+  if (subtitle) subtitle.textContent = 'Taking you to the marketplace\u2026';
+
   // Reset animation classes so they replay cleanly
   overlay.style.display = 'flex';
   overlay.classList.remove('active');
@@ -506,6 +511,37 @@ function showListingSuccessAnimation() {
   // Redirect after animation completes (~2s)
   setTimeout(() => {
     window.location.href = '/buy';
+  }, 2200);
+}
+
+/**
+ * Show the listing updated animation overlay, then redirect to /account
+ */
+function showListingUpdatedAnimation() {
+  const overlay = document.getElementById('listingSuccessAnimation');
+  if (!overlay) {
+    window.location.href = '/account';
+    return;
+  }
+
+  const title = document.getElementById('successAnimTitle');
+  const subtitle = document.getElementById('successAnimSubtitle');
+  if (title) title.textContent = 'Listing Updated!';
+  if (subtitle) subtitle.textContent = 'Taking you back to your listings\u2026';
+
+  // Reset animation classes so they replay cleanly
+  overlay.style.display = 'flex';
+  overlay.classList.remove('active');
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      overlay.classList.add('active');
+    });
+  });
+
+  // Redirect after animation completes (~2s)
+  setTimeout(() => {
+    window.location.href = '/account';
   }, 2200);
 }
 
@@ -579,8 +615,8 @@ function handleConfirmListing() {
         // updateCTAButton checks window._sellSubmitting so sidebar button stays locked
         closeSellConfirmModal();
         if (isEditMode) {
-          // In edit mode: redirect to account page after a short delay
-          setTimeout(() => { window.location.href = '/account'; }, 350);
+          // In edit mode: show update success animation then redirect to account
+          setTimeout(() => { showListingUpdatedAnimation(); }, 350);
         } else {
           // In create mode: show the success animation (which redirects to /buy)
           setTimeout(() => {
@@ -779,3 +815,4 @@ window.closeSellConfirmModal = closeSellConfirmModal;
 window.openSellSuccessModal = openSellSuccessModal;
 window.closeSellSuccessModal = closeSellSuccessModal;
 window.showListingSuccessAnimation = showListingSuccessAnimation;
+window.showListingUpdatedAnimation = showListingUpdatedAnimation;
