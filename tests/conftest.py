@@ -44,7 +44,9 @@ def app():
 
     # Patch database connection to use test database
     import database
+    import core.blueprints.auth.routes as _auth_routes_mod
     original_get_db = database.get_db_connection
+    original_auth_get_db = _auth_routes_mod.get_db_connection
 
     def test_get_db_connection():
         conn = sqlite3.connect(test_db_path, timeout=30.0)
@@ -53,12 +55,17 @@ def app():
         conn.execute('PRAGMA busy_timeout=30000')
         return conn
 
+    # Patch both the module-level attribute and the auth route's bound reference.
+    # core.blueprints.auth.routes does `from database import get_db_connection` at
+    # import time, so patching database.get_db_connection alone is insufficient.
     database.get_db_connection = test_get_db_connection
+    _auth_routes_mod.get_db_connection = test_get_db_connection
 
     yield flask_app
 
     # Cleanup
     database.get_db_connection = original_get_db
+    _auth_routes_mod.get_db_connection = original_auth_get_db
     shutil.rmtree(test_dir, ignore_errors=True)
 
 

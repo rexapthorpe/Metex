@@ -34,6 +34,34 @@ def setup_module(module):
     """Set up test database once for all tests."""
     conn = get_db_connection()
 
+    # Pre-clean any stale data from a previous interrupted test run.
+    # The teardown_module handles cleanup after a successful run, but if a
+    # previous run was killed mid-test the orders_ledger rows were never removed,
+    # causing a UNIQUE(order_id) violation on the next run.
+    try:
+        conn.execute('DELETE FROM order_items_ledger WHERE listing_id = ?', (TEST_LISTING_ID,))
+        conn.execute('DELETE FROM orders_ledger WHERE buyer_id = ?', (TEST_BUYER_ID,))
+        conn.execute('DELETE FROM orders WHERE buyer_id = ?', (TEST_BUYER_ID,))
+        conn.commit()
+    except Exception:
+        pass  # Tables may not exist yet on a fresh database
+
+    # Advance the SQLite auto-increment sequence for the orders table past any
+    # existing orders_ledger entries so newly created test orders don't collide
+    # with the UNIQUE(order_id) constraint on orders_ledger.
+    try:
+        row = conn.execute('SELECT MAX(order_id) FROM orders_ledger').fetchone()
+        max_existing = row[0] if row and row[0] is not None else 0
+        sentinel_id = max_existing + 10000
+        conn.execute(
+            'INSERT OR IGNORE INTO orders (id, buyer_id, total_price, status) VALUES (?, 0, 0, "_seq_advance")',
+            (sentinel_id,)
+        )
+        conn.execute('DELETE FROM orders WHERE buyer_id = 0 AND status = "_seq_advance"')
+        conn.commit()
+    except Exception:
+        pass  # Not critical; proceeds with whatever sequence value exists
+
     # Create test users
     conn.execute('''
         INSERT OR IGNORE INTO users (id, username, email, password_hash)

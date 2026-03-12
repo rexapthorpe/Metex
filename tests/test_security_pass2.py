@@ -329,11 +329,15 @@ class TestRatingRangeValidation:
         conn = database.get_db_connection()
         try:
             order_id = self._setup_completed_order(conn, uid)
+            # Buyer ratings require ratee_id (the seller) for security validation.
+            seller_id = conn.execute(
+                "SELECT id FROM users WHERE username='rating_seller'"
+            ).fetchone()['id']
         finally:
             conn.close()
 
         resp = client.post(f'/rate/{order_id}',
-                           data={'rating': '5', 'comment': 'great'},
+                           data={'rating': '5', 'comment': 'great', 'ratee_id': str(seller_id)},
                            headers={'X-Requested-With': 'XMLHttpRequest'})
         assert resp.status_code == 200
         assert resp.get_json().get('success') is True

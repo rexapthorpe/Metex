@@ -74,7 +74,7 @@ class TestSessionSecurity:
 
         # Create test user
         conn = database.get_db_connection()
-        password_hash = generate_password_hash('testpassword123')
+        password_hash = generate_password_hash('testpassword123', method='pbkdf2:sha256')
         conn.execute("""
             INSERT INTO users (username, email, password, password_hash, is_admin, is_banned, is_frozen)
             VALUES ('sessiontest', 'session@test.com', ?, ?, 0, 0, 0)
@@ -157,7 +157,7 @@ class TestPasswordResetSecurity:
         conn = database.get_db_connection()
 
         # Create test user
-        password_hash = generate_password_hash('oldpassword123')
+        password_hash = generate_password_hash('oldpassword123', method='pbkdf2:sha256')
         conn.execute("""
             INSERT INTO users (username, email, password, password_hash, is_admin, is_banned, is_frozen)
             VALUES ('resetexpiry', 'reset@expiry.com', ?, ?, 0, 0, 0)
@@ -174,9 +174,13 @@ class TestPasswordResetSecurity:
         conn.commit()
         conn.close()
 
-        # Try to use expired token
-        response = client.get(f'/reset_password/{token}')
-        assert b'expired' in response.data.lower() or response.status_code == 200  # Page loads but shows error
+        # Try to use expired token — use AJAX to get JSON error (non-AJAX redirects to login)
+        response = client.get(f'/reset_password/{token}',
+                              headers={'X-Requested-With': 'XMLHttpRequest'})
+        data = response.get_json()
+        assert data is not None
+        assert data.get('success') is False
+        assert 'expired' in data.get('error', '').lower()
 
     def test_reset_token_single_use(self, client):
         """Test password reset tokens can only be used once."""
@@ -187,7 +191,7 @@ class TestPasswordResetSecurity:
         conn = database.get_db_connection()
 
         # Create test user
-        password_hash = generate_password_hash('oldpassword123')
+        password_hash = generate_password_hash('oldpassword123', method='pbkdf2:sha256')
         conn.execute("""
             INSERT INTO users (username, email, password, password_hash, is_admin, is_banned, is_frozen)
             VALUES ('resetsingle', 'reset@single.com', ?, ?, 0, 0, 0)
@@ -209,13 +213,16 @@ class TestPasswordResetSecurity:
             'password': 'newpassword123'
         })
 
-        # Try to use same token again
+        # Try to use same token again — use AJAX to get JSON error (non-AJAX redirects to login)
         response2 = client.post(f'/reset_password/{token}', data={
             'password': 'anotherpassword'
-        })
+        }, headers={'X-Requested-With': 'XMLHttpRequest'})
 
-        # Second attempt should fail
-        assert b'already been used' in response2.data.lower() or b'invalid' in response2.data.lower()
+        # Second attempt should fail with explicit "already been used" message
+        data2 = response2.get_json()
+        assert data2 is not None
+        assert data2.get('success') is False
+        assert 'already been used' in data2.get('error', '').lower()
 
 
 class TestAuthorizationIDOR:
@@ -338,7 +345,7 @@ class TestLoginSecurity:
         from werkzeug.security import generate_password_hash
 
         conn = database.get_db_connection()
-        password_hash = generate_password_hash('validpassword')
+        password_hash = generate_password_hash('validpassword', method='pbkdf2:sha256')
 
         # Create banned user
         conn.execute("""

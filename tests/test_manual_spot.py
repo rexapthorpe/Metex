@@ -84,11 +84,19 @@ CREATE TABLE IF NOT EXISTS listings (
     listing_title  TEXT
 );
 CREATE TABLE IF NOT EXISTS bids (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    category_id INTEGER,
-    price_per_coin REAL,
-    active      INTEGER DEFAULT 1,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id       INTEGER,
+    buyer_id          INTEGER,
+    price_per_coin    REAL,
+    remaining_quantity INTEGER DEFAULT 0,
+    status            TEXT    DEFAULT 'Open',
+    active            INTEGER DEFAULT 1,
+    pricing_mode      TEXT    DEFAULT 'static',
+    spot_premium      REAL    DEFAULT 0,
+    ceiling_price     REAL,
+    pricing_metal     TEXT,
+    random_year       INTEGER DEFAULT 0,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS orders (
     id                   INTEGER PRIMARY KEY AUTOINCREMENT,
