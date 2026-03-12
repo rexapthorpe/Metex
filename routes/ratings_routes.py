@@ -19,7 +19,7 @@ def rate_order(order_id):
     user_id = session['user_id']
     conn = get_db_connection()
 
-    # 2) Get order and check authorization properly
+    # 2) Get order and check authorization
     order = conn.execute('SELECT id, buyer_id FROM orders WHERE id = ?', (order_id,)).fetchone()
 
     is_buyer = order and order['buyer_id'] == user_id
@@ -40,19 +40,6 @@ def rate_order(order_id):
         flash("❌ You are not authorized to rate this order.", "error")
         return redirect(url_for('account.account'))
 
-    rater_id = user_id
-    # Sellers rate the buyer; buyers rate the seller
-    if is_seller:
-        ratee_id = order['buyer_id']
-    else:
-        # Buyer rating: find first seller in this order
-        first_seller = conn.execute('''
-            SELECT DISTINCT l.seller_id FROM order_items oi
-            JOIN listings l ON oi.listing_id = l.id
-            WHERE oi.order_id = ? LIMIT 1
-        ''', (order_id,)).fetchone()
-        ratee_id = first_seller['seller_id'] if first_seller else None
-
     if request.method == 'POST':
         # 3) Read form values
         try:
@@ -72,30 +59,56 @@ def rate_order(order_id):
         # Limit comment length
         comment = comment[:2000]
 
-        if not ratee_id:
-            conn.close()
-            if is_ajax:
-                return jsonify({'error': 'Could not determine who to rate'}), 400
-            flash("Error: could not determine who to rate.", "error")
-            return redirect(url_for('account.account'))
+        # 4) Determine ratee_id
+        if is_seller:
+            # Sellers always rate the buyer
+            ratee_id = order['buyer_id']
+        else:
+            # Buyers rate a specific seller — ratee_id comes from the form
+            try:
+                ratee_id = int(request.form.get('ratee_id', 0))
+            except (ValueError, TypeError):
+                ratee_id = 0
 
-        # 4) Prevent double-rating
+            if not ratee_id:
+                conn.close()
+                if is_ajax:
+                    return jsonify({'error': 'Missing seller to rate'}), 400
+                flash("Error: could not determine who to rate.", "error")
+                return redirect(url_for('account.account'))
+
+            # Security: verify ratee_id is actually a seller in this order
+            valid_seller = conn.execute('''
+                SELECT 1 FROM order_items oi
+                JOIN listings l ON oi.listing_id = l.id
+                WHERE oi.order_id = ? AND l.seller_id = ?
+                LIMIT 1
+            ''', (order_id, ratee_id)).fetchone()
+
+            if not valid_seller:
+                conn.close()
+                if is_ajax:
+                    return jsonify({'error': 'Invalid seller for this order'}), 400
+                flash("Error: invalid seller.", "error")
+                return redirect(url_for('account.account'))
+
+        # 5) Prevent double-rating the same person in the same order
         existing = conn.execute('''
             SELECT 1 FROM ratings
-            WHERE order_id = ? AND rater_id = ?
-        ''', (order_id, rater_id)).fetchone()
+            WHERE order_id = ? AND rater_id = ? AND ratee_id = ?
+        ''', (order_id, user_id, ratee_id)).fetchone()
         if existing:
             conn.close()
             if is_ajax:
-                return jsonify({'error': 'Already rated'}), 400
-            flash("❌ You've already rated this order.", "error")
+                return jsonify({'error': 'Already rated this user for this order'}), 400
+            flash("❌ You've already rated this user for this order.", "error")
             return redirect(url_for('account.account'))
 
-        # 5) Insert the new rating
+        # 6) Insert the new rating
         conn.execute('''
             INSERT INTO ratings (order_id, rater_id, ratee_id, rating, comment)
             VALUES (?, ?, ?, ?, ?)
-        ''', (order_id, rater_id, ratee_id, rating, comment))
+        ''', (order_id, user_id, ratee_id, rating, comment))
         conn.commit()
         conn.close()
 
@@ -105,5 +118,5 @@ def rate_order(order_id):
         return redirect(url_for('account.account'))
 
     conn.close()
-    # GET: render rate form
+    # GET: render legacy rate form
     return render_template('rate_user.html', order_id=order_id)

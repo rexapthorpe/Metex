@@ -133,24 +133,26 @@ def register():
             if AUDIT_ENABLED:
                 log_registration(user_id, username, email)
 
-            # Merge guest cart
+            # Merge guest cart — preserve grading preference per line item
             guest_cart = session.pop('guest_cart', [])
             for item in guest_cart:
+                tpg = int(item.get('third_party_grading_requested', 0) or 0)
+                grading_pref = 'ANY' if tpg else 'NONE'
                 existing = conn.execute(
-                    'SELECT quantity FROM cart WHERE user_id = ? AND listing_id = ?',
-                    (user_id, item['listing_id'])
+                    'SELECT id, quantity FROM cart WHERE user_id = ? AND listing_id = ? AND third_party_grading_requested = ?',
+                    (user_id, item['listing_id'], tpg)
                 ).fetchone()
 
                 if existing:
                     new_qty = existing['quantity'] + item['quantity']
                     conn.execute(
-                        'UPDATE cart SET quantity = ? WHERE user_id = ? AND listing_id = ?',
-                        (new_qty, user_id, item['listing_id'])
+                        'UPDATE cart SET quantity = ? WHERE id = ?',
+                        (new_qty, existing['id'])
                     )
                 else:
                     conn.execute(
-                        'INSERT INTO cart (user_id, listing_id, quantity) VALUES (?, ?, ?)',
-                        (user_id, item['listing_id'], item['quantity'])
+                        'INSERT INTO cart (user_id, listing_id, quantity, third_party_grading_requested, grading_preference) VALUES (?, ?, ?, ?, ?)',
+                        (user_id, item['listing_id'], item['quantity'], tpg, grading_pref)
                     )
 
             conn.commit()
@@ -203,23 +205,25 @@ def login():
             if AUDIT_ENABLED:
                 log_login_success(user_id, username)
 
-            # Merge guest cart after session setup
+            # Merge guest cart after session setup — preserve grading preference per line item
             for item in guest_cart:
+                tpg = int(item.get('third_party_grading_requested', 0) or 0)
+                grading_pref = 'ANY' if tpg else 'NONE'
                 existing = conn.execute(
-                    'SELECT quantity FROM cart WHERE user_id = ? AND listing_id = ?',
-                    (user_id, item['listing_id'])
+                    'SELECT id, quantity FROM cart WHERE user_id = ? AND listing_id = ? AND third_party_grading_requested = ?',
+                    (user_id, item['listing_id'], tpg)
                 ).fetchone()
 
                 if existing:
                     new_qty = existing['quantity'] + item['quantity']
                     conn.execute(
-                        'UPDATE cart SET quantity = ? WHERE user_id = ? AND listing_id = ?',
-                        (new_qty, user_id, item['listing_id'])
+                        'UPDATE cart SET quantity = ? WHERE id = ?',
+                        (new_qty, existing['id'])
                     )
                 else:
                     conn.execute(
-                        'INSERT INTO cart (user_id, listing_id, quantity) VALUES (?, ?, ?)',
-                        (user_id, item['listing_id'], item['quantity'])
+                        'INSERT INTO cart (user_id, listing_id, quantity, third_party_grading_requested, grading_preference) VALUES (?, ?, ?, ?, ?)',
+                        (user_id, item['listing_id'], item['quantity'], tpg, grading_pref)
                     )
 
             conn.commit()

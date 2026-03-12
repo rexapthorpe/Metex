@@ -353,10 +353,10 @@
   background: #f0fdf4;
   border-color: #86efac;
   color: #16a34a;
-  cursor: default;
-  pointer-events: none;
+  cursor: pointer;
 }
 .sold-footer-btn--rated i { color: #22c55e !important; }
+.sold-footer-btn--rated:hover { background: #dcfce7; border-color: #4ade80; }
 
 /* ===================================
    RESPONSIVE — SOLD TAB
@@ -453,9 +453,7 @@
   .sold-footer-btn--track:hover { background: #1e74f0; }
 
   .sold-footer-btn--rated {
-    opacity: 0.6;
-    cursor: default;
-    pointer-events: none;
+    cursor: pointer;
   }
 
 }

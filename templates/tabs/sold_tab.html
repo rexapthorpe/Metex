@@ -197,10 +197,7 @@
               {% set sale_title = [sale.weight or '', sale.year or '', sale.metal or '', sale.product_line or '', sale.product_type or ''] | select | join(' ') | trim %}
               <button
                 class="sold-footer-btn{% if sale.already_rated %} sold-footer-btn--rated{% endif %}"
-                {% if not sale.already_rated %}
-                onclick='openRateModal({{ sale.order_id }}, "buyer", {{ {"title": sale_title, "price": "${:,.0f}".format(sale.gross_amount or 0), "date": sale.order_date or ""} | tojson }})'
-                {% endif %}
-                {% if sale.already_rated %}disabled{% endif %}>
+                onclick='openRateModal({{ sale.order_id }}, "buyer", {{ {"title": sale_title, "price": "${:,.0f}".format(sale.gross_amount or 0), "date": sale.order_date or ""} | tojson }})'>
                 <i class="{% if sale.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
                 {% if sale.already_rated %}Rated{% else %}Rate{% endif %}
               </button>

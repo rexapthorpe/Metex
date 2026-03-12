@@ -334,3 +334,53 @@
 }
 .rm-submit-btn:hover:not(:disabled) { background: #374151; }
 .rm-submit-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+
+/* Green accent on user card when already rated */
+.rm-user-card--rated {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+.rm-user-card--rated .rm-avatar {
+  background: #16a34a;
+}
+
+/* Already-rated panel (JS shows/hides via style.display) */
+.rm-already-rated {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0 8px;
+  text-align: center;
+  animation: rm-fade-in 0.25s ease;
+}
+
+.rm-rated-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #16a34a;
+  margin-bottom: 16px;
+}
+.rm-rated-badge i { font-size: 1rem; color: #22c55e; }
+
+.rm-rated-stars {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 1.6rem;
+  color: #1e293b;
+}
+.rm-rated-stars .fa-regular { color: #d1d5db; }
+
+.rm-rated-hint {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-bottom: 20px;
+}

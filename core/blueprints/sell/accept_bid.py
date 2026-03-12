@@ -8,6 +8,7 @@ Extracted from routes.py during refactor - NO BEHAVIOR CHANGE.
 from flask import flash, redirect, url_for, session, request
 from database import get_db_connection
 from services.notification_service import notify_bid_filled
+from services.pricing_service import get_effective_bid_price
 from . import sell_bp
 
 
@@ -40,8 +41,12 @@ def accept_bid(bucket_id):
         accepted_qty = int(accepted_qty)
 
         bid = c.execute('''
-            SELECT buyer_id, category_id, quantity_requested, remaining_quantity, price_per_coin, status
-            FROM bids WHERE id = ?
+            SELECT b.buyer_id, b.category_id, b.quantity_requested, b.remaining_quantity,
+                   b.price_per_coin, b.status, b.pricing_mode, b.spot_premium,
+                   b.ceiling_price, b.pricing_metal, c.metal, c.weight
+            FROM bids b
+            JOIN categories c ON c.id = b.category_id
+            WHERE b.id = ?
         ''', (bid_id,)).fetchone()
 
         if not bid or bid['status'].lower() not in ['open', 'pending', 'partially filled']:
@@ -55,7 +60,20 @@ def accept_bid(bucket_id):
         category_id = bid['category_id']
         # Use remaining_quantity (not quantity_requested) for partially-filled bids
         max_qty = bid['remaining_quantity'] if bid['remaining_quantity'] is not None else bid['quantity_requested']
-        price = bid['price_per_coin']
+
+        # Compute effective bid price (handles both static and premium_to_spot modes).
+        # For premium_to_spot bids, price_per_coin stores ceiling_price for backwards
+        # compatibility, NOT the actual effective price (spot + premium, capped at ceiling).
+        # Using price_per_coin directly would overcharge buyers of spot-linked bids.
+        try:
+            spot_rows = c.execute(
+                "SELECT metal, price_usd FROM spot_price_snapshots "
+                "WHERE id IN (SELECT MAX(id) FROM spot_price_snapshots GROUP BY metal)"
+            ).fetchall()
+            spot_prices = {row['metal'].lower(): float(row['price_usd']) for row in spot_rows} if spot_rows else {}
+        except Exception:
+            spot_prices = {}
+        price = get_effective_bid_price(dict(bid), spot_prices=spot_prices)
 
         qty_to_fulfill = min(accepted_qty, max_qty)
 
@@ -128,12 +146,12 @@ def accept_bid(bucket_id):
         is_partial = remaining > 0
         if remaining == 0:
             c.execute(
-                'UPDATE bids SET remaining_quantity = 0, active = 0, status = "filled" WHERE id = ?',
+                "UPDATE bids SET remaining_quantity = 0, active = 0, status = 'Filled' WHERE id = ?",
                 (bid_id,)
             )
         else:
             c.execute(
-                'UPDATE bids SET remaining_quantity = ?, status = "partially filled" WHERE id = ?',
+                "UPDATE bids SET remaining_quantity = ?, status = 'Partially Filled' WHERE id = ?",
                 (remaining, bid_id)
             )
 

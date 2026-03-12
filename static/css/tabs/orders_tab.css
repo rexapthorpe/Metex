@@ -263,10 +263,10 @@
   background: #f0fdf4;
   border-color: #86efac;
   color: #16a34a;
-  cursor: default;
-  pointer-events: none;
+  cursor: pointer;
 }
 .order-quick-action--rated i { color: #22c55e !important; }
+.order-quick-action--rated:hover { background: #dcfce7; border-color: #4ade80; }
 
 .order-actions-divider { height: 1px; background: #e2e8f0; margin: 6px 0; }
 

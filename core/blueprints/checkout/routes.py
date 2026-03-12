@@ -525,8 +525,12 @@ def checkout():
                         ''', (item['quantity'], item['quantity'], item['listing_id'], item['quantity']))
 
                         if result.rowcount == 0:
-                            # Concurrent buyer took the last stock; roll back the orphaned order
-                            # (create_order commits in its own connection so we must delete explicitly)
+                            # Concurrent buyer took the last stock.
+                            # 1) Roll back all inventory decrements already applied in this
+                            #    transaction (items processed before this one in the loop).
+                            # 2) Clean up the order record that was committed by create_order()
+                            #    in its own connection.
+                            conn.rollback()
                             try:
                                 conn.execute('DELETE FROM order_items WHERE order_id = ?', (order_id,))
                                 conn.execute('DELETE FROM orders WHERE id = ?', (order_id,))
@@ -707,7 +711,11 @@ def checkout():
                 ''', (item['quantity'], item['quantity'], item['listing_id'], item['quantity']))
 
                 if result.rowcount == 0:
-                    # Concurrent buyer took the last stock; roll back the orphaned order
+                    # Concurrent buyer took the last stock.
+                    # 1) Roll back all inventory decrements already applied in this
+                    #    transaction (items processed before this one in the loop).
+                    # 2) Clean up the order record committed by create_order().
+                    conn.rollback()
                     try:
                         conn.execute('DELETE FROM order_items WHERE order_id = ?', (order_id,))
                         conn.execute('DELETE FROM orders WHERE id = ?', (order_id,))

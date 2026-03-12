@@ -308,6 +308,61 @@ def ensure_notification_settings_table():
         print(f'Error ensuring notification_settings table: {e}')
 
 
+def ensure_ratings_multi_seller_constraint():
+    """
+    Migrate the ratings unique constraint from (order_id, rater_id) to
+    (order_id, rater_id, ratee_id) so buyers can rate each seller
+    in a multi-seller order individually.
+
+    Safe to call multiple times (idempotent).
+    """
+    try:
+        conn = get_db_connection()
+        if IS_POSTGRES:
+            # Drop old 2-column constraint if it exists; new one is added below.
+            try:
+                conn.execute(
+                    "ALTER TABLE ratings DROP CONSTRAINT IF EXISTS ratings_order_id_rater_id_key"
+                )
+                conn.execute(
+                    "ALTER TABLE ratings ADD CONSTRAINT IF NOT EXISTS "
+                    "ratings_order_id_rater_id_ratee_id_key "
+                    "UNIQUE (order_id, rater_id, ratee_id)"
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+        else:
+            # SQLite: recreate table only when old constraint (without ratee_id) detected.
+            row = conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='ratings'"
+            ).fetchone()
+            if row and row['sql'] and 'UNIQUE(order_id, rater_id, ratee_id)' not in row['sql']:
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS ratings_new (
+                        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                        order_id  INTEGER NOT NULL,
+                        rater_id  INTEGER NOT NULL,
+                        ratee_id  INTEGER NOT NULL,
+                        rating    INTEGER NOT NULL,
+                        comment   TEXT,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (order_id)  REFERENCES orders(id),
+                        FOREIGN KEY (rater_id)  REFERENCES users(id),
+                        FOREIGN KEY (ratee_id)  REFERENCES users(id),
+                        UNIQUE(order_id, rater_id, ratee_id)
+                    )
+                ''')
+                conn.execute('INSERT INTO ratings_new SELECT * FROM ratings')
+                conn.execute('DROP TABLE ratings')
+                conn.execute('ALTER TABLE ratings_new RENAME TO ratings')
+                conn.commit()
+                print('✅ Migrated ratings UNIQUE constraint to (order_id, rater_id, ratee_id)')
+        conn.close()
+    except Exception as e:
+        print(f'Error migrating ratings constraint: {e}')
+
+
 def init_database():
     """
     Run all database initialization checks
@@ -323,3 +378,4 @@ def init_database():
     ensure_notification_settings_table()
     ensure_security_audit_log_table()
     ensure_payment_methods_table()
+    ensure_ratings_multi_seller_constraint()

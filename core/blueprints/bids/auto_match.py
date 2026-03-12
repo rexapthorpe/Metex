@@ -542,7 +542,7 @@ def check_all_pending_matches(conn):
 
     # Get all active bids with remaining quantity
     active_bids = cursor.execute('''
-        SELECT b.id, b.category_id, b.buyer_id
+        SELECT b.id, b.category_id, b.buyer_id, b.random_year
         FROM bids b
         WHERE b.active = 1
           AND b.remaining_quantity > 0
@@ -556,19 +556,22 @@ def check_all_pending_matches(conn):
     for bid_row in active_bids:
         bid_id = bid_row['id']
 
-        # Check if there are any potential listings for this bid's category
-        # (from different users)
-        potential_listings = cursor.execute('''
-            SELECT 1 FROM listings l
-            WHERE l.category_id = ?
-              AND l.seller_id != ?
-              AND l.active = 1
-              AND l.quantity > 0
-            LIMIT 1
-        ''', (bid_row['category_id'], bid_row['buyer_id'])).fetchone()
+        # Pre-check: skip bids that have no potential listings to save work.
+        # For random_year=1 bids, matching listings may be in a DIFFERENT category
+        # (same specs, different year), so we skip the pre-check for those bids and
+        # let auto_match_bid_to_listings handle the cross-year lookup.
+        if not bid_row['random_year']:
+            potential_listings = cursor.execute('''
+                SELECT 1 FROM listings l
+                WHERE l.category_id = ?
+                  AND l.seller_id != ?
+                  AND l.active = 1
+                  AND l.quantity > 0
+                LIMIT 1
+            ''', (bid_row['category_id'], bid_row['buyer_id'])).fetchone()
 
-        if not potential_listings:
-            continue
+            if not potential_listings:
+                continue
 
         # Try to match this bid
         result = auto_match_bid_to_listings(bid_id, cursor)

@@ -456,12 +456,17 @@ def preview_buy(bucket_id):
             conn.close()
             return jsonify(success=False, message='No matching listings available.'), 400
 
+        # Pre-fetch spot prices from DB snapshots — same source as bucket page and cart,
+        # so the preview price matches what the user will actually pay at checkout.
+        from services.reference_price_service import get_current_spots_from_snapshots
+        spot_prices_preview = get_current_spots_from_snapshots(conn)
+
         # Calculate effective prices and sort
         listings_with_prices = []
         has_premium_to_spot = False
         for listing in listings_raw:
             listing_dict = dict(listing)
-            listing_dict['effective_price'] = get_effective_price(listing_dict)
+            listing_dict['effective_price'] = get_effective_price(listing_dict, spot_prices=spot_prices_preview)
             listings_with_prices.append(listing_dict)
 
             # Check if any listing is premium-to-spot

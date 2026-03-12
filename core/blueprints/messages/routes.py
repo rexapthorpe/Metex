@@ -19,6 +19,52 @@ except ImportError:
     def limit_message_send(f): return f
 
 
+@messages_bp.route('/orders/api/<int:order_id>/order_sellers')
+def get_order_sellers_for_rating(order_id):
+    """
+    Return all sellers in an order with per-seller rating status for the
+    current buyer.  Used by the ratings modal to support multi-seller rating.
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    conn = get_db_connection()
+    order = conn.execute('SELECT buyer_id FROM orders WHERE id = ?', (order_id,)).fetchone()
+    if not order or order['buyer_id'] != user_id:
+        conn.close()
+        return jsonify({'error': 'Order not found or access denied'}), 403
+
+    rows = conn.execute(
+        """
+        SELECT DISTINCT
+            l.seller_id    AS seller_id,
+            u.username     AS username,
+            r.rating       AS existing_rating,
+            CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END AS already_rated
+        FROM order_items oi
+        JOIN listings l  ON oi.listing_id = l.id
+        JOIN users u     ON l.seller_id   = u.id
+        LEFT JOIN ratings r ON r.order_id  = ?
+                           AND r.rater_id  = ?
+                           AND r.ratee_id  = l.seller_id
+        WHERE oi.order_id = ?
+        """,
+        (order_id, user_id, order_id)
+    ).fetchall()
+
+    conn.close()
+    return jsonify([
+        {
+            'seller_id':       r['seller_id'],
+            'username':        r['username'],
+            'already_rated':   bool(r['already_rated']),
+            'existing_rating': r['existing_rating'],
+        }
+        for r in rows
+    ])
+
+
 @messages_bp.route('/orders/api/<int:order_id>/message_sellers')
 def get_message_sellers(order_id):
     user_id = session.get('user_id')
@@ -75,21 +121,31 @@ def get_message_buyers(order_id):
     conn = get_db_connection()
     rows = conn.execute(
         """
-        SELECT
+        SELECT DISTINCT
             o.buyer_id    AS participant_id,
-            u.username    AS username
+            u.username    AS username,
+            r.rating      AS existing_rating,
+            CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END AS already_rated
         FROM orders o
-        JOIN users u     ON o.buyer_id = u.id
-        JOIN order_items oi ON oi.order_id = o.id
-        JOIN listings l  ON oi.listing_id = l.id
+        JOIN users u        ON o.buyer_id   = u.id
+        JOIN order_items oi ON oi.order_id  = o.id
+        JOIN listings l     ON oi.listing_id = l.id
+        LEFT JOIN ratings r ON r.order_id   = o.id
+                           AND r.rater_id   = ?
+                           AND r.ratee_id   = o.buyer_id
         WHERE o.id       = ?
           AND l.seller_id = ?
         """,
-        (order_id, user_id)
+        (user_id, order_id, user_id)
     ).fetchall()
 
     buyers = [
-        {'buyer_id': r['participant_id'], 'username': r['username']}
+        {
+            'buyer_id':        r['participant_id'],
+            'username':        r['username'],
+            'already_rated':   bool(r['already_rated']),
+            'existing_rating': r['existing_rating'],
+        }
         for r in rows
     ]
     return jsonify(buyers)

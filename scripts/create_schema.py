@@ -498,7 +498,7 @@ class SchemaManager:
             FOREIGN KEY (order_id) REFERENCES orders(id),
             FOREIGN KEY (rater_id) REFERENCES users(id),
             FOREIGN KEY (ratee_id) REFERENCES users(id),
-            UNIQUE(order_id, rater_id)
+            UNIQUE(order_id, rater_id, ratee_id)
         )
         """
 
