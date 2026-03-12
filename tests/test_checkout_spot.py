@@ -798,12 +798,13 @@ class TestCheckoutRouteBlocking:
         with flask_client.session_transaction() as sess:
             sess["user_id"] = 9102
             sess.pop("checkout_items", None)
+            sess["checkout_nonce"] = "test_nonce_cs"
 
         orders_before = self._order_count(get_conn)
 
         resp = flask_client.post(
             "/checkout",
-            json={"shipping_address": "1 Test Lane"},
+            json={"shipping_address": "1 Test Lane", "checkout_nonce": "test_nonce_cs"},
             headers={"X-Requested-With": "XMLHttpRequest"},
             content_type="application/json",
         )
@@ -1119,6 +1120,7 @@ class TestPolicyAStaleRefreshFailure:
         with flask_client.session_transaction() as sess:
             sess["user_id"] = self.USER_ID
             sess.pop("checkout_items", None)
+            sess["checkout_nonce"] = "test_nonce_b1"
 
         orders_before, items_before = self._snapshot_counts(get_conn)
         rs_calls = []
@@ -1137,7 +1139,7 @@ class TestPolicyAStaleRefreshFailure:
 
             resp = flask_client.post(
                 "/checkout",
-                json={"shipping_address": "1 Policy A Lane"},
+                json={"shipping_address": "1 Policy A Lane", "checkout_nonce": "test_nonce_b1"},
                 headers={"X-Requested-With": "XMLHttpRequest"},
                 content_type="application/json",
             )
@@ -1195,6 +1197,7 @@ class TestPolicyAStaleRefreshFailure:
         with flask_client.session_transaction() as sess:
             sess["user_id"] = self.USER_ID
             sess.pop("checkout_items", None)
+            sess["checkout_nonce"] = "test_nonce_b2"
 
         orders_before, items_before = self._snapshot_counts(get_conn)
         rs_calls = []
@@ -1206,7 +1209,7 @@ class TestPolicyAStaleRefreshFailure:
 
             resp = flask_client.post(
                 "/checkout",
-                json={"shipping_address": "2 Policy A Lane"},
+                json={"shipping_address": "2 Policy A Lane", "checkout_nonce": "test_nonce_b2"},
                 headers={"X-Requested-With": "XMLHttpRequest"},
                 content_type="application/json",
             )

@@ -17,7 +17,7 @@ import re
 
 # Folder where listing photos will be stored (relative to project root)
 UPLOAD_FOLDER = os.path.join("static", "uploads", "listings")
-ALLOWED_EXTENSIONS = {"png"}  # PNG only as per Sell Page specifications
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "heic"}
 
 
 def allowed_file(filename):
@@ -288,7 +288,7 @@ def handle_sell_post():
                 return _render_sell_template(options)
 
         if not allowed_file(photo_file.filename):
-            error_msg = "Invalid file type. Please upload a PNG image only."
+            error_msg = "Invalid file type. Please upload a PNG, JPG, JPEG, WEBP, or HEIC image."
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify(success=False, message=error_msg), 400
             flash(error_msg, "error")
@@ -300,7 +300,7 @@ def handle_sell_post():
         upload_result = save_secure_upload(
             photo_file,
             upload_dir='uploads/listings',
-            allowed_types=['image/png'],
+            allowed_types=['image/png', 'image/jpeg', 'image/webp', 'image/heic'],
             category='listing_photo'
         )
         if not upload_result['success']:
@@ -635,7 +635,7 @@ def _create_set_items(cursor, conn, listing_id, set_item_indices, options):
         result = save_secure_upload(
             photo_file,
             upload_dir='uploads/listings',
-            allowed_types=['image/png'],
+            allowed_types=['image/png', 'image/jpeg', 'image/webp', 'image/heic'],
             category='listing_photo'
         )
         if not result['success']:

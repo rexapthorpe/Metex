@@ -134,8 +134,8 @@ def _load_dropdown_options():
         else:
             continue
         year_values.add(year_val)
-    # Sort years as strings (they'll sort correctly since they're all numeric)
-    opts["years"] = sorted(year_values)
+    # Sort years descending so most recent year appears first
+    opts["years"] = sorted(year_values, reverse=True)
 
     # --- FINISHES ---
     finish_values = set(builtin_specs["finishes"])

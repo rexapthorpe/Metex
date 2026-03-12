@@ -364,6 +364,21 @@ def _clear_orders(get_conn):
     conn.close()
 
 
+_TEST_NONCE = 'test_checkout_nonce_fixed'
+
+
+def _set_nonce(flask_client):
+    """Inject the checkout nonce into the Flask test client's session.
+
+    All AJAX POST /checkout calls must include checkout_nonce=_TEST_NONCE in
+    their JSON body AND have the nonce stored in session before the request.
+    Because the nonce is only consumed on successful order creation, a single
+    nonce can survive SPOT_EXPIRED rejections and be reused on retry.
+    """
+    with flask_client.session_transaction() as sess:
+        sess['checkout_nonce'] = _TEST_NONCE
+
+
 # ---------------------------------------------------------------------------
 # Group 1: Unit — check_spot_freshness
 # ---------------------------------------------------------------------------
@@ -463,9 +478,10 @@ class TestCartFinalizeBlockedOnStale:
         _insert_snapshot(get_conn, "gold", GOLD_PRICE, age_seconds=300)  # stale
 
         _login(flask_client)
+        _set_nonce(flask_client)
         resp = flask_client.post(
             "/checkout",
-            json={"shipping_address": "123 Main St"},
+            json={"shipping_address": "123 Main St", "checkout_nonce": _TEST_NONCE},
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
 
@@ -482,9 +498,10 @@ class TestCartFinalizeBlockedOnStale:
         # (stale snapshot already in place from previous test)
 
         _login(flask_client)
+        _set_nonce(flask_client)
         flask_client.post(
             "/checkout",
-            json={"shipping_address": "123 Main St"},
+            json={"shipping_address": "123 Main St", "checkout_nonce": _TEST_NONCE},
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
 
@@ -505,10 +522,11 @@ class TestCartFinalizeBlockedOnStale:
         _insert_snapshot(get_conn, "gold", GOLD_PRICE, age_seconds=5)  # fresh
 
         _login(flask_client)
+        _set_nonce(flask_client)
         with patch("services.notification_service.notify") as _m:
             resp = flask_client.post(
                 "/checkout",
-                json={"shipping_address": "123 Main St"},
+                json={"shipping_address": "123 Main St", "checkout_nonce": _TEST_NONCE},
                 headers={"X-Requested-With": "XMLHttpRequest"},
             )
 
@@ -544,10 +562,11 @@ class TestBucketFinalizeBlockedOnStale:
                 {"listing_id": listing_id, "quantity": 1, "price_each": 3250.0}
             ]
             sess["checkout_tpg"] = 0
+            sess["checkout_nonce"] = _TEST_NONCE
 
         resp = flask_client.post(
             "/checkout",
-            json={"shipping_address": "456 Oak Ave"},
+            json={"shipping_address": "456 Oak Ave", "checkout_nonce": _TEST_NONCE},
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
 
@@ -569,10 +588,11 @@ class TestBucketFinalizeBlockedOnStale:
         with flask_client.session_transaction() as sess:
             sess["checkout_items"] = session_items
             sess["checkout_tpg"] = 0
+            sess["checkout_nonce"] = _TEST_NONCE
 
         flask_client.post(
             "/checkout",
-            json={"shipping_address": "456 Oak Ave"},
+            json={"shipping_address": "456 Oak Ave", "checkout_nonce": _TEST_NONCE},
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
 
@@ -596,10 +616,11 @@ class TestBucketFinalizeBlockedOnStale:
                 {"listing_id": listing_id, "quantity": 1, "price_each": 3250.0}
             ]
             sess["checkout_tpg"] = 0
+            sess["checkout_nonce"] = _TEST_NONCE
 
         flask_client.post(
             "/checkout",
-            json={},
+            json={"checkout_nonce": _TEST_NONCE},
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
 
@@ -628,10 +649,11 @@ class TestStaticListingNotBlocked:
         _add_to_cart(get_conn, 8801, listing_id)
 
         _login(flask_client)
+        _set_nonce(flask_client)
         with patch("services.notification_service.notify") as _m:
             resp = flask_client.post(
                 "/checkout",
-                json={"shipping_address": "789 Pine St"},
+                json={"shipping_address": "789 Pine St", "checkout_nonce": _TEST_NONCE},
                 headers={"X-Requested-With": "XMLHttpRequest"},
             )
 
@@ -784,11 +806,13 @@ class TestFullSpotExpiredFlow:
         _insert_snapshot(get_conn, "gold", GOLD_PRICE, age_seconds=300)
 
         _login(flask_client)
+        # Set nonce once — it survives SPOT_EXPIRED (only consumed on success)
+        _set_nonce(flask_client)
 
         # Step 2: Finalize → SPOT_EXPIRED
         resp1 = flask_client.post(
             "/checkout",
-            json={"shipping_address": "Full Flow Ave"},
+            json={"shipping_address": "Full Flow Ave", "checkout_nonce": _TEST_NONCE},
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
         assert resp1.status_code == 409
@@ -806,10 +830,11 @@ class TestFullSpotExpiredFlow:
         _add_to_cart(get_conn, 8801, listing_id)
 
         # Step 5: Finalize again → now fresh → order created
+        # Same nonce is still valid (was not consumed on SPOT_EXPIRED in step 2)
         with patch("services.notification_service.notify") as _m:
             resp2 = flask_client.post(
                 "/checkout",
-                json={"shipping_address": "Full Flow Ave"},
+                json={"shipping_address": "Full Flow Ave", "checkout_nonce": _TEST_NONCE},
                 headers={"X-Requested-With": "XMLHttpRequest"},
             )
 

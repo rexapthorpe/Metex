@@ -11,6 +11,8 @@ Spot pricing at checkout:
   the external spot API are NOT made during checkout.
 """
 
+import secrets
+
 from flask import render_template, redirect, url_for, request, session, flash, jsonify
 from database import get_db_connection
 from services.order_service import create_order
@@ -381,6 +383,20 @@ def checkout():
                     recipient_first = data.get('recipient_first', '')
                     recipient_last = data.get('recipient_last', '')
 
+                    # ── Idempotency guard: validate one-time checkout nonce ─────
+                    # Prevents duplicate orders from double-submit or simultaneous
+                    # requests. The nonce is generated on GET and validated here.
+                    # It is NOT consumed yet — it is consumed only at the point of
+                    # order creation so that earlier failures (SPOT_EXPIRED, etc.)
+                    # leave the nonce intact for the user to retry.
+                    submitted_nonce = data.get('checkout_nonce')
+                    if not submitted_nonce or submitted_nonce != session.get('checkout_nonce'):
+                        conn.close()
+                        return jsonify({
+                            'success': False,
+                            'message': 'Order already submitted or session expired. Please refresh the page.',
+                        }), 409
+
                     from services.checkout_spot_service import check_spot_map_freshness
 
                     session_items = session.pop('checkout_items', None)
@@ -481,6 +497,11 @@ def checkout():
                             'success': False,
                             'message': 'Your cart is empty or items are no longer available',
                         })
+
+                    # ── Consume nonce immediately before order creation ──────────
+                    # All validation has passed; remove the nonce so any duplicate
+                    # request that reaches this point is rejected as "already submitted".
+                    session.pop('checkout_nonce', None)
 
                     # ── Create order ────────────────────────────────────────────
                     order_id = create_order(
@@ -909,6 +930,11 @@ def checkout():
 
         conn.close()
 
+        # Generate a one-time nonce to guard against duplicate order submission.
+        # Stored in the session and consumed on the first successful AJAX finalize.
+        checkout_nonce = secrets.token_hex(16)
+        session['checkout_nonce'] = checkout_nonce
+
         return render_template(
             'checkout_page.html',
             cart_items=cart_items,
@@ -917,7 +943,8 @@ def checkout():
             grading_fee=grading_fee,
             grading_fee_per_unit=GRADING_FEE_PER_UNIT,
             cart_total=cart_total,
-            user_info=dict(user_info) if user_info else {}
+            user_info=dict(user_info) if user_info else {},
+            checkout_nonce=checkout_nonce,
         )
 
 

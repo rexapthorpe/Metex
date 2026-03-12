@@ -19,7 +19,7 @@ REPORT_ATTACH_DIR = os.path.join(_APP_ROOT, 'data', 'uploads', 'reports')
 
 # Legacy constant kept for reference only — no longer used for new uploads.
 UPLOAD_FOLDER = 'static/uploads/reports'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'heic'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB per file
 
 
@@ -157,7 +157,7 @@ def create_report():
             # Content-validate (magic bytes + PIL decode)
             validation = validate_upload(
                 file,
-                allowed_types=['image/png', 'image/jpeg', 'image/webp'],
+                allowed_types=['image/png', 'image/jpeg', 'image/webp', 'image/heic'],
                 category='report_evidence'
             )
             if not validation['valid']:

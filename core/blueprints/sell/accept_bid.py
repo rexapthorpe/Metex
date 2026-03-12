@@ -74,6 +74,13 @@ def accept_bid(bucket_id):
             # Not enough inventory — skip this bid
             continue
 
+        # SAVEPOINT: wrap this bid's entire DB work so that if concurrent
+        # inventory depletion causes the deduction to fall short after the
+        # pre-flight check passes, we can atomically roll back only this bid's
+        # inserts/updates without affecting other bids in the same transaction.
+        sp_name = f'sp_bid_{int(bid_id)}'
+        c.execute(f'SAVEPOINT {sp_name}')
+
         # Create an order using the canonical schema (no seller_id/category_id at order level;
         # seller identity is resolved via order_items → listings → seller_id)
         total_price = round(qty_to_fulfill * price, 2)
@@ -104,6 +111,17 @@ def accept_bid(bucket_id):
                     VALUES (?, ?, ?, ?)
                 ''', (order_id, listing_row['id'], take, price))
                 remaining_to_deduct -= take
+
+        if remaining_to_deduct > 0:
+            # Concurrent depletion: another acceptance took the inventory between
+            # our pre-flight check and the atomic deduction. Roll back this bid's
+            # order, order_items, and inventory changes, then skip to the next bid.
+            c.execute(f'ROLLBACK TO SAVEPOINT {sp_name}')
+            c.execute(f'RELEASE SAVEPOINT {sp_name}')
+            continue
+
+        # All inventory deducted — release the savepoint (becomes part of outer tx)
+        c.execute(f'RELEASE SAVEPOINT {sp_name}')
 
         # Update the bid — decrement remaining_quantity (canonical unfilled count)
         remaining = max_qty - qty_to_fulfill

@@ -549,6 +549,7 @@
 <script>
   window.checkoutSubtotal    = {{ subtotal }};
   window.checkoutGradingFee  = {{ grading_fee }};
+  window.checkoutNonce       = {{ checkout_nonce | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/format_utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/checkout_page.js') }}"></script>

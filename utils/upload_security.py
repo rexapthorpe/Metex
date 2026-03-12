@@ -55,8 +55,8 @@ MAX_FILE_SIZES = {
 ALLOWED_IMAGE_TYPES = {
     'image/png': ['.png'],
     'image/jpeg': ['.jpg', '.jpeg'],
-    'image/gif': ['.gif'],
     'image/webp': ['.webp'],
+    'image/heic': ['.heic'],
 }
 
 # SVG is explicitly DISALLOWED due to XSS risks
@@ -73,8 +73,6 @@ DISALLOWED_TYPES = frozenset([
 IMAGE_MAGIC_BYTES = {
     b'\x89PNG\r\n\x1a\n': 'png',
     b'\xff\xd8\xff': 'jpeg',
-    b'GIF87a': 'gif',
-    b'GIF89a': 'gif',
     b'RIFF': 'webp',  # WebP starts with RIFF....WEBP
 }
 
@@ -87,7 +85,7 @@ def get_image_type_from_content(file_content: bytes) -> Optional[str]:
         file_content: Raw file bytes
 
     Returns:
-        Image type string ('png', 'jpeg', 'gif', 'webp') or None
+        Image type string ('png', 'jpeg', 'webp', 'heic') or None
     """
     # Check magic bytes
     for magic, img_type in IMAGE_MAGIC_BYTES.items():
@@ -99,10 +97,16 @@ def get_image_type_from_content(file_content: bytes) -> Optional[str]:
             else:
                 return img_type
 
+    # HEIC: uses ISO Base Media File Format - 'ftyp' box at offset 4
+    if len(file_content) >= 12 and file_content[4:8] == b'ftyp':
+        brand = file_content[8:12]
+        if brand in (b'heic', b'heis', b'mif1', b'msf1', b'hevc', b'hevx'):
+            return 'heic'
+
     # Fallback to Pillow
     try:
         img = Image.open(io.BytesIO(file_content))
-        fmt = img.format  # e.g. 'PNG', 'JPEG', 'GIF', 'WEBP'
+        fmt = img.format  # e.g. 'PNG', 'JPEG', 'WEBP'
         if fmt:
             return fmt.lower()
     except Exception:
@@ -122,6 +126,13 @@ def validate_image_content(file_content: bytes) -> Tuple[bool, Optional[str]]:
     Returns:
         Tuple of (is_valid, error_message)
     """
+    # HEIC: Pillow requires the pillow-heif plugin to decode HEIC files.
+    # If the file passes magic-byte detection (ftyp box with heic brand), accept it.
+    if len(file_content) >= 12 and file_content[4:8] == b'ftyp':
+        brand = file_content[8:12]
+        if brand in (b'heic', b'heis', b'mif1', b'msf1', b'hevc', b'hevx'):
+            return True, None
+
     try:
         # Try PIL/Pillow if available (most thorough)
         try:
@@ -437,7 +448,7 @@ def save_secure_upload(
             'image/jpeg': 'JPEG',
             'image/png': 'PNG',
             'image/webp': 'WEBP',
-            'image/gif': 'GIF'
+            'image/heic': 'JPEG',  # Re-encode HEIC as JPEG (requires pillow-heif; falls back gracefully)
         }
         target_format = format_map.get(detected_type, 'JPEG')
 

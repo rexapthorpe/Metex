@@ -9,7 +9,7 @@ import os
 
 # Photo upload settings
 UPLOAD_FOLDER = os.path.join("static", "uploads", "listings")
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "heic"}
 
 
 def allowed_file(filename):

@@ -675,6 +675,7 @@ async function placeOrder() {
         payment_method: paymentMethod,
         recipient_first: firstName,
         recipient_last: lastName,
+        checkout_nonce: window.checkoutNonce,
       }),
     });
 

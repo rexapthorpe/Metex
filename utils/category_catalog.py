@@ -32,7 +32,7 @@ def get_builtin_category_specs():
     dropdown options that are immune to database state.
     """
     current_year = datetime.now().year
-    years = list(range(1900, current_year + 6))  # 1900 through current_year + 5
+    years = list(range(current_year + 5, 1899, -1))  # current_year + 5 down to 1900
 
     specs = {
         # ==================== METALS ====================
