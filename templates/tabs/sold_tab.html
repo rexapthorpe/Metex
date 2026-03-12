@@ -68,7 +68,25 @@
               <div class="sold-buyer-card">
                 <div class="sold-buyer-avatar">{{ buyer_initials }}</div>
                 <div class="sold-buyer-info">
-                  <div class="sold-buyer-name">{{ sale.shipping_name if sale.shipping_name else '—' }}</div>
+                  <div class="sold-buyer-name">
+                    {% if sale.buyer_avg_rating %}
+                      <span class="sold-buyer-stars">
+                        {% for i in range(1, 6) %}
+                          {% if i <= sale.buyer_avg_rating | int %}
+                            <i class="fa-solid fa-star" style="color:#f59e0b;font-size:12px;"></i>
+                          {% elif i - 0.5 <= sale.buyer_avg_rating %}
+                            <i class="fa-solid fa-star-half-stroke" style="color:#f59e0b;font-size:12px;"></i>
+                          {% else %}
+                            <i class="fa-regular fa-star" style="color:#d1d5db;font-size:12px;"></i>
+                          {% endif %}
+                        {% endfor %}
+                      </span>
+                      <span class="sold-buyer-rating-value">{{ sale.buyer_avg_rating }}</span>
+                      <span class="sold-buyer-rating-count">({{ sale.buyer_rating_count }})</span>
+                    {% else %}
+                      <span class="sold-buyer-no-rating">No ratings yet</span>
+                    {% endif %}
+                  </div>
                   <div class="sold-buyer-username">@{{ sale.buyer_username }}</div>
                 </div>
               </div>

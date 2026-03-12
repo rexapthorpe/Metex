@@ -516,6 +516,8 @@ def account():
                      WHERE r.order_id = o.id
                        AND r.rater_id = ?
                   ) AS already_rated,
+                  (SELECT ROUND(AVG(r2.rating), 1) FROM ratings r2 WHERE r2.ratee_id = u.id) AS buyer_avg_rating,
+                  (SELECT COUNT(*) FROM ratings r3 WHERE r3.ratee_id = u.id) AS buyer_rating_count,
                   oil.fee_type AS ledger_fee_type,
                   oil.fee_value AS ledger_fee_value,
                   oil.fee_amount AS ledger_fee_amount,

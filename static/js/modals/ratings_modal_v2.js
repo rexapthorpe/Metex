@@ -19,7 +19,7 @@
     role = role || 'seller';
 
     const endpoint = role === 'seller'
-      ? `/orders/api/${orderId}/order_sellers`
+      ? `/orders/api/${orderId}/rate_sellers`
       : `/orders/api/${orderId}/message_buyers`;
 
     fetch(endpoint)

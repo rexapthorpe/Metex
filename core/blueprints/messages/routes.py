@@ -19,7 +19,7 @@ except ImportError:
     def limit_message_send(f): return f
 
 
-@messages_bp.route('/orders/api/<int:order_id>/order_sellers')
+@messages_bp.route('/orders/api/<int:order_id>/rate_sellers')
 def get_order_sellers_for_rating(order_id):
     """
     Return all sellers in an order with per-seller rating status for the
