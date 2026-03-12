@@ -14,7 +14,6 @@ import os
 
 account_bp = Blueprint('account', __name__)
 @account_bp.route('/account')
-@account_bp.route('/account')
 def account():
     # 1) Authentication guard
     if 'user_id' not in session:

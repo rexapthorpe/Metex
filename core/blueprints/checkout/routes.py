@@ -504,7 +504,14 @@ def checkout():
                         ''', (item['quantity'], item['quantity'], item['listing_id'], item['quantity']))
 
                         if result.rowcount == 0:
-                            # Concurrent buyer took the last stock; abort this order
+                            # Concurrent buyer took the last stock; roll back the orphaned order
+                            # (create_order commits in its own connection so we must delete explicitly)
+                            try:
+                                conn.execute('DELETE FROM order_items WHERE order_id = ?', (order_id,))
+                                conn.execute('DELETE FROM orders WHERE id = ?', (order_id,))
+                                conn.commit()
+                            except Exception:
+                                pass
                             conn.close()
                             return jsonify({
                                 'success': False,
@@ -679,7 +686,13 @@ def checkout():
                 ''', (item['quantity'], item['quantity'], item['listing_id'], item['quantity']))
 
                 if result.rowcount == 0:
-                    # Concurrent buyer took the last stock; abort
+                    # Concurrent buyer took the last stock; roll back the orphaned order
+                    try:
+                        conn.execute('DELETE FROM order_items WHERE order_id = ?', (order_id,))
+                        conn.execute('DELETE FROM orders WHERE id = ?', (order_id,))
+                        conn.commit()
+                    except Exception:
+                        pass
                     conn.close()
                     flash('One or more items are no longer available. Please review your cart.', 'error')
                     return redirect(url_for('buy.view_cart'))

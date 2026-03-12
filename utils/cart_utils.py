@@ -128,21 +128,25 @@ def validate_guest_cart(conn):
     """
     Validate and clean up session-based guest cart.
     Removes any cart items referencing listings that are no longer available.
-    Guest carts are stored in session['guest_cart'] as list of listing_ids.
+    Guest carts are stored in session['guest_cart'] as list of dicts with listing_id.
     """
     guest_cart = session.get('guest_cart', [])
     if not guest_cart:
         return
 
-    # Filter to only available listings
-    placeholders = ','.join('?' * len(guest_cart))
+    listing_ids = [item['listing_id'] for item in guest_cart if isinstance(item, dict) and 'listing_id' in item]
+    if not listing_ids:
+        return
+
+    # Filter to only available listings (use active=1 and quantity>0, NOT status column)
+    placeholders = ','.join('?' * len(listing_ids))
     available = conn.execute(
-        f"SELECT id FROM listings WHERE id IN ({placeholders}) AND status = 'active'",
-        guest_cart
+        f"SELECT id FROM listings WHERE id IN ({placeholders}) AND active = 1 AND quantity > 0",
+        listing_ids
     ).fetchall()
     available_ids = {row['id'] for row in available}
 
-    cleaned = [lid for lid in guest_cart if lid in available_ids]
+    cleaned = [item for item in guest_cart if isinstance(item, dict) and item.get('listing_id') in available_ids]
     if len(cleaned) != len(guest_cart):
         session['guest_cart'] = cleaned
 

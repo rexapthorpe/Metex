@@ -58,13 +58,16 @@ def remove_seller_from_cart(bucket_id, seller_id):
     ''', (user_id, bucket_id, seller_id))
     conn.commit()
 
-    # 3) Refill from cheapest remaining sellers (excluding ALL removed sellers)
+    # 3) Refill from cheapest remaining sellers (excluding ALL removed sellers and user's own)
     remaining = lost_qty
     removed_seller_ids = session.get('removed_sellers', {}).get(bucket_key, [])
 
-    # Build query to exclude all removed sellers
-    if removed_seller_ids:
-        placeholders = ','.join(['?'] * len(removed_seller_ids))
+    # Always exclude the current user's own listings AND all removed sellers
+    excluded_seller_ids = removed_seller_ids + ([user_id] if user_id else [])
+
+    # Build query to exclude all removed sellers and the current user
+    if excluded_seller_ids:
+        placeholders = ','.join(['?'] * len(excluded_seller_ids))
         query = f'''
             SELECT id, quantity
               FROM listings
@@ -73,7 +76,7 @@ def remove_seller_from_cart(bucket_id, seller_id):
                AND seller_id NOT IN ({placeholders})
              ORDER BY price_per_coin ASC
         '''
-        params = [bucket_id] + removed_seller_ids
+        params = [bucket_id] + excluded_seller_ids
     else:
         query = '''
             SELECT id, quantity
@@ -215,11 +218,12 @@ def remove_item(listing_id):
     )
     conn.commit()
 
-    # 3) Try to refill from other listings in the same bucket (excluding ALL removed listings)
+    # 3) Try to refill from other listings in the same bucket (excluding ALL removed listings
+    #    and the current user's own listings)
     remaining = lost_qty
     removed_listing_ids = session.get('removed_listings', {}).get(bucket_key, [])
 
-    # Build query to exclude all removed listings
+    # Build query to exclude all removed listings and the current user's own listings
     if removed_listing_ids:
         placeholders = ','.join(['?'] * len(removed_listing_ids))
         query = f'''
@@ -227,19 +231,21 @@ def remove_item(listing_id):
             FROM listings
             WHERE category_id = ?
               AND active = 1
+              AND seller_id != ?
               AND id NOT IN ({placeholders})
             ORDER BY price_per_coin ASC
         '''
-        params = [bucket_id] + removed_listing_ids
+        params = [bucket_id, user_id] + removed_listing_ids
     else:
         query = '''
             SELECT id, quantity, seller_id
             FROM listings
             WHERE category_id = ?
               AND active = 1
+              AND seller_id != ?
             ORDER BY price_per_coin ASC
         '''
-        params = [bucket_id]
+        params = [bucket_id, user_id]
 
     replacements = cursor.execute(query, params).fetchall()
 

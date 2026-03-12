@@ -40,7 +40,7 @@ def accept_bid(bucket_id):
         accepted_qty = int(accepted_qty)
 
         bid = c.execute('''
-            SELECT buyer_id, category_id, quantity_requested, price_per_coin, status
+            SELECT buyer_id, category_id, quantity_requested, remaining_quantity, price_per_coin, status
             FROM bids WHERE id = ?
         ''', (bid_id,)).fetchone()
 
@@ -53,29 +53,74 @@ def accept_bid(bucket_id):
 
         buyer_id = bid['buyer_id']
         category_id = bid['category_id']
-        max_qty = bid['quantity_requested']
+        # Use remaining_quantity (not quantity_requested) for partially-filled bids
+        max_qty = bid['remaining_quantity'] if bid['remaining_quantity'] is not None else bid['quantity_requested']
         price = bid['price_per_coin']
 
         qty_to_fulfill = min(accepted_qty, max_qty)
 
-        # Create an order directly
+        # Check seller has sufficient active inventory to fulfill this quantity.
+        # bids.category_id is actually the bucket_id; must join through categories.
+        seller_listings = c.execute('''
+            SELECT l.id, l.quantity
+            FROM listings l
+            JOIN categories c ON l.category_id = c.id
+            WHERE c.bucket_id = ? AND l.seller_id = ? AND l.active = 1
+            ORDER BY l.quantity DESC
+        ''', (category_id, seller_id)).fetchall()
+
+        total_available = sum(l['quantity'] for l in seller_listings)
+        if total_available < qty_to_fulfill:
+            # Not enough inventory — skip this bid
+            continue
+
+        # Create an order using the canonical schema (no seller_id/category_id at order level;
+        # seller identity is resolved via order_items → listings → seller_id)
+        total_price = round(qty_to_fulfill * price, 2)
         c.execute('''
-            INSERT INTO orders (buyer_id, seller_id, category_id, quantity, price_each, status)
-            VALUES (?, ?, ?, ?, ?, 'pending_shipment')
-        ''', (buyer_id, seller_id, category_id, qty_to_fulfill, price))
+            INSERT INTO orders (buyer_id, total_price, status)
+            VALUES (?, ?, 'Pending Shipment')
+        ''', (buyer_id, total_price))
 
         order_id = c.lastrowid
 
-        # Update the bid
+        # Create order_items record so the order is properly linked to listings
+        # Deduct inventory atomically from seller's listings (largest first)
+        remaining_to_deduct = qty_to_fulfill
+        for listing_row in seller_listings:
+            if remaining_to_deduct <= 0:
+                break
+            take = min(listing_row['quantity'], remaining_to_deduct)
+            result = c.execute('''
+                UPDATE listings
+                   SET quantity = quantity - ?,
+                       active = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
+                 WHERE id = ? AND quantity >= ? AND active = 1
+            ''', (take, take, listing_row['id'], take))
+            if result.rowcount > 0:
+                # Insert order_item for this listing
+                c.execute('''
+                    INSERT INTO order_items (order_id, listing_id, quantity, price_each)
+                    VALUES (?, ?, ?, ?)
+                ''', (order_id, listing_row['id'], take, price))
+                remaining_to_deduct -= take
+
+        # Update the bid — decrement remaining_quantity (canonical unfilled count)
         remaining = max_qty - qty_to_fulfill
         is_partial = remaining > 0
         if remaining == 0:
-            c.execute('UPDATE bids SET quantity_requested = 0, active = 0, status = "filled" WHERE id = ?', (bid_id,))
+            c.execute(
+                'UPDATE bids SET remaining_quantity = 0, active = 0, status = "filled" WHERE id = ?',
+                (bid_id,)
+            )
         else:
-            c.execute('UPDATE bids SET quantity_requested = ?, status = "partially filled" WHERE id = ?', (remaining, bid_id))
+            c.execute(
+                'UPDATE bids SET remaining_quantity = ?, status = "partially filled" WHERE id = ?',
+                (remaining, bid_id)
+            )
 
-        # Build item description from category
-        category = c.execute('SELECT * FROM categories WHERE id = ?', (category_id,)).fetchone()
+        # Build item description from category (bids.category_id is a bucket_id)
+        category = c.execute('SELECT * FROM categories WHERE bucket_id = ? LIMIT 1', (category_id,)).fetchone()
         item_desc_parts = []
         if category:
             if category['metal']:
