@@ -316,12 +316,27 @@ def create_bid_unified(bucket_id):
               AND l.seller_id != ?
         ''', (bucket_id, session['user_id'])).fetchall()
 
-        # Fetch spot prices from DB *before* closing the connection so that
-        # effective_price uses the same authoritative prices as auto_match.
-        spot_prices_rows = conn.execute(
-            'SELECT metal, price_usd_per_oz FROM spot_prices'
-        ).fetchall()
-        db_spot_prices = {row['metal'].lower(): row['price_usd_per_oz'] for row in spot_prices_rows}
+        # Fetch spot prices from the canonical source (spot_price_snapshots) before
+        # closing the connection so that the effective_price in the response uses
+        # the same prices as auto_match and accept_bid.  Falls back to legacy
+        # spot_prices cache so test environments still work correctly.
+        try:
+            snap_rows = conn.execute(
+                "SELECT metal, price_usd FROM spot_price_snapshots "
+                "WHERE id IN (SELECT MAX(id) FROM spot_price_snapshots GROUP BY metal)"
+            ).fetchall()
+            if snap_rows:
+                db_spot_prices = {row['metal'].lower(): float(row['price_usd']) for row in snap_rows}
+            else:
+                raise ValueError('no snapshots')
+        except Exception:
+            try:
+                legacy_rows = conn.execute(
+                    'SELECT metal, price_usd_per_oz FROM spot_prices'
+                ).fetchall()
+                db_spot_prices = {row['metal'].lower(): float(row['price_usd_per_oz']) for row in legacy_rows}
+            except Exception:
+                db_spot_prices = {}
 
         conn.close()
 

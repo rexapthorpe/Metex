@@ -18,9 +18,6 @@
     currentItemData = itemData || {};
     role = role || 'seller';
 
-    // Buyers rating sellers → new endpoint with per-seller rating status.
-    // Sellers rating buyers → existing message_buyers endpoint (now also
-    // returns already_rated / existing_rating fields).
     const endpoint = role === 'seller'
       ? `/orders/api/${orderId}/order_sellers`
       : `/orders/api/${orderId}/message_buyers`;
@@ -58,14 +55,6 @@
     return username.slice(0, 2).toUpperCase();
   }
 
-  function buildReadOnlyStars(rating) {
-    let html = '';
-    for (let i = 1; i <= 5; i++) {
-      html += `<i class="${i <= rating ? 'fa-solid' : 'fa-regular'} fa-star"></i>`;
-    }
-    return html;
-  }
-
   // ── Profile rendering ────────────────────────────────────────────────────────
 
   function renderProfile() {
@@ -73,7 +62,7 @@
     const party = counterparties[currentIndex];
     const isRated = party.already_rated;
 
-    // --- Avatar & username (always shown) ---
+    // --- Avatar & username ---
     const avatar = document.getElementById('rmAvatar');
     if (avatar) avatar.textContent = getInitials(party.username);
 
@@ -82,16 +71,16 @@
     const handleEl = document.getElementById('rmHandle');
     if (handleEl) handleEl.textContent = party.username ? `@${party.username}` : '';
 
-    // --- User card accent ---
+    // --- User card: green accent when already rated ---
     const userCard = document.getElementById('rmUserCard');
     if (userCard) userCard.classList.toggle('rm-user-card--rated', isRated);
 
     // --- Header text ---
-    const titleEl  = ratingsModal.querySelector('.rm-title');
+    const titleEl   = ratingsModal.querySelector('.rm-title');
     const subtitleEl = ratingsModal.querySelector('.rm-subtitle');
     if (isRated) {
-      if (titleEl)    titleEl.textContent    = 'Already Rated';
-      if (subtitleEl) subtitleEl.textContent = 'You have already submitted a rating for this user.';
+      if (titleEl)    titleEl.textContent    = 'Rating Submitted';
+      if (subtitleEl) subtitleEl.textContent = 'You have already rated this user for this order.';
     } else {
       if (titleEl)    titleEl.textContent    = 'Leave a Rating';
       if (subtitleEl) subtitleEl.textContent = 'Share your experience with this transaction.';
@@ -126,61 +115,75 @@
       rightArrow.style.display = show ? '' : 'none';
     }
 
-    // --- Hide the confirmation panel ---
-    const confirmEl = document.getElementById('rmConfirm');
-    if (confirmEl) confirmEl.style.display = 'none';
+    // --- Hide confirmation panel + old already-rated panel ---
+    const confirmEl    = document.getElementById('rmConfirm');
+    const alreadyPanel = document.getElementById('rmAlreadyRated');
+    if (confirmEl)    confirmEl.style.display    = 'none';
+    if (alreadyPanel) alreadyPanel.style.display = 'none';
+
+    // --- Always show divider and form; state is controlled below ---
+    const divider = ratingsModal.querySelector('.rm-divider');
+    const form    = document.getElementById('ratingForm');
+    if (divider) divider.style.display = '';
+    if (form)    form.style.display    = '';
+
+    // Always set ratee_id and action (locked state still needs these for display)
+    const rateeInput = document.getElementById('rateeIdInput');
+    if (rateeInput) rateeInput.value = party.id;
+    if (form) form.action = `/rate/${currentOrderId}`;
+
+    const ratedIndicator = document.getElementById('rmRatedIndicator');
+    const starsEl        = document.getElementById('starContainer');
+    const hintEl         = document.getElementById('rmStarsHint');
+    const submitBtn      = form ? form.querySelector('.submit-btn') : null;
+    const ratingInput    = document.getElementById('ratingInput');
 
     if (isRated) {
-      // ── Already-rated state ────────────────────────────────────────────────
-      const divider      = ratingsModal.querySelector('.rm-divider');
-      const form         = document.getElementById('ratingForm');
-      const alreadyPanel = document.getElementById('rmAlreadyRated');
+      // ── Locked / validated state ─────────────────────────────────────────────
 
-      if (divider) divider.style.display = 'none';
-      if (form)    form.style.display    = 'none';
-      if (alreadyPanel) alreadyPanel.style.display = '';
+      // Show the "Rating Submitted" badge above the stars
+      if (ratedIndicator) ratedIndicator.style.display = 'flex';
 
-      // Show the star rating they gave
-      const ratedStars = document.getElementById('rmRatedStars');
-      if (ratedStars) ratedStars.innerHTML = buildReadOnlyStars(party.existing_rating || 0);
+      // Stars: locked at the submitted rating value, non-interactive
+      if (starsEl) {
+        starsEl.classList.remove('rm-no-rating');
+        starsEl.classList.add('rm-stars--locked');
+      }
+      highlightStars(party.existing_rating || 0);
+      if (hintEl) hintEl.textContent = HINTS[party.existing_rating] || '';
 
-      const ratedHint = document.getElementById('rmRatedHint');
-      if (ratedHint) ratedHint.textContent = HINTS[party.existing_rating] || '';
+      // Submit button: disabled, communicates finalized state
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Rating Already Submitted';
+        submitBtn.classList.add('rm-submit-btn--submitted');
+      }
 
     } else {
-      // ── Normal rating state ────────────────────────────────────────────────
-      const divider      = ratingsModal.querySelector('.rm-divider');
-      const form         = document.getElementById('ratingForm');
-      const alreadyPanel = document.getElementById('rmAlreadyRated');
+      // ── Normal interactive state ─────────────────────────────────────────────
 
-      if (divider) divider.style.display = '';
-      if (form)    form.style.display    = '';
-      if (alreadyPanel) alreadyPanel.style.display = 'none';
+      // Hide rated indicator
+      if (ratedIndicator) ratedIndicator.style.display = 'none';
 
-      // Set the ratee_id hidden field so the server knows who is being rated
-      const rateeInput = document.getElementById('rateeIdInput');
-      if (rateeInput) rateeInput.value = party.id;
-
-      // Set form action
-      if (form) form.action = `/rate/${currentOrderId}`;
-
-      // Reset stars
+      // Stars: reset to interactive
       selectedRating = 0;
+      if (starsEl) {
+        starsEl.classList.remove('rm-stars--locked');
+        starsEl.classList.add('rm-no-rating');
+      }
       highlightStars(0);
-      const ratingInput = document.getElementById('ratingInput');
       if (ratingInput) ratingInput.value = 0;
+      if (hintEl) hintEl.textContent = 'Click a star to rate';
+
       const comment = document.getElementById('rmComment');
       if (comment) comment.value = '';
 
-      // Disable submit, add hint circle
-      const submitBtn = form ? form.querySelector('.submit-btn') : null;
-      if (submitBtn) submitBtn.disabled = true;
-
-      const starsEl = document.getElementById('starContainer');
-      if (starsEl) starsEl.classList.add('rm-no-rating');
-
-      const hintEl = document.getElementById('rmStarsHint');
-      if (hintEl) hintEl.textContent = 'Click a star to rate';
+      // Submit button: reset to default awaiting-star-selection state
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-regular fa-star"></i> Submit Rating';
+        submitBtn.classList.remove('rm-submit-btn--submitted');
+      }
     }
   }
 
@@ -192,21 +195,28 @@
   // ── Star interaction ─────────────────────────────────────────────────────────
 
   function onStarHover(e) {
+    // Ignore if stars are locked (already rated)
+    const starsEl = document.getElementById('starContainer');
+    if (starsEl && starsEl.classList.contains('rm-stars--locked')) return;
     const val = parseInt(e.currentTarget.querySelector('i').dataset.value, 10);
     highlightStars(val);
   }
 
   function onStarLeave() {
+    const starsEl = document.getElementById('starContainer');
+    if (starsEl && starsEl.classList.contains('rm-stars--locked')) return;
     highlightStars(selectedRating);
   }
 
   function onStarClick(e) {
+    const starsEl = document.getElementById('starContainer');
+    if (starsEl && starsEl.classList.contains('rm-stars--locked')) return;
+
     selectedRating = parseInt(e.currentTarget.querySelector('i').dataset.value, 10);
     document.getElementById('ratingInput').value = selectedRating;
     highlightStars(selectedRating);
     const submitBtn = document.querySelector('#ratingForm .submit-btn');
     if (submitBtn) submitBtn.disabled = false;
-    const starsEl = document.getElementById('starContainer');
     if (starsEl) starsEl.classList.remove('rm-no-rating');
     const hintEl = document.getElementById('rmStarsHint');
     if (hintEl) hintEl.textContent = HINTS[selectedRating] || 'Click a star to rate';
@@ -227,44 +237,54 @@
   function closeModal() {
     ratingsModal.style.display = 'none';
 
-    // Restore all standard elements to default visibility
+    // Restore standard elements
     const divider = ratingsModal.querySelector('.rm-divider');
     const form    = document.getElementById('ratingForm');
     if (divider) divider.style.display = '';
     if (form)    form.style.display    = '';
 
-    // Hide special panels
-    const confirmEl    = document.getElementById('rmConfirm');
-    const alreadyPanel = document.getElementById('rmAlreadyRated');
-    if (confirmEl)    confirmEl.style.display    = 'none';
-    if (alreadyPanel) alreadyPanel.style.display = 'none';
+    // Hide all special panels
+    const confirmEl      = document.getElementById('rmConfirm');
+    const alreadyPanel   = document.getElementById('rmAlreadyRated');
+    const ratedIndicator = document.getElementById('rmRatedIndicator');
+    if (confirmEl)      confirmEl.style.display      = 'none';
+    if (alreadyPanel)   alreadyPanel.style.display   = 'none';
+    if (ratedIndicator) ratedIndicator.style.display = 'none';
 
-    // Remove green accent from user card
+    // Remove per-session state modifiers
     const userCard = document.getElementById('rmUserCard');
     if (userCard) userCard.classList.remove('rm-user-card--rated');
+
+    const starsEl = document.getElementById('starContainer');
+    if (starsEl) starsEl.classList.remove('rm-stars--locked');
+
+    const submitBtn = document.querySelector('#ratingForm .submit-btn');
+    if (submitBtn) submitBtn.classList.remove('rm-submit-btn--submitted');
   }
 
   function showConfirmation() {
-    // Mark current party as rated in local state
+    // Mark current party as rated in local state (persists across arrow navigation this session)
     if (counterparties[currentIndex]) {
       counterparties[currentIndex].already_rated   = true;
       counterparties[currentIndex].existing_rating = selectedRating;
     }
 
-    // Hide body elements, show success panel
-    const divider      = ratingsModal.querySelector('.rm-divider');
-    const form         = document.getElementById('ratingForm');
-    const itemCard     = document.getElementById('rmItemCard');
-    const alreadyPanel = document.getElementById('rmAlreadyRated');
-    const leftArrow    = ratingsModal.querySelector('.nav-arrow.left');
-    const rightArrow   = ratingsModal.querySelector('.nav-arrow.right');
+    // Hide body, show success panel
+    const divider        = ratingsModal.querySelector('.rm-divider');
+    const form           = document.getElementById('ratingForm');
+    const itemCard       = document.getElementById('rmItemCard');
+    const alreadyPanel   = document.getElementById('rmAlreadyRated');
+    const ratedIndicator = document.getElementById('rmRatedIndicator');
+    const leftArrow      = ratingsModal.querySelector('.nav-arrow.left');
+    const rightArrow     = ratingsModal.querySelector('.nav-arrow.right');
 
-    if (divider)      divider.style.display      = 'none';
-    if (form)         form.style.display          = 'none';
-    if (itemCard)     itemCard.style.display      = 'none';
-    if (alreadyPanel) alreadyPanel.style.display  = 'none';
-    if (leftArrow)    leftArrow.style.display     = 'none';
-    if (rightArrow)   rightArrow.style.display    = 'none';
+    if (divider)        divider.style.display        = 'none';
+    if (form)           form.style.display            = 'none';
+    if (itemCard)       itemCard.style.display        = 'none';
+    if (alreadyPanel)   alreadyPanel.style.display    = 'none';
+    if (ratedIndicator) ratedIndicator.style.display  = 'none';
+    if (leftArrow)      leftArrow.style.display       = 'none';
+    if (rightArrow)     rightArrow.style.display      = 'none';
 
     const confirmEl = document.getElementById('rmConfirm');
     if (confirmEl) confirmEl.style.display = 'flex';
@@ -285,12 +305,10 @@
     }
 
     setTimeout(() => {
-      // Find the next unrated party
       const nextIdx = counterparties.findIndex(p => !p.already_rated);
       if (nextIdx >= 0) {
-        // There are more people to rate — advance automatically
+        // More people to rate — advance automatically
         currentIndex = nextIdx;
-        // Hide confirmation, restore modal state
         if (confirmEl) confirmEl.style.display = 'none';
         if (divider)   divider.style.display   = '';
         if (itemCard && currentItemData.title) itemCard.style.display = 'flex';
@@ -315,13 +333,13 @@
       .addEventListener('click', () => changeProfile(1));
     ratingsModal.querySelector('.rm-close').addEventListener('click', closeModal);
 
-    // Cancel/Close button(s) — delegated so both form and already-rated panels work
+    // Cancel/Close buttons — delegated
     ratingsModal.addEventListener('click', e => {
       if (e.target.classList.contains('cancel-btn')) closeModal();
       if (e.target === ratingsModal) closeModal();
     });
 
-    // Star events
+    // Star events (each handler guards against locked state internally)
     document.querySelectorAll('#starContainer .rm-star-wrap').forEach(wrap => {
       wrap.addEventListener('mouseenter', onStarHover);
       wrap.addEventListener('mouseleave', onStarLeave);
@@ -333,6 +351,9 @@
     form.addEventListener('submit', function(e) {
       e.preventDefault();
       if (selectedRating === 0) return;
+
+      // Safety guard: never submit for an already-rated counterparty
+      if (counterparties[currentIndex] && counterparties[currentIndex].already_rated) return;
 
       const submitBtn = form.querySelector('.submit-btn');
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }

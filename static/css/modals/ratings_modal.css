@@ -335,6 +335,40 @@
 .rm-submit-btn:hover:not(:disabled) { background: #374151; }
 .rm-submit-btn:disabled { background: #9ca3af; cursor: not-allowed; }
 
+/* Submit button — finalized / submitted state */
+.rm-submit-btn--submitted {
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+  border: 1px solid #6ee7b7 !important;
+  cursor: not-allowed !important;
+}
+.rm-submit-btn--submitted i { color: #059669 !important; }
+
+/* Stars locked (already rated for this counterparty) */
+.rm-stars--locked .rm-star-wrap {
+  cursor: default;
+  pointer-events: none;
+}
+.rm-stars--locked .rm-star-wrap:hover { background: transparent; }
+
+/* Rated indicator badge (inside stars section, replaces "Rate your experience" label) */
+.rm-rated-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #16a34a;
+  animation: rm-fade-in 0.2s ease;
+}
+.rm-rated-indicator i { color: #22c55e; font-size: 1rem; }
+
 /* Green accent on user card when already rated */
 .rm-user-card--rated {
   background: #f0fdf4;

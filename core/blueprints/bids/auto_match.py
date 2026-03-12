@@ -7,6 +7,7 @@ using the spread model pricing system.
 """
 
 import logging
+import os
 import threading
 
 from services.pricing_service import (
@@ -19,8 +20,19 @@ logger = logging.getLogger(__name__)
 
 # Prevents concurrent rematch runs (scheduler tick + manual spot insert) from
 # processing the same bids simultaneously and creating duplicate orders.
-# Scoped to one process; with Gunicorn --workers>1 use --workers 1 --threads N.
+# Scoped to one process; deploy with --workers 1 --threads N (see render.yaml).
 _rematch_lock = threading.Lock()
+
+# Startup guard: warn if this process is one of several Gunicorn workers.
+# WEB_CONCURRENCY is set by Render/Gunicorn when >1 worker is spawned.
+_web_concurrency = int(os.environ.get('WEB_CONCURRENCY', 1))
+if _web_concurrency > 1:
+    logger.warning(
+        "[bid_rematch] WEB_CONCURRENCY=%d — _rematch_lock is process-local. "
+        "Concurrent rematches across workers can produce duplicate orders. "
+        "Deploy with --workers 1 --threads N.",
+        _web_concurrency,
+    )
 
 
 def _get_spot_prices_from_cursor(cursor):

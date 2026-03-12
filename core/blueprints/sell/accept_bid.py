@@ -8,7 +8,7 @@ Extracted from routes.py during refactor - NO BEHAVIOR CHANGE.
 from flask import flash, redirect, url_for, session, request
 from database import get_db_connection
 from services.notification_service import notify_bid_filled
-from services.pricing_service import get_effective_bid_price
+from services.pricing_service import get_effective_bid_price, get_effective_price
 from . import sell_bp
 
 
@@ -79,8 +79,13 @@ def accept_bid(bucket_id):
 
         # Check seller has sufficient active inventory to fulfill this quantity.
         # bids.category_id is actually the bucket_id; must join through categories.
+        # Pricing fields are fetched here so we can compute seller_price_each
+        # (the spread-model payout) per listing row in the deduction loop below.
         seller_listings = c.execute('''
-            SELECT l.id, l.quantity
+            SELECT l.id, l.quantity,
+                   l.price_per_coin, l.pricing_mode, l.spot_premium,
+                   l.floor_price, l.pricing_metal,
+                   c.metal, c.weight
             FROM listings l
             JOIN categories c ON l.category_id = c.id
             WHERE c.bucket_id = ? AND l.seller_id = ? AND l.active = 1
@@ -123,11 +128,14 @@ def accept_bid(bucket_id):
                  WHERE id = ? AND quantity >= ? AND active = 1
             ''', (take, take, listing_row['id'], take))
             if result.rowcount > 0:
-                # Insert order_item for this listing
+                # Spread model: buyer pays the bid effective price (price);
+                # seller receives the listing effective price (seller_price).
+                # Metex captures the difference. Mirrors auto_match behavior.
+                seller_price = get_effective_price(dict(listing_row), spot_prices=spot_prices)
                 c.execute('''
-                    INSERT INTO order_items (order_id, listing_id, quantity, price_each)
-                    VALUES (?, ?, ?, ?)
-                ''', (order_id, listing_row['id'], take, price))
+                    INSERT INTO order_items (order_id, listing_id, quantity, price_each, seller_price_each)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (order_id, listing_row['id'], take, price, seller_price))
                 remaining_to_deduct -= take
 
         if remaining_to_deduct > 0:

@@ -79,6 +79,11 @@
       <input type="hidden" name="ratee_id" id="rateeIdInput" value="">
 
       <div class="rm-stars-section">
+        <!-- Shown (via JS) when this counterparty has already been rated -->
+        <div class="rm-rated-indicator" id="rmRatedIndicator" style="display: none;">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Rating Submitted</span>
+        </div>
         <div class="rm-stars-title">Rate your experience</div>
         <div class="rm-stars" id="starContainer">
           <span class="rm-star-wrap"><i class="fa-regular fa-star" data-value="1"></i></span>
