@@ -463,15 +463,15 @@ function closeBidConfirmModal() {
 
   if (!modal) return;
 
-  // Add hiding class for fade-out animation
+  modal.classList.add('modal-closing');
   modal.classList.add('hiding');
   modal.classList.remove('active');
 
-  // Wait for animation to complete before hiding
   setTimeout(() => {
-    modal.style.display = 'none';
+    modal.classList.remove('modal-closing');
     modal.classList.remove('hiding');
-  }, 300);
+    modal.style.display = 'none';
+  }, 350);
 }
 
 /**
@@ -870,18 +870,18 @@ function closeBidSuccessModal() {
 
   if (!modal) return;
 
-  // Add hiding class for fade-out animation
+  modal.classList.add('modal-closing');
   modal.classList.add('hiding');
   modal.classList.remove('active');
 
-  // Wait for animation to complete before hiding
   setTimeout(() => {
-    modal.style.display = 'none';
+    modal.classList.remove('modal-closing');
     modal.classList.remove('hiding');
+    modal.style.display = 'none';
 
     // Reload page to show updated bids
     location.reload();
-  }, 300);
+  }, 350);
 }
 
 // Global exposure

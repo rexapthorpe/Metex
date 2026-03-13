@@ -44,17 +44,16 @@ function closeLegalModal(modalId) {
     return;
   }
 
-  // Hide the modal
-  modal.style.display = 'none';
-
-  // Re-enable body scroll
-  document.body.style.overflow = '';
-
   // Remove keyboard listener
   document.removeEventListener('keydown', handleEscapeKey);
 
   // Remove click-outside listener
   modal.removeEventListener('click', handleOutsideClick);
+
+  // Re-enable body scroll
+  document.body.style.overflow = '';
+
+  window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
 }
 
 /**

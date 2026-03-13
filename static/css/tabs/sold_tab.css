@@ -1,5 +1,100 @@
 /* sold_tab.css */
 
+/* ===== Sold Summary Stat Cards ===== */
+.sold-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.sold-summary-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px 20px 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.sold-summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+.sold-summary-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sold-summary-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  padding-top: 2px;
+}
+
+.sold-summary-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.sold-summary-icon--blue  { background: #eff6ff; color: #3b82f6; }
+.sold-summary-icon--green { background: #ecfdf5; color: #10b981; }
+.sold-summary-icon--amber { background: #fef3c7; color: #d97706; }
+.sold-summary-icon--teal  { background: #ccfbf1; color: #0d9488; }
+
+.sold-summary-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.sold-summary-value--green {
+  color: #059669;
+}
+
+.sold-summary-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+@media (max-width: 1024px) {
+  .sold-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .sold-summary-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .sold-summary-card {
+    padding: 14px 14px 12px;
+  }
+  .sold-summary-value {
+    font-size: 18px;
+  }
+  .sold-summary-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+}
+
 .sold-list {
   display: flex;
   flex-direction: column;
@@ -8,11 +103,25 @@
 
 /* ===== Sold Card ===== */
 .sold-card {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
   background: #ffffff;
   border-left-width: 4px;
+}
+
+/* Main content takes all remaining width */
+.sold-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Actions panel: right-side column, bordered left */
+.sold-card .order-card-actions {
+  border-left: 1px solid #e2e8f0;
 }
 
 /* Left border color by status */
@@ -286,87 +395,273 @@
 .sold-confirm-btn--accept { background: #16a34a; color: #ffffff; border-color: #16a34a; }
 .sold-confirm-btn--accept:hover { background: #15803d; }
 
-/* ===== Quick Actions Toggle (desktop: hidden; mobile: collapsible) ===== */
-.sold-actions-toggle {
+/* Report button — muted red */
+.order-quick-action--report { color: #ef4444; }
+.order-quick-action--report i { color: #ef4444; }
+.order-quick-action--report:hover { background: #fef2f2; }
+
+/* ===================================
+   TRANSACTION DETAILS MODAL
+   =================================== */
+
+.txn-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: none;
-}
-.sold-actions-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: #94a3b8;
-  letter-spacing: 0.08em;
-}
-/* .order-actions-chevron shared from orders_tab.css via base */
-
-.sold-actions-body {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  z-index: 1200;
+  padding: 16px;
+}
+
+.txn-card {
+  background: #f9fafb;
+  border-radius: 18px;
   width: 100%;
-  padding: 10px 20px;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 32px 32px 28px;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  animation: txnSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ===== Card Footer ===== */
-.sold-card-footer {
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
+@keyframes txnSlideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
 }
 
-.sold-footer-date {
-  font-size: 12px;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.sold-footer-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.sold-footer-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
+.txn-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 30px;
+  height: 30px;
   border: none;
-  border-radius: 6px;
   background: transparent;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 20px;
+  color: #9ca3af;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+.txn-close:hover { background: #e5e7eb; color: #374151; }
+
+/* Header */
+.txn-header { margin-bottom: 20px; padding-right: 24px; }
+
+.txn-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px 0;
 }
 
-.sold-footer-btn:hover { background: #f1f5f9; color: #374151; }
-
-.sold-footer-btn--track {
-  background: #3da6ff;
-  color: #ffffff;
-  padding: 5px 12px;
+.txn-subtitle {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0;
+  font-weight: 400;
 }
 
-.sold-footer-btn--track:hover { background: #1e74f0; color: #ffffff; }
+/* Breakdown card */
+.txn-breakdown-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px 20px 4px;
+  margin-bottom: 16px;
+}
 
-.sold-footer-btn--rated {
-  background: #f0fdf4;
-  border-color: #86efac;
+.txn-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.txn-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  font-size: 0.95rem;
+}
+
+.txn-row-label { color: #374151; }
+
+.txn-row-label--muted { color: #6b7280; }
+
+.txn-row-value {
+  font-variant-numeric: tabular-nums;
+  color: #111827;
+  font-size: 0.95rem;
+}
+
+.txn-row--gross .txn-row-value {
+  font-weight: 600;
+}
+
+.txn-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 4px 0;
+}
+
+.txn-divider--thick {
+  border-top-width: 2px;
+  border-color: #d1d5db;
+  margin: 8px 0 4px;
+}
+
+/* Fee row */
+.txn-row-value--fee {
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 0.93rem;
+}
+
+/* Net proceeds row */
+.txn-row--net {
+  padding: 14px 0 14px;
+}
+
+.txn-row-label--net {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.txn-row-value--net {
+  font-size: 1.2rem;
+  font-weight: 700;
   color: #16a34a;
-  cursor: pointer;
 }
-.sold-footer-btn--rated i { color: #22c55e !important; }
-.sold-footer-btn--rated:hover { background: #dcfce7; border-color: #4ade80; }
+
+/* Meta row */
+.txn-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.txn-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.82rem;
+  color: #9ca3af;
+}
+
+.txn-meta-item i { font-size: 0.8rem; }
+
+/* Payout badge */
+.txn-payout-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+
+.txn-payout--paid {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.txn-payout--pending {
+  background: #fef9c3;
+  color: #a16207;
+  border-color: #fde047;
+}
+
+.txn-payout--hold {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.txn-payout--cancelled {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #d1d5db;
+}
+
+@media (max-width: 480px) {
+  .txn-card {
+    padding: 24px 18px 22px;
+    border-radius: 14px;
+  }
+  .txn-title { font-size: 1.25rem; }
+  .txn-row-value--net { font-size: 1.1rem; }
+}
 
 /* ===================================
    RESPONSIVE — SOLD TAB
    =================================== */
 
 @media (max-width: 768px) {
+  /* Card stacks vertically on mobile */
+  .sold-card {
+    flex-direction: column;
+  }
+
+  /* Actions panel moves below content, full width */
+  .sold-card .order-card-actions {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
+    padding: 0;
+    gap: 0;
+  }
+
+  /* Toggle becomes clickable */
+  .sold-card .order-actions-toggle {
+    pointer-events: auto;
+    cursor: pointer;
+    padding: 10px 16px;
+    justify-content: space-between;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .sold-card .order-actions-toggle:hover { background: #f8fafc; }
+  .sold-card .order-actions-chevron {
+    display: block !important;
+    font-size: 12px;
+    color: #9ca3af;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+  }
+  .sold-card .order-actions-toggle[aria-expanded="true"] .order-actions-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* Body: slide in/out with max-height + opacity */
+  .sold-card .order-actions-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    padding: 0 16px;
+    transition: max-height 0.28s ease, opacity 0.22s ease, padding 0.28s ease;
+  }
+  .sold-card .order-actions-body.expanded {
+    max-height: 500px;
+    opacity: 1;
+    padding: 12px 16px;
+  }
+
   /* Action bar stacks */
   .sold-action-bar {
     flex-direction: column;
@@ -378,88 +673,6 @@
     width: 100%;
     justify-content: flex-end;
   }
-
-  /* Quick actions toggle — show on mobile */
-  .sold-actions-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 10px 16px;
-    background: none;
-    border: none;
-    border-bottom: 1px solid #e2e8f0;
-    cursor: pointer;
-  }
-  .sold-actions-toggle:hover { background: #f8fafc; }
-  .sold-actions-toggle .order-actions-chevron {
-    display: block;
-    font-size: 12px;
-    color: #9ca3af;
-    transition: transform 0.2s ease;
-    flex-shrink: 0;
-  }
-  .sold-actions-toggle[aria-expanded="true"] .order-actions-chevron {
-    transform: rotate(180deg);
-  }
-
-  /* Body: hidden by default */
-  .sold-actions-body {
-    display: none;
-    flex-direction: column;
-    align-items: stretch;
-    padding: 8px 0;
-    gap: 0;
-  }
-  .sold-actions-body.expanded {
-    display: flex;
-  }
-
-  /* Date hidden inside collapsed body — not needed visually */
-  .sold-footer-date { display: none; }
-
-  /* Flatten actions wrapper — children stack in column */
-  .sold-footer-actions {
-    display: contents;
-  }
-
-  /* Single-column full-width buttons matching order-quick-action */
-  .sold-footer-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    color: #374151;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    text-align: left;
-    width: 100%;
-    transition: background 0.15s ease;
-  }
-  .sold-footer-btn i { width: 16px; text-align: center; color: #64748b; }
-  .sold-footer-btn:hover { background: #f1f5f9; }
-
-  .sold-footer-btn--track {
-    background: #3da6ff;
-    color: #fff;
-    border-radius: 8px;
-    margin: 4px 16px;
-    width: calc(100% - 32px);
-    padding: 12px 16px;
-    justify-content: center;
-    font-weight: 600;
-  }
-  .sold-footer-btn--track i { color: #fff; width: auto; }
-  .sold-footer-btn--track:hover { background: #1e74f0; }
-
-  .sold-footer-btn--rated {
-    cursor: pointer;
-  }
-
 }
 
 @media (max-width: 480px) {
@@ -469,9 +682,6 @@
 
   .sold-buyer-section { padding: 12px 14px; }
 
-  /* Confirm buttons stack on very small screens */
   .sold-action-bar-right { flex-direction: column; gap: 6px; width: 100%; }
   .sold-confirm-btn { width: 100%; justify-content: center; }
-
-  .sold-footer-btn { font-size: 11px; }
 }

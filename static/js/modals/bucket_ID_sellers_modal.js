@@ -34,8 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
-    modal.style.display = 'none';
-    if (openBtn) openBtn.focus();
+    window.animatedModalClose(modal, function() {
+      modal.style.display = 'none';
+      if (openBtn) openBtn.focus();
+    });
   }
 
   openBtn.addEventListener('click', (e) => {

@@ -31,10 +31,9 @@ function hideOwnListingsSkippedModal() {
 
     console.log('[OwnListingsSkippedModal] Hiding modal');
     modal.classList.remove('show');
-
-    setTimeout(() => {
+    window.animatedModalClose(modal, function() {
         modal.style.display = 'none';
-    }, 300);
+    });
 }
 
 // Setup event listeners when DOM is ready

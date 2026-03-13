@@ -65,11 +65,13 @@ function closeEditBidModal() {
   const modal   = document.getElementById('editBidModal');
   const content = document.getElementById('editBidModalContent');
   if (modal) {
-    modal.style.display = 'none';
-    modal.classList.remove('active');
+    window.animatedModalClose(modal, function() {
+      modal.style.display = 'none';
+      modal.classList.remove('active');
+      if (content) content.innerHTML = '';
+      if (typeof showTab === 'function') showTab('bids');
+    });
   }
-  if (content) content.innerHTML = '';
-  if (typeof showTab === 'function') showTab('bids');
 }
 
 window.openEditBidModal  = openEditBidModal;

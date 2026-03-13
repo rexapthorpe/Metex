@@ -21,19 +21,24 @@ notification_bp = Blueprint('notifications', __name__)
 def get_notifications():
     """Get all notifications for the current user"""
     if 'user_id' not in session:
-        return jsonify({'error': 'Not logged in'}), 401
+        return jsonify({'success': False, 'error': 'Not logged in', 'notifications': []}), 401
 
     user_id = session['user_id']
     unread_only = request.args.get('unread_only', 'false').lower() == 'true'
     limit = int(request.args.get('limit', 50))
     offset = int(request.args.get('offset', 0))
 
-    notifications = get_user_notifications(user_id, unread_only=unread_only, limit=limit, offset=offset)
-
-    return jsonify({
-        'success': True,
-        'notifications': notifications
-    })
+    try:
+        notifications = get_user_notifications(user_id, unread_only=unread_only, limit=limit, offset=offset)
+        return jsonify({
+            'success': True,
+            'notifications': notifications
+        })
+    except Exception as exc:
+        import traceback
+        print(f'[NOTIFICATIONS ERROR] get_notifications failed for user {user_id}: {exc}')
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(exc), 'notifications': []}), 500
 
 
 @notification_bp.route('/notifications/unread-count', methods=['GET'])

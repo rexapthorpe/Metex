@@ -107,10 +107,13 @@ def restore_inventory(conn, order_id):
     """, (order_id,)).fetchall()
 
     for item in order_items:
-        # Restore quantity to listing
+        # Restore quantity. Only reactivate if quantity was 0 (auto-deactivated when
+        # inventory hit zero during the sale). If quantity > 0 the listing is already
+        # active — or was manually deactivated by the seller — so preserve active state.
         conn.execute("""
             UPDATE listings
-            SET quantity = quantity + ?, active = 1
+            SET quantity = quantity + ?,
+                active = CASE WHEN quantity = 0 THEN 1 ELSE active END
             WHERE id = ?
         """, (item['quantity'], item['listing_id']))
 

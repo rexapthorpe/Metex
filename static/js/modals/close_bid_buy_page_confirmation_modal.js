@@ -22,7 +22,7 @@ function openCloseBidBuyPageConfirmModal(form) {
 function closeCloseBidBuyPageConfirmModal() {
   pendingCloseBidAction = null;
   const modal = document.getElementById('closeBidBuyPageConfirmModal');
-  if (modal) modal.style.display = 'none';
+  if (modal) window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
 
   // Reset animation state so it replays on next open
   const content  = document.getElementById('closeBidBuyPageConfirmContent');

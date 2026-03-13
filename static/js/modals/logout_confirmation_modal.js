@@ -13,7 +13,7 @@ function openLogoutConfirmModal() {
 function closeLogoutConfirmModal() {
   const modal = document.getElementById('logoutConfirmModal');
   if (modal) {
-    modal.style.display = 'none';
+    window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
   }
 }
 

@@ -35,8 +35,8 @@ function closeRemoveSellerConfirmation() {
   console.log('[Remove Seller] closeRemoveSellerConfirmation called');
   const modal = document.getElementById('removeSellerConfirmModal');
   if (modal) {
-    modal.style.display = 'none';
     modal.setAttribute('aria-hidden', 'true');
+    window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
   }
 }
 

@@ -100,7 +100,8 @@
       "Bash(do echo:*)",
       "Bash(METALPRICE_API_KEY=8dc91bf48c4415ff9af31933620821a9 python3 -c \"\nfrom services.spot_price_service import fetch_spot_prices_from_api, get_api_key\nprint\\('API Key:', get_api_key\\(\\)\\)\nprices = fetch_spot_prices_from_api\\(\\)\nprint\\('Prices:', prices\\)\n\")",
       "Bash(METALPRICE_API_KEY=8dc91bf48c4415ff9af31933620821a9 python3 -c \"\nfrom services.spot_price_service import get_current_spot_prices\nprices = get_current_spot_prices\\(force_refresh=True\\)\nprint\\('Spot prices:', prices\\)\n\" 2>&1 | grep -v NotOpenSSLWarning | grep -v warnings.warn)",
-      "Bash(METALPRICE_API_KEY=8dc91bf48c4415ff9af31933620821a9 python3 -c \"\nfrom services.spot_snapshot_service import run_snapshot\nresult = run_snapshot\\(use_lock=False, verbose=True, force=True\\)\nprint\\('Result:', result\\)\n\" 2>&1 | grep -v NotOpenSSLWarning | grep -v warnings.warn)"
+      "Bash(METALPRICE_API_KEY=8dc91bf48c4415ff9af31933620821a9 python3 -c \"\nfrom services.spot_snapshot_service import run_snapshot\nresult = run_snapshot\\(use_lock=False, verbose=True, force=True\\)\nprint\\('Result:', result\\)\n\" 2>&1 | grep -v NotOpenSSLWarning | grep -v warnings.warn)",
+      "Bash(pip3 show:*)"
     ],
     "deny": [],
     "ask": []

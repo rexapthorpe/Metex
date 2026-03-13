@@ -48,8 +48,8 @@ function openOrderSellerPopup(orderId) {
 
 function closeOrderSellerPopup() {
   const overlay = document.getElementById('orderSellersModal');
-  overlay.style.display = 'none';
   overlay.removeEventListener('click', _osmOutsideClick);
+  window.animatedModalClose(overlay, function() { overlay.style.display = 'none'; });
 }
 
 function _osmOutsideClick(e) {

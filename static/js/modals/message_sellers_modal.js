@@ -85,7 +85,8 @@
   }
 
   function closeMessageModal() {
-    document.getElementById('messageModal').style.display = 'none';
+    const _mmModal = document.getElementById('messageModal');
+    window.animatedModalClose(_mmModal, function() { _mmModal.style.display = 'none'; });
   }
 
   function renderConversation() {

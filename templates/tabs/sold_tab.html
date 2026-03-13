@@ -4,6 +4,50 @@
     <h1 class="tab-page-title">Sold Items</h1>
   </div>
 
+  <!-- Summary Stats -->
+  <div class="sold-summary-grid">
+    <div class="sold-summary-card">
+      <div class="sold-summary-card-top">
+        <span class="sold-summary-label">TOTAL GROSS SALES</span>
+        <div class="sold-summary-icon sold-summary-icon--blue">
+          <i class="fa-solid fa-wallet"></i>
+        </div>
+      </div>
+      <div class="sold-summary-value">${{ '{:,.2f}'.format(sold_summary.total_gross) }}</div>
+      <div class="sold-summary-sub">All completed sale revenue</div>
+    </div>
+    <div class="sold-summary-card">
+      <div class="sold-summary-card-top">
+        <span class="sold-summary-label">NET PROCEEDS</span>
+        <div class="sold-summary-icon sold-summary-icon--green">
+          <i class="fa-solid fa-arrow-trend-up"></i>
+        </div>
+      </div>
+      <div class="sold-summary-value sold-summary-value--green">${{ '{:,.2f}'.format(sold_summary.net_proceeds) }}</div>
+      <div class="sold-summary-sub">After fees &amp; spreads</div>
+    </div>
+    <div class="sold-summary-card">
+      <div class="sold-summary-card-top">
+        <span class="sold-summary-label">PENDING PAYOUTS</span>
+        <div class="sold-summary-icon sold-summary-icon--amber">
+          <i class="fa-regular fa-clock"></i>
+        </div>
+      </div>
+      <div class="sold-summary-value">${{ '{:,.2f}'.format(sold_summary.pending_payouts) }}</div>
+      <div class="sold-summary-sub">Awaiting disbursement</div>
+    </div>
+    <div class="sold-summary-card">
+      <div class="sold-summary-card-top">
+        <span class="sold-summary-label">COMPLETED PAYOUTS</span>
+        <div class="sold-summary-icon sold-summary-icon--teal">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+      </div>
+      <div class="sold-summary-value">${{ '{:,.2f}'.format(sold_summary.completed_payouts) }}</div>
+      <div class="sold-summary-sub">Successfully paid out</div>
+    </div>
+  </div>
+
   <!-- Filter Tabs -->
   <div class="tab-filter-bar">
     <button class="filter-pill active" data-filter="all" onclick="filterSold('all')">All</button>
@@ -19,6 +63,9 @@
         {% set listing_type = 'set' if (sale.is_isolated and sale.isolated_type == 'set') else ('one-of-a-kind' if sale.is_isolated else 'standard') %}
 
         <div class="sold-card sold-card--{{ status_lower }}{% if sale.cancel_status == 'pending' and sale.seller_cancel_response == 'approved' %} sold-card--cancel-pending{% endif %}{% if sale.cancel_status == 'approved' %} sold-card--cancel-approved{% endif %}" id="order-{{ sale.order_id }}" data-sold-filter="{{ status_lower }}">
+
+          <!-- Left: main content -->
+          <div class="sold-card-content">
 
           <!-- Card Header -->
           <div class="sold-card-header">
@@ -164,30 +211,57 @@
           </div>
           {% endif %}
 
-          <!-- Card Footer -->
-          <div class="sold-card-footer">
-            <button class="sold-actions-toggle" onclick="toggleOrderActions(this)" aria-expanded="false">
-              <span class="sold-actions-label">QUICK ACTIONS</span>
+          </div><!-- /sold-card-content -->
+
+          <!-- Right: Quick Actions Panel -->
+          <div class="order-card-actions">
+            <button class="order-actions-toggle" onclick="toggleOrderActions(this)" aria-expanded="false">
+              <span class="order-actions-label">QUICK ACTIONS</span>
               <i class="fa-solid fa-chevron-down order-actions-chevron"></i>
             </button>
-            <div class="sold-actions-body">
-            <span class="sold-footer-date">
-              <i class="fa-regular fa-calendar"></i>
-              {{ sale.order_date }}
-            </span>
-            <div class="sold-footer-actions">
-              <button class="sold-footer-btn" onclick="openOrderBuyerPopup({{ sale.order_id }})">
+            <div class="order-actions-body">
+              <button class="order-quick-action" onclick="openOrderBuyerPopup({{ sale.order_id }})">
                 <i class="fa-regular fa-user"></i> Buyer
               </button>
-              <button class="sold-footer-btn" onclick="openOrderItemsPopup({{ sale.order_id }})">
+              <button class="order-quick-action" onclick="openOrderItemsPopup({{ sale.order_id }})">
                 <i class="fa-solid fa-list"></i> Item Specs
+              </button>
+              <button class="order-quick-action" onclick="openMessageModal({{ sale.order_id }}, 'buyer')">
+                <i class="fa-regular fa-comment"></i> Message
+              </button>
+              <button class="order-quick-action" onclick="addTrackingNumber({{ sale.order_id }})">
+                <i class="fa-solid fa-{% if sale.status | lower in ['shipped', 'delivered', 'completed'] %}truck{% else %}box{% endif %}"></i>
+                {% if sale.status | lower in ['shipped', 'delivered', 'completed'] %}Update Tracking{% else %}Add Tracking{% endif %}
+              </button>
+              {% set sale_title = [sale.weight or '', sale.year or '', sale.metal or '', sale.product_line or '', sale.product_type or ''] | select | join(' ') | trim %}
+              <button
+                class="order-quick-action{% if sale.already_rated %} order-quick-action--rated{% endif %}"
+                onclick='openRateModal({{ sale.order_id }}, "buyer", {{ {"title": sale_title, "price": "${:,.0f}".format(sale.gross_amount or 0), "date": sale.order_date or ""} | tojson }})'>
+                <i class="{% if sale.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
+                {% if sale.already_rated %}Rated{% else %}Rate{% endif %}
+              </button>
+              {% set sale_item_title = [sale.weight or '', sale.year or '', sale.metal or '', sale.product_line or '', sale.product_type or ''] | select | join(' ') | trim %}
+              <button class="order-quick-action"
+                onclick="openTransactionDetailsModal(this)"
+                data-title="{{ sale_item_title or 'Order #' ~ sale.order_id }}"
+                data-order-id="{{ sale.order_id }}"
+                data-price-each="{{ sale.price_each }}"
+                data-quantity="{{ sale.quantity }}"
+                data-gross="{{ sale.gross_amount }}"
+                data-fee-type="{{ sale.fee_type }}"
+                data-fee-percent="{{ sale.fee_percent if sale.fee_percent is not none else '' }}"
+                data-fee-amount="{{ sale.fee_amount }}"
+                data-net="{{ sale.seller_net }}"
+                data-payout="{{ sale.payout_display }}"
+                data-order-date="{{ sale.order_date }}">
+                <i class="fa-solid fa-receipt"></i> Transaction
               </button>
               {% if sale.third_party_grading_requested %}
                 {% set item_desc = [sale.weight, sale.year, sale.metal, sale.product_line, sale.product_type] | select | join(' ') %}
                 {% set grading_service = sale.grading_service_requested or 'PCGS' %}
                 {% set service_addr = grading_service_addresses.get(grading_service, grading_service_addresses['PCGS']) %}
                 <button
-                  class="sold-footer-btn"
+                  class="order-quick-action"
                   onclick="openGradingInstructionsModal(this)"
                   data-order-id="{{ sale.order_id }}"
                   data-item-description="{{ item_desc }}"
@@ -205,34 +279,12 @@
                   <i class="fas fa-certificate"></i> Grading
                 </button>
               {% endif %}
-
-              <button class="sold-footer-btn" onclick="openReportUserModalForSale({{ sale.order_id }})">
-                <i class="fa-regular fa-flag"></i> Report
+              <div class="order-actions-divider"></div>
+              <button class="order-action-report" onclick="openReportUserModalForSale({{ sale.order_id }})">
+                <i class="fa-regular fa-flag"></i> Report User
               </button>
-              <button class="sold-footer-btn" onclick="openMessageModal({{ sale.order_id }}, 'buyer')">
-                <i class="fa-regular fa-comment"></i> Message
-              </button>
-              {% set sale_title = [sale.weight or '', sale.year or '', sale.metal or '', sale.product_line or '', sale.product_type or ''] | select | join(' ') | trim %}
-              <button
-                class="sold-footer-btn{% if sale.already_rated %} sold-footer-btn--rated{% endif %}"
-                onclick='openRateModal({{ sale.order_id }}, "buyer", {{ {"title": sale_title, "price": "${:,.0f}".format(sale.gross_amount or 0), "date": sale.order_date or ""} | tojson }})'>
-                <i class="{% if sale.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
-                {% if sale.already_rated %}Rated{% else %}Rate{% endif %}
-              </button>
-
-              {% if sale.status | lower in ['shipped', 'delivered', 'completed'] %}
-                <button class="sold-footer-btn sold-footer-btn--track" onclick="addTrackingNumber({{ sale.order_id }})">
-                  <i class="fa-solid fa-truck"></i> Add Tracking
-                  <i class="fa-solid fa-chevron-right" style="font-size:10px;"></i>
-                </button>
-              {% else %}
-                <button class="sold-footer-btn" onclick="addTrackingNumber({{ sale.order_id }})">
-                  <i class="fa-solid fa-box"></i> Add Tracking
-                </button>
-              {% endif %}
-            </div>
-            </div>{# end sold-actions-body #}
-          </div>
+            </div><!-- /order-actions-body -->
+          </div><!-- /order-card-actions -->
 
         </div>
       {% endfor %}
@@ -251,6 +303,61 @@
       <p>Your sold orders will appear here once buyers purchase your listings.</p>
     </div>
   {% endif %}
+</div>
+
+<!-- Transaction Details Modal -->
+<div id="transactionDetailsModal" class="txn-overlay" style="display:none;" onclick="closeTxnModalOnOverlay(event)">
+  <div class="txn-card">
+    <button class="txn-close" onclick="closeTransactionDetailsModal()" aria-label="Close">&times;</button>
+
+    <div class="txn-header">
+      <h2 class="txn-title">Transaction Details</h2>
+      <p class="txn-subtitle" id="txnItemTitle"></p>
+    </div>
+
+    <div class="txn-breakdown-card">
+      <div class="txn-section-label">TRANSACTION BREAKDOWN</div>
+
+      <div class="txn-row">
+        <span class="txn-row-label">Price per Item</span>
+        <span class="txn-row-value" id="txnPriceEach"></span>
+      </div>
+      <div class="txn-row">
+        <span class="txn-row-label">Quantity Sold</span>
+        <span class="txn-row-value" id="txnQuantity"></span>
+      </div>
+      <div class="txn-row txn-row--gross">
+        <span class="txn-row-label">Gross Sale</span>
+        <span class="txn-row-value" id="txnGross"></span>
+      </div>
+
+      <div class="txn-divider"></div>
+
+      <div class="txn-row">
+        <span class="txn-row-label txn-row-label--muted" id="txnFeeLabel">Metex Fee</span>
+        <span class="txn-row-value txn-row-value--fee" id="txnFeeAmount"></span>
+      </div>
+
+      <div class="txn-divider txn-divider--thick"></div>
+
+      <div class="txn-row txn-row--net">
+        <span class="txn-row-label txn-row-label--net">Net Proceeds</span>
+        <span class="txn-row-value txn-row-value--net" id="txnNet"></span>
+      </div>
+    </div>
+
+    <div class="txn-meta">
+      <div class="txn-meta-item">
+        <i class="fa-regular fa-calendar"></i>
+        <span id="txnOrderDate"></span>
+      </div>
+      <div class="txn-meta-item">
+        <i class="fa-solid fa-hashtag"></i>
+        Order #<span id="txnOrderId"></span>
+      </div>
+      <div class="txn-payout-badge" id="txnPayoutBadge"></div>
+    </div>
+  </div>
 </div>
 
 <!-- Third-Party Grading Instructions Modal (preserved from original) -->
@@ -362,4 +469,68 @@ function openReportUserModalForSale(orderId) {
     });
 }
 window.openReportUserModalForSale = openReportUserModalForSale;
+
+// ── Transaction Details Modal ─────────────────────────────────────────────
+function openTransactionDetailsModal(btn) {
+  const fmt = n => '$' + parseFloat(n).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+  const title      = btn.dataset.title || '';
+  const orderId    = btn.dataset.orderId || '';
+  const priceEach  = parseFloat(btn.dataset.priceEach) || 0;
+  const quantity   = parseInt(btn.dataset.quantity)    || 0;
+  const gross      = parseFloat(btn.dataset.gross)     || 0;
+  const feeType    = btn.dataset.feeType || 'percent';
+  const feePct     = btn.dataset.feePercent ? parseFloat(btn.dataset.feePercent) : null;
+  const feeAmount  = parseFloat(btn.dataset.feeAmount) || 0;
+  const net        = parseFloat(btn.dataset.net)       || 0;
+  const payout     = btn.dataset.payout || '';
+  const orderDate  = btn.dataset.orderDate || '';
+
+  document.getElementById('txnItemTitle').textContent = title;
+  document.getElementById('txnPriceEach').textContent = fmt(priceEach);
+  document.getElementById('txnQuantity').textContent  = quantity;
+  document.getElementById('txnGross').textContent     = fmt(gross);
+  document.getElementById('txnNet').textContent       = fmt(net);
+  document.getElementById('txnOrderId').textContent   = orderId;
+  document.getElementById('txnOrderDate').textContent = orderDate;
+
+  // Fee label
+  var feeLabel = 'Metex Fee';
+  if (feeType === 'percent' && feePct !== null) {
+    feeLabel = 'Metex Fee (' + feePct + '%)';
+  } else if (feeType === 'flat') {
+    feeLabel = 'Metex Fee (flat)';
+  }
+  document.getElementById('txnFeeLabel').textContent  = feeLabel;
+  document.getElementById('txnFeeAmount').textContent = '\u2212' + fmt(feeAmount).slice(1);
+
+  // Payout badge
+  var badge = document.getElementById('txnPayoutBadge');
+  var payoutMap = {
+    'Paid':       'txn-payout--paid',
+    'Pending':    'txn-payout--pending',
+    'Processing': 'txn-payout--pending',
+    'On Hold':    'txn-payout--hold',
+    'Cancelled':  'txn-payout--cancelled'
+  };
+  var payoutClass = payoutMap[payout] || 'txn-payout--pending';
+  badge.className = 'txn-payout-badge ' + payoutClass;
+  badge.textContent = payout ? 'Payout: ' + payout : '';
+  badge.style.display = payout ? '' : 'none';
+
+  document.getElementById('transactionDetailsModal').style.display = 'flex';
+}
+
+function closeTransactionDetailsModal() {
+  document.getElementById('transactionDetailsModal').style.display = 'none';
+}
+
+function closeTxnModalOnOverlay(e) {
+  if (e.target === document.getElementById('transactionDetailsModal')) {
+    closeTransactionDetailsModal();
+  }
+}
+
+window.openTransactionDetailsModal  = openTransactionDetailsModal;
+window.closeTransactionDetailsModal = closeTransactionDetailsModal;
 </script>

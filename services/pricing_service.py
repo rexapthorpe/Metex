@@ -83,13 +83,33 @@ def get_effective_price(listing, spot_prices=None):
             # Fall back to static price or floor price
             return listing.get('price_per_coin') or listing.get('floor_price', 0.0)
 
+        # Parse weight to scale spot price per unit (consistent with get_effective_bid_price)
+        weight = listing.get('weight', 1.0)
+        if isinstance(weight, str):
+            import re as _re
+            _m = _re.match(r'(\d+/\d+|\d+(?:\.\d+)?)\s*(oz|g|kg|lb)?', weight.strip(), _re.IGNORECASE)
+            if _m:
+                _wv_str = _m.group(1)
+                if '/' in _wv_str:
+                    _num, _den = _wv_str.split('/', 1)
+                    _wv = float(_num) / float(_den)
+                else:
+                    _wv = float(_wv_str)
+                _wu = _m.group(2) or 'oz'
+                weight_oz = convert_weight_to_troy_ounces(_wv, _wu)
+            else:
+                logger.warning(f"Could not parse listing weight '{weight}', assuming 1.0 oz")
+                weight_oz = 1.0
+        else:
+            weight_oz = float(weight) if weight else 1.0
+
         # Calculate spot-based price
-        # effective ask = spot_price + premium (floor acts as minimum)
+        # effective ask = (spot_price_per_oz * weight_oz) + premium (floor acts as minimum)
         spot_premium = listing.get('spot_premium', 0.0)
         if spot_premium is None:
             spot_premium = 0.0
 
-        computed_price = spot_price_per_oz + spot_premium
+        computed_price = (spot_price_per_oz * weight_oz) + spot_premium
 
         # Enforce floor price (for listings)
         # Note: This is for LISTINGS. Bids use ceiling price instead (see get_effective_bid_price)
@@ -362,12 +382,17 @@ def get_effective_bid_price(bid, spot_prices=None):
         # Get weight in troy ounces
         weight = bid.get('weight', 1.0)
 
-        # Parse weight if it's a string
+        # Parse weight if it's a string — handles fractions ("1/2 oz") and decimals ("2.5 g")
         if isinstance(weight, str):
             import re
-            match = re.match(r'([0-9.]+)\s*(oz|g|kg|lb)?', weight.strip(), re.IGNORECASE)
+            match = re.match(r'(\d+/\d+|\d+(?:\.\d+)?)\s*(oz|g|kg|lb)?', weight.strip(), re.IGNORECASE)
             if match:
-                weight_value = float(match.group(1))
+                _wv_str = match.group(1)
+                if '/' in _wv_str:
+                    _num, _den = _wv_str.split('/', 1)
+                    weight_value = float(_num) / float(_den)
+                else:
+                    weight_value = float(_wv_str)
                 weight_unit = match.group(2) or 'oz'
                 weight_oz = convert_weight_to_troy_ounces(weight_value, weight_unit)
             else:

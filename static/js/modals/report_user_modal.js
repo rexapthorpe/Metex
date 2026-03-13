@@ -57,8 +57,8 @@ function closeReportUserModal() {
   if (modal) {
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
-    modal.style.display = 'none';
     modal.removeEventListener('click', reportOutsideClickListener);
+    window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
   }
 
   // Reset success state

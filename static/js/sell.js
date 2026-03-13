@@ -667,13 +667,40 @@ function updatePricePreview() {
     const premium = parseFloat(spotPremiumInput?.value) || 0;
     const floor = parseFloat(floorPriceInput?.value) || 0;
 
-    // effective ask = max(spot + premium, floor)
-    const computedPrice = spotPrice + premium;
+    // Parse weight to troy ounces — mirrors backend convert_weight_to_troy_ounces()
+    // Handles decimals ("2.5 g") and fractions ("1/2 oz", "1/4 oz", "1/10 oz")
+    const weightStr = weightInput?.value?.trim() || '';
+    const weightMatch = weightStr.match(/^(\d+(?:\.\d+)?|\d+\/\d+)\s*(oz|g|kg|lb)?$/i);
+    let weightOz = 1.0;
+    if (weightMatch) {
+        let wv;
+        if (weightMatch[1].includes('/')) {
+            const parts = weightMatch[1].split('/');
+            wv = parseFloat(parts[0]) / parseFloat(parts[1]);
+        } else {
+            wv = parseFloat(weightMatch[1]) || 1.0;
+        }
+        const wu = (weightMatch[2] || 'oz').toLowerCase();
+        const conversions = { oz: 1.0, g: 0.0321507, kg: 32.1507, lb: 14.5833 };
+        weightOz = wv * (conversions[wu] || 1.0);
+    }
+
+    // effective ask = max((spot * weight) + premium, floor) — mirrors backend get_effective_price()
+    const computedPrice = (spotPrice * weightOz) + premium;
     const effectivePrice = Math.max(computedPrice, floor);
+    const floorActive = floor > 0 && floor > computedPrice;
 
     if (previewAmountSpan) previewAmountSpan.textContent = formatPrice(effectivePrice);
     if (spotPriceSpan) spotPriceSpan.textContent = formatPrice(spotPrice);
     if (spotMetalNameSpan) spotMetalNameSpan.textContent = pricingMetal.charAt(0).toUpperCase() + pricingMetal.slice(1).toLowerCase();
+
+    // Populate formula breakdown spans
+    const previewWeightSpan = loadedDiv.querySelector('.preview-weight');
+    const previewPremiumSpan = loadedDiv.querySelector('.preview-premium');
+    const previewFloorNoteSpan = loadedDiv.querySelector('.preview-floor-note');
+    if (previewWeightSpan) previewWeightSpan.textContent = weightStr || '1 oz';
+    if (previewPremiumSpan) previewPremiumSpan.textContent = formatPrice(premium);
+    if (previewFloorNoteSpan) previewFloorNoteSpan.style.display = floorActive ? 'inline' : 'none';
 }
 
 /**

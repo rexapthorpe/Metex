@@ -25,7 +25,9 @@ def validate_and_refill_cart(conn, user_id):
             listings.seller_id,
             categories.id as category_id,
             categories.bucket_id,
-            listings.price_per_coin
+            listings.price_per_coin,
+            cart.third_party_grading_requested,
+            cart.grading_preference
         FROM cart
         JOIN listings ON cart.listing_id = listings.id
         JOIN categories ON listings.category_id = categories.id
@@ -49,7 +51,9 @@ def validate_and_refill_cart(conn, user_id):
             buckets_to_refill[bucket_id].append({
                 'lost_qty': cart_qty,
                 'old_listing_id': entry['listing_id'],
-                'seller_id': entry['seller_id']
+                'seller_id': entry['seller_id'],
+                'third_party_grading_requested': entry['third_party_grading_requested'] or 0,
+                'grading_preference': entry['grading_preference'] or ''
             })
         elif available_qty < cart_qty:
             # Listing partially consumed - reduce cart qty and refill difference
@@ -57,13 +61,18 @@ def validate_and_refill_cart(conn, user_id):
             buckets_to_refill[bucket_id].append({
                 'lost_qty': cart_qty - available_qty,
                 'old_listing_id': entry['listing_id'],
-                'seller_id': entry['seller_id']
+                'seller_id': entry['seller_id'],
+                'third_party_grading_requested': entry['third_party_grading_requested'] or 0,
+                'grading_preference': entry['grading_preference'] or ''
             })
 
     # Now refill from other listings in each affected bucket
     for bucket_id, items_to_refill in buckets_to_refill.items():
         total_lost = sum(item['lost_qty'] for item in items_to_refill)
         total_refilled = 0
+        # Preserve grading preference from the lost entries (all items in a bucket share one preference)
+        bucket_grading = items_to_refill[0].get('third_party_grading_requested', 0)
+        bucket_grading_pref = items_to_refill[0].get('grading_preference', '')
 
         # Get available listings in this bucket (excluding user's own and already-processed listings)
         excluded_listing_ids = [item['old_listing_id'] for item in items_to_refill]
@@ -109,8 +118,8 @@ def validate_and_refill_cart(conn, user_id):
                     )
                 else:
                     cursor.execute(
-                        'INSERT INTO cart (user_id, listing_id, quantity) VALUES (?, ?, ?)',
-                        (user_id, listing['id'], take)
+                        'INSERT INTO cart (user_id, listing_id, quantity, third_party_grading_requested, grading_preference) VALUES (?, ?, ?, ?, ?)',
+                        (user_id, listing['id'], take, bucket_grading, bucket_grading_pref)
                     )
                 remaining_to_fill -= take
                 total_refilled += take

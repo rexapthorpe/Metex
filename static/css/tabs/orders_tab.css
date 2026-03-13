@@ -244,6 +244,7 @@
   width: 100%;
 }
 
+.order-quick-action { text-decoration: none; }
 .order-quick-action:hover { background: #f1f5f9; }
 .order-quick-action i { width: 16px; text-align: center; color: #64748b; }
 
@@ -475,15 +476,21 @@
     transform: rotate(180deg);
   }
 
-  /* Body: hidden by default, shown when expanded */
+  /* Body: slide in/out with max-height + opacity */
   .order-actions-body {
-    display: none;
+    display: flex;
     flex-wrap: wrap;
-    padding: 12px 16px;
     gap: 6px;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    padding: 0 16px;
+    transition: max-height 0.28s ease, opacity 0.22s ease, padding 0.28s ease;
   }
   .order-actions-body.expanded {
-    display: flex;
+    max-height: 500px;
+    opacity: 1;
+    padding: 12px 16px;
   }
 
   /* Flatten the bottom wrapper so its children join the 3-col grid */

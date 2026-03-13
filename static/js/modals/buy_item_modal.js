@@ -187,12 +187,14 @@ function closeBuyItemConfirmModal() {
   // Stop price lock timer
   stopPriceLockCountdown();
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
     pendingBuyData = null;
     priceLockData = null;
-  }, 300);
+  }, 350);
 }
 
 /**
@@ -337,12 +339,14 @@ function closeBuyItemSuccessModal() {
   const modal = document.getElementById('buyItemSuccessModal');
   if (!modal) return;
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
     // Reload page to show updated orders and inventory
     location.reload();
-  }, 300);
+  }, 350);
 }
 
 /**
@@ -675,10 +679,12 @@ function showBuyPaymentSelection() {
   // Close confirmation modal first
   const confirmModal = document.getElementById('buyItemConfirmModal');
   if (confirmModal) {
+    confirmModal.classList.add('modal-closing');
     confirmModal.classList.remove('active');
     setTimeout(() => {
+      confirmModal.classList.remove('modal-closing');
       confirmModal.style.display = 'none';
-    }, 300);
+    }, 350);
   }
 
   // Show payment modal
@@ -700,10 +706,12 @@ function closeBuyPaymentModal() {
   const modal = document.getElementById('buyItemPaymentModal');
   if (!modal) return;
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
-  }, 300);
+  }, 350);
 }
 
 /**
@@ -713,10 +721,12 @@ function confirmBuyPaymentMethod() {
   // Close payment modal
   const paymentModal = document.getElementById('buyItemPaymentModal');
   if (paymentModal) {
+    paymentModal.classList.add('modal-closing');
     paymentModal.classList.remove('active');
     setTimeout(() => {
+      paymentModal.classList.remove('modal-closing');
       paymentModal.style.display = 'none';
-    }, 300);
+    }, 350);
   }
 
   // Re-open confirmation modal
@@ -759,10 +769,12 @@ function closeBuyAddressErrorModal() {
   const modal = document.getElementById('buyItemAddressErrorModal');
   if (!modal) return;
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
-  }, 300);
+  }, 350);
 }
 
 /**

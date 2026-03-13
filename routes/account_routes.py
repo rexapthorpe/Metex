@@ -629,6 +629,25 @@ def account():
 
         sales.append(sale)
 
+    # Sold tab summary metrics (exclude fully-cancelled orders)
+    _active_sales = [s for s in sales if s.get('cancel_status') != 'approved']
+    _total_gross = round(sum(s['gross_amount'] for s in _active_sales), 2)
+    _total_net = round(sum(s['seller_net'] for s in _active_sales), 2)
+    _completed_payouts = round(sum(
+        s['seller_net'] for s in _active_sales
+        if s.get('payout_status') == 'PAID_OUT'
+    ), 2)
+    _pending_payouts = round(sum(
+        s['seller_net'] for s in _active_sales
+        if s.get('payout_status') not in ('PAID_OUT', 'PAYOUT_CANCELLED')
+    ), 2)
+    sold_summary = {
+        'total_gross': _total_gross,
+        'net_proceeds': _total_net,
+        'pending_payouts': _pending_payouts,
+        'completed_payouts': _completed_payouts,
+    }
+
     # 6) Cart — single authoritative source for all pricing and totals
     validate_and_refill_cart(conn, user_id)
     cart_summary = build_cart_summary(conn, user_id, spot_prices=get_current_spots_from_snapshots(conn))
@@ -782,6 +801,7 @@ def account():
         completed_orders=completed_orders,
         listings=active_listings,
         sales=sales,
+        sold_summary=sold_summary,
         buckets=buckets,
         cart_total=cart_total,
         grading_fee_per_unit=cart_summary['grading_fee_per_unit'],

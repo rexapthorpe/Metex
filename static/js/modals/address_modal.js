@@ -66,16 +66,18 @@ function editAddress(addressId) {
 // Close the address modal
 function closeAddressModal() {
   const modal = document.getElementById('addressModal');
-  modal.style.display = 'none';
+  window.animatedModalClose(modal, function() {
+    modal.style.display = 'none';
 
-  // Return focus to Buy Item modal's delivery address dropdown if it exists
-  // This ensures proper focus flow when closing address modal from Buy flow
-  requestAnimationFrame(() => {
-    const deliverySelect = document.getElementById('deliveryAddressSelect');
-    if (deliverySelect && deliverySelect.offsetParent !== null) {
-      // deliverySelect is visible, so we're in the Buy Item modal flow
-      deliverySelect.focus();
-    }
+    // Return focus to Buy Item modal's delivery address dropdown if it exists
+    // This ensures proper focus flow when closing address modal from Buy flow
+    requestAnimationFrame(() => {
+      const deliverySelect = document.getElementById('deliveryAddressSelect');
+      if (deliverySelect && deliverySelect.offsetParent !== null) {
+        // deliverySelect is visible, so we're in the Buy Item modal flow
+        deliverySelect.focus();
+      }
+    });
   });
 }
 

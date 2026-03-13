@@ -124,12 +124,11 @@ function closeBidModal() {
   const content = document.getElementById('bidModalContent');
 
   if (modal) {
-    modal.style.display = 'none';
-    modal.classList.remove('active');
-  }
-
-  if (content) {
-    content.innerHTML = '';
+    window.animatedModalClose(modal, function() {
+      modal.style.display = 'none';
+      modal.classList.remove('active');
+      if (content) content.innerHTML = '';
+    });
   }
 }
 

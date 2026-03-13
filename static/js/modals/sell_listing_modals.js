@@ -59,14 +59,32 @@ function openSellConfirmModal(formData) {
     const spotPremium  = parseFloat(formData.get('spot_premium')) || 0;
     const pricingMetal = (formData.get('pricing_metal') || '').toLowerCase();
 
+    // Parse weight to troy ounces — mirrors backend get_effective_price()
+    // Handles decimals ("2.5 g") and fractions ("1/2 oz", "1/4 oz", "1/10 oz")
+    const weightStr = (formData.get('weight') || '1 oz').trim();
+    const weightMatch = weightStr.match(/^(\d+(?:\.\d+)?|\d+\/\d+)\s*(oz|g|kg|lb)?$/i);
+    let weightOz = 1.0;
+    if (weightMatch) {
+      let wv;
+      if (weightMatch[1].includes('/')) {
+        const parts = weightMatch[1].split('/');
+        wv = parseFloat(parts[0]) / parseFloat(parts[1]);
+      } else {
+        wv = parseFloat(weightMatch[1]) || 1.0;
+      }
+      const wu = (weightMatch[2] || 'oz').toLowerCase();
+      const conversions = { oz: 1.0, g: 0.0321507, kg: 32.1507, lb: 14.5833 };
+      weightOz = wv * (conversions[wu] || 1.0);
+    }
+
     // Show effective ask price when spot is available; fall back to floor price
     if (window.spotPrices && pricingMetal && window.spotPrices[pricingMetal]) {
       const spotPrice     = window.spotPrices[pricingMetal];
-      const computedPrice = spotPrice + spotPremium;
+      const computedPrice = (spotPrice * weightOz) + spotPremium;  // fixed: was spotPrice + spotPremium
       pricePerUnit = Math.max(computedPrice, floorPrice);
       priceLabel   = 'Ask Price';
       spotPremiumDisplay = `+${formatPrice(spotPremium)}`;
-      spotPriceDisplay   = `${formatPrice(spotPrice)}/oz`;
+      spotPriceDisplay   = `${formatPrice(spotPrice)}/oz \u00d7 ${weightStr}`;
     } else {
       pricePerUnit = floorPrice;
       priceLabel   = 'Floor Price';
@@ -228,14 +246,16 @@ function closeSellConfirmModal() {
   const modal = document.getElementById('sellListingConfirmModal');
   if (!modal) return;
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
     pendingListingForm = null;
     pendingFormData = null;
     // Re-enable the sidebar button by letting updateCTAButton recalculate state
     if (typeof window.updateChecklist === 'function') window.updateChecklist();
-  }, 300);
+  }, 350);
 }
 
 /**
@@ -475,12 +495,14 @@ function closeSellSuccessModal() {
   const modal = document.getElementById('sellListingSuccessModal');
   if (!modal) return;
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
     // Redirect to Buy page
     window.location.href = '/buy';
-  }, 300);
+  }, 350);
 }
 
 /**

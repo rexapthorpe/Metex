@@ -16,7 +16,7 @@ function openCloseBidConfirmModal(bidId) {
 function closeCloseBidConfirmModal() {
   pendingCloseBidId = null;
   const modal = document.getElementById('closeBidConfirmModal');
-  if (modal) modal.style.display = 'none';
+  if (modal) window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
 
   // Reset animation state so it replays on next open
   const content = document.getElementById('closeBidConfirmContent');

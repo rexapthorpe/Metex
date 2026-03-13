@@ -312,12 +312,31 @@ def get_user_notifications(user_id, unread_only=False, limit=50, offset=0):
 
     result = []
     for notif in notifications:
-        nd = dict(notif)
-        if nd.get('metadata'):
+        try:
+            nd = dict(notif)
+        except Exception as exc:
+            print(f'[NOTIFICATIONS] Failed to convert row to dict: {exc}')
+            continue
+        # Coerce created_at / read_at to strings if still datetime objects
+        for ts_col in ('created_at', 'read_at'):
+            val = nd.get(ts_col)
+            if val is not None and not isinstance(val, str):
+                try:
+                    nd[ts_col] = str(val)
+                except Exception:
+                    nd[ts_col] = None
+        # Coerce is_read to int (bool from PostgreSQL BOOLEAN column → 0/1)
+        if isinstance(nd.get('is_read'), bool):
+            nd['is_read'] = 1 if nd['is_read'] else 0
+        # Parse metadata JSON string
+        meta = nd.get('metadata')
+        if meta is not None and not isinstance(meta, (dict, list)):
             try:
-                nd['metadata'] = json.loads(nd['metadata'])
+                nd['metadata'] = json.loads(meta)
             except Exception:
                 nd['metadata'] = None
+        elif meta is None:
+            nd['metadata'] = None
         result.append(nd)
     return result
 

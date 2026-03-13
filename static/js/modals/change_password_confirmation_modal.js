@@ -17,7 +17,7 @@ function closeChangePasswordConfirmModal() {
   pendingPasswordFormData = null;
   const modal = document.getElementById('changePasswordConfirmModal');
   if (modal) {
-    modal.style.display = 'none';
+    window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
   }
 }
 

@@ -23,15 +23,17 @@ function hideSellerModal() {
   const modal = document.getElementById('sellerModal');
   if (!modal) return;
 
+  modal.removeEventListener('click', outsideClickListener);
+
   if (typeof hideModal === 'function') {
     hideModal(modal);
   } else {
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
-    modal.style.display = 'none';
+    window.animatedModalClose(modal, function() {
+      modal.style.display = 'none';
+    });
   }
-
-  modal.removeEventListener('click', outsideClickListener);
 }
 
 function openSellerPopup(bucketId) {

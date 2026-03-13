@@ -26,8 +26,10 @@ function openBidderModal(bidId) {
 
 function closeBidderModal() {
   const modal = document.getElementById('bidBidderModal');
-  modal.style.display = 'none';
   modal.removeEventListener('click', _outsideBidderClick);
+  window.animatedModalClose(modal, function() {
+    modal.style.display = 'none';
+  });
 }
 
 function _outsideBidderClick(e) {

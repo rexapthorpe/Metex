@@ -2,242 +2,247 @@
 
 /* ===== Grid ===== */
 .listing-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 375px);
-  justify-content: start;
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* ===== Card ===== */
 .listing-card {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   background: #ffffff;
-  display: flex;
-  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-/* ===== Photo ===== */
-.listing-card-photo {
-  position: relative;
-  height: 200px;
+.listing-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  border-color: #cbd5e1;
+}
+
+/* ===== Photo: full-height left column ===== */
+.lc-photo {
+  width: 130px;
+  flex-shrink: 0;
   background: #f1f5f9;
   overflow: hidden;
 }
 
-.listing-card-photo img {
+.lc-photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
-/* ===== Type Badge ===== */
-.listing-type-badge {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 6px;
+.lc-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 110px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  color: #cbd5e1;
+  font-size: 26px;
 }
 
-.listing-type-badge--standard { background: rgba(255,255,255,0.9); color: #374151; }
-.listing-type-badge--ooak { background: rgba(255,255,255,0.9); color: #7c3aed; }
-.listing-type-badge--set { background: rgba(255,255,255,0.9); color: #059669; }
-
-/* ===== Status Badge ===== */
-.listing-status-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 9999px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.listing-status-badge--active {
-  background: rgba(255,255,255,0.9);
-  color: #166534;
-}
-
-.listing-status-badge--active .listing-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  display: inline-block;
-}
-
-.listing-status-badge--pending {
-  background: rgba(255,255,255,0.9);
-  color: #64748b;
-}
-
-.listing-status-badge--pending .listing-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #94a3b8;
-  display: inline-block;
-}
-
-/* ===== Body ===== */
-.listing-card-body {
-  padding: 16px;
+/* ===== Main Row (content only — actions are a separate card sibling) ===== */
+.lc-main {
   flex: 1;
-}
-
-.listing-card-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0 0 12px 0;
-}
-
-/* ===== Pricing ===== */
-.listing-card-pricing {
-  border-top: 1px solid #e2e8f0;
-  padding-top: 12px;
-}
-
-.pricing-mode-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 10px;
-  border-radius: 9999px;
-  margin-bottom: 8px;
-}
-
-.pricing-mode-badge--variable { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
-.pricing-mode-badge--fixed    { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-
-.listing-price-details {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-/* Current (effective) price — same weight as fixed price */
-.listing-price-current {
-  font-size: 22px;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1.2;
-}
-
-/* Metrics strip — Premium / Floor / Spot */
-.listing-metrics-strip {
+  min-width: 0;
   display: flex;
   align-items: stretch;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow: hidden;
+  padding: 16px;
 }
 
-.listing-metric {
+/* ===== Content: two-column (title left, pricing right) ===== */
+.lc-content {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* ===== Title block (left) ===== */
+.lc-title-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.lc-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  line-height: 1.35;
+}
+
+.lc-subtitle {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== Right column (badges + pricing + qty) ===== */
+.lc-right-col {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 7px 10px;
-}
-
-.listing-metric-sep {
-  width: 1px;
-  background: #e2e8f0;
+  align-items: flex-end;
+  gap: 8px;
   flex-shrink: 0;
 }
 
-.listing-metric-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.listing-metric-value {
-  font-size: 12px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.listing-metric-value--premium { color: #0f172a; }
-.listing-metric-value--floor    { color: #0f172a; }
-.listing-metric-value--spot     { color: #0f172a; }
-
-.listing-fixed-price {
-  font-size: 22px;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
-
-.listing-qty {
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-/* ===== Footer Actions ===== */
-.listing-card-footer {
+/* ===== Badge Stack ===== */
+.lc-badge-stack {
   display: flex;
-  border-top: 1px solid #e2e8f0;
-  padding: 10px 16px;
-  gap: 8px;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 }
 
-.listing-footer-btn {
+.lc-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 12px;
-  border-radius: 7px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  border: none;
-  background: #ffffff;
-  color: #374151;
-  transition: background 0.15s ease;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
 }
 
-.listing-footer-btn:hover { background: #f8fafc; }
-.listing-footer-btn--cancel { color: #ef4444; }
-.listing-footer-btn--cancel:hover { background: #fef2f2; }
+.lc-status--active { background: #f0fdf4; color: #166534; }
+.lc-status--pending { background: #f8fafc; color: #64748b; }
 
-/* ===================================
-   RESPONSIVE — LISTINGS TAB
-   =================================== */
+.lc-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
 
+.lc-status--active .lc-status-dot { background: #22c55e; }
+.lc-status--pending .lc-status-dot { background: #94a3b8; }
+
+.lc-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.lc-type--set  { background: #f0fdf4; color: #059669; }
+.lc-type--ooak { background: #f5f3ff; color: #7c3aed; }
+
+/* ===== Price Block (right-aligned) ===== */
+.lc-price-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.lc-price-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lc-price {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.lc-price-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.lc-price-badge--variable { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.lc-price-badge--fixed    { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+.lc-formula {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 0;
+  text-align: right;
+}
+
+.lc-formula-spot {
+  color: #334155;
+  font-weight: 600;
+}
+
+.lc-floor {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 0;
+  text-align: right;
+}
+
+/* ===== Qty Chip ===== */
+.lc-qty-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* ===== Quick Actions Panel ===== */
+/* Direct listing-card sibling — same structure as orders/sold tabs */
+.listing-card .order-card-actions {
+  border-left: 1px solid #e2e8f0;
+}
+
+/* ===== Responsive ===== */
 @media (max-width: 768px) {
-  .listing-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+  /* Card stacks: photo becomes top banner */
+  .listing-card {
+    flex-direction: column;
   }
 
-  .listing-card-photo { height: 180px; }
+  .lc-photo {
+    width: 100%;
+    height: 160px;
+  }
+
+  .lc-main {
+    padding: 14px;
+  }
+
+  .lc-title { font-size: 13px; }
+  .lc-price { font-size: 19px; }
+
+  /* Actions panel is a direct card child — orders_tab.css @media rules apply automatically.
+     Only override the border (left→top) since the card is now stacked vertically. */
+  .listing-card .order-card-actions {
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
+  }
 }
 
 @media (max-width: 480px) {
-  .listing-card-photo { height: 160px; }
-  .listing-card-body { padding: 12px; }
-  .listing-card-title { font-size: 14px; }
-  .listing-fixed-price { font-size: 20px; }
+  .lc-photo { height: 130px; }
+  .lc-price { font-size: 17px; }
+  .lc-formula { font-size: 10.5px; }
 }

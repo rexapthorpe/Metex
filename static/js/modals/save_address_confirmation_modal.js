@@ -17,7 +17,7 @@ function closeSaveAddressConfirmModal() {
   pendingSaveAddressForm = null;
   const modal = document.getElementById('saveAddressConfirmModal');
   if (modal) {
-    modal.style.display = 'none';
+    window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
   }
 }
 

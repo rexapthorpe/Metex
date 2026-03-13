@@ -235,7 +235,9 @@
   // ── Modal lifecycle ──────────────────────────────────────────────────────────
 
   function closeModal() {
-    ratingsModal.style.display = 'none';
+    window.animatedModalClose(ratingsModal, function() {
+      ratingsModal.style.display = 'none';
+    });
 
     // Restore standard elements
     const divider = ratingsModal.querySelector('.rm-divider');

@@ -155,11 +155,13 @@ function closeCheckoutModal() {
   const modal = document.getElementById('checkoutOrderSummaryModal');
   if (!modal) return;
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
     checkoutCartData = null;
-  }, 300);
+  }, 350);
 }
 
 /**
@@ -169,10 +171,12 @@ function showPaymentSelection() {
   // Close order summary modal first
   const summaryModal = document.getElementById('checkoutOrderSummaryModal');
   if (summaryModal) {
+    summaryModal.classList.add('modal-closing');
     summaryModal.classList.remove('active');
     setTimeout(() => {
+      summaryModal.classList.remove('modal-closing');
       summaryModal.style.display = 'none';
-    }, 300);
+    }, 350);
   }
 
   // Show payment modal
@@ -194,10 +198,12 @@ function closePaymentModal() {
   const modal = document.getElementById('checkoutPaymentModal');
   if (!modal) return;
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
-  }, 300);
+  }, 350);
 }
 
 /**
@@ -207,10 +213,12 @@ function confirmPaymentMethod() {
   // Close payment modal
   const paymentModal = document.getElementById('checkoutPaymentModal');
   if (paymentModal) {
+    paymentModal.classList.add('modal-closing');
     paymentModal.classList.remove('active');
     setTimeout(() => {
+      paymentModal.classList.remove('modal-closing');
       paymentModal.style.display = 'none';
-    }, 300);
+    }, 350);
   }
 
   // Re-open order summary modal
@@ -314,12 +322,14 @@ function closeSuccessModal() {
   const modal = document.getElementById('checkoutSuccessModal');
   if (!modal) return;
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
     // Reload page to refresh cart
     window.location.reload();
-  }, 300);
+  }, 350);
 }
 
 /**

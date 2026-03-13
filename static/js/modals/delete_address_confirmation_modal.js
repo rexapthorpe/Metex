@@ -17,7 +17,7 @@ function closeDeleteAddressConfirmModal() {
   pendingDeleteAddressId = null;
   const modal = document.getElementById('deleteAddressConfirmModal');
   if (modal) {
-    modal.style.display = 'none';
+    window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
   }
 }
 

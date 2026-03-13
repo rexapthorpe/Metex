@@ -9,6 +9,7 @@ from flask import flash, redirect, url_for, session, request
 from database import get_db_connection
 from services.notification_service import notify_bid_filled
 from services.pricing_service import get_effective_bid_price, get_effective_price
+from core.services.ledger.order_creation import create_order_ledger_from_cart
 from . import sell_bp
 
 
@@ -33,6 +34,9 @@ def accept_bid(bucket_id):
     # Collect notification data (will send after commit to avoid database locking)
     notifications_to_send = []
 
+    # Ledger records to create after main commit (each bid acceptance = one order)
+    ledger_orders_to_create = []
+
     for bid_id in selected_bid_ids:
         accepted_qty = request.form.get(f'quantity_{bid_id}')
         if not accepted_qty or int(accepted_qty) <= 0:
@@ -43,7 +47,8 @@ def accept_bid(bucket_id):
         bid = c.execute('''
             SELECT b.buyer_id, b.category_id, b.quantity_requested, b.remaining_quantity,
                    b.price_per_coin, b.status, b.pricing_mode, b.spot_premium,
-                   b.ceiling_price, b.pricing_metal, c.metal, c.weight
+                   b.ceiling_price, b.pricing_metal, c.metal, c.weight,
+                   b.delivery_address, b.recipient_first_name, b.recipient_last_name
             FROM bids b
             JOIN categories c ON c.id = b.category_id
             WHERE b.id = ?
@@ -107,16 +112,22 @@ def accept_bid(bucket_id):
         # Create an order using the canonical schema (no seller_id/category_id at order level;
         # seller identity is resolved via order_items → listings → seller_id)
         total_price = round(qty_to_fulfill * price, 2)
+        bid_delivery_address = bid['delivery_address'] or ''
+        bid_recipient_first = bid['recipient_first_name'] or ''
+        bid_recipient_last = bid['recipient_last_name'] or ''
         c.execute('''
-            INSERT INTO orders (buyer_id, total_price, status)
-            VALUES (?, ?, 'Pending Shipment')
-        ''', (buyer_id, total_price))
+            INSERT INTO orders (buyer_id, total_price, status,
+                                shipping_address, recipient_first_name, recipient_last_name)
+            VALUES (?, ?, 'Pending Shipment', ?, ?, ?)
+        ''', (buyer_id, total_price,
+              bid_delivery_address, bid_recipient_first, bid_recipient_last))
 
         order_id = c.lastrowid
 
         # Create order_items record so the order is properly linked to listings
         # Deduct inventory atomically from seller's listings (largest first)
         remaining_to_deduct = qty_to_fulfill
+        ledger_items = []
         for listing_row in seller_listings:
             if remaining_to_deduct <= 0:
                 break
@@ -137,6 +148,14 @@ def accept_bid(bucket_id):
                     VALUES (?, ?, ?, ?, ?)
                 ''', (order_id, listing_row['id'], take, price, seller_price))
                 remaining_to_deduct -= take
+                # Track for ledger creation (uses seller_price_each as unit_price,
+                # matching what the sold tab displays via COALESCE(seller_price_each, price_each))
+                ledger_items.append({
+                    'seller_id': seller_id,
+                    'listing_id': listing_row['id'],
+                    'quantity': take,
+                    'unit_price': seller_price,
+                })
 
         if remaining_to_deduct > 0:
             # Concurrent depletion: another acceptance took the inventory between
@@ -148,6 +167,14 @@ def accept_bid(bucket_id):
 
         # All inventory deducted — release the savepoint (becomes part of outer tx)
         c.execute(f'RELEASE SAVEPOINT {sp_name}')
+
+        # Queue ledger creation for after main commit
+        if ledger_items:
+            ledger_orders_to_create.append({
+                'buyer_id': buyer_id,
+                'order_id': order_id,
+                'items': ledger_items,
+            })
 
         # Update the bid — decrement remaining_quantity (canonical unfilled count)
         remaining = max_qty - qty_to_fulfill
@@ -194,6 +221,19 @@ def accept_bid(bucket_id):
 
     conn.commit()
     conn.close()
+
+    # Create ledger entries AFTER main commit (ledger service opens its own connection).
+    # This locks in the correct bucket fee at execution time, so the sold tab
+    # always shows accurate proceeds even if the bucket fee changes later.
+    for _ledger in ledger_orders_to_create:
+        try:
+            create_order_ledger_from_cart(
+                buyer_id=_ledger['buyer_id'],
+                cart_snapshot=_ledger['items'],
+                order_id=_ledger['order_id'],
+            )
+        except Exception as _ledger_err:
+            print(f"[WARN] Ledger creation failed for order {_ledger['order_id']}: {_ledger_err}")
 
     # Send notifications AFTER commit (avoids database locking)
     for notif_data in notifications_to_send:

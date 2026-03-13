@@ -24,9 +24,11 @@ function closePriceBreakdown() {
   const modal = document.getElementById('priceBreakdownModal');
   if (!modal) return;
 
-  modal.style.display = 'none';
   modal.removeEventListener('click', priceOutsideClick);
   document.removeEventListener('keydown', cartKeyNavHandler);
+  window.animatedModalClose(modal, function() {
+    modal.style.display = 'none';
+  });
 }
 
 function priceOutsideClick(e) {

@@ -86,7 +86,7 @@ function handleListingQuantityChange(listingId, newQuantity) {
   }
 
   const qtyEl = document.getElementById(`listing-qty-${listingId}`);
-  if (qtyEl) qtyEl.textContent = `Quantity: ${qtyNum}`;
+  if (qtyEl) qtyEl.textContent = qtyNum;
 
   tile.dataset.quantity = String(qtyNum);
 }

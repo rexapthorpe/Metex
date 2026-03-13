@@ -193,13 +193,13 @@ function loadNotifications() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                notifications = data.notifications;
+                notifications = data.notifications || [];
                 checkAndShowToasts();
             } else {
-                console.error('Failed to load notifications:', data.error);
+                console.error('[Notifications] Failed to load:', data.error);
             }
         })
-        .catch(error => console.error('Error loading notifications:', error));
+        .catch(error => console.error('[Notifications] Fetch error:', error));
 }
 
 // ===================================
@@ -214,13 +214,24 @@ function loadSidebarInitial() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                notifications = data.notifications;
-                sidebarNotifications = data.notifications;
+                notifications = data.notifications || [];
+                sidebarNotifications = data.notifications || [];
                 allLoaded = sidebarNotifications.length < INITIAL_LIMIT;
-                renderNotifications();
+                try {
+                    renderNotifications();
+                } catch (renderErr) {
+                    console.error('[Notifications] renderNotifications error:', renderErr);
+                    notificationList.innerHTML = `
+                        <div class="notification-empty">
+                            <i class="fa-solid fa-exclamation-triangle"></i>
+                            <p>Failed to display notifications</p>
+                        </div>
+                    `;
+                }
                 updateNewBadge();
                 updateViewAllBtn();
             } else {
+                console.error('[Notifications] Server error:', data.error);
                 notificationList.innerHTML = `
                     <div class="notification-empty">
                         <i class="fa-solid fa-exclamation-triangle"></i>
@@ -229,7 +240,8 @@ function loadSidebarInitial() {
                 `;
             }
         })
-        .catch(() => {
+        .catch(err => {
+            console.error('[Notifications] Fetch error:', err);
             notificationList.innerHTML = `
                 <div class="notification-empty">
                     <i class="fa-solid fa-exclamation-triangle"></i>

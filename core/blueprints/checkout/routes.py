@@ -530,8 +530,14 @@ def checkout():
                             #    transaction (items processed before this one in the loop).
                             # 2) Clean up the order record that was committed by create_order()
                             #    in its own connection.
+                            # 3) Clean up ledger records created by _create_ledger_for_order()
+                            #    (committed in their own connection — not covered by rollback above).
                             conn.rollback()
                             try:
+                                conn.execute('DELETE FROM order_items_ledger WHERE order_id = ?', (order_id,))
+                                conn.execute('DELETE FROM order_payouts WHERE order_id = ?', (order_id,))
+                                conn.execute('DELETE FROM order_events WHERE order_id = ?', (order_id,))
+                                conn.execute('DELETE FROM orders_ledger WHERE order_id = ?', (order_id,))
                                 conn.execute('DELETE FROM order_items WHERE order_id = ?', (order_id,))
                                 conn.execute('DELETE FROM orders WHERE id = ?', (order_id,))
                                 conn.commit()
@@ -715,8 +721,14 @@ def checkout():
                     # 1) Roll back all inventory decrements already applied in this
                     #    transaction (items processed before this one in the loop).
                     # 2) Clean up the order record committed by create_order().
+                    # 3) Clean up ledger records created by _create_ledger_for_order()
+                    #    (committed in their own connection — not covered by rollback above).
                     conn.rollback()
                     try:
+                        conn.execute('DELETE FROM order_items_ledger WHERE order_id = ?', (order_id,))
+                        conn.execute('DELETE FROM order_payouts WHERE order_id = ?', (order_id,))
+                        conn.execute('DELETE FROM order_events WHERE order_id = ?', (order_id,))
+                        conn.execute('DELETE FROM orders_ledger WHERE order_id = ?', (order_id,))
                         conn.execute('DELETE FROM order_items WHERE order_id = ?', (order_id,))
                         conn.execute('DELETE FROM orders WHERE id = ?', (order_id,))
                         conn.commit()

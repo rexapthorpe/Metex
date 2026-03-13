@@ -28,14 +28,16 @@ function closeListingItemsModal() {
   const modal = document.getElementById('listingItemsModal');
   if (!modal) return;
 
-  modal.style.display = 'none';
   modal.removeEventListener('click', listingItemsOutsideClick);
   document.removeEventListener('keydown', listingItemsKeyHandler);
 
-  // Reset state
-  listingData = null;
-  setItems = [];
-  currentSetItemIndex = 0;
+  window.animatedModalClose(modal, function() {
+    modal.style.display = 'none';
+    // Reset state
+    listingData = null;
+    setItems = [];
+    currentSetItemIndex = 0;
+  });
 }
 
 function listingItemsOutsideClick(e) {

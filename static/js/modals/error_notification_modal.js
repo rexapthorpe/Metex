@@ -18,7 +18,7 @@ function openErrorNotificationModal(message, title = 'Error') {
 function closeErrorNotificationModal() {
   const modal = document.getElementById('errorNotificationModal');
   if (modal) {
-    modal.style.display = 'none';
+    window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
   }
 }
 

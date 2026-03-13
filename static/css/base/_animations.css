@@ -63,6 +63,12 @@
     }
 }
 
+/* Overlay fade-out for close animation */
+@keyframes overlayFadeOut {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+}
+
 /* Apply fade-in to modal overlays */
 .modal-overlay,
 .confirmation-overlay,
@@ -80,6 +86,42 @@
     animation: overlayFadeIn 0.25s ease-out;
 }
 
+/* ========================================================
+   CLOSE ANIMATION — add .modal-closing to the outermost
+   modal element before setting display:none
+   ======================================================== */
+
+/* Fade-out the backdrop/overlay */
+.modal-closing {
+    pointer-events: none;
+    animation: overlayFadeOut 0.32s ease-out forwards !important;
+}
+
+/* Slide the content panel down */
+.modal-closing .modal-content,
+.modal-closing .modal-dialog,
+.modal-closing .confirmation-modal-content,
+.modal-closing .bid-modal-content,
+.modal-closing .edit-bid-modal-content,
+.modal-closing .edit-listing-modal-content,
+.modal-closing .field-validation-modal-content,
+.modal-closing .address-modal-content,
+.modal-closing .buy-item-modal-content,
+.modal-closing .ratings-modal-content,
+.modal-closing .cart-sellers-modal-content,
+.modal-closing .cart-individual-listings-modal-content,
+.modal-closing .order-seller-info-modal-content,
+.modal-closing .order-items-modal-content,
+.modal-closing .message-seller-modal-content,
+.modal-closing .legal-modal-dialog,
+.modal-closing .cancel-order-modal-content,
+.modal-closing .report-user-modal-content,
+.modal-closing .listing-items-modal-content,
+.modal-closing [class*="-modal-content"],
+.modal-closing [class*="-modal-dialog"] {
+    animation: modalSlideDown 0.32s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+}
+
 /* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
     .modal-content,
@@ -89,7 +131,10 @@
     [class*="-modal-dialog"],
     .modal-overlay,
     .confirmation-overlay,
-    [class*="-modal-overlay"] {
+    [class*="-modal-overlay"],
+    .modal-closing,
+    .modal-closing [class*="-modal-content"],
+    .modal-closing [class*="-modal-dialog"] {
         animation: none;
     }
 }

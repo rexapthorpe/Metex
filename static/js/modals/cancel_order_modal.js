@@ -56,7 +56,10 @@ function updateCancelButtonState() {
  * Close the cancel order modal
  */
 function closeCancelOrderModal() {
-  document.getElementById('cancelOrderModal').style.display = 'none';
+  const _comModal = document.getElementById('cancelOrderModal');
+  window.animatedModalClose(_comModal, function() {
+    _comModal.style.display = 'none';
+  });
   document.body.style.overflow = '';
   currentCancelOrderId = null;
 
@@ -291,7 +294,10 @@ function openSellerCancelResponseModal(orderId, responseType, reason) {
  * Close the seller response modal
  */
 function closeSellerCancelResponseModal() {
-  document.getElementById('sellerCancelResponseModal').style.display = 'none';
+  const _scrModal = document.getElementById('sellerCancelResponseModal');
+  window.animatedModalClose(_scrModal, function() {
+    _scrModal.style.display = 'none';
+  });
   document.body.style.overflow = '';
   currentSellerResponseOrderId = null;
   currentSellerResponseType = null;

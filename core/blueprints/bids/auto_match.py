@@ -10,6 +10,7 @@ import logging
 import os
 import threading
 
+from core.services.ledger.order_creation import create_order_ledger_from_cart
 from services.pricing_service import (
     get_effective_price,
     get_effective_bid_price,
@@ -261,6 +262,7 @@ def auto_match_bid_to_listings(bid_id, cursor):
     # Create one order per seller and collect notification data
     orders_created = 0
     notifications_to_send = []
+    ledger_orders = []  # Collected for ledger creation after caller commits
 
     for seller_id, items in seller_fills.items():
         # Calculate total based on BUYER price (what buyer pays)
@@ -304,6 +306,21 @@ def auto_match_bid_to_listings(bid_id, cursor):
             'remaining_quantity': 0  # Will be updated below
         })
 
+        # Build ledger snapshot (seller_price_each = basis for proceeds display in sold tab)
+        ledger_orders.append({
+            'buyer_id': buyer_id,
+            'order_id': order_id,
+            'items': [
+                {
+                    'seller_id': seller_id,
+                    'listing_id': item['listing_id'],
+                    'quantity': item['quantity'],
+                    'unit_price': item['seller_price_each'],
+                }
+                for item in items
+            ],
+        })
+
     # Update bid status
     new_remaining = quantity_needed - total_filled
     if new_remaining <= 0:
@@ -335,7 +352,8 @@ def auto_match_bid_to_listings(bid_id, cursor):
         'filled_quantity': total_filled,
         'orders_created': orders_created,
         'message': message,
-        'notifications': notifications_to_send
+        'notifications': notifications_to_send,
+        'ledger_orders': ledger_orders,
     }
 
 
@@ -453,6 +471,7 @@ def auto_match_listing_to_bids(listing_id, cursor):
     total_filled = 0
     remaining_inventory = quantity_available
     notifications_to_send = []
+    ledger_orders = []  # Collected for ledger creation after caller commits
 
     for bid in matched_bids:
         if remaining_inventory <= 0:
@@ -513,6 +532,18 @@ def auto_match_listing_to_bids(listing_id, cursor):
             'remaining_quantity': new_bid_remaining if new_bid_remaining > 0 else 0
         })
 
+        # Build ledger snapshot (seller_price_each = basis for proceeds display in sold tab)
+        ledger_orders.append({
+            'buyer_id': buyer_id,
+            'order_id': order_id,
+            'items': [{
+                'seller_id': seller_id,
+                'listing_id': listing_id,
+                'quantity': fill_qty,
+                'unit_price': seller_price_each,
+            }],
+        })
+
         remaining_inventory -= fill_qty
         total_filled += fill_qty
 
@@ -530,7 +561,8 @@ def auto_match_listing_to_bids(listing_id, cursor):
         'filled_quantity': total_filled,
         'orders_created': orders_created,
         'message': message,
-        'notifications': notifications_to_send
+        'notifications': notifications_to_send,
+        'ledger_orders': ledger_orders,
     }
 
 
@@ -551,6 +583,7 @@ def check_all_pending_matches(conn):
     orders_created = 0
     bids_matched = 0
     notifications_to_send = []
+    all_ledger_orders = []
 
     # Get all active bids with remaining quantity
     active_bids = cursor.execute('''
@@ -594,9 +627,27 @@ def check_all_pending_matches(conn):
             bids_matched += 1
             if result.get('notifications'):
                 notifications_to_send.extend(result['notifications'])
+            if result.get('ledger_orders'):
+                all_ledger_orders.extend(result['ledger_orders'])
 
     # Commit all changes
     conn.commit()
+
+    # Create ledger entries AFTER commit (ledger service opens its own connection).
+    # This locks in the correct bucket fee at execution time so seller proceeds
+    # remain accurate even if admin changes the bucket fee later.
+    for _ledger in all_ledger_orders:
+        try:
+            create_order_ledger_from_cart(
+                buyer_id=_ledger['buyer_id'],
+                cart_snapshot=_ledger['items'],
+                order_id=_ledger['order_id'],
+            )
+        except Exception as _ledger_err:
+            logger.warning(
+                "[auto_match] Ledger creation failed for order %s: %s",
+                _ledger['order_id'], _ledger_err
+            )
 
     return {
         'total_filled': total_filled,

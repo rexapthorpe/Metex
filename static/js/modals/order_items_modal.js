@@ -24,9 +24,9 @@ function showOrderItemsModal() {
 function closeOrderItemsPopup() {
   const modal = document.getElementById('orderItemsModal');
   if (!modal) return;
-  modal.style.display = 'none';
   modal.removeEventListener('click', outsideClickItems);
   document.removeEventListener('keydown', keyNavHandler);
+  window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
 }
 
 function outsideClickItems(e) {

@@ -1,8 +1,21 @@
 // universal_outside_click_close.js
 (function () {
+  // Global utility: add .modal-closing, wait, then run callback
+  function animatedModalClose(el, callback, duration) {
+    if (!el) { if (callback) callback(); return; }
+    duration = duration !== undefined ? duration : 350;
+    el.classList.add('modal-closing');
+    setTimeout(function() {
+      el.classList.remove('modal-closing');
+      if (callback) callback();
+    }, duration);
+  }
+  window.animatedModalClose = animatedModalClose;
+
   // Helper: hide an element safely
   function hide(el) {
-    if (el) el.style.display = 'none';
+    if (!el) return;
+    animatedModalClose(el, function() { el.style.display = 'none'; });
   }
 
   // Known modal overlays with their inner content selector and a close action.

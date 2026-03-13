@@ -66,10 +66,12 @@ function closeFieldValidationModal() {
   const modal = document.getElementById('fieldValidationModal');
   if (!modal) return;
 
+  modal.classList.add('modal-closing');
   modal.classList.remove('active');
   setTimeout(() => {
+    modal.classList.remove('modal-closing');
     modal.style.display = 'none';
-  }, 300);
+  }, 350);
 }
 
 /**

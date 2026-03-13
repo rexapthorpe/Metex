@@ -43,134 +43,121 @@
           data-quantity="{{ listing.quantity }}"
           data-listing-filter="{{ 'pending' if listing.quantity == 0 else 'active' }}">
 
-          <!-- Photo Header -->
-          <div class="listing-card-photo">
+          <!-- Photo: full-height left column -->
+          <div class="lc-photo">
             {% if listing.photo_path %}
               <img src="{{ url_for('static', filename=listing.photo_path) }}" alt="Listing photo">
             {% else %}
-              <img src="{{ url_for('static', filename='img/placeholder.png') }}" alt="Product">
+              <div class="lc-photo-placeholder"><i class="fa-solid fa-coins"></i></div>
             {% endif %}
-
-            <!-- Type Badge -->
-            <div class="listing-type-badge {% if listing.isolated_type == 'set' %}listing-type-badge--set{% elif listing.is_isolated %}listing-type-badge--ooak{% else %}listing-type-badge--standard{% endif %}">
-              {% if listing.isolated_type == 'set' %}
-                <i class="fa-solid fa-layer-group"></i> Set
-              {% elif listing.is_isolated %}
-                <i class="fa-solid fa-gem"></i> One-of-a-Kind
-              {% else %}
-                Standard
-              {% endif %}
-            </div>
-
-            <!-- Status Badge -->
-            <div class="listing-status-badge {% if listing.quantity > 0 %}listing-status-badge--active{% else %}listing-status-badge--pending{% endif %}">
-              <span class="listing-status-dot"></span>
-              {{ 'Active' if listing.quantity > 0 else 'Pending' }}
-            </div>
           </div>
 
-          <!-- Card Body -->
-          <div class="listing-card-body">
-            <!-- Title -->
-            <h3 class="listing-card-title">
-              {{ listing.metal }} {{ listing.product_type }}
-            </h3>
+          <!-- Main Row -->
+          <div class="lc-main">
 
-            <!-- Price + Qty -->
-            <div class="listing-card-pricing">
-              {% if listing.pricing_mode == 'premium_to_spot' %}
-                <div class="pricing-mode-badge pricing-mode-badge--variable">
-                  <i class="fa-solid fa-arrow-trend-up"></i> Variable
+            <!-- Content: title left, pricing right -->
+            <div class="lc-content">
+
+              <!-- Left: title + subtitle -->
+              <div class="lc-title-block">
+                <h3 class="lc-title">{{ [listing.year, listing.metal, listing.product_line, listing.product_type] | select | join(' ') or 'Item' }}</h3>
+                {% set subtitle = [listing.weight, (listing.mint ~ ' Mint') if listing.mint else None, listing.purity] | select | join(' · ') %}
+                {% if subtitle %}<p class="lc-subtitle">{{ subtitle }}</p>{% endif %}
+              </div>
+
+              <!-- Right: badges + pricing + qty -->
+              <div class="lc-right-col">
+                <div class="lc-badge-stack">
+                  <span class="lc-status-badge {% if listing.quantity > 0 %}lc-status--active{% else %}lc-status--pending{% endif %}">
+                    <span class="lc-status-dot"></span>
+                    {{ 'Active' if listing.quantity > 0 else 'Pending' }}
+                  </span>
+                  {% if listing.isolated_type == 'set' %}
+                    <span class="lc-type-badge lc-type--set"><i class="fa-solid fa-layer-group"></i> Set</span>
+                  {% elif listing.is_isolated %}
+                    <span class="lc-type-badge lc-type--ooak"><i class="fa-solid fa-gem"></i> One-of-a-Kind</span>
+                  {% endif %}
                 </div>
-                <div class="listing-price-details">
-                  <div class="listing-price-current">
-                    ${{ '{:,.2f}'.format(listing.effective_price) if listing.effective_price else '0.00' }}
-                  </div>
-                  <div class="listing-metrics-strip">
-                    <div class="listing-metric">
-                      <span class="listing-metric-label">Premium</span>
-                      <span class="listing-metric-value listing-metric-value--premium">+${{ '{:,.2f}'.format(listing.spot_premium) if listing.spot_premium else '0.00' }}</span>
-                    </div>
-                    <div class="listing-metric-sep"></div>
-                    <div class="listing-metric">
-                      <span class="listing-metric-label">Floor</span>
-                      <span class="listing-metric-value listing-metric-value--floor">${{ '{:,.2f}'.format(listing.floor_price) if listing.floor_price else '0.00' }}</span>
+
+                <div class="lc-price-block">
+                  {% if listing.pricing_mode == 'premium_to_spot' %}
+                    <div class="lc-price-row">
+                      <span class="lc-price">${{ '{:,.2f}'.format(listing.effective_price) if listing.effective_price else '0.00' }}</span>
+                      <span class="lc-price-badge lc-price-badge--variable"><i class="fa-solid fa-arrow-trend-up"></i> Variable</span>
                     </div>
                     {% if listing.get('spot_price') %}
-                    <div class="listing-metric-sep"></div>
-                    <div class="listing-metric">
-                      <span class="listing-metric-label">Spot/oz</span>
-                      <span class="listing-metric-value listing-metric-value--spot">${{ '{:,.2f}'.format(listing['spot_price']) }}</span>
-                    </div>
+                      <p class="lc-formula">
+                        <span class="lc-formula-spot">${{ '{:,.2f}'.format(listing['spot_price']) }}/oz</span>{% if listing.get('weight') %} &times; {{ listing.weight }}{% endif %}{% if listing.spot_premium %} + ${{ '{:,.2f}'.format(listing.spot_premium) }} premium{% endif %}
+                      </p>
                     {% endif %}
-                  </div>
+                    {% if listing.floor_price %}
+                      <p class="lc-floor">Floor &nbsp;${{ '{:,.2f}'.format(listing.floor_price) }}</p>
+                    {% endif %}
+                  {% else %}
+                    <div class="lc-price-row">
+                      <span class="lc-price">${{ '{:,.2f}'.format(listing.price_per_coin) if listing.price_per_coin else '0.00' }}</span>
+                      <span class="lc-price-badge lc-price-badge--fixed"><i class="fa-solid fa-dollar-sign"></i> Fixed</span>
+                    </div>
+                  {% endif %}
                 </div>
-              {% else %}
-                <div class="pricing-mode-badge pricing-mode-badge--fixed">
-                  <i class="fa-solid fa-dollar-sign"></i> Fixed Price
-                </div>
-                <div class="listing-fixed-price">
-                  ${{ '{:,.2f}'.format(listing.price_per_coin) if listing.price_per_coin else '0.00' }}
-                </div>
-              {% endif %}
-              <div class="listing-qty" id="listing-qty-{{ listing.listing_id }}">Qty: {{ listing.quantity }}</div>
+
+                <span class="lc-qty-chip" id="listing-qty-{{ listing.listing_id }}">Qty: {{ listing.quantity }}</span>
+              </div>
+
+            </div><!-- /lc-content -->
+
+          </div><!-- /lc-main -->
+
+          <!-- Quick Actions Panel: direct listing-card child (mirrors orders/sold structure) -->
+          <div class="order-card-actions">
+            <button class="order-actions-toggle" onclick="toggleOrderActions(this)" aria-expanded="false">
+              <span class="order-actions-label">QUICK ACTIONS</span>
+              <i class="fa-solid fa-chevron-down order-actions-chevron"></i>
+            </button>
+            <div class="order-actions-body">
+              <a href="{{ url_for('sell.sell') }}?edit_listing_id={{ listing.listing_id }}" class="order-quick-action">
+                <i class="fas fa-pencil-alt"></i> Edit Listing
+              </a>
+              <a href="{{ url_for('buy.view_bucket', bucket_id=listing.bucket_id) }}" class="order-quick-action">
+                <i class="fas fa-eye"></i> View Bucket
+              </a>
+              <button
+                type="button"
+                class="order-quick-action"
+                onclick="openListingSpecsModal(this)"
+                data-listing-id="{{ listing.listing_id }}"
+                data-isolated-type="{{ listing.isolated_type or '' }}"
+                data-metal="{{ listing.metal or '' }}"
+                data-product-type="{{ listing.product_type or '' }}"
+                data-weight="{{ listing.weight or '' }}"
+                data-purity="{{ listing.purity or '' }}"
+                data-mint="{{ listing.mint or '' }}"
+                data-year="{{ listing.year or '' }}"
+                data-finish="{{ listing.finish or '' }}"
+                data-product-line="{{ listing.product_line or '' }}"
+                data-condition-category="{{ listing.condition_category or '' }}"
+                data-series-variant="{{ listing.series_variant or '' }}"
+                data-is-isolated="{{ '1' if listing.is_isolated else '0' }}"
+                data-packaging-type="{{ listing.packaging_type or '' }}"
+                data-packaging-notes="{{ listing.packaging_notes or '' }}"
+                data-condition-notes="{{ listing.condition_notes or '' }}"
+                data-graded="{{ '1' if listing.graded else '0' }}"
+                data-grading-service="{{ listing.grading_service or '' }}"
+                data-photo-filename="{{ listing.photo_path or '' }}"
+                data-quantity="{{ listing.quantity }}"
+              >
+                <i class="fa-solid fa-list-check"></i> Specs
+              </button>
+              <div class="order-actions-divider"></div>
+              <button type="button" onclick="openCancelModal({{ listing.listing_id }})" class="order-action-cancel">
+                <i class="fas fa-trash"></i> Cancel Listing
+              </button>
             </div>
-          </div>
+          </div><!-- /order-card-actions -->
 
-          <!-- Card Footer Actions -->
-          <div class="listing-card-footer">
-            <a
-              href="{{ url_for('sell.sell') }}?edit_listing_id={{ listing.listing_id }}"
-              class="listing-footer-btn listing-footer-btn--edit"
-            >
-              <i class="fas fa-pencil-alt"></i> Edit
-            </a>
-
-            <a
-              href="{{ url_for('buy.view_bucket', bucket_id=listing.bucket_id) }}"
-              class="listing-footer-btn listing-footer-btn--view"
-            >
-              <i class="fas fa-eye"></i> View
-            </a>
-
-            <button
-              type="button"
-              class="listing-footer-btn listing-footer-btn--specs"
-              onclick="openListingSpecsModal(this)"
-              data-listing-id="{{ listing.listing_id }}"
-              data-isolated-type="{{ listing.isolated_type or '' }}"
-              data-metal="{{ listing.metal or '' }}"
-              data-product-type="{{ listing.product_type or '' }}"
-              data-weight="{{ listing.weight or '' }}"
-              data-purity="{{ listing.purity or '' }}"
-              data-mint="{{ listing.mint or '' }}"
-              data-year="{{ listing.year or '' }}"
-              data-finish="{{ listing.finish or '' }}"
-              data-product-line="{{ listing.product_line or '' }}"
-              data-condition-category="{{ listing.condition_category or '' }}"
-              data-series-variant="{{ listing.series_variant or '' }}"
-              data-is-isolated="{{ '1' if listing.is_isolated else '0' }}"
-              data-packaging-type="{{ listing.packaging_type or '' }}"
-              data-packaging-notes="{{ listing.packaging_notes or '' }}"
-              data-condition-notes="{{ listing.condition_notes or '' }}"
-              data-graded="{{ '1' if listing.graded else '0' }}"
-              data-grading-service="{{ listing.grading_service or '' }}"
-              data-photo-filename="{{ listing.photo_path or '' }}"
-              data-quantity="{{ listing.quantity }}"
-            >
-              <i class="fa-solid fa-list-check"></i> Specs
-            </button>
-
-            <button
-              type="button"
-              onclick="openCancelModal({{ listing.listing_id }})"
-              class="listing-footer-btn listing-footer-btn--cancel"
-            >
-              <i class="fas fa-trash"></i> Cancel
-            </button>
-          </div>
-        </div>
+        </div><!-- /listing-card -->
       {% endfor %}
+
       <div class="tab-filter-empty" id="listingsFilterEmpty" style="display:none;">
         <div class="tab-filter-empty-icon-wrap">
           <i class="fa-solid fa-store tab-filter-empty-icon"></i>
