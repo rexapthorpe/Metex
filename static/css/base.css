@@ -360,3 +360,123 @@ body.maintenance-banner-visible.admin-banner-visible main {
         border-radius: 10px !important;
     }
 }
+
+
+/* ── Metex Guaranteed Badge ───────────────────────────────── */
+.metex-guaranteed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #0f2a47 0%, #162f50 100%);
+    border: 1px solid rgba(59, 130, 246, 0.45);
+    border-radius: 6px;
+    padding: 4px 10px 4px 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #c8dff5;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.metex-guaranteed-badge--large {
+    font-size: 14px;
+    padding: 6px 14px 6px 8px;
+    gap: 8px;
+}
+
+.metex-guaranteed-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.metex-guaranteed-badge--large .metex-guaranteed-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+    border-radius: 5px;
+}
+
+.metex-guaranteed-text {
+    color: #bdd4ee;
+}
+
+/* rt-avg-guaranteed: flex-centering within the avg-card */
+.rt-avg-guaranteed {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+/* ── Admin Users Tab: Metex Guaranteed toggle button ─────── */
+.mg-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.mg-toggle--off {
+    background: #1e2535;
+    border-color: #2d3748;
+    color: #4b5563;
+}
+
+.mg-toggle--off:hover {
+    background: #1a2a40;
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #6b7280;
+}
+
+.mg-toggle--on {
+    background: linear-gradient(135deg, #0f2a47 0%, #162f50 100%);
+    border-color: rgba(59, 130, 246, 0.55);
+    color: #3b82f6;
+}
+
+.mg-toggle--on:hover {
+    background: linear-gradient(135deg, #0a2240 0%, #122645 100%);
+    border-color: rgba(59, 130, 246, 0.75);
+    color: #60a5fa;
+}
+
+/* Admin modal: guarantee action buttons */
+.modal-action-btn.btn-guarantee {
+    background: #1a2a40;
+    color: #6b90bb;
+    border: 1px solid rgba(59,130,246,0.25);
+}
+
+.modal-action-btn.btn-guarantee:hover {
+    background: #1e3352;
+    color: #93c5fd;
+    border-color: rgba(59,130,246,0.5);
+}
+
+.modal-action-btn.btn-guarantee-active {
+    background: linear-gradient(135deg, #0f2a47 0%, #162f50 100%);
+    color: #3b82f6;
+    border: 1px solid rgba(59,130,246,0.5);
+}
+
+.modal-action-btn.btn-guarantee-active:hover {
+    background: linear-gradient(135deg, #0a2240 0%, #122645 100%);
+    color: #60a5fa;
+    border-color: rgba(59,130,246,0.7);
+}

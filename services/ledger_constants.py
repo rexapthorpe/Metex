@@ -169,7 +169,7 @@ class EventType(str, Enum):
 
 # Default fee configuration
 DEFAULT_PLATFORM_FEE_TYPE = FeeType.PERCENT
-DEFAULT_PLATFORM_FEE_VALUE = 2.5  # 2.5%
+DEFAULT_PLATFORM_FEE_VALUE = 5.0  # 5.0%
 
 
 # Order statuses that allow payout

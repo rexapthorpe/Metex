@@ -119,6 +119,13 @@ def get_bucket_sellers(bucket_id):
         num_reviews = seller_data.get('num_reviews') or 0
         seller_data['is_verified'] = rating >= 4.7 and num_reviews > 100
 
+        # Metex Guaranteed designation (admin-controlled)
+        guaranteed_row = conn.execute(
+            'SELECT COALESCE(is_metex_guaranteed, 0) AS is_metex_guaranteed FROM users WHERE id = ?',
+            (seller_id,)
+        ).fetchone()
+        seller_data['is_metex_guaranteed'] = bool(guaranteed_row and guaranteed_row['is_metex_guaranteed'])
+
         # Get transaction count: only orders confirmed as delivered
         transaction_result = conn.execute('''
             SELECT COUNT(DISTINCT o.id) as transaction_count

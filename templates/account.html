@@ -316,8 +316,11 @@
     }
 
     function closeTrackingModal() {
-      document.getElementById('trackingModal').style.display = 'none';
-      _trackingOrderId = null;
+      var modal = document.getElementById('trackingModal');
+      window.animatedModalClose(modal, function() {
+        modal.style.display = 'none';
+        _trackingOrderId = null;
+      });
     }
 
     function submitTrackingNumber() {

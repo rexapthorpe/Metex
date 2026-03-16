@@ -40,15 +40,16 @@ CREATE TABLE IF NOT EXISTS spot_price_snapshots (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS users (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    username      TEXT,
-    email         TEXT,
-    password      TEXT    DEFAULT '',
-    password_hash TEXT    DEFAULT '',
-    is_admin      INTEGER DEFAULT 0,
-    is_banned     INTEGER DEFAULT 0,
-    is_frozen     INTEGER DEFAULT 0,
-    created_at    TIMESTAMP
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    username             TEXT,
+    email                TEXT,
+    password             TEXT    DEFAULT '',
+    password_hash        TEXT    DEFAULT '',
+    is_admin             INTEGER DEFAULT 0,
+    is_banned            INTEGER DEFAULT 0,
+    is_frozen            INTEGER DEFAULT 0,
+    is_metex_guaranteed  INTEGER DEFAULT 0,
+    created_at           TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS categories (
     id                 INTEGER PRIMARY KEY AUTOINCREMENT,

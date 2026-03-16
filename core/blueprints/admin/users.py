@@ -79,6 +79,12 @@ def get_user_details(user_id):
         elif is_frozen and is_frozen['is_frozen']:
             status = 'frozen'
 
+        # Get is_metex_guaranteed
+        guarantee_row = conn.execute(
+            'SELECT is_metex_guaranteed FROM users WHERE id = ?', (user_id,)
+        ).fetchone()
+        is_metex_guaranteed = bool(guarantee_row and guarantee_row['is_metex_guaranteed'])
+
         return jsonify({
             'success': True,
             'user': {
@@ -91,6 +97,7 @@ def get_user_details(user_id):
                 'joined': _format_time_ago(user['created_at']),
                 'joined_date': user['created_at'][:10] if user['created_at'] else 'Unknown',
                 'is_admin': user['is_admin'],
+                'is_metex_guaranteed': is_metex_guaranteed,
                 'status': status,
                 'stats': {
                     'purchases': buy_stats['count'],
@@ -202,6 +209,37 @@ def freeze_user(user_id):
 
     except Exception as e:
         print(f"Error freezing user: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@admin_bp.route('/api/user/<int:user_id>/guarantee', methods=['POST'])
+@admin_required
+def toggle_metex_guaranteed(user_id):
+    """Toggle the Metex Guaranteed designation for a user"""
+    from database import get_db_connection
+
+    conn = get_db_connection()
+    try:
+        user = conn.execute(
+            'SELECT id, username, is_metex_guaranteed FROM users WHERE id = ?', (user_id,)
+        ).fetchone()
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        new_status = 0 if user['is_metex_guaranteed'] else 1
+        conn.execute('UPDATE users SET is_metex_guaranteed = ? WHERE id = ?', (new_status, user_id))
+        conn.commit()
+
+        action = 'granted' if new_status else 'removed'
+        return jsonify({
+            'success': True,
+            'message': f'Metex Guaranteed {action} for @{user["username"]}',
+            'is_metex_guaranteed': bool(new_status)
+        })
+    except Exception as e:
+        print(f'Error toggling Metex Guaranteed: {e}')
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         conn.close()
@@ -659,7 +697,7 @@ def get_admin_conversations():
 
             # Get the latest message in this conversation
             last_msg = conn.execute('''
-                SELECT content, timestamp
+                SELECT content, timestamp, message_type
                 FROM messages
                 WHERE order_id = 0
                   AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
@@ -693,12 +731,23 @@ def get_admin_conversations():
                       AND receiver_id = ?
                 ''', (other_user_id, admin_id)).fetchone()
 
+            # Determine conversation type: feedback if any user-sent message is feedback
+            feedback_check = conn.execute('''
+                SELECT COUNT(*) as cnt FROM messages
+                WHERE order_id = 0
+                  AND sender_id = ?
+                  AND receiver_id = ?
+                  AND message_type = 'feedback'
+            ''', (other_user_id, admin_id)).fetchone()
+            conversation_type = 'feedback' if (feedback_check and feedback_check['cnt'] > 0) else 'support'
+
             result.append({
                 'other_user_id': other_user_id,
                 'other_username': user['username'],
                 'last_message_content': last_msg['content'] if last_msg else '',
                 'last_message_time': last_msg['timestamp'] if last_msg else '',
-                'unread_count': unread['cnt'] if unread else 0
+                'unread_count': unread['cnt'] if unread else 0,
+                'conversation_type': conversation_type
             })
 
         # Sort by last message time (most recent first)

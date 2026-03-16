@@ -129,9 +129,15 @@
             </button>
             <div class="order-actions-divider"></div>
             <div class="order-actions-bottom">
+              {% if is_canceled %}
+              <button class="order-quick-action order-quick-action--canceled" disabled title="Order canceled">
+                <i class="fa-regular fa-message"></i> Message
+              </button>
+              {% else %}
               <button class="order-quick-action" onclick="openMessageModal({{ order.id }}, 'seller')">
                 <i class="fa-regular fa-message"></i> Message
               </button>
+              {% endif %}
               {% if not is_canceled %}
               <button class="order-quick-action" onclick="addTrackingNumber({{ order.id }})">
                 <i class="fa-solid fa-truck"></i> Track

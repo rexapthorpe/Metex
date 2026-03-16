@@ -363,6 +363,62 @@ def ensure_ratings_multi_seller_constraint():
         print(f'Error migrating ratings constraint: {e}')
 
 
+def ensure_message_type_column():
+    """
+    Ensure messages table has a message_type column to distinguish
+    'support' messages from 'feedback' messages.
+    """
+    try:
+        conn = get_db_connection()
+        existing = get_table_columns(conn, 'messages')
+        if 'message_type' not in existing:
+            conn.execute("ALTER TABLE messages ADD COLUMN message_type TEXT DEFAULT 'support'")
+            conn.commit()
+            print("✅ messages.message_type column added")
+        conn.close()
+    except Exception as e:
+        print(f'Error ensuring message_type column: {e}')
+
+
+def ensure_metex_guaranteed_column():
+    """
+    Ensure the is_metex_guaranteed column exists in the users table.
+    Admin-controlled flag that replaces the rating display with a platform badge.
+    """
+    try:
+        conn = get_db_connection()
+        existing = get_table_columns(conn, 'users')
+        if 'is_metex_guaranteed' not in existing:
+            conn.execute('ALTER TABLE users ADD COLUMN is_metex_guaranteed INTEGER DEFAULT 0')
+            conn.commit()
+            print('✅ users.is_metex_guaranteed column added')
+        conn.close()
+    except Exception as e:
+        print(f'Error ensuring is_metex_guaranteed column: {e}')
+
+
+def migrate_default_fee_to_5pct():
+    """
+    One-time migration: update the default_platform_fee row in fee_config
+    from the old seeded value (2.5%) to the new default (5.0%).
+    Only updates if the current value is still the old 2.5 default.
+    """
+    try:
+        conn = get_db_connection()
+        row = conn.execute(
+            "SELECT fee_value FROM fee_config WHERE config_key = 'default_platform_fee' AND active = 1"
+        ).fetchone()
+        if row and float(row['fee_value']) == 2.5:
+            conn.execute(
+                "UPDATE fee_config SET fee_value = 5.0, updated_at = CURRENT_TIMESTAMP WHERE config_key = 'default_platform_fee'"
+            )
+            conn.commit()
+            print('✅ default_platform_fee updated from 2.5% to 5.0%')
+        conn.close()
+    except Exception as e:
+        print(f'Error migrating default platform fee: {e}')
+
+
 def init_database():
     """
     Run all database initialization checks
@@ -370,6 +426,7 @@ def init_database():
     """
     ensure_admin_column()
     ensure_user_status_columns()
+    ensure_metex_guaranteed_column()
     ensure_password_reset_tokens_table()
     ensure_system_settings_table()
     ensure_order_items_audit_columns()
@@ -379,3 +436,5 @@ def init_database():
     ensure_security_audit_log_table()
     ensure_payment_methods_table()
     ensure_ratings_multi_seller_constraint()
+    ensure_message_type_column()
+    migrate_default_fee_to_5pct()

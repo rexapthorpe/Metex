@@ -205,6 +205,13 @@ def order_sellers(order_id):
         num_reviews = seller_data.get('num_reviews') or 0
         seller_data['is_verified'] = rating >= 4.7 and num_reviews > 100
 
+        # Metex Guaranteed designation
+        mg_row = conn.execute(
+            'SELECT COALESCE(is_metex_guaranteed, 0) AS v FROM users WHERE id = ?',
+            (seller_id,)
+        ).fetchone()
+        seller_data['is_metex_guaranteed'] = bool(mg_row and mg_row['v'])
+
         # Transaction count: only orders confirmed as delivered
         transaction_result = conn.execute('''
             SELECT COUNT(DISTINCT o.id) as transaction_count
@@ -580,6 +587,12 @@ def order_buyer_info(order_id):
 
     is_verified = (rating_row['rating'] or 0) >= 4.7 and (rating_row['num_reviews'] or 0) > 100
 
+    mg_row = conn.execute(
+        'SELECT COALESCE(is_metex_guaranteed, 0) AS v FROM users WHERE id = ?',
+        (buyer_id,)
+    ).fetchone()
+    is_metex_guaranteed = bool(mg_row and mg_row['v'])
+
     conn.close()
 
     return jsonify({
@@ -593,4 +606,5 @@ def order_buyer_info(order_id):
         'member_since': member_since,
         'quantity': int(qty_row['quantity'] or 0) if qty_row else 0,
         'is_verified': is_verified,
+        'is_metex_guaranteed': is_metex_guaranteed,
     })

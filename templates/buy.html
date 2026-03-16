@@ -1,292 +1,336 @@
 <!-- templates/buy.html -->
 {% extends "base.html" %}
 
-{% block title %}Browse Available Listings{% endblock %}
+{% block title %}Markets — Metex{% endblock %}
 
 {% block page_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/hero.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
 {% endblock %}
 
 {% block content %}
 
-<!-- ═══════════════════════════════════════════
-     Market Hero
-     ═══════════════════════════════════════════ -->
-<section class="market-hero">
-  <div class="market-hero-inner">
+<!-- ═══════════════════════════════════════════════════════════
+     Dark Band: Hero + Ticker + How It Works
+     ═══════════════════════════════════════════════════════════ -->
+<div class="lp-dark-band">
 
-    <!-- ── Left: Value Proposition ── -->
-    <div class="market-hero-left">
-      <div class="market-hero-eyebrow">Precious Metals Exchange</div>
-      <h1 class="market-hero-headline">Trade at Real<br>Market Value</h1>
-      <p class="market-hero-subhead">
-        MetEx connects buyers and sellers directly. Prices are anchored to live spot, enabling true market prices for your items—no hidden markups. Competitive bidding and listings drive transparent price discovery.
-      </p>
-      <div class="market-hero-actions">
-        <a href="#listings" class="market-hero-btn market-hero-btn--primary">
-          <i class="fa-solid fa-magnifying-glass"></i> Browse Market
-        </a>
-        <a href="{{ url_for('sell.sell') }}" class="market-hero-btn market-hero-btn--ghost">
-          Start Selling
-        </a>
-      </div>
-      <div class="market-hero-props">
-        <div class="market-hero-prop-item">
-          <i class="fa-solid fa-chart-line"></i>
-          Spot-anchored pricing
+  <!-- ── SECTION 1: HERO ─────────────────────────────────── -->
+  <section class="lp-hero">
+    <div class="lp-hero-inner">
+
+      <!-- Left: Value Proposition -->
+      <div class="lp-hero-left">
+        <div class="lp-eyebrow">
+          <span class="lp-eyebrow-dot"></span>
+          Precious Metals Exchange
         </div>
-        <div class="market-hero-prop-item">
-          <i class="fa-solid fa-scale-balanced"></i>
-          Buyer bids meet seller asks
+
+        <h1 class="lp-headline">Trade Physical Metals<br>at Market Prices</h1>
+
+        <p class="lp-subhead">
+          Buy and sell bullion directly with other traders.
+          Competitive listings replace traditional dealer spreads —
+          prices set by the market, not a markup.
+        </p>
+
+        <div class="lp-props">
+          <div class="lp-prop">
+            <span class="lp-prop-icon">◆</span>
+            Competitive buyer and seller markets
+          </div>
+          <div class="lp-prop">
+            <span class="lp-prop-icon">◆</span>
+            Listings and bids visible before trading
+          </div>
+          <div class="lp-prop">
+            <span class="lp-prop-icon">◆</span>
+            Prices anchored to real metal markets
+          </div>
+          <div class="lp-prop">
+            <span class="lp-prop-icon">◆</span>
+            Transparent transaction history
+          </div>
+        </div>
+
+        <div class="lp-actions">
+          <a href="#listings" class="lp-btn lp-btn--primary">
+            <i class="fa-solid fa-chart-line"></i> Browse Markets
+          </a>
+          <a href="{{ url_for('sell.sell') }}" class="lp-btn lp-btn--ghost">
+            Start Selling
+          </a>
         </div>
       </div>
+
+      <!-- Right: Live Market Preview Panel -->
+      <div class="lp-hero-right">
+        <div class="lp-market-panel">
+
+          <!-- Panel header: live indicator + spot chips -->
+          <div class="lp-panel-header">
+            <div class="lp-panel-title">
+              <span class="lp-live-dot"></span>
+              Live Markets
+            </div>
+            <div class="lp-spot-chips">
+              <span class="lp-spot-chip" id="lp-spot-gold">XAU —</span>
+              <span class="lp-spot-chip" id="lp-spot-silver">XAG —</span>
+            </div>
+          </div>
+
+          <!-- Column labels -->
+          <div class="lp-panel-cols">
+            <span>Market</span>
+            <span>Best Ask</span>
+            <span>Listings</span>
+          </div>
+
+          <!-- Market rows — real data from standard_buckets -->
+          <div class="lp-panel-rows">
+            {% if hero_buckets %}
+              {% for bucket in hero_buckets %}
+                <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}"
+                   class="lp-panel-row">
+                  <div class="lp-row-name">
+                    <span class="lp-metal-badge lp-metal-badge--{{ (bucket.metal or 'gold')|lower }}">
+                      {{ (bucket.metal or '')[:2]|upper }}
+                    </span>
+                    <span>{{ bucket.get('listing_title') if bucket.get('listing_title') else
+                              ((bucket.mint or '') ~ ' ' ~ (bucket.product_line or bucket.coin_series or bucket.product_type or '')) }}</span>
+                  </div>
+                  <span class="lp-row-price">${{ bucket.lowest_price|commas }}</span>
+                  <span class="lp-row-count">{{ bucket.listing_count }}</span>
+                </a>
+              {% endfor %}
+            {% else %}
+              <div class="lp-panel-empty">No active listings at this time</div>
+            {% endif %}
+          </div>
+
+          <div class="lp-panel-footer">
+            <a href="#listings" class="lp-panel-link">View all markets →</a>
+          </div>
+
+        </div>
+      </div>
+      <!-- /hero right -->
+
     </div>
+  </section>
+  <!-- /hero -->
 
-    <!-- ── Right: Spot Prices + Market Mechanics ── -->
-    <div class="market-hero-right">
-
-      <!-- Spot Price Card -->
-      <div class="market-spot-card">
-        <div class="market-spot-card-header">
-          <span class="market-spot-card-label">Live Spot</span>
-          <span class="market-spot-card-unit">USD / troy oz</span>
-        </div>
-        <div class="market-spot-rows">
-          <div class="market-spot-row">
-            <div class="market-spot-meta">
-              <span class="market-spot-dot market-spot-dot--gold"></span>
-              <span class="market-spot-name">Gold</span>
-              <span class="market-spot-ticker">XAU</span>
-            </div>
-            <span class="market-spot-val" id="hero-spot-gold">—</span>
-          </div>
-          <div class="market-spot-row">
-            <div class="market-spot-meta">
-              <span class="market-spot-dot market-spot-dot--silver"></span>
-              <span class="market-spot-name">Silver</span>
-              <span class="market-spot-ticker">XAG</span>
-            </div>
-            <span class="market-spot-val" id="hero-spot-silver">—</span>
-          </div>
-          <div class="market-spot-row">
-            <div class="market-spot-meta">
-              <span class="market-spot-dot market-spot-dot--platinum"></span>
-              <span class="market-spot-name">Platinum</span>
-              <span class="market-spot-ticker">XPT</span>
-            </div>
-            <span class="market-spot-val" id="hero-spot-platinum">—</span>
-          </div>
-        </div>
-        <div class="market-spot-card-footer" id="hero-spot-updated">Fetching prices…</div>
-      </div>
-
-      <!-- Market Mechanics Card -->
-      <div class="market-mechanics-card">
-        <div class="market-mechanics-label">How Trades Execute</div>
-        <div class="market-mechanics-steps">
-          <div class="market-mechanics-step">
-            <div class="market-mechanics-num">1</div>
-            <div>
-              <div class="market-mechanics-title">Sellers list inventory</div>
-              <div class="market-mechanics-desc">At their price, anchored to spot</div>
-            </div>
-          </div>
-          <div class="market-mechanics-connector"></div>
-          <div class="market-mechanics-step">
-            <div class="market-mechanics-num">2</div>
-            <div>
-              <div class="market-mechanics-title">Buyers bid or buy</div>
-              <div class="market-mechanics-desc">Fixed price or premium-to-spot</div>
-            </div>
-          </div>
-          <div class="market-mechanics-connector"></div>
-          <div class="market-mechanics-step">
-            <div class="market-mechanics-num">3</div>
-            <div>
-              <div class="market-mechanics-title">Platform executes</div>
-              <div class="market-mechanics-desc">When bid price ≥ ask price</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+  <!-- ── TRADES TICKER ────────────────────────────────────── -->
+  {# Only render ticker markup if we have real trade data #}
+  {% if recent_trades %}
+  <div class="lp-ticker-wrap" id="lp-ticker-wrap">
+    <span class="lp-ticker-label">Recent Trades</span>
+    <div class="lp-ticker-track" id="lp-ticker-track">
+      <!-- Populated by landing.js -->
     </div>
   </div>
-</section>
+  {% endif %}
 
+  <!-- ── SECTION 3: HOW METEX WORKS ──────────────────────── -->
+  <section class="lp-features">
+    <div class="lp-features-inner">
+      <div class="lp-features-label">How It Works</div>
+      <h2 class="lp-features-heading">A marketplace built for metal traders</h2>
+
+      <div class="lp-features-grid">
+
+        <div class="lp-feature-card">
+          <div class="lp-feature-icon">
+            <i class="fa-solid fa-arrow-right-arrow-left"></i>
+          </div>
+          <div class="lp-feature-title">Direct Marketplace</div>
+          <div class="lp-feature-body">
+            Buy and sell physical metals directly with other users through
+            competitive listings and bids. No dealer spread — just market prices.
+          </div>
+        </div>
+
+        <div class="lp-feature-card">
+          <div class="lp-feature-icon">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <div class="lp-feature-title">Market-Driven Pricing</div>
+          <div class="lp-feature-body">
+            Prices emerge from real buyer and seller activity anchored to live
+            spot rates. See the best ask before you buy.
+          </div>
+        </div>
+
+        <div class="lp-feature-card">
+          <div class="lp-feature-icon">
+            <i class="fa-solid fa-book-open"></i>
+          </div>
+          <div class="lp-feature-title">Transparent Order Books</div>
+          <div class="lp-feature-body">
+            View active listings, open bids, and transaction history for every
+            metal before committing to a trade.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+  <!-- /features -->
+
+</div>
+<!-- /lp-dark-band -->
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 2: ACTIVE MARKETS (Listings Grid)
+     ═══════════════════════════════════════════════════════════ -->
 <div class="container" id="listings">
 
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash-message card">
+        {% for message in messages %}
+          <p>{{ message }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <div class="flash-message card">
-                {% for message in messages %}
-                    <p>{{ message }}</p>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-
-    <!-- One-of-a-Kind & Numismatic Listings Section -->
-    {% if one_of_a_kind_buckets %}
-        <h2 style="margin-top: 1rem; margin-bottom: 1rem; font-size: 1.5rem; font-weight: bold;">One-of-a-Kind & Numismatic Listings</h2>
-        <div class="grid">
-            {% for bucket in one_of_a_kind_buckets %}
-            <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
-                <!-- Isolated/Numismatic Label Badge -->
-                <div style="position: absolute; top: 10px; left: 10px; z-index: 10;">
-                    {% if bucket.get('issue_number') and bucket.get('issue_total') %}
-                        <span style="background-color: #8b5cf6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">#{{ bucket['issue_number'] }} of {{ bucket['issue_total'] }}</span>
-                    {% else %}
-                        <span style="background-color: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">ONE-OF-A-KIND</span>
-                    {% endif %}
-                </div>
-
-                <div class="image-box">
-                    {% if bucket.get('tile_image_url') %}
-                        <img src="{{ bucket.tile_image_url }}" alt="Item" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
-                    {% else %}
-                        <span>Item image</span>
-                    {% endif %}
-                </div>
-                <div class="product-text">
-                    <p class="product-title">
-                        {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
-                    </p>
-                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
-                    {% if bucket['lowest_price'] is not none %}
-                        <p class="price">${{ bucket['lowest_price']|commas }}</p>
-                        {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
-                            <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
-                        {% endif %}
-                    {% else %}
-                        {% if session.get('user_id') %}
-                            <p class="price no-listings">No listings from other sellers</p>
-                        {% else %}
-                            <p class="price no-listings">No listings available</p>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </a>
-            {% endfor %}
+  <!-- One-of-a-Kind & Numismatic Listings -->
+  {% if one_of_a_kind_buckets %}
+    <div class="lp-markets-header">
+      <h2 class="lp-markets-title">One-of-a-Kind &amp; Numismatic</h2>
+      <span class="lp-markets-sub">{{ one_of_a_kind_buckets|length }} market{{ 's' if one_of_a_kind_buckets|length != 1 }}</span>
+    </div>
+    <div class="grid">
+      {% for bucket in one_of_a_kind_buckets %}
+      <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
+        <div style="position: absolute; top: 10px; left: 10px; z-index: 10;">
+          {% if bucket.get('issue_number') and bucket.get('issue_total') %}
+            <span style="background-color: #8b5cf6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">#{{ bucket['issue_number'] }} of {{ bucket['issue_total'] }}</span>
+          {% else %}
+            <span style="background-color: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">ONE-OF-A-KIND</span>
+          {% endif %}
         </div>
-
-        <!-- Divider between sections -->
-        <div style="border-top: 2px solid #e5e7eb; margin: 2rem 0;"></div>
-    {% endif %}
-
-    <!-- Set Listings Section -->
-    {% if set_buckets %}
-        <h2 style="margin-top: 1rem; margin-bottom: 1rem; font-size: 1.5rem; font-weight: bold;">Set Listings</h2>
-        <div class="grid">
-            {% for bucket in set_buckets %}
-            <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
-                <!-- Set Label Badge -->
-                <div style="position: absolute; top: 10px; left: 10px; z-index: 10;">
-                    <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">SET</span>
-                </div>
-
-                <div class="image-box">
-                    {% if bucket.get('tile_image_url') %}
-                        <img src="{{ bucket.tile_image_url }}" alt="Item" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
-                    {% else %}
-                        <span>Item image</span>
-                    {% endif %}
-                </div>
-                <div class="product-text">
-                    <p class="product-title">
-                        {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
-                    </p>
-                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
-                    {% if bucket['lowest_price'] is not none %}
-                        <p class="price">${{ bucket['lowest_price']|commas }}</p>
-                        {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
-                            <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
-                        {% endif %}
-                    {% else %}
-                        {% if session.get('user_id') %}
-                            <p class="price no-listings">No listings from other sellers</p>
-                        {% else %}
-                            <p class="price no-listings">No listings available</p>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </a>
-            {% endfor %}
+        <div class="image-box">
+          {% if bucket.get('tile_image_url') %}
+            <img src="{{ bucket.tile_image_url }}" alt="Item" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
+          {% else %}
+            <span>Item image</span>
+          {% endif %}
         </div>
-
-        <!-- Divider between sections -->
-        <div style="border-top: 2px solid #e5e7eb; margin: 2rem 0;"></div>
-    {% endif %}
-
-    <!-- Standard Listings Section -->
-    {% if standard_buckets %}
-        <h2 style="margin-top: 1rem; margin-bottom: 1rem; font-size: 1.5rem; font-weight: bold;">Standard Listings</h2>
-        <div class="grid">
-            {% for bucket in standard_buckets %}
-            <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
-                <div class="image-box">
-                    <span>Item image</span>  <!-- Placeholder text; image can go here later -->
-                </div>
-                <div class="product-text">
-                    <p class="product-title">
-                        {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
-                    </p>
-                    <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
-                    {% if bucket['lowest_price'] is not none %}
-                        <p class="price">${{ bucket['lowest_price']|commas }}</p>
-                        {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
-                            <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
-                        {% endif %}
-                    {% else %}
-                        {% if session.get('user_id') %}
-                            <p class="price no-listings">No listings from other sellers</p>
-                        {% else %}
-                            <p class="price no-listings">No listings available</p>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </a>
-            {% endfor %}
+        <div class="product-text">
+          <p class="product-title">
+            {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
+          </p>
+          <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
+          {% if bucket['lowest_price'] is not none %}
+            <p class="price">${{ bucket['lowest_price']|commas }}</p>
+            {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
+              <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
+            {% endif %}
+          {% else %}
+            <p class="price no-listings">
+              {% if session.get('user_id') %}No listings from other sellers{% else %}No listings available{% endif %}
+            </p>
+          {% endif %}
         </div>
-    {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    <hr class="lp-markets-divider">
+  {% endif %}
 
-    <!-- No listings at all -->
-    {% if not standard_buckets and not one_of_a_kind_buckets and not set_buckets %}
-        <p class="empty-message">No active listings available right now.</p>
-    {% endif %}
+  <!-- Set Listings -->
+  {% if set_buckets %}
+    <div class="lp-markets-header">
+      <h2 class="lp-markets-title">Set Listings</h2>
+      <span class="lp-markets-sub">{{ set_buckets|length }} set{{ 's' if set_buckets|length != 1 }}</span>
+    </div>
+    <div class="grid">
+      {% for bucket in set_buckets %}
+      <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
+        <div style="position: absolute; top: 10px; left: 10px; z-index: 10;">
+          <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">SET</span>
+        </div>
+        <div class="image-box">
+          {% if bucket.get('tile_image_url') %}
+            <img src="{{ bucket.tile_image_url }}" alt="Item" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
+          {% else %}
+            <span>Item image</span>
+          {% endif %}
+        </div>
+        <div class="product-text">
+          <p class="product-title">
+            {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
+          </p>
+          <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
+          {% if bucket['lowest_price'] is not none %}
+            <p class="price">${{ bucket['lowest_price']|commas }}</p>
+            {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
+              <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
+            {% endif %}
+          {% else %}
+            <p class="price no-listings">
+              {% if session.get('user_id') %}No listings from other sellers{% else %}No listings available{% endif %}
+            </p>
+          {% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    <hr class="lp-markets-divider">
+  {% endif %}
+
+  <!-- Standard Listings -->
+  {% if standard_buckets %}
+    <div class="lp-markets-header">
+      <h2 class="lp-markets-title">Explore Active Markets</h2>
+      <span class="lp-markets-sub">
+        {{ standard_buckets|selectattr('lowest_price')|list|length }} with listings
+      </span>
+    </div>
+    <div class="grid">
+      {% for bucket in standard_buckets %}
+      <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
+        <div class="image-box">
+          <span>Item image</span>
+        </div>
+        <div class="product-text">
+          <p class="product-title">
+            {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
+          </p>
+          <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
+          {% if bucket['lowest_price'] is not none %}
+            <p class="price">${{ bucket['lowest_price']|commas }}</p>
+            {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
+              <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
+            {% endif %}
+          {% else %}
+            <p class="price no-listings">
+              {% if session.get('user_id') %}No listings from other sellers{% else %}No listings available{% endif %}
+            </p>
+          {% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if not standard_buckets and not one_of_a_kind_buckets and not set_buckets %}
+    <p class="empty-message">No active listings available right now.</p>
+  {% endif %}
+
 </div>
+<!-- /listings container -->
 
-<script>
-(function () {
-  function fmtSpot(n) {
-    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
 
-  function loadHeroSpot() {
-    fetch('/api/spot-prices')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (!data.success || !data.prices) return;
-        var p = data.prices;
-        var goldEl  = document.getElementById('hero-spot-gold');
-        var silvEl  = document.getElementById('hero-spot-silver');
-        var platEl  = document.getElementById('hero-spot-platinum');
-        var tsEl    = document.getElementById('hero-spot-updated');
-        if (goldEl && p.gold)     goldEl.textContent = fmtSpot(p.gold);
-        if (silvEl && p.silver)   silvEl.textContent = fmtSpot(p.silver);
-        if (platEl && p.platinum) platEl.textContent = fmtSpot(p.platinum);
-        if (tsEl) {
-          var now = new Date();
-          var t = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-          tsEl.textContent = (data.is_stale ? 'Cached · ' : 'Updated ') + t;
-        }
-      })
-      .catch(function () { /* spot is supplementary — fail silently */ });
-  }
-
-  document.addEventListener('DOMContentLoaded', loadHeroSpot);
-  setInterval(loadHeroSpot, 300000); /* refresh every 5 minutes */
-}());
+<!-- ── Recent trades data for ticker (JSON, not rendered) ── -->
+{% if recent_trades %}
+<script id="lp-trades-data" type="application/json">
+{{ recent_trades | tojson }}
 </script>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/landing.js') }}"></script>
+
 {% endblock %}

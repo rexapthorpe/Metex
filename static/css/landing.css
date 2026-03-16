@@ -1,0 +1,743 @@
+/* ================================================================
+   landing.css — Financial-grade landing page for Metex buy.html
+   Color system:
+     --bg-hero    #0e2a47   (hero — bright navy)
+     --bg-dark    #081a33   (panel headers / ticker / deep accents)
+     --bg-card    #0d2040   (panel / card surfaces)
+     --blue       #3b82f6   (primary UI accent)
+     --blue-dark  #2563eb   (button gradient start)
+     --gold       #d4af37   (secondary brand accent — subtle)
+     --gold-hi    #E8C547   (bright gold — spot price chips)
+     --text       #e8eaf0   (primary text)
+     --muted      #6b7280   (secondary text)
+     --dim        #374151   (dimmed / col headers)
+     --green      #22c55e   (positive / up)
+     --border     rgba(255,255,255,0.07)
+     --border-b   rgba(59,130,246,0.22)  (blue border)
+================================================================ */
+
+/* ── Allow hero breakout from .container ──────────────────── */
+main.container:has(.lp-dark-band) {
+  overflow-x: visible;
+}
+
+/* ── Full-width dark band (hero + ticker + features) ───────── */
+/* The background itself carries the full dark→light transition.
+   No overlay pseudo-element — eliminates the "fog band" artifact
+   caused by blending an opaque color on top of a dark background. */
+.lp-dark-band {
+  width: 100vw;
+  margin-left: calc((100% - 100vw) / 2);
+  margin-top: -90px;          /* flush under fixed header */
+  padding-top: 90px;          /* restore header clearance */
+  background: linear-gradient(
+    to bottom,
+    #0e2a47  0%,
+    #0e2a47 36%,
+    #112d4c 46%,
+    #163657 55%,
+    #1d4168 63%,
+    #274e78 69%,
+    #325e88 74%,
+    #426f99 79%,
+    #5a83aa 83%,
+    #7799bb 87%,
+    #97b4cc 90%,
+    #bccedd 93%,
+    #dce8f0 95%,
+    #eff5f8 97%,
+    #f8fbfc 99%,
+    #ffffff 100%
+  );
+  margin-bottom: 52px;
+  position: relative;
+}
+
+/* subtle grid-dot overlay on the entire band */
+.lp-dark-band::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(59,130,246,0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  z-index: 0;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   HERO
+════════════════════════════════════════════════════════════ */
+.lp-hero {
+  padding: 52px 0 44px;
+}
+
+.lp-hero-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 5vw;
+  display: flex;
+  gap: 56px;
+  align-items: flex-start;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Left: Text ─────────────────────────────────────────── */
+.lp-hero-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.lp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #C9A227;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.lp-eyebrow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: lp-pulse 1.6s ease-in-out infinite;
+}
+
+.lp-headline {
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  font-weight: 800;
+  line-height: 1.1;
+  color: #f0f2f5;
+  margin: 0 0 20px;
+  letter-spacing: -0.025em;
+  font-family: Arial, sans-serif;
+}
+
+.lp-subhead {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #8892a4;
+  margin: 0 0 32px;
+  max-width: 480px;
+}
+
+.lp-props {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+
+.lp-prop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: #c9d0db;
+}
+
+.lp-prop-icon {
+  color: #3b82f6;
+  font-size: 0.55rem;
+  flex-shrink: 0;
+}
+
+.lp-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 26px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.12s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.lp-btn:hover {
+  transform: translateY(-2px);
+}
+
+.lp-btn--primary {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  color: #ffffff;
+  font-size: 0.95rem;
+  padding: 14px 30px;
+  box-shadow: 0 4px 22px rgba(59,130,246,0.40), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.lp-btn--primary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+  box-shadow: 0 8px 32px rgba(59,130,246,0.60), inset 0 1px 0 rgba(255,255,255,0.18);
+  transform: translateY(-2px);
+}
+
+.lp-btn--ghost {
+  background: transparent;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  color: #c9d0db;
+}
+
+.lp-btn--ghost:hover {
+  border-color: rgba(59,130,246,0.55);
+  color: #e8eaf0;
+}
+
+/* ── Right: Market Preview Panel ────────────────────────── */
+.lp-hero-right {
+  width: 340px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.lp-market-panel {
+  background: #0d2040;
+  border: 1px solid rgba(59,130,246,0.22);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+/* Panel header bar */
+.lp-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: #081a33;
+}
+
+.lp-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #8892a4;
+  text-transform: uppercase;
+}
+
+.lp-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  animation: lp-pulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(34,197,94,0.6);
+}
+
+/* Mini spot prices in panel header */
+.lp-spot-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.lp-spot-chip {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+
+.lp-spot-chip.loaded {
+  color: #E8C547;
+}
+
+/* Column labels */
+.lp-panel-cols {
+  display: grid;
+  grid-template-columns: 1fr 90px 52px;
+  padding: 8px 18px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #374151;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.lp-panel-cols span:last-child {
+  text-align: right;
+}
+
+.lp-panel-cols span:nth-child(2) {
+  text-align: right;
+}
+
+/* Individual rows */
+.lp-panel-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-panel-row {
+  display: grid;
+  grid-template-columns: 1fr 90px 52px;
+  align-items: center;
+  padding: 10px 18px;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.12s;
+  gap: 6px;
+}
+
+.lp-panel-row:last-child {
+  border-bottom: none;
+}
+
+.lp-panel-row:hover {
+  background: rgba(59,130,246,0.09);
+}
+
+.lp-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #c9d0db;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Metal pill badge */
+.lp-metal-badge {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.lp-metal-badge--gold     { background: rgba(201,162,39,0.2);  color: #E8C547; }
+.lp-metal-badge--silver   { background: rgba(156,163,175,0.2); color: #d1d5db; }
+.lp-metal-badge--platinum { background: rgba(96,165,250,0.2);  color: #93c5fd; }
+.lp-metal-badge--palladium{ background: rgba(167,139,250,0.2); color: #c4b5fd; }
+.lp-metal-badge--copper   { background: rgba(234,88,12,0.2);   color: #fb923c; }
+
+.lp-row-price {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #22c55e;
+  font-family: 'Courier New', 'Lucida Console', monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.lp-row-count {
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-align: right;
+}
+
+.lp-panel-empty {
+  padding: 24px 18px;
+  font-size: 0.8rem;
+  color: #374151;
+  text-align: center;
+}
+
+/* Panel footer */
+.lp-panel-footer {
+  padding: 11px 18px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: #081a33;
+  text-align: right;
+}
+
+.lp-panel-link {
+  font-size: 0.78rem;
+  color: #3b82f6;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: color 0.12s;
+}
+
+.lp-panel-link:hover {
+  color: #60a5fa;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   TRADES TICKER
+════════════════════════════════════════════════════════════ */
+.lp-ticker-wrap {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: #081a33;
+  overflow: hidden;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Fade edges */
+.lp-ticker-wrap::before,
+.lp-ticker-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 60px;
+  z-index: 2;
+  pointer-events: none;
+}
+.lp-ticker-wrap::before {
+  left: 0;
+  background: linear-gradient(to right, #081a33, transparent);
+}
+.lp-ticker-wrap::after {
+  right: 0;
+  background: linear-gradient(to left, #081a33, transparent);
+}
+
+.lp-ticker-label {
+  position: absolute;
+  left: 14px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #374151;
+  text-transform: uppercase;
+  z-index: 3;
+  white-space: nowrap;
+}
+
+.lp-ticker-track {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  padding-left: 80px;
+  animation: lp-ticker-scroll 30s linear infinite;
+  gap: 0;
+}
+
+.lp-ticker-item {
+  font-size: 11px;
+  color: #8892a4;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lp-ticker-item-name {
+  color: #c9d0db;
+}
+
+.lp-ticker-item-price {
+  color: #E8C547;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+.lp-ticker-sep {
+  color: #1f2937;
+  padding: 0 6px;
+  font-size: 9px;
+}
+
+@keyframes lp-ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   FEATURES — HOW METEX WORKS
+════════════════════════════════════════════════════════════ */
+.lp-features {
+  padding: 52px 0 56px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  position: relative;
+  z-index: 1;
+}
+
+.lp-features-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 5vw;
+}
+
+.lp-features-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #C9A227;
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.lp-features-heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f0f2f5;
+  text-align: center;
+  margin: 0 0 36px;
+  letter-spacing: -0.01em;
+}
+
+.lp-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.lp-feature-card {
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 28px 26px;
+  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.lp-feature-card:hover {
+  border-color: rgba(59,130,246,0.38);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.lp-feature-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(59,130,246,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  color: #3b82f6;
+  font-size: 1rem;
+}
+
+.lp-feature-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e8eaf0;
+  margin-bottom: 10px;
+}
+
+.lp-feature-body {
+  font-size: 0.84rem;
+  line-height: 1.65;
+  color: #6b7280;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   MARKETS SECTION HEADER
+════════════════════════════════════════════════════════════ */
+.lp-markets-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  margin-top: 8px;
+  gap: 12px;
+}
+
+.lp-markets-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+.lp-markets-sub {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.lp-markets-divider {
+  border: none;
+  border-top: 1.5px solid #f3f4f6;
+  margin: 24px 0 20px;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   PULSE ANIMATION
+════════════════════════════════════════════════════════════ */
+@keyframes lp-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   RESPONSIVE
+════════════════════════════════════════════════════════════ */
+@media (max-width: 960px) {
+  .lp-hero-inner {
+    flex-direction: column;
+    gap: 36px;
+  }
+
+  .lp-hero-right {
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .lp-features-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+/* Mobile header is ~120px tall */
+@media (max-width: 768px) {
+  .lp-dark-band {
+    margin-top: -120px;
+    padding-top: 120px;
+  }
+
+  .lp-hero {
+    padding: 36px 0 32px;
+  }
+
+  .lp-features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .lp-subhead {
+    font-size: 0.9rem;
+  }
+
+  .lp-hero-right {
+    max-width: 100%;
+  }
+
+  .lp-panel-cols,
+  .lp-panel-row {
+    grid-template-columns: 1fr 80px 44px;
+  }
+}
+
+/* 480px matches main padding-top: 115px in base.css */
+@media (max-width: 480px) {
+  .lp-dark-band {
+    margin-top: -115px;
+    padding-top: 115px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   TRANSPARENT HEADER — only applies on buy page (landing.css
+   is only loaded here). JS toggles .header--over-hero.
+════════════════════════════════════════════════════════════ */
+
+/* Smooth transition on all relevant properties */
+.header-bar {
+  transition: background-color 0.28s ease, border-color 0.28s ease,
+              box-shadow 0.28s ease;
+}
+
+.header-bar.header--over-hero {
+  background-color: transparent;
+  border-bottom-color: transparent;
+  box-shadow: none;
+}
+
+/* Logo — gold on dark hero */
+.header-bar.header--over-hero .logo {
+  color: #E8C547;
+  transition: color 0.28s ease;
+}
+
+/* Search input — frosted dark style */
+.header-bar.header--over-hero .header-search-input {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #e8eaf0;
+  transition: background 0.28s, border-color 0.28s, color 0.28s;
+}
+
+.header-bar.header--over-hero .header-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.header-bar.header--over-hero .header-search-icon {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.header-bar.header--over-hero .header-search-clear {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Nav buttons — ghost style on dark background */
+.header-bar.header--over-hero .btn-pill {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
+  transition: background-color 0.28s, color 0.28s;
+}
+
+.header-bar.header--over-hero .btn-pill:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: scale(1.03);
+}
+
+/* Sign Up — keep gold accent on dark background */
+.header-bar.header--over-hero .btn-pill.signup-btn {
+  background-color: #C9A227;
+  color: #06090f;
+}
+
+.header-bar.header--over-hero .btn-pill.signup-btn:hover {
+  background-color: #E8C547;
+}
+
+/* Cart icon */
+.header-bar.header--over-hero .cart-pill {
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.header-bar.header--over-hero .cart-pill:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* Mobile hamburger */
+.header-bar.header--over-hero .mobile-nav-toggle {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.header-bar.header--over-hero .mobile-nav-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}

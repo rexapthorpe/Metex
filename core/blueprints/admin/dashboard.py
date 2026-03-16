@@ -212,6 +212,7 @@ def dashboard():
                 u.is_admin,
                 u.is_banned,
                 u.is_frozen,
+                COALESCE(u.is_metex_guaranteed, 0) as is_metex_guaranteed,
                 COUNT(DISTINCT o.id) as transaction_count
             FROM users u
             LEFT JOIN orders o ON u.id = o.buyer_id
@@ -239,7 +240,7 @@ def dashboard():
                 'status': status,
                 'is_banned': user['is_banned'] or 0,
                 'is_frozen': user['is_frozen'] or 0,
-                'verified': False,  # Placeholder
+                'is_metex_guaranteed': bool(user['is_metex_guaranteed']),
                 'transactions': user['transaction_count'] or 0,
                 'joined': joined
             })

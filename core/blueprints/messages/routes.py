@@ -571,6 +571,43 @@ def send_admin_message_reply(admin_id=None):
         conn.close()
 
 
+@messages_bp.route('/api/feedback', methods=['POST'])
+@limit_message_send
+def send_feedback():
+    """
+    Submit user feedback. Stored as a message with message_type='feedback'.
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.form if request.form else request.get_json() or {}
+    message_text = data.get('message_text', '').strip()[:4000]
+
+    if not message_text:
+        return jsonify({'error': 'Message cannot be empty'}), 400
+
+    conn = get_db_connection()
+    try:
+        actual_admin_id = _get_primary_admin_id(conn)
+        if not actual_admin_id:
+            return jsonify({'error': 'No admin available'}), 404
+
+        conn.execute("""
+            INSERT INTO messages (order_id, sender_id, receiver_id, content, message_type)
+            VALUES (0, ?, ?, ?, 'feedback')
+        """, (user_id, actual_admin_id, message_text))
+        conn.commit()
+
+        return jsonify({'status': 'sent'})
+
+    except Exception as e:
+        print(f"Error sending feedback: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
 @messages_bp.route('/api/admin/messages/<int:admin_id>/read', methods=['POST'])
 @messages_bp.route('/api/admin/messages/read', methods=['POST'])
 def mark_admin_message_read(admin_id=None):

@@ -118,7 +118,9 @@
 .modal-closing .report-user-modal-content,
 .modal-closing .listing-items-modal-content,
 .modal-closing [class*="-modal-content"],
-.modal-closing [class*="-modal-dialog"] {
+.modal-closing [class*="-modal-dialog"],
+.modal-closing .rm-content,
+.modal-closing .txn-card {
     animation: modalSlideDown 0.32s cubic-bezier(0.4, 0, 1, 1) forwards !important;
 }
 

@@ -69,26 +69,10 @@ function renderOrderSeller() {
   const total = orderSellerData.length;
   const esc = _osmEsc;
 
-  // Reset title (may have been changed by openOrderBuyerPopup)
-  const titleEl = document.querySelector('#orderSellersModal .osm-title');
-  if (titleEl) titleEl.textContent = total > 1 ? 'Seller Information' : 'Seller Information';
-
-  // Avatar initial
   const initial = (s.display_name || s.username || '?')[0].toUpperCase();
+  const sellerId = s.seller_id;
 
-  // Stars (rounded to nearest whole)
-  const ratingVal = parseFloat(s.rating || 0);
-  let starsHtml = '';
-  for (let i = 1; i <= 5; i++) {
-    starsHtml += `<span class="star${i <= Math.round(ratingVal) ? '' : ' empty'}">&#9733;</span>`;
-  }
-
-  // Verified badge
-  const verifiedBadge = s.is_verified
-    ? `<span class="osm-verified-badge"><i class="fa-solid fa-shield-halved"></i> Verified Seller</span>`
-    : '';
-
-  // Nav (only shown when multiple sellers in order)
+  // Nav (only shown when multiple sellers)
   const navHtml = total > 1 ? `
     <div class="osm-nav">
       <button class="osm-nav-arrow" ${orderSellerIndex === 0 ? 'disabled' : ''} onclick="prevOrderSeller()">&#8592;</button>
@@ -97,17 +81,6 @@ function renderOrderSeller() {
     </div>
   ` : '';
 
-  const transactions = (s.transaction_count != null)
-    ? Number(s.transaction_count).toLocaleString()
-    : '--';
-  const fulfillmentPct = (s.fulfillment_pct != null) ? `${s.fulfillment_pct}%` : '--';
-  const memberSince = s.member_since || '--';
-  const unitsListed = s.total_qty != null ? Number(s.total_qty).toLocaleString() : '--';
-  const avgPrice = s.avg_price != null
-    ? '$' + Number(s.avg_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '--';
-
-  const sellerId = s.seller_id;
   const removeHtml = _osmIsCartContext && _osmBucketId != null ? `
     <button class="osm-contact-btn osm-contact-btn--remove" type="button"
             onclick="_osmHandleRemoveSeller(${_osmBucketId}, ${sellerId})">
@@ -123,6 +96,55 @@ function renderOrderSeller() {
     </button>
     <p class="osm-contact-locked-note">Buy this item to contact the seller</p>`;
 
+  // ── Metex Guaranteed layout ──────────────────────────────
+  if (s.is_metex_guaranteed) {
+    const titleEl = document.querySelector('#orderSellersModal .osm-title');
+    if (titleEl) { titleEl.textContent = ''; titleEl.classList.add('osm-title--hidden'); }
+
+    document.getElementById('orderSellersModalContent').innerHTML = `
+      ${navHtml}
+      <div class="osm-guaranteed-layout">
+        <div class="osm-guaranteed-avatar">${initial}</div>
+        <div class="osm-guaranteed-username">@${esc(s.username)}</div>
+        <div class="osm-guaranteed-shield-wrap">
+          <svg class="osm-guaranteed-shield-svg" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M24 3L5 11V29C5 41 14 51 24 53C34 51 43 41 43 29V11L24 3Z"
+                  stroke="#3dba72" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>
+            <path d="M15 28L21 34L33 22"
+                  stroke="#3dba72" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="osm-guaranteed-heading">Metex Guaranteed</div>
+        <div class="osm-guaranteed-sub">This account is officially backed and<br>guaranteed by Metex</div>
+      </div>
+      ${removeHtml}
+      ${contactHtml}
+    `;
+    return;
+  }
+
+  // ── Standard layout ──────────────────────────────────────
+  const titleEl = document.querySelector('#orderSellersModal .osm-title');
+  if (titleEl) { titleEl.textContent = 'Seller Information'; titleEl.classList.remove('osm-title--centered', 'osm-title--hidden'); }
+
+  const ratingVal = parseFloat(s.rating || 0);
+  let starsHtml = '';
+  for (let i = 1; i <= 5; i++) {
+    starsHtml += `<span class="star${i <= Math.round(ratingVal) ? '' : ' empty'}">&#9733;</span>`;
+  }
+
+  const verifiedBadge = s.is_verified
+    ? `<span class="osm-verified-badge"><i class="fa-solid fa-shield-halved"></i> Verified Seller</span>`
+    : '';
+
+  const transactions = (s.transaction_count != null)
+    ? Number(s.transaction_count).toLocaleString()
+    : '--';
+  const memberSince = s.member_since || '--';
+  const unitsListed = s.total_qty != null ? Number(s.total_qty).toLocaleString() : '--';
+  const avgPrice = s.avg_price != null
+    ? '$' + Number(s.avg_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '--';
 
   document.getElementById('orderSellersModalContent').innerHTML = `
     ${navHtml}
@@ -256,6 +278,41 @@ function openOrderBuyerPopup(orderId) {
       }
       const esc = _osmEsc;
       const initial = (data.display_name || data.username || '?')[0].toUpperCase();
+      const titleEl = document.querySelector('#orderSellersModal .osm-title');
+      const contactHtml = `
+        <button class="osm-contact-btn" onclick="openMessageModal(${orderId}, 'buyer'); closeOrderSellerPopup();">
+          <i class="fa-regular fa-comment"></i> Contact Buyer
+        </button>`;
+
+      // ── Metex Guaranteed buyer layout ──────────────────
+      if (data.is_metex_guaranteed) {
+        if (titleEl) { titleEl.textContent = ''; titleEl.classList.add('osm-title--hidden'); }
+        document.getElementById('orderSellersModalContent').innerHTML = `
+          <div class="osm-guaranteed-layout">
+            <div class="osm-guaranteed-avatar">${initial}</div>
+            <div class="osm-guaranteed-username">@${esc(data.username)}</div>
+            <div class="osm-guaranteed-shield-wrap">
+              <svg class="osm-guaranteed-shield-svg" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M24 3L5 11V29C5 41 14 51 24 53C34 51 43 41 43 29V11L24 3Z"
+                      stroke="#3dba72" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>
+                <path d="M15 28L21 34L33 22"
+                      stroke="#3dba72" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="osm-guaranteed-heading">Metex Guaranteed</div>
+            <div class="osm-guaranteed-sub">This account is officially backed and<br>guaranteed by Metex</div>
+          </div>
+          ${contactHtml}
+        `;
+        const overlay = document.getElementById('orderSellersModal');
+        overlay.style.display = 'flex';
+        overlay.addEventListener('click', _osmOutsideClick);
+        return;
+      }
+
+      // ── Standard buyer layout ───────────────────────────
+      if (titleEl) { titleEl.textContent = 'Buyer Information'; titleEl.classList.remove('osm-title--hidden', 'osm-title--centered'); }
+
       const ratingVal = parseFloat(data.rating || 0);
       let starsHtml = '';
       for (let i = 1; i <= 5; i++) {
@@ -266,9 +323,6 @@ function openOrderBuyerPopup(orderId) {
         : '';
       const transactions = data.transaction_count != null ? Number(data.transaction_count).toLocaleString() : '--';
       const memberSince = data.member_since || '--';
-
-      const titleEl = document.querySelector('#orderSellersModal .osm-title');
-      if (titleEl) titleEl.textContent = 'Buyer Information';
 
       document.getElementById('orderSellersModalContent').innerHTML = `
         <div class="osm-identity">
@@ -307,9 +361,7 @@ function openOrderBuyerPopup(orderId) {
           </div>
         </div>
 
-        <button class="osm-contact-btn" onclick="openMessageModal(${orderId}, 'buyer'); closeOrderSellerPopup();">
-          <i class="fa-regular fa-comment"></i> Contact Buyer
-        </button>
+        ${contactHtml}
       `;
 
       const overlay = document.getElementById('orderSellersModal');

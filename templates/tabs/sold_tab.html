@@ -116,7 +116,12 @@
                 <div class="sold-buyer-avatar">{{ buyer_initials }}</div>
                 <div class="sold-buyer-info">
                   <div class="sold-buyer-name">
-                    {% if sale.buyer_avg_rating %}
+                    {% if sale.get('buyer_is_metex_guaranteed') %}
+                      <span class="metex-guaranteed-badge">
+                        <span class="metex-guaranteed-icon">M</span>
+                        <span class="metex-guaranteed-text">Metex Guaranteed</span>
+                      </span>
+                    {% elif sale.buyer_avg_rating %}
                       <span class="sold-buyer-stars">
                         {% for i in range(1, 6) %}
                           {% if i <= sale.buyer_avg_rating | int %}
@@ -226,9 +231,15 @@
               <button class="order-quick-action" onclick="openOrderItemsPopup({{ sale.order_id }})">
                 <i class="fa-solid fa-list"></i> Item Specs
               </button>
+              {% if sale.cancel_status == 'approved' %}
+              <button class="order-quick-action order-quick-action--canceled" disabled title="Order canceled">
+                <i class="fa-regular fa-comment"></i> Message
+              </button>
+              {% else %}
               <button class="order-quick-action" onclick="openMessageModal({{ sale.order_id }}, 'buyer')">
                 <i class="fa-regular fa-comment"></i> Message
               </button>
+              {% endif %}
               <button class="order-quick-action" onclick="addTrackingNumber({{ sale.order_id }})">
                 <i class="fa-solid fa-{% if sale.status | lower in ['shipped', 'delivered', 'completed'] %}truck{% else %}box{% endif %}"></i>
                 {% if sale.status | lower in ['shipped', 'delivered', 'completed'] %}Update Tracking{% else %}Add Tracking{% endif %}
@@ -522,7 +533,8 @@ function openTransactionDetailsModal(btn) {
 }
 
 function closeTransactionDetailsModal() {
-  document.getElementById('transactionDetailsModal').style.display = 'none';
+  var modal = document.getElementById('transactionDetailsModal');
+  window.animatedModalClose(modal, function() { modal.style.display = 'none'; });
 }
 
 function closeTxnModalOnOverlay(e) {

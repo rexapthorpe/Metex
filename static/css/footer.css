@@ -319,6 +319,24 @@
     margin: 0;
 }
 
+/* Feedback modal accent overrides */
+.feedback-modal .feedback-modal-header {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border-bottom-color: #fde68a;
+}
+
+.feedback-modal .feedback-modal-header h2 {
+    color: #92400e;
+}
+
+.feedback-modal .feedback-modal-header h2 i {
+    color: #f59e0b;
+}
+
+.feedback-modal-send {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+}
+
 /* Mobile adjustments */
 @media (max-width: 480px) {
     .contact-modal { border-radius: 14px; }

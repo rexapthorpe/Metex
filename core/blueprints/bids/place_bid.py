@@ -90,6 +90,17 @@ def place_bid(bucket_id):
         (session['user_id'],)
     ).fetchone()
 
+    # Resolve actual category_id from bucket_id
+    # bids.category_id is a FK to categories.id (not bucket_id)
+    category_row = cursor.execute(
+        'SELECT id FROM categories WHERE bucket_id = ? LIMIT 1', (bucket_id,)
+    ).fetchone()
+    if not category_row:
+        conn.close()
+        flash("Item not found.", "error")
+        return redirect(url_for('buy.buy'))
+    actual_category_id = category_row['id']
+
     # Block bid if all active listings in this bucket belong to the current user
     counts = cursor.execute('''
         SELECT COUNT(*) AS total,
@@ -117,7 +128,7 @@ def place_bid(bucket_id):
         ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?)
         ''',
         (
-            bucket_id,
+            actual_category_id,
             session['user_id'],
             bid_quantity,
             bid_price,
@@ -234,6 +245,16 @@ def create_bid_unified(bucket_id):
         (session['user_id'],)
     ).fetchone()
 
+    # Resolve actual category_id from bucket_id
+    # bids.category_id is a FK to categories.id (not bucket_id)
+    category_row = cursor.execute(
+        'SELECT id FROM categories WHERE bucket_id = ? LIMIT 1', (bucket_id,)
+    ).fetchone()
+    if not category_row:
+        conn.close()
+        return jsonify(success=False, message="Item not found."), 404
+    actual_category_id = category_row['id']
+
     # Block bid if all active listings in this bucket belong to the current user
     counts = cursor.execute('''
         SELECT COUNT(*) AS total,
@@ -265,7 +286,7 @@ def create_bid_unified(bucket_id):
             ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?)
             ''',
             (
-                bucket_id,
+                actual_category_id,
                 session['user_id'],
                 bid_quantity,
                 bid_price,

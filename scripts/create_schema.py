@@ -152,6 +152,7 @@ class SchemaManager:
         self.add_column('users', 'is_banned', 'INTEGER DEFAULT 0')
         self.add_column('users', 'is_frozen', 'INTEGER DEFAULT 0')
         self.add_column('users', 'freeze_reason', 'TEXT')
+        self.add_column('users', 'is_metex_guaranteed', 'INTEGER DEFAULT 0')
         self.add_column('users', 'first_name', 'TEXT')
         self.add_column('users', 'last_name', 'TEXT')
         self.add_column('users', 'phone', 'TEXT')
@@ -449,6 +450,7 @@ class SchemaManager:
             sender_id INTEGER NOT NULL,
             receiver_id INTEGER NOT NULL,
             content TEXT NOT NULL,
+            message_type TEXT DEFAULT 'support',
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (order_id) REFERENCES orders(id),
             FOREIGN KEY (sender_id) REFERENCES users(id),
@@ -1292,14 +1294,14 @@ class SchemaManager:
                 self.cursor.execute(
                     "INSERT INTO fee_config (config_key, fee_type, fee_value, description) "
                     "VALUES (%s, %s, %s, %s) ON CONFLICT (config_key) DO NOTHING",
-                    ('default_platform_fee', 'percent', 2.5,
+                    ('default_platform_fee', 'percent', 5.0,
                      'Default platform fee applied to all transactions')
                 )
             else:
                 self.cursor.execute(
                     "INSERT OR IGNORE INTO fee_config (config_key, fee_type, fee_value, description) "
                     "VALUES (?, ?, ?, ?)",
-                    ('default_platform_fee', 'percent', 2.5,
+                    ('default_platform_fee', 'percent', 5.0,
                      'Default platform fee applied to all transactions')
                 )
             self.log_change("Ensured default_platform_fee row in fee_config")

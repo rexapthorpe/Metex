@@ -54,6 +54,16 @@
   color: #1a1a1a;
   margin: 0 0 20px 0;
   padding-right: 52px;
+  transition: text-align 0.1s;
+}
+
+.osm-title--centered {
+  text-align: center;
+  padding-right: 0;
+}
+
+.osm-title--hidden {
+  display: none;
 }
 
 /* Nav arrows (multiple sellers) */
@@ -375,6 +385,74 @@
   font-size: 0.78rem;
   color: #9ca3af;
   margin: 6px 0 0 0;
+}
+
+/* ── Metex Guaranteed seller layout ──────────────────────── */
+.osm-guaranteed-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 10px 0 20px;
+}
+
+/* Avatar — same size as normal modal avatar (72px) but centered */
+.osm-guaranteed-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #b0bec5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+/* @username */
+.osm-guaranteed-username {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+
+/* Green shield circle */
+.osm-guaranteed-shield-wrap {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background: #e8f8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+/* SVG shield-check icon */
+.osm-guaranteed-shield-svg {
+  width: 52px;
+  height: 52px;
+}
+
+/* "Metex Guaranteed" heading */
+.osm-guaranteed-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #3dba72;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+/* Subtitle */
+.osm-guaranteed-sub {
+  font-size: 0.88rem;
+  color: #6b7280;
+  line-height: 1.55;
+  max-width: 260px;
 }
 
 /* Remove seller button (cart context) */

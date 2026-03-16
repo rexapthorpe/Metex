@@ -297,6 +297,7 @@ def view_bucket(bucket_id):
         SELECT
           u.id                  AS seller_id,
           u.username            AS username,
+          COALESCE(u.is_metex_guaranteed, 0) AS is_metex_guaranteed,
           rr.rating             AS rating,
           rr.rating_count       AS rating_count,
           l.id                  AS listing_id,
@@ -340,6 +341,7 @@ def view_bucket(bucket_id):
             sellers_data[seller_id] = {
                 'seller_id': seller_id,
                 'username': row['username'],
+                'is_metex_guaranteed': bool(row['is_metex_guaranteed']),
                 'rating': row['rating'],
                 'rating_count': row['rating_count'],
                 'lowest_price': effective_price,

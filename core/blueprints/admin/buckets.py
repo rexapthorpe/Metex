@@ -116,6 +116,16 @@ def get_all_buckets():
         # Execute query
         buckets = conn.execute(base_query, params).fetchall()
 
+        # Fetch current global default fee for display label
+        global_fee_row = conn.execute(
+            "SELECT fee_value FROM fee_config WHERE config_key = 'default_platform_fee' AND active = 1"
+        ).fetchone()
+        if global_fee_row:
+            global_fee_pct = float(global_fee_row['fee_value'])
+        else:
+            from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
+            global_fee_pct = DEFAULT_PLATFORM_FEE_VALUE
+
         # Format results
         buckets_list = []
         for bucket in buckets:
@@ -139,7 +149,7 @@ def get_all_buckets():
                 else:
                     fee_display = f"${bucket['platform_fee_value']:.2f}"
             else:
-                fee_display = 'Default (2.5%)'
+                fee_display = f'Default ({global_fee_pct:g}%)'
 
             buckets_list.append({
                 'bucket_id': bucket['bucket_id'],

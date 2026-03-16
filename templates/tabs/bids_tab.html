@@ -189,16 +189,20 @@
               <button type="button" onclick="openBidModal({{ bid.category_id }}, {{ bid.id }})" class="bid-footer-btn">
                 <i class="fas fa-pencil-alt"></i> Edit
               </button>
+              {% if bid.bucket_id %}
               <a href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}" class="bid-footer-btn">
                 <i class="fas fa-binoculars"></i> View
               </a>
+              {% endif %}
               <button type="button" onclick="closeBid({{ bid.id }})" class="bid-footer-btn bid-footer-btn--close">
                 <i class="fas fa-trash"></i> Close
               </button>
             {% else %}
+              {% if bid.bucket_id %}
               <a href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}" class="bid-footer-btn">
                 <i class="fas fa-binoculars"></i> View
               </a>
+              {% endif %}
             {% endif %}
           </div>
         </div>

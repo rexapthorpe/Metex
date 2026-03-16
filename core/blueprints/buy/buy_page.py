@@ -4,7 +4,6 @@ from flask import render_template, request, session
 from database import get_db_connection
 from services.pricing_service import get_effective_price
 from services.reference_price_service import get_current_spots_from_snapshots
-from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
 
 from . import buy_bp
 
@@ -160,6 +159,7 @@ def buy():
                 'lowest_price_pricing_mode': listing.get('pricing_mode', 'static'),
                 'lowest_price_metal': (listing.get('pricing_metal') or listing.get('metal') or '').lower(),
                 'total_available': listing['quantity'],
+                'listing_count': 1,
                 'has_non_user_listings': not is_user_listing,
                 'total_non_user_available': 0 if is_user_listing else listing['quantity']
             }
@@ -169,6 +169,7 @@ def buy():
                 bucket_data[bucket_id]['lowest_price_pricing_mode'] = listing.get('pricing_mode', 'static')
                 bucket_data[bucket_id]['lowest_price_metal'] = (listing.get('pricing_metal') or listing.get('metal') or '').lower()
             bucket_data[bucket_id]['total_available'] += listing['quantity']
+            bucket_data[bucket_id]['listing_count'] = bucket_data[bucket_id].get('listing_count', 0) + 1
             if not is_user_listing:
                 bucket_data[bucket_id]['has_non_user_listings'] = True
                 bucket_data[bucket_id]['total_non_user_available'] += listing['quantity']
@@ -214,6 +215,7 @@ def buy():
         if bucket_id in bucket_data:
             cat_dict['lowest_price'] = bucket_data[bucket_id]['lowest_price']
             cat_dict['total_available'] = bucket_data[bucket_id]['total_available']
+            cat_dict['listing_count'] = bucket_data[bucket_id].get('listing_count', 0)
             cat_dict['all_listings_are_users'] = not bucket_data[bucket_id]['has_non_user_listings']
             cat_dict['total_non_user_available'] = bucket_data[bucket_id]['total_non_user_available']
             pricing_mode = bucket_data[bucket_id].get('lowest_price_pricing_mode', 'static')
@@ -225,6 +227,7 @@ def buy():
         else:
             cat_dict['lowest_price'] = None
             cat_dict['total_available'] = 0
+            cat_dict['listing_count'] = 0
             cat_dict['all_listings_are_users'] = False
             cat_dict['total_non_user_available'] = 0
             cat_dict['is_variable_pricing'] = False
@@ -246,6 +249,7 @@ def buy():
         if bucket_id in bucket_data:
             cat_dict['lowest_price'] = bucket_data[bucket_id]['lowest_price']
             cat_dict['total_available'] = bucket_data[bucket_id]['total_available']
+            cat_dict['listing_count'] = bucket_data[bucket_id].get('listing_count', 0)
             cat_dict['all_listings_are_users'] = not bucket_data[bucket_id]['has_non_user_listings']
             cat_dict['total_non_user_available'] = bucket_data[bucket_id]['total_non_user_available']
             pricing_mode = bucket_data[bucket_id].get('lowest_price_pricing_mode', 'static')
@@ -257,6 +261,7 @@ def buy():
         else:
             cat_dict['lowest_price'] = None
             cat_dict['total_available'] = 0
+            cat_dict['listing_count'] = 0
             cat_dict['all_listings_are_users'] = False
             cat_dict['total_non_user_available'] = 0
             cat_dict['is_variable_pricing'] = False
@@ -344,25 +349,6 @@ def buy():
         one_of_a_kind_buckets = [b for b in one_of_a_kind_buckets if _bucket_matches(b)]
         set_buckets = [b for b in set_buckets if _bucket_matches(b)]
 
-    # Add fee indicator data for buckets with non-default fees
-    for bucket in standard_buckets + one_of_a_kind_buckets + set_buckets:
-        fee_type = bucket.get('platform_fee_type')
-        fee_value = bucket.get('platform_fee_value')
-
-        # Only show indicator if bucket has a custom fee set
-        if fee_type == 'percent' and fee_value is not None:
-            if fee_value < DEFAULT_PLATFORM_FEE_VALUE:
-                bucket['fee_indicator'] = 'reduced'
-                bucket['fee_display'] = f"{fee_value:.1f}% fee"
-            elif fee_value > DEFAULT_PLATFORM_FEE_VALUE:
-                bucket['fee_indicator'] = 'elevated'
-                bucket['fee_display'] = f"{fee_value:.1f}% fee"
-            # If equal to default, no indicator needed
-        elif fee_type == 'flat' and fee_value is not None:
-            # Flat fees are always "custom" - show as elevated/neutral
-            bucket['fee_indicator'] = 'custom'
-            bucket['fee_display'] = f"${fee_value:.2f} fee"
-
     # Add tile images for one-of-a-kind listings
     for bucket in one_of_a_kind_buckets:
         bucket_id = bucket['bucket_id']
@@ -393,12 +379,48 @@ def buy():
         ''', (bucket_id,)).fetchone()
         bucket['tile_image_url'] = f"/static/{photo_row['file_path']}" if photo_row else None
 
+    # Hero market preview: first 6 standard buckets that have active listings
+    hero_buckets = [b for b in standard_buckets if b.get('lowest_price') is not None][:6]
+
+    # Recent trades ticker: last 12 completed transactions (real DB data)
+    recent_trades = []
+    try:
+        trade_rows = conn.execute('''
+            SELECT
+                c.mint, c.product_line, c.coin_series, c.product_type, c.metal,
+                l.name AS listing_title,
+                oi.price_each
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            JOIN listings l ON oi.listing_id = l.id
+            JOIN categories c ON l.category_id = c.id
+            WHERE c.bucket_id IS NOT NULL
+            ORDER BY o.id DESC
+            LIMIT 12
+        ''').fetchall()
+        for row in trade_rows:
+            r = dict(row)
+            name = (r.get('listing_title') or
+                    '{} {}'.format(
+                        r.get('mint') or '',
+                        r.get('product_line') or r.get('coin_series') or r.get('product_type') or ''
+                    ).strip())
+            recent_trades.append({
+                'name': name,
+                'metal': r.get('metal', ''),
+                'price': round(float(r['price_each']), 2)
+            })
+    except Exception:
+        recent_trades = []
+
     conn.close()
 
     return render_template('buy.html',
                          standard_buckets=standard_buckets,
                          one_of_a_kind_buckets=one_of_a_kind_buckets,
                          set_buckets=set_buckets,
+                         hero_buckets=hero_buckets,
+                         recent_trades=recent_trades,
                          graded_only=graded_only,
                          filter_type=filter_type,
                          metal_filter=metal_filter,

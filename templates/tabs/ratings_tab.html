@@ -15,24 +15,33 @@
 
     <!-- Average rating card -->
     <div class="rt-avg-card">
-      <div class="rt-avg-stars">
-        {% if avg_rating %}
-          {% set full  = avg_rating | int %}
-          {% set half  = 1 if (avg_rating - full) >= 0.5 else 0 %}
-          {% set empty = 5 - full - half %}
-          {% for _ in range(full)  %}<i class="fa-solid fa-star rt-star-filled"></i>{% endfor %}
-          {% for _ in range(half)  %}<i class="fa-solid fa-star-half-stroke rt-star-filled"></i>{% endfor %}
-          {% for _ in range(empty) %}<i class="fa-regular fa-star rt-star-empty"></i>{% endfor %}
-        {% else %}
-          {% for _ in range(5) %}<i class="fa-regular fa-star rt-star-empty"></i>{% endfor %}
-        {% endif %}
-      </div>
-      <div class="rt-avg-label">
-        <span id="average-rating-text" class="rt-avg-number">
-          {% if avg_rating %}{{ "%.1f"|format(avg_rating) }}{% else %}&mdash;{% endif %}
-        </span>
-        <span class="rt-avg-text">Average Rating</span>
-      </div>
+      {% if is_metex_guaranteed %}
+        <div class="rt-avg-guaranteed">
+          <span class="metex-guaranteed-badge metex-guaranteed-badge--large">
+            <span class="metex-guaranteed-icon">M</span>
+            <span class="metex-guaranteed-text">Metex Guaranteed</span>
+          </span>
+        </div>
+      {% else %}
+        <div class="rt-avg-stars">
+          {% if avg_rating %}
+            {% set full  = avg_rating | int %}
+            {% set half  = 1 if (avg_rating - full) >= 0.5 else 0 %}
+            {% set empty = 5 - full - half %}
+            {% for _ in range(full)  %}<i class="fa-solid fa-star rt-star-filled"></i>{% endfor %}
+            {% for _ in range(half)  %}<i class="fa-solid fa-star-half-stroke rt-star-filled"></i>{% endfor %}
+            {% for _ in range(empty) %}<i class="fa-regular fa-star rt-star-empty"></i>{% endfor %}
+          {% else %}
+            {% for _ in range(5) %}<i class="fa-regular fa-star rt-star-empty"></i>{% endfor %}
+          {% endif %}
+        </div>
+        <div class="rt-avg-label">
+          <span id="average-rating-text" class="rt-avg-number">
+            {% if avg_rating %}{{ "%.1f"|format(avg_rating) }}{% else %}&mdash;{% endif %}
+          </span>
+          <span class="rt-avg-text">Average Rating</span>
+        </div>
+      {% endif %}
     </div>
   </div>
 

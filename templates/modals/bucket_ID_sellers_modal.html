@@ -25,7 +25,12 @@
                 <div class="seller-card__name">{{ s['username'] }}</div>
 
                 <div class="seller-card__rating" aria-label="Seller rating">
-                  {% if count and avg is not none %}
+                  {% if s.get('is_metex_guaranteed') %}
+                    <span class="metex-guaranteed-badge">
+                      <span class="metex-guaranteed-icon">M</span>
+                      <span class="metex-guaranteed-text">Metex Guaranteed</span>
+                    </span>
+                  {% elif count and avg is not none %}
                     {% set filled = (avg|round(0, 'floor')|int) %}
                     {% set filled = 5 if filled > 5 else (0 if filled < 0 else filled) %}
                     <span class="rating-num">{{ '%.1f'|format(avg) }}</span>

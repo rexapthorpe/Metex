@@ -518,6 +518,7 @@ def account():
                   ) AS already_rated,
                   (SELECT ROUND(AVG(r2.rating), 1) FROM ratings r2 WHERE r2.ratee_id = u.id) AS buyer_avg_rating,
                   (SELECT COUNT(*) FROM ratings r3 WHERE r3.ratee_id = u.id) AS buyer_rating_count,
+                  COALESCE(u.is_metex_guaranteed, 0) AS buyer_is_metex_guaranteed,
                   oil.fee_type AS ledger_fee_type,
                   oil.fee_value AS ledger_fee_value,
                   oil.fee_amount AS ledger_fee_amount,
@@ -794,6 +795,7 @@ def account():
         user_preferences=user_preferences,
         bids=bids,
         avg_rating=(avg_rating['average'] if avg_rating else None),
+        is_metex_guaranteed=bool(user['is_metex_guaranteed']) if user and 'is_metex_guaranteed' in user.keys() else False,
         received_ratings=received_ratings,
         given_ratings=given_ratings,
         pending_ratings=pending_ratings,
@@ -974,14 +976,23 @@ def order_sellers(order_id):
     """, (order_id,)).fetchall()
     conn.close()
 
-    sellers = [{
-        'seller_id':        row['seller_id'],
-        'username':         row['username'],
-        'rating':           row['rating'],
-        'num_reviews':      row['num_reviews'],
-        'quantity':         row['total_quantity'],
-        'transaction_count': row['transaction_count']
-    } for row in rows]
+    conn2 = get_db_connection()
+    sellers = []
+    for row in rows:
+        mg_row = conn2.execute(
+            'SELECT COALESCE(is_metex_guaranteed, 0) AS v FROM users WHERE id = ?',
+            (row['seller_id'],)
+        ).fetchone()
+        sellers.append({
+            'seller_id':           row['seller_id'],
+            'username':            row['username'],
+            'rating':              row['rating'],
+            'num_reviews':         row['num_reviews'],
+            'quantity':            row['total_quantity'],
+            'transaction_count':   row['transaction_count'],
+            'is_metex_guaranteed': bool(mg_row and mg_row['v']),
+        })
+    conn2.close()
 
     return jsonify(sellers)
 
@@ -1196,6 +1207,14 @@ def order_buyer_info(order_id):
     num_reviews = int(rating_row['num_reviews'] or 0)
     is_verified = rating >= 4.7 and num_reviews > 100
 
+    mg_conn = get_db_connection()
+    mg_row = mg_conn.execute(
+        'SELECT COALESCE(is_metex_guaranteed, 0) AS v FROM users WHERE id = ?',
+        (buyer_id,)
+    ).fetchone()
+    is_metex_guaranteed = bool(mg_row and mg_row['v'])
+    mg_conn.close()
+
     return jsonify({
         'buyer_id': buyer_id,
         'username': buyer_row['username'],
@@ -1207,6 +1226,7 @@ def order_buyer_info(order_id):
         'member_since': member_since,
         'quantity': int(qty_row['quantity'] or 0) if qty_row else 0,
         'is_verified': is_verified,
+        'is_metex_guaranteed': is_metex_guaranteed,
     })
 
 

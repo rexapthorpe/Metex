@@ -38,7 +38,7 @@
               <th>User</th>
               <th>Email</th>
               <th>Status</th>
-              <th>Verified</th>
+              <th>Guaranteed</th>
               <th>Transactions</th>
               <th>Joined</th>
               <th>Actions</th>
@@ -60,11 +60,12 @@
               <td>{{ user.email }}</td>
               <td><span class="status-badge status-{{ user.status | lower }}">{{ user.status }}</span></td>
               <td>
-                {% if user.verified %}
-                <i class="fa-solid fa-circle-check verified-check"></i>
-                {% else %}
-                <i class="fa-solid fa-circle-xmark unverified-x"></i>
-                {% endif %}
+                <button
+                  class="mg-toggle {% if user.is_metex_guaranteed %}mg-toggle--on{% else %}mg-toggle--off{% endif %}"
+                  title="{{ 'Remove Metex Guaranteed' if user.is_metex_guaranteed else 'Grant Metex Guaranteed' }}"
+                  onclick="toggleMetexGuaranteed({{ user.id }}, {{ 'true' if user.is_metex_guaranteed else 'false' }})">
+                  <i class="fa-solid fa-shield{% if user.is_metex_guaranteed %}-halved{% endif %}"></i>
+                </button>
               </td>
               <td>{{ user.transactions }}</td>
               <td>{{ user.joined }}</td>
@@ -80,7 +81,7 @@
               <td><div class="user-cell"><div class="user-avatar avatar-gold">G</div><span class="user-name">@goldtrader99</span></div></td>
               <td>gold@example.com</td>
               <td><span class="status-badge status-active">active</span></td>
-              <td><i class="fa-solid fa-circle-check verified-check"></i></td>
+              <td><button class="mg-toggle mg-toggle--off" disabled><i class="fa-solid fa-shield"></i></button></td>
               <td>0</td>
               <td>2 hours ago</td>
               <td class="actions-cell">
@@ -92,7 +93,7 @@
               <td><div class="user-cell"><div class="user-avatar avatar-silver">S</div><span class="user-name">@silverking</span></div></td>
               <td>silver@example.com</td>
               <td><span class="status-badge status-pending">pending</span></td>
-              <td><i class="fa-solid fa-circle-xmark unverified-x"></i></td>
+              <td><button class="mg-toggle mg-toggle--off" disabled><i class="fa-solid fa-shield"></i></button></td>
               <td>0</td>
               <td>4 hours ago</td>
               <td class="actions-cell">
@@ -104,7 +105,7 @@
               <td><div class="user-cell"><div class="user-avatar avatar-purple">P</div><span class="user-name">@platinumpro</span></div></td>
               <td>plat@example.com</td>
               <td><span class="status-badge status-active">active</span></td>
-              <td><i class="fa-solid fa-circle-check verified-check"></i></td>
+              <td><button class="mg-toggle mg-toggle--off" disabled><i class="fa-solid fa-shield"></i></button></td>
               <td>3</td>
               <td>6 hours ago</td>
               <td class="actions-cell">
@@ -116,7 +117,7 @@
               <td><div class="user-cell"><div class="user-avatar avatar-orange">B</div><span class="user-name">@bullionvault</span></div></td>
               <td>vault@example.com</td>
               <td><span class="status-badge status-suspended">suspended</span></td>
-              <td><i class="fa-solid fa-circle-check verified-check"></i></td>
+              <td><button class="mg-toggle mg-toggle--off" disabled><i class="fa-solid fa-shield"></i></button></td>
               <td>156</td>
               <td>8 hours ago</td>
               <td class="actions-cell">
@@ -128,7 +129,7 @@
               <td><div class="user-cell"><div class="user-avatar avatar-teal">C</div><span class="user-name">@coinmaster</span></div></td>
               <td>coin@example.com</td>
               <td><span class="status-badge status-active">active</span></td>
-              <td><i class="fa-solid fa-circle-xmark unverified-x"></i></td>
+              <td><button class="mg-toggle mg-toggle--off" disabled><i class="fa-solid fa-shield"></i></button></td>
               <td>12</td>
               <td>12 hours ago</td>
               <td class="actions-cell">

@@ -168,7 +168,7 @@ def register():
                 return jsonify({'success': False, 'message': 'Username or email already exists.'})
             return "Username or email already exists."
 
-    return render_template('register.html')
+    return render_template('login.html')
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])

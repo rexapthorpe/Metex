@@ -220,6 +220,69 @@ def set_maintenance_mode():
     })
 
 
+@admin_bp.route("/api/system-settings/default-fee", methods=["GET"])
+@admin_required
+def get_default_fee():
+    """Return current global default platform fee from fee_config table."""
+    import database
+    conn = database.get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT fee_type, fee_value FROM fee_config WHERE config_key = 'default_platform_fee' AND active = 1"
+        ).fetchone()
+        if row:
+            return jsonify({"success": True, "fee_type": row["fee_type"], "fee_value": row["fee_value"]})
+        from services.ledger_constants import DEFAULT_PLATFORM_FEE_TYPE, DEFAULT_PLATFORM_FEE_VALUE
+        return jsonify({"success": True, "fee_type": DEFAULT_PLATFORM_FEE_TYPE.value, "fee_value": DEFAULT_PLATFORM_FEE_VALUE})
+    finally:
+        conn.close()
+
+
+@admin_bp.route("/api/system-settings/default-fee", methods=["POST"])
+@admin_required
+def set_default_fee():
+    """Update the global default platform fee in fee_config table."""
+    import database
+
+    data = request.get_json(silent=True) or {}
+    fee_type = data.get("fee_type", "percent")
+    fee_value = data.get("fee_value")
+
+    if fee_type not in ("percent", "flat"):
+        return jsonify({"success": False, "message": "fee_type must be 'percent' or 'flat'"}), 400
+    try:
+        fee_value = float(fee_value)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "fee_value must be a number"}), 400
+    if fee_value < 0 or fee_value > 100:
+        return jsonify({"success": False, "message": "fee_value must be between 0 and 100"}), 400
+
+    conn = database.get_db_connection()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM fee_config WHERE config_key = 'default_platform_fee'"
+        ).fetchone()
+        if existing:
+            conn.execute("""
+                UPDATE fee_config
+                SET fee_type = ?, fee_value = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE config_key = 'default_platform_fee'
+            """, (fee_type, fee_value))
+        else:
+            conn.execute("""
+                INSERT INTO fee_config (config_key, fee_type, fee_value, description, active)
+                VALUES ('default_platform_fee', ?, ?, 'Default platform fee applied to all transactions', 1)
+            """, (fee_type, fee_value))
+        conn.commit()
+        return jsonify({"success": True, "fee_type": fee_type, "fee_value": fee_value,
+                        "message": f"Default platform fee updated to {fee_value}%."})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        conn.close()
+
+
 def _trigger_immediate_snapshot_async():
     """
     Fire-and-forget: run one snapshot in a background thread immediately

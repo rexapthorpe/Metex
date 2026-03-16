@@ -93,11 +93,23 @@ function renderUserDetails(user) {
         <span class="user-info-label">Rating</span>
         <span class="user-info-value">${stats.rating > 0 ? stats.rating + '/5 (' + stats.rating_count + ' reviews)' : 'No ratings'}</span>
       </div>
+      <div class="user-info-row">
+        <span class="user-info-label">Metex Guaranteed</span>
+        <span class="user-info-value">
+          ${user.is_metex_guaranteed
+            ? '<span class="metex-guaranteed-badge"><span class="metex-guaranteed-icon">M</span><span class="metex-guaranteed-text">Metex Guaranteed</span></span>'
+            : '<span style="color:#9ca3af">Not granted</span>'}
+        </span>
+      </div>
     </div>
 
     <div class="modal-actions-full">
       <button class="modal-action-btn btn-message" onclick="messageUser(${user.id}, '${user.username}')">
         <i class="fa-solid fa-message"></i> Message User
+      </button>
+      <button class="modal-action-btn ${user.is_metex_guaranteed ? 'btn-guarantee-active' : 'btn-guarantee'}" onclick="toggleMetexGuaranteed(${user.id}, ${user.is_metex_guaranteed})">
+        <i class="fa-solid fa-shield${user.is_metex_guaranteed ? '-halved' : ''}"></i>
+        ${user.is_metex_guaranteed ? 'Remove Guaranteed' : 'Grant Guaranteed'}
       </button>
       <button class="modal-action-btn btn-freeze ${user.status === 'frozen' ? 'active' : ''}" onclick="freezeUser(${user.id}, ${user.status === 'frozen' ? 1 : 0})">
         <i class="fa-solid fa-snowflake"></i> ${user.status === 'frozen' ? 'Unfreeze Account' : 'Freeze Account'}
@@ -107,6 +119,41 @@ function renderUserDetails(user) {
       </button>
     </div>
   `;
+}
+
+function toggleMetexGuaranteed(userId, currentStatus) {
+  fetch(`/admin/api/user/${userId}/guarantee`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message, 'success');
+        // Update the table row badge
+        const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+        if (row) {
+          const btn = row.querySelector('.mg-toggle');
+          if (btn) {
+            if (data.is_metex_guaranteed) {
+              btn.className = 'mg-toggle mg-toggle--on';
+              btn.title = 'Remove Metex Guaranteed';
+              btn.innerHTML = '<i class="fa-solid fa-shield-halved"></i>';
+              btn.setAttribute('onclick', `toggleMetexGuaranteed(${userId}, true)`);
+            } else {
+              btn.className = 'mg-toggle mg-toggle--off';
+              btn.title = 'Grant Metex Guaranteed';
+              btn.innerHTML = '<i class="fa-solid fa-shield"></i>';
+              btn.setAttribute('onclick', `toggleMetexGuaranteed(${userId}, false)`);
+            }
+          }
+        }
+        // Refresh the detail modal if open
+        if (document.getElementById('userDetailModal').style.display === 'flex') {
+          viewUser(userId);
+        }
+      } else {
+        alert('Error: ' + data.error);
+      }
+    })
+    .catch(() => alert('Failed to update Metex Guaranteed status'));
 }
 
 function messageUser(userId, username) {
