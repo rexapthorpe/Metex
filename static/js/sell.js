@@ -197,6 +197,14 @@ document.addEventListener("DOMContentLoaded", () => {
             setVal('spot_premium', prefill.spot_premium);
             setVal('floor_price', prefill.floor_price);
             setVal('pricing_metal', prefill.pricing_metal);
+            // For set listings: also populate the visible spot-metal selector
+            if (prefill.isolated_type === 'set' && prefill.pricing_metal) {
+                const setMetalSel = document.getElementById('set_spot_metal_select');
+                if (setMetalSel) {
+                    setMetalSel.value = prefill.pricing_metal;
+                    setMetalSel.dispatchEvent(new Event('change'));
+                }
+            }
         } else if (prefill.price_per_coin) {
             setVal('price_per_coin', parseFloat(prefill.price_per_coin).toFixed(2));
         }

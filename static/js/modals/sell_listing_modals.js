@@ -768,19 +768,43 @@ function interceptSellForm() {
       return;
     }
 
+    // STEP 1.5: For set listings — auto-include any in-progress item that has a photo
+    // but wasn't explicitly added via "Add This Item to Set". This prevents silent data
+    // loss when the user fills in item N's fields and submits without clicking the button.
+    if (isSetMode && typeof window.captureSpecValues === 'function' && typeof window.renderSetItems === 'function') {
+      const inProgress = window.captureSpecValues();
+      const hasPhoto = inProgress.photo &&
+        (Array.isArray(inProgress.photo) ? inProgress.photo.length > 0 : true);
+      if (hasPhoto) {
+        console.log('[SELL v7] Auto-including in-progress set item before submit');
+        window.setItems.push(inProgress);
+        window.renderSetItems();
+      }
+    }
+
     // STEP 2: If validation passes, proceed to confirmation
     // Store form reference and data
     pendingListingForm = sellForm;
     pendingFormData = new FormData(sellForm);
 
-    // For set listings: append stored set item photos (File objects stored in memory).
-    // When an item is added to the set, photos are captured into window.setItems[i].photo
-    // and the photo inputs are cleared. FormData(sellForm) won't capture them since
-    // file inputs have no name attribute and are empty by submission time.
+    // For set listings: explicitly serialize item metadata + append photos.
+    // We use a JSON blob (set_items_json) as the authoritative source for item metadata
+    // because dynamically-created hidden inputs may not reliably capture in all browsers.
     const isSetForPhotos = isSetMode || window.currentMode === 'set';
-    if (isSetForPhotos && Array.isArray(window.setItems)) {
+    if (isSetForPhotos && Array.isArray(window.setItems) && window.setItems.length > 0) {
+      // Serialize metadata (exclude File objects; photos sent separately)
+      const itemsMeta = window.setItems.map(function(item) {
+        const meta = {};
+        Object.keys(item).forEach(function(k) {
+          if (k !== 'photo' && k !== 'photoURL') meta[k] = item[k];
+        });
+        return meta;
+      });
+      pendingFormData.set('set_items_json', JSON.stringify(itemsMeta));
+
+      // Append photo files per item
       window.setItems.forEach(function(item, index) {
-        const itemIdx = index + 1; // One-indexed to match set_items[N][...] hidden input keys
+        const itemIdx = index + 1;
         const photos = Array.isArray(item.photo) ? item.photo : (item.photo ? [item.photo] : []);
         photos.forEach(function(photoFile, photoIdx) {
           if (photoFile instanceof File) {

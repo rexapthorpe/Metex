@@ -1,9 +1,11 @@
 # core/blueprints/buy/buy_page.py
 
+from datetime import datetime, timedelta
+
 from flask import render_template, request, session
 from database import get_db_connection
 from services.pricing_service import get_effective_price
-from services.reference_price_service import get_current_spots_from_snapshots
+from services.reference_price_service import get_current_spots_from_snapshots, get_best_ask_at_time
 
 from . import buy_bp
 
@@ -382,33 +384,66 @@ def buy():
     # Hero market preview: first 6 standard buckets that have active listings
     hero_buckets = [b for b in standard_buckets if b.get('lowest_price') is not None][:6]
 
-    # Recent trades ticker: last 12 completed transactions (real DB data)
+    # Ticker: top 10 most popular buckets with current best-ask price and 1D % change
     recent_trades = []
     try:
-        trade_rows = conn.execute('''
+        popular_rows = conn.execute('''
             SELECT
+                c.bucket_id,
                 c.mint, c.product_line, c.coin_series, c.product_type, c.metal,
                 l.name AS listing_title,
-                oi.price_each
+                COUNT(oi.id) AS order_count
             FROM order_items oi
-            JOIN orders o ON oi.order_id = o.id
             JOIN listings l ON oi.listing_id = l.id
             JOIN categories c ON l.category_id = c.id
             WHERE c.bucket_id IS NOT NULL
-            ORDER BY o.id DESC
-            LIMIT 12
+              AND c.bucket_id IN (
+                  SELECT DISTINCT c2.bucket_id
+                  FROM listings l2
+                  JOIN categories c2 ON l2.category_id = c2.id
+                  WHERE l2.active = 1 AND l2.quantity > 0
+              )
+            GROUP BY c.bucket_id
+            ORDER BY order_count DESC
+            LIMIT 10
         ''').fetchall()
-        for row in trade_rows:
+
+        # Build per-bucket listing map so we can recompute best ask at a past time
+        bucket_listings_map = {}
+        for listing in listings_with_prices:
+            bid = listing.get('bucket_id')
+            if bid is not None:
+                bucket_listings_map.setdefault(bid, []).append(listing)
+
+        day_ago_iso = (datetime.now() - timedelta(hours=24)).isoformat()
+
+        for row in popular_rows:
             r = dict(row)
+            bucket_id = r['bucket_id']
+            metal = (r.get('metal') or '').lower()
+            current_price = bucket_data.get(bucket_id, {}).get('lowest_price')
+            if current_price is None:
+                continue
             name = (r.get('listing_title') or
                     '{} {}'.format(
                         r.get('mint') or '',
                         r.get('product_line') or r.get('coin_series') or r.get('product_type') or ''
                     ).strip())
+
+            # Recompute best ask 24h ago using historical spot snapshot
+            past_price = get_best_ask_at_time(
+                conn, bucket_id, bucket_listings_map.get(bucket_id, []), day_ago_iso
+            )
+            if past_price and past_price > 0:
+                change_pct = round((current_price - past_price) / past_price * 100, 2)
+            else:
+                change_pct = None
+
             recent_trades.append({
                 'name': name,
-                'metal': r.get('metal', ''),
-                'price': round(float(r['price_each']), 2)
+                'metal': metal,
+                'price': round(float(current_price), 2),
+                'change_pct': change_pct,
             })
     except Exception:
         recent_trades = []

@@ -53,28 +53,51 @@
     /* Build ticker items */
     var items = trades.map(function (t) {
       var price = parseFloat(t.price);
-      var priceStr = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      var priceStr = '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      var changeHtml = '';
+      if (t.change_pct != null) {
+        var pct = parseFloat(t.change_pct);
+        var sign = pct >= 0 ? '+' : '';
+        var color = pct >= 0 ? '#16a34a' : '#dc2626';
+        changeHtml =
+          '<span style="color:#374151">·</span>' +
+          '<span class="lp-ticker-item-change" style="color:' + color + ';font-weight:600">' +
+            sign + pct.toFixed(2) + '%' +
+          '</span>';
+      }
+
       return (
         '<span class="lp-ticker-item">' +
           '<span class="lp-ticker-item-name">' + escHtml(t.name) + '</span>' +
           '<span style="color:#374151">·</span>' +
-          '<span class="lp-ticker-item-price">$' + priceStr + '</span>' +
+          '<span class="lp-ticker-item-price">' + priceStr + '</span>' +
+          changeHtml +
         '</span>'
       );
     });
 
-    /* Duplicate for seamless infinite scroll */
-    var sep = '<span class="lp-ticker-sep">▸</span>';
-    var full = items.join(sep) + sep + items.join(sep) + sep;
-    trackEl.innerHTML = full;
+    /* Repeat items until one copy is wider than the viewport so the
+       -50% loop never shows empty space or jumps visibly. */
+    var viewW = window.innerWidth || 1200;
+    var estItemW = 220; /* conservative px estimate per item + separator */
+    var reps = Math.max(1, Math.ceil((viewW + 400) / Math.max(1, items.length * estItemW)));
+    var copy = [];
+    for (var i = 0; i < reps; i++) copy = copy.concat(items);
 
-    /* Adjust animation duration based on content length */
-    var baseSpeed = 22; /* pixels per second */
-    var totalWidth = trackEl.scrollWidth / 2; /* half because duplicated */
-    var duration = Math.max(12, totalWidth / baseSpeed);
-    trackEl.style.animationDuration = duration.toFixed(1) + 's';
+    /* Two identical copies — animation scrolls -50% for seamless loop */
+    var sep = '<span class="lp-ticker-sep">▸</span>';
+    var copyHtml = copy.join(sep) + sep;
+    trackEl.innerHTML = copyHtml + copyHtml;
 
     wrapEl.style.display = 'flex';
+
+    /* Measure after browser has laid out the new content, then set speed */
+    requestAnimationFrame(function () {
+      var halfW = trackEl.scrollWidth / 2;
+      var speed = 80; /* px per second */
+      trackEl.style.animationDuration = Math.max(10, halfW / speed).toFixed(1) + 's';
+    });
   }
 
   function escHtml(str) {

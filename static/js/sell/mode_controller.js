@@ -563,9 +563,10 @@
         reader.readAsDataURL(primaryPhoto);
       }
 
-      // Add hidden inputs for backend submission (exclude photo, will handle separately)
+      // Add hidden inputs for backend submission (exclude photo and photoURL — both are
+      // display-only; actual photo files are appended to FormData directly at submit time)
       Object.keys(item).forEach(key => {
-        if (key !== 'photo') {
+        if (key !== 'photo' && key !== 'photoURL') {
           const hiddenInput = document.createElement('input');
           hiddenInput.type = 'hidden';
           hiddenInput.name = `set_items[${index + 1}][${key}]`;

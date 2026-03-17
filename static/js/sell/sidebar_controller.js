@@ -758,15 +758,22 @@
     if (window.currentMode !== 'set') return;
 
     const specs = captureSpecValues();
+    const itemNumber = (window.setItems || []).length + 1; // Item currently being added
 
-    // All set items require: all specs + photo
-    const hasAllSpecs = !!(specs.metal && specs.product_line && specs.product_type &&
-                           specs.weight && specs.purity && specs.mint && specs.year &&
-                           specs.finish && specs.series_variant);
     // Handle both photo arrays (multi-photo) and single photos
     const hasPhoto = Array.isArray(specs.photo) ? specs.photo.length > 0 : !!specs.photo;
 
-    const canAdd = hasAllSpecs && hasPhoto;
+    let canAdd;
+    if (itemNumber <= 2) {
+      // Items 1-2: core spec fields + photo required (series_variant is optional)
+      const hasAllSpecs = !!(specs.metal && specs.product_line && specs.product_type &&
+                             specs.weight && specs.purity && specs.mint && specs.year &&
+                             specs.finish);
+      canAdd = hasAllSpecs && hasPhoto;
+    } else {
+      // Items 3+: only photo required, all spec fields optional
+      canAdd = hasPhoto;
+    }
 
     if (sidebarAddSetItemBtn) {
       sidebarAddSetItemBtn.disabled = !canAdd;
@@ -789,11 +796,14 @@
       const specs = captureSpecValues();
       console.log('[Add Item] Captured specs:', specs);
 
-      // All set items require: all specs + photo
-      if (!specs.metal || !specs.product_line || !specs.product_type || !specs.weight ||
-          !specs.purity || !specs.mint || !specs.year || !specs.finish || !specs.series_variant) {
-        showFieldValidationModal(['All Product Specification fields (including Series Variant) must be filled to add this item to the set.']);
-        return;
+      // Items 1-2 require core spec fields; items 3+ only require a photo
+      const addingItemNumber = (window.setItems || []).length + 1;
+      if (addingItemNumber <= 2) {
+        if (!specs.metal || !specs.product_line || !specs.product_type || !specs.weight ||
+            !specs.purity || !specs.mint || !specs.year || !specs.finish) {
+          showFieldValidationModal(['All Product Specification fields must be filled to add this item to the set.']);
+          return;
+        }
       }
 
       // Handle both photo arrays (multi-photo) and single photos

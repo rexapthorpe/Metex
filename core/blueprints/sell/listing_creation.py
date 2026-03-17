@@ -197,14 +197,30 @@ def handle_sell_post():
         # EXCEPTION: For set listings with 2+ items already in set_items array, main form is optional
         options = get_dropdown_options()
 
-        # Check if this is a set with 2+ items already added
+        # Check if this is a set with 2+ items already added.
+        # Prefer set_items_json (explicit JSON blob from frontend) over individual hidden inputs.
         set_item_indices = set()
+        set_items_json_data = None  # Parsed JSON data if present
         if is_set:
-            # Count items in set_items[N] array
-            for key in request.form.keys():
-                match = re.match(r'set_items\[(\d+)\]\[', key)
-                if match:
-                    set_item_indices.add(int(match.group(1)))
+            import json as _json
+            _set_items_json_str = request.form.get('set_items_json', '').strip()
+            if _set_items_json_str:
+                try:
+                    set_items_json_data = _json.loads(_set_items_json_str)
+                    # Build synthetic indices from JSON data (1-based)
+                    for i in range(len(set_items_json_data)):
+                        set_item_indices.add(i + 1)
+                    print(f"[SET VALIDATION DEBUG] Using set_items_json: {len(set_items_json_data)} items")
+                except Exception as _je:
+                    print(f"[SET VALIDATION DEBUG] set_items_json parse error: {_je}")
+                    set_items_json_data = None
+
+            if not set_items_json_data:
+                # Fallback: count items in set_items[N] individual hidden inputs
+                for key in request.form.keys():
+                    match = re.match(r'set_items\[(\d+)\]\[', key)
+                    if match:
+                        set_item_indices.add(int(match.group(1)))
 
             print(f"[SET VALIDATION DEBUG] is_set={is_set}, set_item_indices={set_item_indices}, count={len(set_item_indices)}")
             print(f"[SET VALIDATION DEBUG] main form metal='{metal}', product_line='{product_line}'")
@@ -453,7 +469,8 @@ def handle_sell_post():
 
         # ========== CREATE SET ITEMS IF THIS IS A SET LISTING ==========
         if is_set:
-            result = _create_set_items(cursor, conn, listing_id, set_item_indices, options)
+            result = _create_set_items(cursor, conn, listing_id, set_item_indices, options,
+                                       set_items_json_data=set_items_json_data)
             if result is not None:
                 return result  # Error response
 
@@ -625,9 +642,13 @@ def _render_sell_template(options, prefill=None):
     )
 
 
-def _create_set_items(cursor, conn, listing_id, set_item_indices, options):
+def _create_set_items(cursor, conn, listing_id, set_item_indices, options,
+                      set_items_json_data=None):
     """
     Create set items for a set listing.
+
+    set_items_json_data: parsed list of item dicts from set_items_json form field (preferred).
+    Falls back to reading individual set_items[N][field] form fields when absent.
 
     Returns None on success, or an error response tuple on failure.
     """
@@ -660,26 +681,35 @@ def _create_set_items(cursor, conn, listing_id, set_item_indices, options):
     # Main form is not used for set listings with 2+ items
     position = 0
 
-    # Additional set items from form (set_items[N][field])
+    # Additional set items from form — prefer JSON blob, fall back to individual hidden inputs
     for idx in sorted(set_item_indices):
-        set_item_title = request.form.get(f'set_items[{idx}][item_title]', '').strip()
-        set_metal = request.form.get(f'set_items[{idx}][metal]', '').strip()
-        set_product_line = request.form.get(f'set_items[{idx}][product_line]', '').strip()
-        set_product_type = request.form.get(f'set_items[{idx}][product_type]', '').strip()
-        set_weight = request.form.get(f'set_items[{idx}][weight]', '').strip()
-        set_purity = request.form.get(f'set_items[{idx}][purity]', '').strip()
-        set_mint = request.form.get(f'set_items[{idx}][mint]', '').strip()
-        set_year = request.form.get(f'set_items[{idx}][year]', '').strip()
-        set_finish = request.form.get(f'set_items[{idx}][finish]', '').strip()
-        set_grade = request.form.get(f'set_items[{idx}][grade]', '').strip()
-        set_coin_series = request.form.get(f'set_items[{idx}][coin_series]', '').strip()
-        raw_set_qty = request.form.get(f'set_items[{idx}][quantity]', '').strip()
+        # When set_items_json_data is available, read fields from it (idx is 1-based)
+        _jitem = set_items_json_data[idx - 1] if set_items_json_data else None
+
+        def _fv(field, default=''):
+            """Read field from JSON item or individual form key."""
+            if _jitem is not None:
+                return str(_jitem.get(field, default) or default).strip()
+            return request.form.get(f'set_items[{idx}][{field}]', default).strip()
+
+        set_item_title = _fv('item_title')
+        set_metal = _fv('metal')
+        set_product_line = _fv('product_line')
+        set_product_type = _fv('product_type')
+        set_weight = _fv('weight')
+        set_purity = _fv('purity')
+        set_mint = _fv('mint')
+        set_year = _fv('year')
+        set_finish = _fv('finish')
+        set_grade = _fv('grade')
+        set_coin_series = _fv('coin_series')
+        raw_set_qty = _fv('quantity')
         set_quantity = int(raw_set_qty) if raw_set_qty else 1
         # Additional item details
-        set_packaging_type = request.form.get(f'set_items[{idx}][packaging_type]', '').strip() or None
-        set_packaging_notes = request.form.get(f'set_items[{idx}][packaging_notes]', '').strip() or None
-        set_condition_notes = request.form.get(f'set_items[{idx}][condition_notes]', '').strip() or None
-        set_edition_number = request.form.get(f'set_items[{idx}][edition_number]', '').strip()
+        set_packaging_type = _fv('packaging_type') or None
+        set_packaging_notes = _fv('packaging_notes') or None
+        set_condition_notes = _fv('condition_notes') or None
+        set_edition_number = _fv('edition_number')
         set_edition_total = request.form.get(f'set_items[{idx}][edition_total]', '').strip()
         set_edition_number = int(set_edition_number) if set_edition_number else None
         set_edition_total = int(set_edition_total) if set_edition_total else None
