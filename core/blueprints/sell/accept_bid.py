@@ -117,10 +117,11 @@ def accept_bid(bucket_id):
         bid_recipient_last = bid['recipient_last_name'] or ''
         c.execute('''
             INSERT INTO orders (buyer_id, total_price, status,
-                                shipping_address, recipient_first_name, recipient_last_name)
-            VALUES (?, ?, 'Pending Shipment', ?, ?, ?)
+                                shipping_address, recipient_first_name, recipient_last_name,
+                                source_bid_id)
+            VALUES (?, ?, 'Pending Shipment', ?, ?, ?, ?)
         ''', (buyer_id, total_price,
-              bid_delivery_address, bid_recipient_first, bid_recipient_last))
+              bid_delivery_address, bid_recipient_first, bid_recipient_last, bid_id))
 
         order_id = c.lastrowid
 

@@ -283,6 +283,71 @@ def set_default_fee():
         conn.close()
 
 
+@admin_bp.route("/api/system-settings/tracking-forfeit", methods=["GET"])
+@admin_required
+def get_tracking_forfeit():
+    """Return current tracking forfeit window decomposed into days/hours/minutes."""
+    from services.system_settings_service import (
+        get_tracking_forfeit_window,
+        TRACKING_FORFEIT_WINDOW_MIN,
+        TRACKING_FORFEIT_WINDOW_MAX,
+        TRACKING_FORFEIT_WINDOW_DEFAULT,
+    )
+    total = get_tracking_forfeit_window()
+    return jsonify({
+        "success": True,
+        "total_seconds": total,
+        "days": total // 86400,
+        "hours": (total % 86400) // 3600,
+        "minutes": (total % 3600) // 60,
+        "min_seconds": TRACKING_FORFEIT_WINDOW_MIN,
+        "max_seconds": TRACKING_FORFEIT_WINDOW_MAX,
+        "default_seconds": TRACKING_FORFEIT_WINDOW_DEFAULT,
+    })
+
+
+@admin_bp.route("/api/system-settings/tracking-forfeit", methods=["POST"])
+@admin_required
+def set_tracking_forfeit():
+    """Update the tracking forfeit window from days/hours/minutes."""
+    from services.system_settings_service import (
+        set_tracking_forfeit_window,
+        TRACKING_FORFEIT_WINDOW_MIN,
+        TRACKING_FORFEIT_WINDOW_MAX,
+    )
+    data = request.get_json(silent=True) or {}
+    try:
+        days    = int(data.get("days", 0))
+        hours   = int(data.get("hours", 0))
+        minutes = int(data.get("minutes", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "message": "days, hours, minutes must be integers"}), 400
+
+    total = days * 86400 + hours * 3600 + minutes * 60
+    saved = set_tracking_forfeit_window(total)
+
+    s_days    = saved // 86400
+    s_hours   = (saved % 86400) // 3600
+    s_minutes = (saved % 3600) // 60
+
+    parts = []
+    if s_days:    parts.append(f"{s_days}d")
+    if s_hours:   parts.append(f"{s_hours}h")
+    if s_minutes: parts.append(f"{s_minutes}m")
+    label = " ".join(parts) if parts else f"{saved}s"
+
+    return jsonify({
+        "success": True,
+        "total_seconds": saved,
+        "days": s_days,
+        "hours": s_hours,
+        "minutes": s_minutes,
+        "min_seconds": TRACKING_FORFEIT_WINDOW_MIN,
+        "max_seconds": TRACKING_FORFEIT_WINDOW_MAX,
+        "message": f"Tracking forfeit window updated to {label}.",
+    })
+
+
 def _trigger_immediate_snapshot_async():
     """
     Fire-and-forget: run one snapshot in a background thread immediately

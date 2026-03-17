@@ -87,6 +87,9 @@ NOTIFICATION_DEFAULTS = {  # type: dict[str, bool]
     'price_alert_triggered':                False,   # future – OFF
     'availability_alert_triggered':         False,   # future – OFF
     'saved_search_match':                   False,   # future – OFF
+    # ── Forfeiture ────────────────────────────────────────────────────────
+    'order_forfeited_buyer':                True,
+    'order_forfeited_seller':               True,
     # ── Legacy type aliases (kept for backward compat) ────────────────────
     'bid_filled':                           True,
     'listing_sold':                         True,

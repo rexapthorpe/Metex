@@ -305,12 +305,15 @@
   <script>
     var _trackingOrderId = null;
 
-    function addTrackingNumber(orderId) {
+    function addTrackingNumber(orderId, existingCarrier, existingNumber) {
       _trackingOrderId = orderId;
       document.getElementById('tracking-order-id-display').textContent = '#ORD-' + String(orderId).padStart(4, '0');
-      document.getElementById('tracking-carrier').value = '';
-      document.getElementById('tracking-number-input').value = '';
+      document.getElementById('tracking-carrier').value = existingCarrier || '';
+      document.getElementById('tracking-number-input').value = existingNumber || '';
       document.getElementById('tracking-modal-error').style.display = 'none';
+      // Update title to reflect add vs update
+      var titleEl = document.querySelector('#trackingModal h2');
+      if (titleEl) titleEl.textContent = (existingCarrier || existingNumber) ? 'Update Tracking Number' : 'Add Tracking Number';
       var modal = document.getElementById('trackingModal');
       modal.style.display = 'flex';
     }

@@ -652,3 +652,37 @@ def notify_report_submitted(reporter_id, reported_username, report_id):
         ),
         metadata={'reported_username': reported_username, 'report_id': report_id},
     )
+
+
+# ---------------------------------------------------------------------------
+# ── Forfeiture ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def notify_order_forfeited_buyer(buyer_id, order_id, item_description):
+    """Notify a buyer that their order was forfeited because the seller didn't upload tracking."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='order_forfeited_buyer',
+        title='Order Forfeited – Refund Issued',
+        body=(
+            f'Order #{order_id} ({item_description}) was forfeited because the seller '
+            f'did not upload tracking information in time. A full refund has been issued.'
+        ),
+        related_order_id=order_id,
+        metadata={'order_id': order_id, 'item_description': item_description},
+    )
+
+
+def notify_order_forfeited_seller(seller_id, order_id, item_description):
+    """Notify a seller that their order was forfeited for not uploading tracking in time."""
+    return notify(
+        user_id=seller_id,
+        notification_type='order_forfeited_seller',
+        title='Order Forfeited',
+        body=(
+            f'Order #{order_id} ({item_description}) has been forfeited because you did not '
+            f'upload tracking information within the required window. The buyer has been refunded.'
+        ),
+        related_order_id=order_id,
+        metadata={'order_id': order_id, 'item_description': item_description},
+    )

@@ -364,6 +364,7 @@ class SchemaManager:
         self.add_column('orders', 'recipient_last_name', 'TEXT')
         self.add_column('orders', 'canceled_at', 'TIMESTAMP')
         self.add_column('orders', 'cancellation_reason', 'TEXT')
+        self.add_column('orders', 'source_bid_id', 'INTEGER')
 
     def create_order_items_table(self):
         """Create the order_items table"""

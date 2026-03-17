@@ -290,6 +290,15 @@ def account():
                 WHERE r.order_id = o.id
                   AND r.rater_id = ?
              ) AS already_rated,
+             (SELECT COUNT(*) FROM ratings r
+                WHERE r.order_id = o.id
+                  AND r.rater_id = ?
+             ) AS rating_count,
+             (SELECT COUNT(DISTINCT l2.seller_id)
+                FROM order_items oi2
+                JOIN listings l2 ON oi2.listing_id = l2.id
+               WHERE oi2.order_id = o.id
+             ) AS rateable_count,
              (SELECT COUNT(*) FROM order_items oi2
                 JOIN portfolio_exclusions pe ON pe.order_item_id = oi2.id
                WHERE oi2.order_id = o.id
@@ -315,7 +324,7 @@ def account():
             AND o.status IN ('Pending','Pending Shipment','Awaiting Shipment','Awaiting Delivery')
           GROUP BY o.id, o.status, o.created_at, o.delivery_address, o.shipping_address
           ORDER BY o.created_at DESC
-        """, (user_id, user_id, user_id, user_id)
+        """, (user_id, user_id, user_id, user_id, user_id)
     ).fetchall()
     raw_completed = conn.execute(
         """SELECT
@@ -349,6 +358,15 @@ def account():
                 WHERE r.order_id = o.id
                   AND r.rater_id = ?
              ) AS already_rated,
+             (SELECT COUNT(*) FROM ratings r
+                WHERE r.order_id = o.id
+                  AND r.rater_id = ?
+             ) AS rating_count,
+             (SELECT COUNT(DISTINCT l2.seller_id)
+                FROM order_items oi2
+                JOIN listings l2 ON oi2.listing_id = l2.id
+               WHERE oi2.order_id = o.id
+             ) AS rateable_count,
              (SELECT COUNT(*) FROM order_items oi2
                 JOIN portfolio_exclusions pe ON pe.order_item_id = oi2.id
                WHERE oi2.order_id = o.id
@@ -366,7 +384,7 @@ def account():
             AND o.status IN ('Delivered','Complete','Refunded','Cancelled','Canceled')
           GROUP BY o.id, o.status, o.created_at, o.delivery_address, o.shipping_address
           ORDER BY o.created_at DESC
-        """, (user_id, user_id, user_id, user_id)
+        """, (user_id, user_id, user_id, user_id, user_id)
     ).fetchall()
 
     # Self-heal: fix orders where cancellation was approved but order status was never updated.
@@ -485,6 +503,13 @@ def account():
             listing_dict['effective_price'] = listing_dict.get('price_per_coin', 0)
         active_listings.append(listing_dict)
 
+    # --- Tracking forfeiture: mark expired orders before rendering ---
+    try:
+        from services.tracking_forfeiture_service import check_and_forfeit_expired_orders
+        check_and_forfeit_expired_orders(conn, seller_id=user_id)
+    except Exception as _fe:
+        print(f"[TRACKING FORFEIT] Error: {_fe}")
+
     sales_raw = conn.execute(
         """SELECT o.id AS order_id,
                   c.metal, c.product_type, c.weight, c.mint, c.year,
@@ -507,6 +532,13 @@ def account():
                   o.recipient_last_name,
                   o.status,
                   o.created_at AS order_date,
+                  o.created_at AS order_created_at,
+                  (SELECT sot2.tracking_number FROM seller_order_tracking sot2
+                     WHERE sot2.order_id = o.id AND sot2.seller_id = l.seller_id
+                     LIMIT 1) AS seller_tracking_number,
+                  (SELECT sot2.carrier FROM seller_order_tracking sot2
+                     WHERE sot2.order_id = o.id AND sot2.seller_id = l.seller_id
+                     LIMIT 1) AS seller_tracking_carrier,
                   oi.third_party_grading_requested,
                   oi.grading_fee_charged,
                   oi.grading_service AS grading_service_requested,
@@ -516,6 +548,11 @@ def account():
                      WHERE r.order_id = o.id
                        AND r.rater_id = ?
                   ) AS already_rated,
+                  (SELECT COUNT(*) FROM ratings r
+                     WHERE r.order_id = o.id
+                       AND r.rater_id = ?
+                  ) AS rating_count,
+                  1 AS rateable_count,
                   (SELECT ROUND(AVG(r2.rating), 1) FROM ratings r2 WHERE r2.ratee_id = u.id) AS buyer_avg_rating,
                   (SELECT COUNT(*) FROM ratings r3 WHERE r3.ratee_id = u.id) AS buyer_rating_count,
                   COALESCE(u.is_metex_guaranteed, 0) AS buyer_is_metex_guaranteed,
@@ -541,7 +578,7 @@ def account():
            LEFT JOIN order_payouts op ON op.order_id = o.id AND op.seller_id = l.seller_id
           WHERE l.seller_id = ?
           ORDER BY o.created_at DESC
-        """, (user_id, user_id)
+        """, (user_id, user_id, user_id)
     ).fetchall()
 
     # ✅ Build shipping name from order-level recipient fields (source of truth)
@@ -627,6 +664,49 @@ def account():
                 sale['order_date'] = dt.strftime('%H:%M, %d, %A, %B, %Y')
             except (ValueError, TypeError):
                 pass
+
+        # --- Tracking forfeiture countdown data ---
+        sale['has_tracking'] = bool(
+            sale.get('seller_tracking_number') and
+            str(sale.get('seller_tracking_number', '')).strip()
+        )
+        try:
+            from services.system_settings_service import get_tracking_forfeit_window
+            _fw = get_tracking_forfeit_window()
+            _created_raw = sale.get('order_created_at') or ''
+            if _created_raw:
+                if 'T' in str(_created_raw):
+                    _created_dt = datetime.fromisoformat(str(_created_raw))
+                else:
+                    _created_dt = datetime.strptime(str(_created_raw), '%Y-%m-%d %H:%M:%S')
+                _elapsed = (datetime.utcnow() - _created_dt).total_seconds()
+                _remaining = _fw - _elapsed
+                _pct = min(100, max(0, (_elapsed / _fw * 100))) if _fw > 0 else 100
+            else:
+                _remaining = 0
+                _pct = 100
+            sale['forfeit_window_seconds'] = _fw
+            sale['seconds_until_forfeit'] = _remaining
+            sale['forfeit_elapsed_pct'] = round(_pct)
+            # Human-readable remaining time label
+            if _remaining <= 0:
+                sale['forfeit_time_label'] = 'Deadline passed'
+            else:
+                _rem_int = int(_remaining)
+                _days_r = _rem_int // 86400
+                _hrs_r  = (_rem_int % 86400) // 3600
+                _mins_r = (_rem_int % 3600) // 60
+                if _days_r:
+                    sale['forfeit_time_label'] = f"{_days_r}d {_hrs_r}h until forfeit"
+                elif _hrs_r:
+                    sale['forfeit_time_label'] = f"{_hrs_r}h {_mins_r}m until forfeit"
+                else:
+                    sale['forfeit_time_label'] = f"{_mins_r}m until forfeit"
+        except Exception:
+            sale['forfeit_window_seconds'] = 0
+            sale['seconds_until_forfeit'] = 9999999
+            sale['forfeit_elapsed_pct'] = 0
+            sale['forfeit_time_label'] = ''
 
         sales.append(sale)
 
@@ -954,6 +1034,10 @@ def order_sellers(order_id):
         SELECT
           u.id                     AS seller_id,
           u.username               AS username,
+          u.first_name             AS first_name,
+          u.last_name              AS last_name,
+          u.created_at             AS created_at,
+          COALESCE(is_metex_guaranteed, 0) AS is_metex_guaranteed,
           COALESCE((SELECT AVG(r.rating)
                     FROM ratings r
                     WHERE r.ratee_id = u.id), 0) AS rating,
@@ -961,6 +1045,7 @@ def order_sellers(order_id):
                     FROM ratings r
                     WHERE r.ratee_id = u.id), 0) AS num_reviews,
           SUM(oi.quantity)         AS total_quantity,
+          AVG(oi.price_each)       AS avg_price,
           COALESCE((SELECT COUNT(DISTINCT o2.id)
                     FROM orders o2
                     JOIN order_items oi2 ON o2.id = oi2.order_id
@@ -971,28 +1056,60 @@ def order_sellers(order_id):
         JOIN listings l      ON oi.listing_id = l.id
         JOIN users u         ON l.seller_id = u.id
         WHERE oi.order_id = ?
-        GROUP BY u.id, u.username
+        GROUP BY u.id, u.username, u.first_name, u.last_name, u.created_at, u.is_metex_guaranteed
         ORDER BY u.username
     """, (order_id,)).fetchall()
     conn.close()
 
-    conn2 = get_db_connection()
+    from datetime import datetime as _dt
     sellers = []
     for row in rows:
-        mg_row = conn2.execute(
-            'SELECT COALESCE(is_metex_guaranteed, 0) AS v FROM users WHERE id = ?',
-            (row['seller_id'],)
-        ).fetchone()
+        display_name = f"{row['first_name'] or ''} {row['last_name'] or ''}".strip() or row['username']
+
+        # Compute account age as human-readable duration
+        member_since = None
+        raw_date = row['created_at']
+        if raw_date:
+            try:
+                dt = _dt.fromisoformat(str(raw_date).replace('Z', ''))
+                if dt.tzinfo is not None:
+                    dt = dt.replace(tzinfo=None)
+                now = _dt.now()
+                total_months = (now.year - dt.year) * 12 + (now.month - dt.month)
+                if now.day < dt.day:
+                    total_months -= 1
+                total_months = max(total_months, 0)
+                yrs, mos = divmod(total_months, 12)
+                if yrs > 0 and mos > 0:
+                    member_since = f"{yrs} year{'s' if yrs != 1 else ''}, {mos} month{'s' if mos != 1 else ''}"
+                elif yrs > 0:
+                    member_since = f"{yrs} year{'s' if yrs != 1 else ''}"
+                elif mos > 0:
+                    member_since = f"{mos} month{'s' if mos != 1 else ''}"
+                else:
+                    member_since = '< 1 month'
+            except (ValueError, TypeError):
+                member_since = None
+
+        rating = float(row['rating'] or 0)
+        num_reviews = int(row['num_reviews'] or 0)
+        total_qty = int(row['total_quantity'] or 0)
+        avg_price = round(float(row['avg_price'] or 0), 2)
+
         sellers.append({
             'seller_id':           row['seller_id'],
             'username':            row['username'],
-            'rating':              row['rating'],
-            'num_reviews':         row['num_reviews'],
-            'quantity':            row['total_quantity'],
-            'transaction_count':   row['transaction_count'],
-            'is_metex_guaranteed': bool(mg_row and mg_row['v']),
+            'display_name':        display_name,
+            'rating':              rating,
+            'num_reviews':         num_reviews,
+            'quantity':            total_qty,
+            'total_qty':           total_qty,
+            'avg_price':           avg_price,
+            'transaction_count':   int(row['transaction_count'] or 0),
+            'is_metex_guaranteed': bool(row['is_metex_guaranteed']),
+            'is_verified':         rating >= 4.7 and num_reviews > 100,
+            'member_since':        member_since,
         })
-    conn2.close()
 
     return jsonify(sellers)
 
@@ -1166,11 +1283,26 @@ def order_buyer_info(order_id):
     member_since = None
     if raw_date:
         try:
-            from datetime import datetime
-            dt = datetime.fromisoformat(str(raw_date).replace('Z', ''))
-            member_since = dt.strftime('%b %Y')
+            from datetime import datetime as _dt2
+            dt = _dt2.fromisoformat(str(raw_date).replace('Z', ''))
+            if dt.tzinfo is not None:
+                dt = dt.replace(tzinfo=None)
+            now = _dt2.now()
+            total_months = (now.year - dt.year) * 12 + (now.month - dt.month)
+            if now.day < dt.day:
+                total_months -= 1
+            total_months = max(total_months, 0)
+            yrs, mos = divmod(total_months, 12)
+            if yrs > 0 and mos > 0:
+                member_since = f"{yrs} year{'s' if yrs != 1 else ''}, {mos} month{'s' if mos != 1 else ''}"
+            elif yrs > 0:
+                member_since = f"{yrs} year{'s' if yrs != 1 else ''}"
+            elif mos > 0:
+                member_since = f"{mos} month{'s' if mos != 1 else ''}"
+            else:
+                member_since = '< 1 month'
         except (ValueError, TypeError):
-            member_since = str(raw_date)[:4]
+            member_since = None
 
     rating_row = conn.execute("""
         SELECT COALESCE(AVG(r.rating), 0) AS rating,

@@ -272,9 +272,9 @@ def auto_match_bid_to_listings(bid_id, cursor):
         # Create order
         cursor.execute('''
             INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at,
-                               recipient_first_name, recipient_last_name)
-            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?)
-        ''', (buyer_id, total_price, delivery_address, recipient_first_name, recipient_last_name))
+                               recipient_first_name, recipient_last_name, source_bid_id)
+            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, ?)
+        ''', (buyer_id, total_price, delivery_address, recipient_first_name, recipient_last_name, bid_id))
 
         order_id = cursor.lastrowid
         orders_created += 1
@@ -495,9 +495,9 @@ def auto_match_listing_to_bids(listing_id, cursor):
         # Create order
         cursor.execute('''
             INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at,
-                               recipient_first_name, recipient_last_name)
-            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?)
-        ''', (buyer_id, total_price, delivery_address, recipient_first_name, recipient_last_name))
+                               recipient_first_name, recipient_last_name, source_bid_id)
+            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, ?)
+        ''', (buyer_id, total_price, delivery_address, recipient_first_name, recipient_last_name, bid_id))
 
         order_id = cursor.lastrowid
         orders_created += 1

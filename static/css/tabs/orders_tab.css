@@ -394,6 +394,62 @@
   border: 1px solid #fecaca;
 }
 
+/* Rating progress button (multi-seller orders) */
+.order-rating-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 600;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+  align-items: stretch;
+}
+.order-rating-progress:hover { background: #fef3c7; }
+.order-rating-progress--complete {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #16a34a;
+}
+.order-rating-progress--complete:hover { background: #dcfce7; }
+.rating-progress-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rating-progress-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.rating-progress-bar-track {
+  width: 100%;
+  height: 5px;
+  background: #fde68a;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.order-rating-progress--complete .rating-progress-bar-track { background: #bbf7d0; }
+.rating-progress-bar-fill {
+  height: 100%;
+  background: #d97706;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+.order-rating-progress--complete .rating-progress-bar-fill { background: #16a34a; }
+.rating-progress-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-align: center;
+}
+
 .order-action-report {
   display: flex;
   align-items: center;

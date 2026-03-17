@@ -111,11 +111,23 @@
               <i class="fa-solid fa-list"></i> Items
             </button>
             {% set order_title = [order.weight or '', order.year or '', order.metal or '', order.product_line or '', order.product_type or ''] | select | join(' ') | trim %}
+            {% set r_count = order.rating_count or 0 %}
+            {% set r_total = order.rateable_count or 1 %}
+            {% set all_rated = r_count >= r_total %}
+            {% set r_pct = ((r_count / r_total * 100) | int) %}
             <button
-              class="order-quick-action{% if order.already_rated %} order-quick-action--rated{% endif %}"
+              class="order-rating-progress{% if all_rated %} order-rating-progress--complete{% endif %}"
               onclick='openRateModal({{ order.id }}, "seller", {{ {"title": order_title, "price": "${:,.0f}".format(order.price_each or 0), "date": order.formatted_order_date or ""} | tojson }})'>
-              <i class="{% if order.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
-              {% if order.already_rated %}Rated{% else %}Rate{% endif %}
+              <div class="rating-progress-top">
+                <i class="{% if all_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
+                {% if all_rated %}Rated{% else %}Rate{% endif %}
+              </div>
+              <div class="rating-progress-bar">
+                <div class="rating-progress-bar-track">
+                  <div class="rating-progress-bar-fill" style="width: {{ r_pct }}%"></div>
+                </div>
+                <div class="rating-progress-label">{{ r_count }} of {{ r_total }} rated</div>
+              </div>
             </button>
             <button
               class="order-quick-action {% if order.excluded_count == 0 %}order-quick-action--muted order-quick-action--disabled{% else %}order-quick-action--restore{% endif %}"

@@ -106,7 +106,8 @@ CREATE TABLE orders (
     status               TEXT,
     created_at           TEXT,
     recipient_first_name TEXT,
-    recipient_last_name  TEXT
+    recipient_last_name  TEXT,
+    source_bid_id        INTEGER
 );
 
 CREATE TABLE order_items (

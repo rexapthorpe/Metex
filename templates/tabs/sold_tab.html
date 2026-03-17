@@ -54,6 +54,7 @@
     <button class="filter-pill" data-filter="pending" onclick="filterSold('pending')">Pending</button>
     <button class="filter-pill" data-filter="shipped" onclick="filterSold('shipped')">Shipped</button>
     <button class="filter-pill" data-filter="completed" onclick="filterSold('completed')">Completed</button>
+    <button class="filter-pill" data-filter="forfeited" onclick="filterSold('forfeited')">Forfeited</button>
   </div>
 
   {% if sales %}
@@ -240,16 +241,76 @@
                 <i class="fa-regular fa-comment"></i> Message
               </button>
               {% endif %}
-              <button class="order-quick-action" onclick="addTrackingNumber({{ sale.order_id }})">
-                <i class="fa-solid fa-{% if sale.status | lower in ['shipped', 'delivered', 'completed'] %}truck{% else %}box{% endif %}"></i>
-                {% if sale.status | lower in ['shipped', 'delivered', 'completed'] %}Update Tracking{% else %}Add Tracking{% endif %}
-              </button>
+              {% set _status_l = sale.status | lower %}
+              {% if _status_l == 'forfeited' %}
+                <button class="order-tracking-forfeit order-tracking-forfeit--done" disabled>
+                  <div class="tracking-forfeit-top">
+                    <i class="fa-solid fa-ban"></i> Order Forfeited
+                  </div>
+                  <div class="tracking-forfeit-bar">
+                    <div class="tracking-forfeit-bar-track">
+                      <div class="tracking-forfeit-bar-fill tracking-forfeit-bar-fill--expired" style="width:100%"></div>
+                    </div>
+                    <div class="tracking-forfeit-label">Tracking deadline passed</div>
+                  </div>
+                </button>
+              {% elif _status_l == 'pending' and not sale.has_tracking %}
+                {# --- Countdown progress bar --- #}
+                {% set _pct = sale.forfeit_elapsed_pct %}
+                {% set _critical = _pct >= 75 %}
+                <button class="order-tracking-forfeit{% if _critical %} order-tracking-forfeit--critical{% endif %}"
+                        onclick="addTrackingNumber({{ sale.order_id }})">
+                  <div class="tracking-forfeit-top">
+                    <i class="fa-solid fa-box"></i> Add Tracking
+                  </div>
+                  <div class="tracking-forfeit-bar">
+                    <div class="tracking-forfeit-bar-track">
+                      <div class="tracking-forfeit-bar-fill" style="width: {{ _pct }}%"></div>
+                    </div>
+                    <div class="tracking-forfeit-label">{{ sale.forfeit_time_label }}</div>
+                  </div>
+                </button>
+              {% elif sale.has_tracking %}
+                {# --- Tracking submitted / validated state (still clickable to update) --- #}
+                {% set _tn = sale.seller_tracking_number or '' %}
+                {% set _carrier = sale.seller_tracking_carrier or '' %}
+                <button class="order-tracking-forfeit order-tracking-forfeit--submitted"
+                        onclick='addTrackingNumber({{ sale.order_id }}, {{ _carrier | tojson }}, {{ _tn | tojson }})'>
+                  <div class="tracking-forfeit-top">
+                    <i class="fa-solid fa-circle-check"></i> Tracking Submitted
+                  </div>
+                  <div class="tracking-forfeit-bar">
+                    <div class="tracking-forfeit-bar-track">
+                      <div class="tracking-forfeit-bar-fill tracking-forfeit-bar-fill--submitted" style="width:100%"></div>
+                    </div>
+                    <div class="tracking-forfeit-label">
+                      {% if _carrier %}{{ _carrier }} · {% endif %}{{ _tn[:24] }}{% if _tn | length > 24 %}…{% endif %} — tap to update
+                    </div>
+                  </div>
+                </button>
+              {% else %}
+                <button class="order-quick-action" onclick="addTrackingNumber({{ sale.order_id }})">
+                  <i class="fa-solid fa-truck"></i> Add Tracking
+                </button>
+              {% endif %}
               {% set sale_title = [sale.weight or '', sale.year or '', sale.metal or '', sale.product_line or '', sale.product_type or ''] | select | join(' ') | trim %}
+              {% set r_count = sale.rating_count or 0 %}
+              {% set r_total = sale.rateable_count or 1 %}
+              {% set all_rated = r_count >= r_total %}
+              {% set r_pct = ((r_count / r_total * 100) | int) %}
               <button
-                class="order-quick-action{% if sale.already_rated %} order-quick-action--rated{% endif %}"
+                class="order-rating-progress{% if all_rated %} order-rating-progress--complete{% endif %}"
                 onclick='openRateModal({{ sale.order_id }}, "buyer", {{ {"title": sale_title, "price": "${:,.0f}".format(sale.gross_amount or 0), "date": sale.order_date or ""} | tojson }})'>
-                <i class="{% if sale.already_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
-                {% if sale.already_rated %}Rated{% else %}Rate{% endif %}
+                <div class="rating-progress-top">
+                  <i class="{% if all_rated %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
+                  {% if all_rated %}Rated{% else %}Rate{% endif %}
+                </div>
+                <div class="rating-progress-bar">
+                  <div class="rating-progress-bar-track">
+                    <div class="rating-progress-bar-fill" style="width: {{ r_pct }}%"></div>
+                  </div>
+                  <div class="rating-progress-label">{{ r_count }} of {{ r_total }} rated</div>
+                </div>
               </button>
               {% set sale_item_title = [sale.weight or '', sale.year or '', sale.metal or '', sale.product_line or '', sale.product_type or ''] | select | join(' ') | trim %}
               <button class="order-quick-action"
@@ -447,6 +508,12 @@ function filterSold(filter) {
       (filter === 'pending' && ['pending','awaiting-confirmation','awaiting confirmation'].includes(f));
     card.style.display = show ? '' : 'none';
   });
+  // Hide forfeited cards from 'pending' filter
+  if (filter === 'pending') {
+    document.querySelectorAll('.sold-card[data-sold-filter="forfeited"]').forEach(card => {
+      card.style.display = 'none';
+    });
+  }
   const emptyEl = document.getElementById('soldFilterEmpty');
   if (emptyEl) {
     if (filter !== 'all') {

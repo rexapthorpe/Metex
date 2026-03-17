@@ -544,11 +544,13 @@ def _register_jinja_filters(app):
             # Convert to float to handle both int and float inputs
             num = float(value)
 
+            # Round to at most 2 decimal places
+            num = round(num, 2)
             # Split into integer and decimal parts
-            if '.' in str(num):
-                int_part, dec_part = str(num).split('.')
+            if num != int(num):
+                int_part, dec_part = f"{num:.2f}".split('.')
                 # Format integer part with commas
-                int_part = '{:,}'.format(int(float(int_part)))
+                int_part = '{:,}'.format(int(int_part))
                 return f"{int_part}.{dec_part}"
             else:
                 # No decimal part, just format the integer

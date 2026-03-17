@@ -18,11 +18,72 @@ function loadBucketStats() {
     });
 }
 
+// ---- Bucket selection state ----
+const _bucketSelected = new Set();
+
+function _syncBucketSelectionUI() {
+  const btn = document.getElementById('bucketDeleteSelectedBtn');
+  const countEl = document.getElementById('bucketSelectedCount');
+  const selectAll = document.getElementById('bucketSelectAll');
+  if (btn) {
+    btn.style.display = _bucketSelected.size > 0 ? '' : 'none';
+  }
+  if (countEl) countEl.textContent = _bucketSelected.size;
+  if (selectAll) {
+    const checkboxes = document.querySelectorAll('.bucket-row-cb');
+    selectAll.checked = checkboxes.length > 0 && [...checkboxes].every(cb => cb.checked);
+    selectAll.indeterminate = _bucketSelected.size > 0 && !selectAll.checked;
+  }
+}
+
+window.toggleBucketRowSelect = function(checkbox, bucketId) {
+  if (checkbox.checked) {
+    _bucketSelected.add(bucketId);
+  } else {
+    _bucketSelected.delete(bucketId);
+  }
+  _syncBucketSelectionUI();
+};
+
+window.toggleSelectAllBuckets = function(checked) {
+  document.querySelectorAll('.bucket-row-cb').forEach(cb => {
+    cb.checked = checked;
+    const bid = parseInt(cb.dataset.bucketId);
+    if (checked) _bucketSelected.add(bid);
+    else _bucketSelected.delete(bid);
+  });
+  _syncBucketSelectionUI();
+};
+
+window.deleteSelectedBuckets = function() {
+  if (_bucketSelected.size === 0) return;
+  const ids = [..._bucketSelected];
+  if (!confirm(`Delete ${ids.length} bucket(s)? This will deactivate their listings and bids. This cannot be undone.`)) return;
+
+  fetch('/admin/api/buckets/bulk-delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bucket_ids: ids })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        _bucketSelected.clear();
+        _syncBucketSelectionUI();
+        loadBuckets();
+        loadBucketStats();
+      } else {
+        alert('Error: ' + (data.error || 'Failed to delete buckets'));
+      }
+    })
+    .catch(() => alert('Network error. Please try again.'));
+};
+
 function loadBuckets() {
   const tbody = document.getElementById('bucketsTableBody');
   tbody.innerHTML = `
     <tr>
-      <td colspan="7" style="text-align: center; color: #6b7280; padding: 40px;">
+      <td colspan="8" style="text-align: center; color: #6b7280; padding: 40px;">
         <i class="fa-solid fa-spinner fa-spin"></i> Loading buckets...
       </td>
     </tr>
@@ -49,7 +110,7 @@ function loadBuckets() {
       } else {
         tbody.innerHTML = `
           <tr>
-            <td colspan="7" style="text-align: center; color: #ef4444; padding: 40px;">
+            <td colspan="8" style="text-align: center; color: #ef4444; padding: 40px;">
               Error loading buckets: ${data.error}
             </td>
           </tr>
@@ -60,7 +121,7 @@ function loadBuckets() {
       console.error('Error loading buckets:', err);
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" style="text-align: center; color: #ef4444; padding: 40px;">
+          <td colspan="8" style="text-align: center; color: #ef4444; padding: 40px;">
             Error loading buckets. Please try again.
           </td>
         </tr>
@@ -74,7 +135,7 @@ function renderBucketsTable(buckets) {
   if (!buckets || buckets.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align: center; color: #6b7280; padding: 40px;">
+        <td colspan="8" style="text-align: center; color: #6b7280; padding: 40px;">
           No buckets found
         </td>
       </tr>
@@ -84,6 +145,12 @@ function renderBucketsTable(buckets) {
 
   tbody.innerHTML = buckets.map(bucket => `
     <tr data-bucket-id="${bucket.bucket_id}">
+      <td style="text-align:center;">
+        <input type="checkbox" class="bucket-row-cb" data-bucket-id="${bucket.bucket_id}"
+          ${_bucketSelected.has(bucket.bucket_id) ? 'checked' : ''}
+          onchange="toggleBucketRowSelect(this, ${bucket.bucket_id})"
+          style="cursor:pointer;">
+      </td>
       <td>
         <a href="/bucket/${bucket.bucket_id}" target="_blank" class="bucket-id-link">#${bucket.bucket_id}</a>
       </td>
@@ -109,6 +176,8 @@ function renderBucketsTable(buckets) {
       </td>
     </tr>
   `).join('');
+
+  _syncBucketSelectionUI();
 }
 
 function updateBucketPagination(pagination) {

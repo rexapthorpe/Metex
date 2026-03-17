@@ -101,6 +101,32 @@ function renderOrderSeller() {
     const titleEl = document.querySelector('#orderSellersModal .osm-title');
     if (titleEl) { titleEl.textContent = ''; titleEl.classList.add('osm-title--hidden'); }
 
+    const unitsListed = s.total_qty != null ? Number(s.total_qty).toLocaleString() : '--';
+    const avgPrice = s.avg_price != null
+      ? '$' + Number(s.avg_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : '--';
+
+    const guaranteedStatsHtml = (_osmIsBucketContext || _osmIsCartContext) ? `
+      <div class="osm-stats-card osm-guaranteed-stats">
+        <div class="osm-stats-bottom">
+          <div class="osm-stat-item">
+            <div class="osm-stat-icon"><i class="fa-solid fa-layer-group"></i></div>
+            <div>
+              <div class="osm-stat-label">${_osmIsBucketContext ? 'Units listed' : 'Units in this order'}</div>
+              <div class="osm-stat-value">${unitsListed}</div>
+            </div>
+          </div>
+          <div class="osm-stat-item">
+            <div class="osm-stat-icon"><i class="fa-solid fa-tag"></i></div>
+            <div>
+              <div class="osm-stat-label">Avg. price</div>
+              <div class="osm-stat-value">${avgPrice}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ` : '';
+
     document.getElementById('orderSellersModalContent').innerHTML = `
       ${navHtml}
       <div class="osm-guaranteed-layout">
@@ -117,6 +143,7 @@ function renderOrderSeller() {
         <div class="osm-guaranteed-heading">Metex Guaranteed</div>
         <div class="osm-guaranteed-sub">This account is officially backed and<br>guaranteed by Metex</div>
       </div>
+      ${guaranteedStatsHtml}
       ${removeHtml}
       ${contactHtml}
     `;
@@ -194,8 +221,22 @@ function renderOrderSeller() {
         <div class="osm-stat-item">
           <div class="osm-stat-icon"><i class="fa-regular fa-calendar"></i></div>
           <div>
-            <div class="osm-stat-label">Member since</div>
+            <div class="osm-stat-label">Member for</div>
             <div class="osm-stat-value">${memberSince}</div>
+          </div>
+        </div>
+        <div class="osm-stat-item">
+          <div class="osm-stat-icon"><i class="fa-solid fa-layer-group"></i></div>
+          <div>
+            <div class="osm-stat-label">Items in order</div>
+            <div class="osm-stat-value">${unitsListed}</div>
+          </div>
+        </div>
+        <div class="osm-stat-item">
+          <div class="osm-stat-icon"><i class="fa-solid fa-tag"></i></div>
+          <div>
+            <div class="osm-stat-label">Avg. price</div>
+            <div class="osm-stat-value">${avgPrice}</div>
           </div>
         </div>
         `}
@@ -354,7 +395,7 @@ function openOrderBuyerPopup(orderId) {
             <div class="osm-stat-item">
               <div class="osm-stat-icon"><i class="fa-regular fa-calendar"></i></div>
               <div>
-                <div class="osm-stat-label">Member since</div>
+                <div class="osm-stat-label">Member for</div>
                 <div class="osm-stat-value">${memberSince}</div>
               </div>
             </div>

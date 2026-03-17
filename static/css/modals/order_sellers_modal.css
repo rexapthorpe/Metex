@@ -455,6 +455,12 @@
   max-width: 260px;
 }
 
+/* Stats block injected below guaranteed layout */
+.osm-guaranteed-stats {
+  margin-top: 12px;
+  width: 100%;
+}
+
 /* Remove seller button (cart context) */
 .osm-remove-seller-btn {
   width: 100%;

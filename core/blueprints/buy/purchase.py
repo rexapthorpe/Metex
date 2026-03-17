@@ -58,7 +58,7 @@ def auto_fill_bucket_purchase(bucket_id):
             ''', (
                 bucket_specs['metal'], bucket_specs['product_type'], bucket_specs['weight'], bucket_specs['purity'],
                 bucket_specs['mint'], bucket_specs['finish'], bucket_specs['grade'], bucket_specs['product_line'],
-                bucket_specs.get('condition_category'), bucket_specs.get('series_variant')
+                bucket_specs['condition_category'], bucket_specs['series_variant']
             )).fetchall()
             bucket_ids = [row['bucket_id'] for row in matching_buckets] if matching_buckets else [bucket_id]
         else:

@@ -696,3 +696,115 @@
   .sold-action-bar-right { flex-direction: column; gap: 6px; width: 100%; }
   .sold-confirm-btn { width: 100%; justify-content: center; }
 }
+
+/* ===================================
+   TRACKING FORFEIT PROGRESS BUTTON
+   =================================== */
+
+.order-tracking-forfeit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  align-items: stretch;
+  text-align: left;
+}
+.order-tracking-forfeit:hover { background: #fef3c7; }
+
+/* Critical: ≥75 % elapsed → red tint */
+.order-tracking-forfeit--critical {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #7c2d12;
+}
+.order-tracking-forfeit--critical:hover { background: #ffedd5; }
+
+/* Fully forfeited (disabled) */
+.order-tracking-forfeit--done {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #991b1b;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+.order-tracking-forfeit--done:hover { background: #fef2f2; }
+
+.tracking-forfeit-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tracking-forfeit-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tracking-forfeit-bar-track {
+  width: 100%;
+  height: 5px;
+  background: #fde68a;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.order-tracking-forfeit--critical .tracking-forfeit-bar-track { background: #fed7aa; }
+.order-tracking-forfeit--done     .tracking-forfeit-bar-track { background: #fecaca; }
+
+.tracking-forfeit-bar-fill {
+  height: 100%;
+  background: #d97706;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+.order-tracking-forfeit--critical .tracking-forfeit-bar-fill { background: #ea580c; }
+.tracking-forfeit-bar-fill--expired                          { background: #dc2626; }
+
+.tracking-forfeit-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: #92400e;
+}
+.order-tracking-forfeit--critical .tracking-forfeit-label { color: #7c2d12; }
+.order-tracking-forfeit--done     .tracking-forfeit-label { color: #991b1b; }
+
+/* Tracking submitted / validated (green) */
+.order-tracking-forfeit--submitted {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #15803d;
+  cursor: pointer;
+}
+.order-tracking-forfeit--submitted:hover { background: #dcfce7; }
+.order-tracking-forfeit--submitted .tracking-forfeit-bar-track { background: #bbf7d0; }
+.tracking-forfeit-bar-fill--submitted { background: #16a34a; }
+.order-tracking-forfeit--submitted .tracking-forfeit-label { color: #15803d; }
+
+/* Forfeited card — same greyed-out treatment as cancel-approved */
+.sold-card--forfeited {
+  border-left-color: #dc2626 !important;
+  opacity: 0.6;
+}
+.sold-card--forfeited .sold-card-header,
+.sold-card--forfeited .sold-card-title-row,
+.sold-card--forfeited .sold-card-body {
+  filter: grayscale(60%);
+}
+
+/* Status badge for forfeited */
+.sold-status-badge--forfeited {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.sold-status-badge--forfeited .sold-status-dot {
+  background: #dc2626;
+}

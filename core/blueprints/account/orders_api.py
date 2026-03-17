@@ -189,14 +189,30 @@ def order_sellers(order_id):
                 display_name = user_info['username']
             seller_data['display_name'] = display_name
 
-            # Member since (formatted as "Mon YYYY")
+            # Member for (account age as human-readable duration)
             raw_date = user_info['created_at']
             if raw_date:
                 try:
                     dt = datetime.fromisoformat(str(raw_date).replace('Z', ''))
-                    seller_data['member_since'] = dt.strftime('%b %Y')
+                    # Strip timezone to ensure naive comparison with datetime.now()
+                    if dt.tzinfo is not None:
+                        dt = dt.replace(tzinfo=None)
+                    now = datetime.now()
+                    total_months = (now.year - dt.year) * 12 + (now.month - dt.month)
+                    if now.day < dt.day:
+                        total_months -= 1
+                    total_months = max(total_months, 0)
+                    yrs, mos = divmod(total_months, 12)
+                    if yrs > 0 and mos > 0:
+                        seller_data['member_since'] = f"{yrs} year{'s' if yrs != 1 else ''}, {mos} month{'s' if mos != 1 else ''}"
+                    elif yrs > 0:
+                        seller_data['member_since'] = f"{yrs} year{'s' if yrs != 1 else ''}"
+                    elif mos > 0:
+                        seller_data['member_since'] = f"{mos} month{'s' if mos != 1 else ''}"
+                    else:
+                        seller_data['member_since'] = '< 1 month'
                 except (ValueError, TypeError):
-                    seller_data['member_since'] = str(raw_date)[:4]
+                    seller_data['member_since'] = None
             else:
                 seller_data['member_since'] = None
 
@@ -546,9 +562,24 @@ def order_buyer_info(order_id):
     if raw_date:
         try:
             dt = datetime.fromisoformat(str(raw_date).replace('Z', ''))
-            member_since = dt.strftime('%b %Y')
+            if dt.tzinfo is not None:
+                dt = dt.replace(tzinfo=None)
+            now = datetime.now()
+            total_months = (now.year - dt.year) * 12 + (now.month - dt.month)
+            if now.day < dt.day:
+                total_months -= 1
+            total_months = max(total_months, 0)
+            yrs, mos = divmod(total_months, 12)
+            if yrs > 0 and mos > 0:
+                member_since = f"{yrs} year{'s' if yrs != 1 else ''}, {mos} month{'s' if mos != 1 else ''}"
+            elif yrs > 0:
+                member_since = f"{yrs} year{'s' if yrs != 1 else ''}"
+            elif mos > 0:
+                member_since = f"{mos} month{'s' if mos != 1 else ''}"
+            else:
+                member_since = '< 1 month'
         except (ValueError, TypeError):
-            member_since = str(raw_date)[:4]
+            member_since = None
     else:
         member_since = None
 

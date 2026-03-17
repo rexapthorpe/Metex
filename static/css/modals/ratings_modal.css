@@ -104,10 +104,9 @@
   justify-content: center;
   z-index: 10;
 }
-.rm-content .nav-arrow.left  { left: -18px; }
-.rm-content .nav-arrow.right { right: -18px; }
+.rm-content .nav-arrow.left  { left: 12px; }
+.rm-content .nav-arrow.right { right: 12px; }
 
-/* On narrow screens the -18px arrows fall outside the viewport — pull them inside */
 @media (max-width: 480px) {
   .rm-content { padding: 20px 20px 18px; }
   .rm-content .nav-arrow.left  { left: 8px; }

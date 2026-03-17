@@ -74,6 +74,9 @@
           </select>
         </div>
         <div class="toolbar-actions">
+          <button class="toolbar-btn toolbar-btn-danger" id="bucketDeleteSelectedBtn" onclick="deleteSelectedBuckets()" style="display:none;">
+            <i class="fa-solid fa-trash"></i> Delete Selected (<span id="bucketSelectedCount">0</span>)
+          </button>
           <button class="toolbar-btn" onclick="loadBuckets()">
             <i class="fa-solid fa-rotate"></i> Refresh
           </button>
@@ -89,6 +92,9 @@
         <table class="data-table" id="bucketsTable">
           <thead>
             <tr>
+              <th style="width:36px;">
+                <input type="checkbox" id="bucketSelectAll" title="Select all" onchange="toggleSelectAllBuckets(this.checked)" style="cursor:pointer;">
+              </th>
               <th>Bucket ID</th>
               <th>Name / Spec</th>
               <th>Metal</th>
@@ -100,7 +106,7 @@
           </thead>
           <tbody id="bucketsTableBody">
             <tr>
-              <td colspan="7" style="text-align: center; color: #6b7280; padding: 40px;">
+              <td colspan="8" style="text-align: center; color: #6b7280; padding: 40px;">
                 <i class="fa-solid fa-spinner fa-spin"></i> Loading buckets...
               </td>
             </tr>

@@ -269,7 +269,7 @@
           <div class="sellers-kicker">See all available sellers</div>
           <button class="btn sellers-btn" type="button" onclick="openBucketSellerPopup({{ bucket['bucket_id'] }})">View All Sellers</button>
           <div class="sellers-foot">
-            <a href="/sell?metal={{ bucket.metal or '' }}&product_line={{ bucket.product_line or '' }}&product_type={{ bucket.product_type or '' }}&weight={{ bucket.weight or '' }}&purity={{ bucket.purity or '' }}&mint={{ bucket.mint or '' }}&year={{ bucket.year or '' }}&finish={{ bucket.finish or '' }}&condition_category={{ bucket.condition_category or '' }}&series_variant={{ bucket.series_variant or '' }}" class="sellers-foot-link">List this item?</a>
+            <a href="{{ url_for('sell.sell', metal=bucket.metal or '', product_line=bucket.product_line or '', product_type=bucket.product_type or '', weight=bucket.weight or '', purity=bucket.purity or '', mint=bucket.mint or '', year=bucket.year or '', finish=bucket.finish or '', condition_category=bucket.condition_category or '', series_variant=bucket.series_variant or '') }}" class="sellers-foot-link">List this item?</a>
           </div>
         {% endif %}
       </div>
@@ -557,6 +557,7 @@
             <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
             <input type="hidden" name="third_party_grading" id="cartTPG" value="0">
             <input type="hidden" name="grading_preference" id="cartGradingPref" value="NONE">
+            <input type="hidden" name="random_year" value="{{ '1' if random_year else '0' }}">
             <button type="submit" class="btn add-cart-btn" onclick="syncQuantityAndTPG('cartQuantityInput', 'cartTPG')">Add to Cart</button>
           </form>
         {% endif %}

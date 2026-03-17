@@ -293,16 +293,35 @@
 
     // Update the triggering Rate button in the DOM immediately
     if (currentOrderId) {
+      const ratedCount = counterparties.filter(p => p.already_rated).length;
+      const totalCount = counterparties.length;
+
       document.querySelectorAll('button[onclick]').forEach(btn => {
         const oc = btn.getAttribute('onclick');
-        if (oc && oc.includes(`openRateModal(${currentOrderId}`)) {
-          btn.classList.add('order-quick-action--rated', 'sold-footer-btn--rated');
-          const icon = btn.querySelector('i');
-          if (icon) icon.className = 'fa-solid fa-star';
-          btn.childNodes.forEach(n => {
-            if (n.nodeType === 3) n.textContent = n.textContent.replace(/\bRate\b/, 'Rated');
+        if (!oc || !oc.includes(`openRateModal(${currentOrderId}`)) return;
+
+        // Progress bar button (single or multi-seller) — update fill, label, and complete state
+        const pct = totalCount > 0 ? Math.round(ratedCount / totalCount * 100) : 0;
+        const allRated = ratedCount >= totalCount;
+
+        const fill = btn.querySelector('.rating-progress-bar-fill');
+        if (fill) fill.style.width = pct + '%';
+
+        const label = btn.querySelector('.rating-progress-label');
+        if (label) label.textContent = ratedCount + ' of ' + totalCount + ' rated';
+
+        const top = btn.querySelector('.rating-progress-top');
+        if (top) {
+          const icon = top.querySelector('i');
+          if (icon) icon.className = allRated ? 'fa-solid fa-star' : 'fa-regular fa-star';
+          top.childNodes.forEach(n => {
+            if (n.nodeType === 3 && n.textContent.trim()) {
+              n.textContent = ' ' + (allRated ? 'Rated' : 'Rate');
+            }
           });
         }
+
+        btn.classList.toggle('order-rating-progress--complete', allRated);
       });
     }
 

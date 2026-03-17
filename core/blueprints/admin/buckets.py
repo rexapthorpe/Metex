@@ -445,6 +445,68 @@ def update_bucket_fee(bucket_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@admin_bp.route('/api/buckets/bulk-delete', methods=['POST'])
+@admin_required
+def bulk_delete_buckets():
+    """
+    Delete (dissolve) multiple buckets by nullifying their bucket_id on categories.
+    Associated listings and bids are deactivated.
+
+    Request body:
+        - bucket_ids: list of bucket IDs to delete
+    """
+    from database import get_db_connection
+
+    data = request.get_json() or {}
+    bucket_ids = data.get('bucket_ids', [])
+
+    if not bucket_ids or not isinstance(bucket_ids, list):
+        return jsonify({'success': False, 'error': 'bucket_ids must be a non-empty list'}), 400
+
+    # Sanitize: ensure all are integers
+    try:
+        bucket_ids = [int(bid) for bid in bucket_ids]
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'All bucket_ids must be integers'}), 400
+
+    conn = get_db_connection()
+    try:
+        placeholders = ','.join('?' * len(bucket_ids))
+
+        # Deactivate listings in these buckets
+        conn.execute(f'''
+            UPDATE listings SET active = 0
+            WHERE category_id IN (
+                SELECT id FROM categories WHERE bucket_id IN ({placeholders})
+            )
+        ''', bucket_ids)
+
+        # Cancel bids in these buckets
+        conn.execute(f'''
+            UPDATE bids SET active = 0, status = 'Cancelled'
+            WHERE category_id IN (
+                SELECT id FROM categories WHERE bucket_id IN ({placeholders})
+            )
+        ''', bucket_ids)
+
+        # Dissolve the bucket grouping
+        conn.execute(f'''
+            UPDATE categories SET bucket_id = NULL
+            WHERE bucket_id IN ({placeholders})
+        ''', bucket_ids)
+
+        conn.commit()
+        return jsonify({'success': True, 'deleted': len(bucket_ids)})
+
+    except Exception as e:
+        print(f"Error bulk-deleting buckets: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
 @admin_bp.route('/buckets/<int:bucket_id>')
 @admin_required
 def bucket_detail_page(bucket_id):

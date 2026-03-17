@@ -150,6 +150,46 @@ def set_checkout_spot_refresh_timeout(seconds) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Tracking forfeiture window
+# ---------------------------------------------------------------------------
+
+TRACKING_FORFEIT_WINDOW_KEY = "tracking_forfeit_window_seconds"
+TRACKING_FORFEIT_WINDOW_DEFAULT = 4 * 24 * 3600   # 4 days = 345 600 s
+TRACKING_FORFEIT_WINDOW_MIN = 60                   # 1 minute (useful for QA)
+TRACKING_FORFEIT_WINDOW_MAX = 30 * 24 * 3600       # 30 days
+
+
+def get_tracking_forfeit_window() -> int:
+    """
+    Return the seller tracking-upload window in seconds.
+    Falls back to TRACKING_FORFEIT_WINDOW_DEFAULT if unset.
+    Always clamped to [MIN, MAX].
+    """
+    raw = get_setting(TRACKING_FORFEIT_WINDOW_KEY)
+    if raw is None:
+        return TRACKING_FORFEIT_WINDOW_DEFAULT
+    try:
+        val = int(raw)
+    except (ValueError, TypeError):
+        return TRACKING_FORFEIT_WINDOW_DEFAULT
+    return max(TRACKING_FORFEIT_WINDOW_MIN, min(TRACKING_FORFEIT_WINDOW_MAX, val))
+
+
+def set_tracking_forfeit_window(seconds: int) -> int:
+    """
+    Set the tracking forfeit window (in seconds), clamped to [MIN, MAX].
+    Returns the saved value.
+    """
+    try:
+        val = int(seconds)
+    except (ValueError, TypeError):
+        val = TRACKING_FORFEIT_WINDOW_DEFAULT
+    clamped = max(TRACKING_FORFEIT_WINDOW_MIN, min(TRACKING_FORFEIT_WINDOW_MAX, val))
+    set_setting(TRACKING_FORFEIT_WINDOW_KEY, str(clamped))
+    return clamped
+
+
+# ---------------------------------------------------------------------------
 # Maintenance mode
 # ---------------------------------------------------------------------------
 
