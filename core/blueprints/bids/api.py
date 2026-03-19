@@ -156,11 +156,10 @@ def get_bidder_info(bid_id):
                 AND m2.sender_id = m1.receiver_id
                 AND m2.timestamp > m1.timestamp
             WHERE m1.receiver_id = ?
-            GROUP BY m1.id
+            GROUP BY m1.id, m1.timestamp
         ''', (buyer_id,)).fetchall()
 
         if response_times:
-            from datetime import datetime
             deltas = []
             for rt in response_times:
                 try:

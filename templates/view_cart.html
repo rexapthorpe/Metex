@@ -68,9 +68,8 @@
                 {% if bucket.listings %}
                   <strong>@{{ bucket.listings[0].seller_username }}</strong>
                   {% if bucket.listings[0].seller_rating %}
-                    <span class="cart-seller-star">★ {{ '%.1f'|format(bucket.listings[0].seller_rating) }}</span>
+                    <span class="cart-seller-star">★ {{ '%.1f'|format(bucket.listings[0].seller_rating) }} ({{ bucket.listings[0].rating_count or 0 }})</span>
                   {% endif %}
-                  <span class="cart-seller-count">⚡ {{ bucket.listings|length }}</span>
                 {% endif %}
               </div>
             </div>

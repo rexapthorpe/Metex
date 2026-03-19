@@ -52,7 +52,7 @@ def check_and_forfeit_expired_orders(conn, seller_id=None):
             FROM orders o
             JOIN order_items oi ON oi.order_id = o.id
             JOIN listings l ON l.id = oi.listing_id
-            WHERE o.status = 'Pending'
+            WHERE o.status IN ('Pending', 'Pending Shipment')
               AND l.seller_id = ?
               AND NOT EXISTS (
                   SELECT 1 FROM seller_order_tracking sot
@@ -69,7 +69,7 @@ def check_and_forfeit_expired_orders(conn, seller_id=None):
             """
             SELECT DISTINCT o.id AS order_id, o.created_at
             FROM orders o
-            WHERE o.status = 'Pending'
+            WHERE o.status IN ('Pending', 'Pending Shipment')
               AND NOT EXISTS (
                   SELECT 1 FROM seller_order_tracking sot
                   WHERE sot.order_id = o.id

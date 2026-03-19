@@ -62,6 +62,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
+                // Check for partial fill (limited stock)
+                if (data.partial_fill === true) {
+                    showPartialFillModal(data.total_filled, data.requested);
+                    return;
+                }
+
                 // Check if user's own listings were skipped
                 if (data.user_listings_skipped === true) {
                     console.log('[AddToCartAJAX] User listings were skipped - showing modal');
@@ -112,6 +118,60 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('[AddToCartAJAX] Initialization complete');
 });
+
+// ===== Partial Fill Modal =====
+
+/**
+ * Show the partial fill modal when fewer items than requested could be added.
+ * @param {number} filled    - Number of items actually added
+ * @param {number} requested - Number of items the user requested
+ */
+function showPartialFillModal(filled, requested) {
+    const modal = document.getElementById('partialFillModal');
+    if (!modal) {
+        alert('Only ' + filled + ' of ' + requested + ' units could be added to your cart due to limited stock.');
+        window.location.href = '/view_cart';
+        return;
+    }
+
+    const msgEl = document.getElementById('pfMessage');
+    if (msgEl) {
+        msgEl.textContent = 'Only ' + filled + ' of the ' + requested + ' requested units could be added to your cart due to limited stock.';
+    }
+
+    modal.style.display = 'flex';
+
+    function closeAndGo() {
+        modal.style.display = 'none';
+        window.location.href = '/view_cart';
+    }
+
+    function closeAndStay() {
+        modal.style.display = 'none';
+    }
+
+    const closeBtn = document.getElementById('pfCloseBtn');
+    if (closeBtn) {
+        const newClose = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newClose, closeBtn);
+        newClose.addEventListener('click', closeAndStay);
+    }
+
+    const stayBtn = document.getElementById('pfStayBtn');
+    if (stayBtn) {
+        const newStay = stayBtn.cloneNode(true);
+        stayBtn.parentNode.replaceChild(newStay, stayBtn);
+        newStay.addEventListener('click', closeAndStay);
+    }
+
+    function closeOnOutside(e) {
+        if (e.target === modal) {
+            closeAndStay();
+            modal.removeEventListener('click', closeOnOutside);
+        }
+    }
+    modal.addEventListener('click', closeOnOutside);
+}
 
 // ===== Max Reached Modal =====
 

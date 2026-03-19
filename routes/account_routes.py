@@ -241,6 +241,7 @@ def account():
             ).fetchall()
             order['sellers'] = [r['username'] for r in seller_rows]
             order['seller_username'] = order['sellers'][0] if order['sellers'] else None
+            order['seller_count'] = len(order['sellers'])
 
             # Set year to "Random" if order has items from multiple years
             if order.get('year_count', 1) > 1:

@@ -1188,6 +1188,46 @@
   });
 </script>
 
+<!-- ============ Partial Fill Modal ============ -->
+<div id="partialFillModal"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9990; align-items:center; justify-content:center;"
+     role="dialog" aria-modal="true" aria-labelledby="pf-title">
+  <div style="background:#fff; border-radius:16px; padding:28px 28px 24px; max-width:420px; width:90%; box-shadow:0 24px 64px rgba(0,0,0,0.18); position:relative;">
+
+    <!-- Close button -->
+    <button type="button" id="pfCloseBtn"
+            aria-label="Close"
+            style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:1.2rem; color:#9ca3af; cursor:pointer; line-height:1; padding:4px 6px;">
+      ×
+    </button>
+
+    <!-- Header -->
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
+      <div style="width:48px; height:48px; background:#fffbeb; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <i class="fa-solid fa-triangle-exclamation" style="font-size:1.3rem; color:#f59e0b;"></i>
+      </div>
+      <h3 id="pf-title" style="margin:0; font-size:1.2rem; font-weight:700; color:#111827;">Limited Stock</h3>
+    </div>
+
+    <!-- Description -->
+    <p id="pfMessage" style="color:#6b7280; font-size:0.88rem; margin:0 0 24px; line-height:1.6;"></p>
+
+    <!-- Actions -->
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <a href="/view_cart" id="pfViewCartBtn"
+         style="display:flex; align-items:center; justify-content:center; gap:8px; padding:13px 16px; background:#1a2744; color:#fff; border:none; border-radius:10px; font-size:0.9rem; font-weight:600; text-align:center; text-decoration:none;">
+        <i class="fa-solid fa-cart-shopping" style="font-size:0.9rem;"></i>
+        View Cart
+      </a>
+      <button type="button" id="pfStayBtn"
+              style="padding:10px 16px; background:none; border:none; color:#9ca3af; font-size:0.9rem; cursor:pointer;">
+        Stay on Page
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <!-- ============ Max Cart Reached Modal ============ -->
 <div id="maxReachedModal"
      style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9990; align-items:center; justify-content:center;"

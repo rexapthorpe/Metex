@@ -259,7 +259,8 @@ def auto_fill_bucket_purchase(bucket_id):
         flash("No listings available to fulfill your request.", "error")
         return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
-    if total_filled < quantity_to_buy:
+    partial_fill = total_filled < quantity_to_buy
+    if partial_fill and not is_ajax:
         flash(f"Only {total_filled} units could be added to your cart due to limited stock.", "warning")
 
     if is_ajax:
@@ -270,6 +271,8 @@ def auto_fill_bucket_purchase(bucket_id):
             'success': True,
             'user_listings_skipped': user_listings_skipped and total_filled > 0,
             'total_filled': total_filled,
+            'partial_fill': partial_fill,
+            'requested': quantity_to_buy,
             'message': f'{total_filled} items added to cart'
         })
     else:

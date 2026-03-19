@@ -254,7 +254,7 @@
                     <div class="tracking-forfeit-label">Tracking deadline passed</div>
                   </div>
                 </button>
-              {% elif _status_l == 'pending' and not sale.has_tracking %}
+              {% elif 'pending' in _status_l and not sale.has_tracking %}
                 {# --- Countdown progress bar --- #}
                 {% set _pct = sale.forfeit_elapsed_pct %}
                 {% set _critical = _pct >= 75 %}

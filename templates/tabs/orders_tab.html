@@ -86,7 +86,11 @@
               </span>
               <span class="order-meta-item">
                 <i class="fa-regular fa-user"></i>
-                @{{ order.seller_username if order.seller_username else '—' }}
+                {% if order.rateable_count and order.rateable_count > 1 %}
+                  Sold by: {{ order.rateable_count }} sellers
+                {% else %}
+                  @{{ order.seller_username if order.seller_username else '—' }}
+                {% endif %}
               </span>
               {% if order.tracking_number %}
               <span class="order-meta-item">

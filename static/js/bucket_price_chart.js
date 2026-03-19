@@ -855,7 +855,7 @@ function _renderTransactions(transactions, container) {
         row.innerHTML =
             '<div class="bucket-tx-row-top">' +
                 '<span class="bucket-tx-date">' + dateStr + ' \u00b7 ' + timeStr + '</span>' +
-                '<span class="bucket-tx-total' + (dir ? ' ' + dir : '') + '">' + totalFmt + '</span>' +
+                '<span class="bucket-tx-total' + (dir ? ' ' + dir : '') + '">' + priceEach + '</span>' +
             '</div>';
 
         container.appendChild(row);
