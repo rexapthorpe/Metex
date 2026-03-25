@@ -13,6 +13,7 @@ Spot pricing at checkout:
 
 import secrets
 
+import stripe
 from flask import render_template, redirect, url_for, request, session, flash, jsonify
 from database import get_db_connection
 from services.order_service import create_order
@@ -21,7 +22,7 @@ from services.notification_service import notify_listing_sold, notify_order_conf
 from services.pricing_service import get_effective_price, create_price_lock
 from services.checkout_spot_service import SpotUnavailableError, SpotExpiredError
 from utils.auth_utils import frozen_check
-from config import GRADING_FEE_PER_UNIT
+from config import GRADING_FEE_PER_UNIT, STRIPE_PUBLISHABLE_KEY
 
 from . import checkout_bp
 
@@ -62,10 +63,7 @@ def _create_ledger_for_order(buyer_id, order_id, cart_data, conn):
         conn: Database connection for fetching seller_ids
     """
     try:
-        from services.ledger_service import LedgerService, init_ledger_tables
-
-        # Ensure ledger tables exist (idempotent)
-        init_ledger_tables()
+        from services.ledger_service import LedgerService
 
         # Build cart_snapshot with seller_ids
         cart_snapshot = []
@@ -382,6 +380,7 @@ def checkout():
                     shipping_address = data.get('shipping_address', 'Default Address')
                     recipient_first = data.get('recipient_first', '')
                     recipient_last = data.get('recipient_last', '')
+                    payment_intent_id = data.get('payment_intent_id', '')
 
                     # ── Idempotency guard: validate one-time checkout nonce ─────
                     # Prevents duplicate orders from double-submit or simultaneous
@@ -578,6 +577,15 @@ def checkout():
                         order_total += item['quantity'] * item['price_each']
 
                     conn.execute('DELETE FROM cart WHERE user_id = ?', (user_id,))
+
+                    # Store the Stripe PaymentIntent ID on the order now so the
+                    # webhook can find the order by PI ID (no separate round-trip needed).
+                    if payment_intent_id:
+                        conn.execute(
+                            'UPDATE orders SET stripe_payment_intent_id = ? WHERE id = ?',
+                            (payment_intent_id, order_id)
+                        )
+
                     conn.commit()
                     conn.close()
 
@@ -965,6 +973,7 @@ def checkout():
             cart_total=cart_total,
             user_info=dict(user_info) if user_info else {},
             checkout_nonce=checkout_nonce,
+            stripe_publishable_key=STRIPE_PUBLISHABLE_KEY or '',
         )
 
 
@@ -1134,4 +1143,199 @@ def order_confirmation(order_id):
         order_id=order_id,
         order_total=order['total_price'],
         item_count=order['total_quantity'] or order['item_count']
+    )
+
+
+@checkout_bp.route('/create-payment-intent', methods=['POST'])
+def create_payment_intent():
+    """
+    Create a Stripe PaymentIntent for the current cart total.
+    Returns the clientSecret so the frontend can mount the Payment Element.
+    """
+    import logging
+    _log = logging.getLogger(__name__)
+
+    # Global checkout safety switch — admin-controlled via system settings.
+    from services.system_settings_service import get_checkout_enabled, get_payments_pause_reason
+    if not get_checkout_enabled():
+        reason = get_payments_pause_reason()
+        msg = reason or "Checkout is temporarily unavailable. Please try again shortly."
+        _log.warning('[PI] blocked — checkout disabled (admin toggle)')
+        return jsonify({'error': msg}), 503
+
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    user_id = session['user_id']
+    conn = get_db_connection()
+
+    # --- DB work: Stripe customer + cart total (same connection) -------------
+    customer_id = None
+    try:
+        # Resolve or create the buyer's Stripe Customer so saved cards work.
+        # Non-fatal: if this fails the PI is still created, just without a customer.
+        try:
+            from core.blueprints.account.payment_methods import _ensure_stripe_customer
+            customer_id = _ensure_stripe_customer(user_id, conn)
+            _log.info('[PI] resolved stripe customer %s for user %s', customer_id, user_id)
+        except Exception:
+            _log.warning('[PI] could not resolve Stripe customer for user %s — saved cards unavailable', user_id)
+
+        session_items = session.get('checkout_items')
+        buy_tpg = bool(session.get('checkout_tpg', 0))
+
+        if session_items:
+            subtotal = sum(i['price_each'] * i['quantity'] for i in session_items)
+            total_items = sum(i['quantity'] for i in session_items)
+            grading_fee = round(GRADING_FEE_PER_UNIT * total_items, 2) if buy_tpg else 0.0
+            _log.info('[PI] cart from session: subtotal=%.2f grading=%.2f', subtotal, grading_fee)
+        else:
+            from services.reference_price_service import get_current_spots_from_snapshots
+            spot_prices = get_current_spots_from_snapshots(conn)
+            summary = build_cart_summary(conn, user_id, spot_prices=spot_prices)
+            subtotal = summary['subtotal']
+            grading_fee = summary['grading_fee']
+            _log.info('[PI] cart from DB: subtotal=%.2f grading=%.2f buckets=%d',
+                      subtotal, grading_fee, len(summary['buckets']))
+    except Exception as e:
+        _log.exception('[PI] failed to compute cart total for user %s', user_id)
+        return jsonify({'error': 'Could not read cart: ' + str(e)}), 500
+    finally:
+        conn.close()  # always close — success and failure alike
+
+    # --- Call Stripe (no DB connection held) ---------------------------------
+    cart_total = round(subtotal + grading_fee, 2)
+    amount_cents = int(cart_total * 100)
+    _log.info('[PI] creating PaymentIntent amount_cents=%d user=%s customer=%s',
+              amount_cents, user_id, customer_id)
+
+    if amount_cents <= 0:
+        _log.warning('[PI] amount_cents=%d — cart may be empty, user=%s', amount_cents, user_id)
+        return jsonify({'error': 'Cart total is zero. Please add items before checking out.'}), 400
+
+    try:
+        pi_kwargs = dict(
+            amount=amount_cents,
+            currency='usd',
+            payment_method_types=['card', 'us_bank_account'],
+            metadata={'user_id': str(user_id)},
+        )
+        if customer_id:
+            pi_kwargs['customer'] = customer_id
+            # Save the card to the customer so it appears in bid payment options
+            pi_kwargs['setup_future_usage'] = 'off_session'
+        payment_intent = stripe.PaymentIntent.create(**pi_kwargs)
+        _log.info('[PI] created pi=%s user=%s customer=%s', payment_intent.id, user_id, customer_id)
+    except stripe.error.StripeError as e:
+        _log.error('[PI] Stripe error for user %s: %s', user_id, e)
+        return jsonify({'error': str(e)}), 500
+
+    return jsonify({
+        'clientSecret': payment_intent.client_secret,
+        'paymentIntentId': payment_intent.id,
+    })
+
+
+@checkout_bp.route('/attach-order-to-payment', methods=['POST'])
+def attach_order_to_payment():
+    """
+    After order creation, stamp the order_id onto the PaymentIntent metadata
+    so /order-success can look up the exact order by PI — not by "latest order".
+    """
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    user_id = session['user_id']
+    body = request.get_json(silent=True) or {}
+    payment_intent_id = body.get('payment_intent_id')
+    order_id = body.get('order_id')
+
+    if not payment_intent_id or not order_id:
+        return jsonify({'error': 'Missing payment_intent_id or order_id'}), 400
+
+    # Verify this order actually belongs to the current user before stamping it.
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT id FROM orders WHERE id = ? AND buyer_id = ?",
+        (order_id, user_id)
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({'error': 'Order not found or access denied'}), 403
+
+    try:
+        stripe.PaymentIntent.modify(
+            payment_intent_id,
+            metadata={'user_id': str(user_id), 'order_id': str(order_id)},
+        )
+    except stripe.error.StripeError as e:
+        return jsonify({'error': str(e)}), 500
+
+    return jsonify({'ok': True})
+
+
+@checkout_bp.route('/order-success')
+def order_success():
+    """
+    Browser landing page after Stripe redirects the buyer back.
+
+    This route is NOT the source of truth for payment finalization —
+    the /stripe/webhook handler owns that responsibility.  This page
+    only reads the current state of the order and renders an appropriate
+    message.  It is safe to reload or revisit.
+    """
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    payment_intent_id = request.args.get('payment_intent')
+
+    if not payment_intent_id:
+        flash('Payment information missing.', 'error')
+        return redirect(url_for('buy.buy'))
+
+    # Look up the order first via DB (PI ID stored during Phase 1 checkout).
+    # This avoids depending on Stripe metadata stamping and is always fast.
+    conn = get_db_connection()
+    order = conn.execute(
+        "SELECT id, total_price, status FROM orders WHERE stripe_payment_intent_id = ? AND buyer_id = ?",
+        (payment_intent_id, user_id)
+    ).fetchone()
+
+    if not order:
+        # Fallback: try metadata route (legacy or orders created before this change).
+        try:
+            pi_meta = stripe.PaymentIntent.retrieve(payment_intent_id)
+            order_id_meta = pi_meta.metadata.get('order_id')
+            if order_id_meta:
+                order = conn.execute(
+                    "SELECT id, total_price, status FROM orders WHERE id = ? AND buyer_id = ?",
+                    (order_id_meta, user_id)
+                ).fetchone()
+        except Exception:
+            pass
+
+    conn.close()
+
+    if not order:
+        flash('Order not found. Please check your orders page.', 'error')
+        return redirect(url_for('account.account'))
+
+    # Check Stripe PI status to show confirmed vs processing state.
+    # Non-fatal: if Stripe is unavailable, fall back to DB order status.
+    pi_succeeded = False
+    try:
+        pi = stripe.PaymentIntent.retrieve(payment_intent_id)
+        pi_succeeded = (pi.status == 'succeeded')
+    except Exception:
+        pass
+
+    # Green checkmark if Stripe confirmed payment OR webhook already marked order paid.
+    payment_received = pi_succeeded or (order['status'] == 'paid')
+
+    return render_template(
+        'order_success.html',
+        order=dict(order),
+        payment_received=payment_received,
     )

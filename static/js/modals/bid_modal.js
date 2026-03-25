@@ -11,6 +11,35 @@
  * @param {number|null} bidId - Bid ID for edit mode, null for create mode
  */
 function openBidModal(bucketId, bidId = null) {
+  // Fast auth check: show login prompt immediately without a network round-trip
+  if (window.isUserLoggedIn === false) {
+    const modal = document.getElementById('bidModal');
+    const content = document.getElementById('bidModalContent');
+    if (modal && content) {
+      content.innerHTML = `
+        <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
+        <div class="bm-auth-prompt">
+          <div class="bm-auth-icon"><i class="fa-solid fa-lock"></i></div>
+          <div class="bm-auth-logo">MetEx</div>
+          <h2 class="bm-auth-title">Sign in to place a bid</h2>
+          <p class="bm-auth-sub">Join thousands of buyers and sellers trading precious metals with confidence.</p>
+          <div class="bm-auth-actions">
+            <button type="button" onclick="window.location.href='/login'" class="bm-auth-btn-primary">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i> Log In
+            </button>
+            <button type="button" onclick="window.location.href='/login?mode=signup'" class="bm-auth-btn-secondary">
+              Create an account
+            </button>
+          </div>
+          <p class="bm-auth-dismiss" onclick="closeBidModal()">Continue browsing</p>
+        </div>
+      `;
+      modal.style.display = 'flex';
+      modal.classList.add('active');
+    }
+    return;
+  }
+
   const modal = document.getElementById('bidModal');
   const content = document.getElementById('bidModalContent');
 
@@ -97,13 +126,22 @@ function openBidModal(bucketId, bidId = null) {
       if (err.message === 'AUTHENTICATION_REQUIRED') {
         content.innerHTML = `
           <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
-          <div class="bid-modal-form">
-            <h2>Authentication Required</h2>
-            <p class="error-msg">You must be logged in to place a bid.</p>
-            <div style="display: flex; gap: 12px; margin-top: 16px;">
-              <button type="button" onclick="window.location.href='/login'" class="eb-confirm">Log In</button>
-              <button type="button" onclick="closeBidModal()" class="btn btn-secondary">Close</button>
+          <div class="bm-auth-prompt">
+            <div class="bm-auth-icon">
+              <i class="fa-solid fa-lock"></i>
             </div>
+            <div class="bm-auth-logo">MetEx</div>
+            <h2 class="bm-auth-title">Sign in to place a bid</h2>
+            <p class="bm-auth-sub">Join thousands of buyers and sellers trading precious metals with confidence.</p>
+            <div class="bm-auth-actions">
+              <button type="button" onclick="window.location.href='/login'" class="bm-auth-btn-primary">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i> Log In
+              </button>
+              <button type="button" onclick="window.location.href='/login?mode=signup'" class="bm-auth-btn-secondary">
+                Create an account
+              </button>
+            </div>
+            <p class="bm-auth-dismiss" onclick="closeBidModal()">Continue browsing</p>
           </div>
         `;
       } else {
@@ -359,15 +397,29 @@ function initBidForm() {
   // Function to update effective bid price display
   function updateEffectiveBidPrice() {
     const premInput = document.getElementById('bid-spot-premium');
-    if (!premInput || !premiumDisplay || !effectiveBidPrice || !currentSpotPriceElem) return;
+    const calcLine = document.getElementById('bid-spot-calc-line');
+    if (!premInput || !currentSpotPriceElem || !calcLine) return;
 
     const premium = Number(premInput.value) || 0;
     const spotPriceText = currentSpotPriceElem.textContent.replace(/[^0-9.]/g, '');
     const spotPrice = Number(spotPriceText) || 0;
-    const effective = spotPrice + premium;
+    const rawEffective = spotPrice + premium;
 
-    premiumDisplay.textContent = formatWithCommas(premium, 2);
-    effectiveBidPrice.textContent = formatWithCommas(effective, 2);
+    const ceilingInput = document.getElementById('bid-ceiling-price');
+    const ceiling = ceilingInput ? Number(ceilingInput.value) : 0;
+    const ceilingActive = ceiling > 0 && rawEffective > ceiling;
+    const effective = ceilingActive ? ceiling : rawEffective;
+
+    if (ceilingActive) {
+      calcLine.innerHTML =
+        'Your bid: <span style="color:#d97706;font-weight:600;" title="Spot + premium ($' + formatWithCommas(rawEffective, 2) + ') exceeds your max — ceiling price applies">' +
+        '<i class="fa-solid fa-circle-exclamation" style="font-size:11px;margin-right:3px;"></i>Capped at max price</span>' +
+        ' = $<span id="effective-bid-price">' + formatWithCommas(effective, 2) + '</span>';
+    } else {
+      calcLine.innerHTML =
+        'Your bid: Spot + $<span id="premium-display">' + formatWithCommas(premium, 2) + '</span>' +
+        ' = $<span id="effective-bid-price">' + formatWithCommas(effective, 2) + '</span>';
+    }
   }
 
   if (pricingModeSelect) {
@@ -522,6 +574,7 @@ function initBidForm() {
       const parts = v.split('.');
       if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
       ceilingPriceInput.value = v;
+      updateEffectiveBidPrice();
     });
     ceilingPriceInput.addEventListener('blur', () => {
       const n = Number(ceilingPriceInput.value);
@@ -530,6 +583,7 @@ function initBidForm() {
       } else {
         ceilingPriceInput.value = (Math.round(n * 100) / 100).toFixed(2);
       }
+      updateEffectiveBidPrice();
       validateAll();
     });
   }
@@ -726,12 +780,55 @@ window.submitBidForm = function() {
               input.insertAdjacentElement('afterend', err);
             }
           });
+          closeBidConfirmModal();
+        } else if (data.strike_blocked) {
+          // Account restricted — replace bid modal content with a clear message
+          closeBidConfirmModal();
+          const content = document.getElementById('bidModalContent');
+          if (content) {
+            content.innerHTML = `
+              <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
+              <div class="bm-auth-prompt">
+                <div class="bm-auth-icon" style="background: rgba(239,68,68,0.1);">
+                  <i class="fa-solid fa-ban" style="color: #ef4444;"></i>
+                </div>
+                <div class="bm-auth-logo">MetEx</div>
+                <h2 class="bm-auth-title" style="color: #ef4444;">Bid Placement Restricted</h2>
+                <p class="bm-auth-sub">Your account has been restricted from placing bids due to multiple payment failures. Please contact support to restore access.</p>
+                <div class="bm-auth-actions">
+                  <button type="button" onclick="closeBidModal()" class="bm-auth-btn-primary">Close</button>
+                </div>
+              </div>
+            `;
+          }
+        } else if (data.requires_saved_card) {
+          // No saved card — prompt buyer to add one
+          closeBidConfirmModal();
+          const content = document.getElementById('bidModalContent');
+          if (content) {
+            content.innerHTML = `
+              <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
+              <div class="bm-auth-prompt">
+                <div class="bm-auth-icon" style="background: rgba(59,130,246,0.1);">
+                  <i class="fa-solid fa-credit-card" style="color: #3b82f6;"></i>
+                </div>
+                <div class="bm-auth-logo">MetEx</div>
+                <h2 class="bm-auth-title">Payment Method Required</h2>
+                <p class="bm-auth-sub">A saved payment card is required to place a bid. Your card is only charged if a seller accepts your bid — there's no charge now.</p>
+                <div class="bm-auth-actions">
+                  <button type="button" onclick="window.location.href='/account'" class="bm-auth-btn-primary">
+                    <i class="fa-solid fa-plus"></i> Add a Card
+                  </button>
+                  <button type="button" onclick="closeBidModal()" class="bm-auth-btn-secondary">Cancel</button>
+                </div>
+              </div>
+            `;
+          }
         } else {
           alert(data.message || 'Something went wrong.');
+          closeBidConfirmModal();
         }
 
-        // Close confirmation modal but keep bid modal open
-        closeBidConfirmModal();
         return;
       }
 

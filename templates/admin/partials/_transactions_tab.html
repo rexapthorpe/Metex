@@ -28,9 +28,9 @@
         </div>
         <div class="stat-card stat-card-colored stat-card-dark">
           <div class="stat-card-header">
-            <span class="stat-label">Processing</span>
+            <span class="stat-label">Awaiting Fulfillment</span>
             <div class="stat-icon-inline">
-              <i class="fa-solid fa-spinner"></i>
+              <i class="fa-solid fa-box"></i>
             </div>
           </div>
           <div class="stat-value">{{ transaction_stats.processing | default('0') }}</div>
@@ -47,10 +47,13 @@
             <tr>
               <th>ID</th>
               <th>Buyer</th>
-              <th>Seller</th>
               <th>Items</th>
               <th>Amount</th>
-              <th>Status</th>
+              <th>Order State</th>
+              <th>Payment</th>
+              <th>Clearance</th>
+              <th>Payout</th>
+              <th>Paid At</th>
               <th>Date</th>
               <th>Actions</th>
             </tr>
@@ -58,23 +61,174 @@
           <tbody>
             {% for tx in transactions %}
             <tr>
-              <td>{{ tx.id }}</td>
+              <td style="font-weight:600;">#{{ tx.id }}</td>
               <td>@{{ tx.buyer }}</td>
-              <td>@{{ tx.seller }}</td>
-              <td>{{ tx.items }}</td>
-              <td>{{ tx.amount }}</td>
-              <td><span class="status-badge status-{{ tx.status | lower }}">{{ tx.status }}</span></td>
-              <td>{{ tx.date }}</td>
-              <td class="actions-cell">
-                <button class="action-icon" title="View Order" onclick="viewOrder({{ tx.id }})"><i class="fa-solid fa-eye"></i></button>
+
+              {# --- Items: use item_count (renamed from 'items' to avoid Jinja dict.items() collision) --- #}
+              <td style="font-size:12px;color:#6b7280;">
+                {{ tx.item_count }} item{{ 's' if tx.item_count != 1 else '' }}
+              </td>
+
+              <td style="font-family:monospace;font-weight:600;">{{ tx.amount }}</td>
+
+              {# --- Order State: derived from payment_status + order_status + payout_status --- #}
+              <td>
+                <span class="order-state-badge {{ tx.order_state_css }}">{{ tx.order_state_lbl }}</span>
+                {% if tx.block_reason %}
+                <div style="font-size:10px;color:#ef4444;margin-top:3px;" title="{{ tx.block_reason }}">
+                  <i class="fa-solid fa-lock" style="margin-right:2px;"></i>{{ tx.block_reason }}
+                </div>
+                {% endif %}
+              </td>
+
+              {# --- Payment Health: status + method combined --- #}
+              <td>
+                {% if tx.payment_status == 'paid' %}
+                  <span class="status-badge status-completed" style="font-size:10px;">paid</span>
+                {% else %}
+                  <span class="status-badge status-processing" style="font-size:10px;">{{ tx.payment_status }}</span>
+                {% endif %}
+                <div style="margin-top:3px;">
+                  {% if tx.payment_method_type == 'card' %}
+                    <span style="font-size:11px;color:#6b7280;"><i class="fa-solid fa-credit-card"></i> Card</span>
+                  {% elif tx.payment_method_type == 'us_bank_account' %}
+                    <span style="font-size:11px;color:#d97706;"><i class="fa-solid fa-building-columns"></i> ACH</span>
+                  {% elif tx.payment_method_type %}
+                    <span style="font-size:11px;color:#6b7280;">{{ tx.payment_method_type }}</span>
+                  {% else %}
+                    <span style="font-size:11px;color:#d1d5db;">—</span>
+                  {% endif %}
+                </div>
+              </td>
+
+              {# --- ACH Clearance --- #}
+              <td>
+                {% if tx.payment_cleared_at %}
+                  <span style="color:#16a34a;" title="ACH cleared at {{ tx.payment_cleared_at[:16] }}">
+                    <i class="fa-solid fa-circle-check"></i> Cleared
+                    <span style="font-size:10px; display:block; color:#6b7280;">{{ tx.payment_cleared_at[:16] }}</span>
+                  </span>
+                {% elif tx.requires_payment_clearance %}
+                  <button
+                    onclick="adminMarkAchCleared({{ tx.id }}, this)"
+                    style="background:#d97706; color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; white-space:nowrap;">
+                    <i class="fa-solid fa-clock"></i> Mark Cleared
+                  </button>
+                {% else %}
+                  {% if tx.payment_method_type == 'card' %}
+                    <span style="color:#9ca3af;font-size:12px;" title="Card payment — ACH clearance not applicable">N/A</span>
+                  {% else %}
+                    <span style="color:#9ca3af;font-size:12px;">—</span>
+                  {% endif %}
+                {% endif %}
+              </td>
+
+              {# --- Payout Status --- #}
+              <td>
+                {% set ps = tx.payout_status | upper %}
+                {% if ps == 'PAID_OUT' %}
+                  <span style="color:#10b981;font-weight:600;font-size:11px;">✓ Paid Out</span>
+                {% elif ps == 'PAYOUT_READY' %}
+                  <span style="color:#059669;font-weight:600;font-size:11px;"><i class="fa-solid fa-circle-check"></i> Ready</span>
+                {% elif ps == 'PAYOUT_ON_HOLD' %}
+                  <span style="color:#d97706;font-size:11px;">On Hold</span>
+                {% elif ps == 'PAYOUT_NOT_READY' %}
+                  <span style="color:#6b7280;font-size:11px;">Not ready</span>
+                {% elif ps == 'PAYOUT_CANCELLED' %}
+                  <span style="color:#9ca3af;font-size:11px;">Cancelled</span>
+                {% else %}
+                  <span style="font-size:11px;color:#6b7280;">{{ tx.payout_status | replace('_', ' ') }}</span>
+                {% endif %}
+              </td>
+
+              <td style="font-size:12px; color:#6b7280;">{{ tx.paid_at[:16] if tx.paid_at else '—' }}</td>
+              <td style="font-size:12px; color:#6b7280;">{{ tx.date }}</td>
+
+              {# --- Actions --- #}
+              <td style="white-space:nowrap;">
+                <a href="/admin/ledger/order/{{ tx.id }}" class="btn-action-sm" title="View ledger detail">
+                  <i class="fa-solid fa-book"></i> View
+                </a>
+                {% if tx.payout_status | upper == 'PAYOUT_READY' %}
+                <a href="/admin/ledger/order/{{ tx.id }}" class="btn-action-sm btn-action-green" title="View payout details" style="margin-top:4px;">
+                  <i class="fa-solid fa-circle-dollar-to-slot"></i> View Payout
+                </a>
+                {% elif tx.payment_status == 'paid' and tx.payout_status | upper not in ('PAID_OUT', 'PAYOUT_CANCELLED', 'PAYOUT_ON_HOLD') %}
+                <button
+                  class="btn-action-sm btn-action-nudge"
+                  onclick="adminNudgeSeller({{ tx.id }}, this)"
+                  title="Send tracking reminder to seller"
+                  style="margin-top:4px;">
+                  <i class="fa-solid fa-bell"></i> Nudge
+                </button>
+                {% endif %}
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="8" style="text-align: center; color: #6b7280; padding: 40px;">No transactions found</td>
+              <td colspan="11" style="text-align: center; color: #6b7280; padding: 40px;">No transactions found</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+
+<script>
+function adminMarkAchCleared(orderId, btn) {
+  if (!confirm('Mark ACH payment for order #' + orderId + ' as cleared? This will allow seller payouts to proceed.')) return;
+  btn.disabled = true;
+  btn.textContent = 'Clearing…';
+  fetch('/admin/api/orders/' + orderId + '/mark-ach-cleared', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    credentials: 'same-origin',
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const cell = btn.parentElement;
+      const ts = data.cleared_at ? data.cleared_at.slice(0, 16) : '';
+      cell.innerHTML = '<span style="color:#16a34a;" title="ACH cleared at ' + ts + '">'
+        + '<i class="fa-solid fa-circle-check"></i> Cleared'
+        + '<span style="font-size:10px; display:block; color:#6b7280;">' + ts + '</span>'
+        + '</span>';
+    } else {
+      alert('Failed: ' + (data.error || 'Unknown error'));
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-clock"></i> Mark Cleared';
+    }
+  })
+  .catch(() => {
+    alert('Network error — please try again.');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-clock"></i> Mark Cleared';
+  });
+}
+
+function adminNudgeSeller(orderId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  fetch('/admin/api/orders/' + orderId + '/nudge-seller', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    credentials: 'same-origin',
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent (' + data.notified_count + ')';
+      btn.style.background = '#10b981';
+    } else {
+      alert('Failed: ' + (data.error || 'Unknown error'));
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-bell"></i> Nudge';
+    }
+  })
+  .catch(() => {
+    alert('Network error — please try again.');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-bell"></i> Nudge';
+  });
+}
+</script>

@@ -41,10 +41,50 @@ function showDetailsSection(sectionName) {
       window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }, 50);
   }
+
+  // Notify section-specific JS (e.g. payment methods reload)
+  document.dispatchEvent(new CustomEvent('detailsSectionShown', { detail: sectionName }));
 }
 
 // Make it globally accessible
 window.showDetailsSection = showDetailsSection;
+
+// Relist a failed bid (same specs, new bid on the same bucket)
+function relistBid(bidId) {
+  const btn = document.querySelector('.relist-bid-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Relisting…';
+  }
+  fetch('/bids/relist/' + bidId, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': (document.querySelector('meta[name=csrf-token]') || {}).content || ''
+    }
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        // Redirect to bids tab so the user sees the new Open bid
+        window.location.href = '/account#bids';
+      } else {
+        alert('Could not relist bid: ' + (data.error || data.message || 'Unknown error'));
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Relist Bid';
+        }
+      }
+    })
+    .catch(() => {
+      alert('Failed to relist bid. Please try again.');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Relist Bid';
+      }
+    });
+}
+window.relistBid = relistBid;
 
 // Form wiring
 document.addEventListener('DOMContentLoaded', () => {

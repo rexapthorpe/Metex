@@ -45,6 +45,9 @@ def test_db(tmp_path):
             total_price REAL,
             status TEXT DEFAULT 'Pending',
             shipping_address TEXT,
+            payment_method_type TEXT,
+            payment_status TEXT DEFAULT 'unpaid',
+            requires_payment_clearance INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 

@@ -50,3 +50,6 @@
 
 /* Metrics modal */
 @import 'dashboard/_metrics_modal.css';
+
+/* System tab layout */
+@import 'dashboard/_system_tab.css';

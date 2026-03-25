@@ -11,30 +11,25 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   z-index: 99999;
   justify-content: center;
   align-items: center;
-  opacity: 0;
-  transition: opacity 0.2s ease;
 }
 
-.system-alert-overlay.show {
-  display: flex;
-  opacity: 1;
-}
+/* display is controlled by JS to allow transition */
 
 /* Modal Container */
 .system-alert-modal {
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 20px;
   width: 90%;
-  max-width: 420px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  max-width: 400px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18), 0 4px 16px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  transform: translateY(100%);
+  transform: translateY(150vh);
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -45,16 +40,17 @@
 /* Modal Header */
 .system-alert-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 32px 28px 20px;
+  text-align: center;
 }
 
 .system-alert-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -62,7 +58,7 @@
 }
 
 .system-alert-icon i {
-  font-size: 20px;
+  font-size: 24px;
 }
 
 /* Icon variants */
@@ -72,7 +68,7 @@
 }
 
 .system-alert-icon.warning {
-  background: #fef3c7;
+  background: #fffbeb;
   color: #f59e0b;
 }
 
@@ -92,22 +88,23 @@
 }
 
 .system-alert-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: #111827;
   margin: 0;
-  flex: 1;
+  letter-spacing: -0.01em;
 }
 
 /* Modal Body */
 .system-alert-body {
-  padding: 20px 24px;
+  padding: 0 28px 24px;
+  text-align: center;
 }
 
 .system-alert-message {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.6;
-  color: #4b5563;
+  color: #6b7280;
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -118,10 +115,10 @@
   width: 100%;
   padding: 12px 16px;
   margin-top: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #e5e7eb;
   border-radius: 10px;
   font-size: 15px;
-  color: #1a1a2e;
+  color: #111827;
   background: #f9fafb;
   transition: all 0.2s ease;
   box-sizing: border-box;
@@ -141,9 +138,9 @@
 /* Modal Footer */
 .system-alert-footer {
   display: flex;
-  gap: 12px;
-  padding: 16px 24px 20px;
-  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 28px 28px;
+  justify-content: center;
 }
 
 /* Single button layout (alert) */
@@ -153,41 +150,45 @@
 
 /* Buttons */
 .system-alert-btn {
-  padding: 12px 24px;
+  padding: 11px 28px;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   border: none;
-  min-width: 100px;
+  min-width: 90px;
+  letter-spacing: 0.01em;
 }
 
 .system-alert-btn-primary {
-  background: #3b82f6;
+  background: #111827;
   color: #ffffff;
 }
 
 .system-alert-btn-primary:hover {
-  background: #2563eb;
+  background: #1f2937;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .system-alert-btn-primary:active {
-  transform: scale(0.98);
+  transform: scale(0.97) translateY(0);
+  box-shadow: none;
 }
 
 .system-alert-btn-secondary {
   background: #f3f4f6;
   color: #374151;
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #e5e7eb;
 }
 
 .system-alert-btn-secondary:hover {
-  background: #e5e7eb;
+  background: #e9eaec;
 }
 
 .system-alert-btn-secondary:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 /* Danger variant for destructive confirms */
@@ -198,29 +199,31 @@
 
 .system-alert-btn-danger:hover {
   background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
 }
 
 /* Responsive */
 @media (max-width: 480px) {
   .system-alert-modal {
-    width: 95%;
-    margin: 16px;
+    width: 92%;
   }
 
   .system-alert-header {
-    padding: 16px 20px 12px;
+    padding: 28px 22px 16px;
   }
 
   .system-alert-body {
-    padding: 16px 20px;
+    padding: 0 22px 20px;
   }
 
   .system-alert-footer {
-    padding: 12px 20px 16px;
-    flex-direction: column-reverse;
+    padding: 0 22px 24px;
+    flex-direction: column;
   }
 
   .system-alert-btn {
     width: 100%;
+    text-align: center;
   }
 }

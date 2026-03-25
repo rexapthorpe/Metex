@@ -962,6 +962,7 @@
   window.allBids       = {{ (bids or []) | tojson }};
   window.lowestPrice   = {{ availability.lowest_price if availability and availability.lowest_price else 0 }};
   window.bucketIsIsolated = {{ 'true' if is_isolated else 'false' }};
+  window.isUserLoggedIn   = {{ 'true' if session.get('user_id') else 'false' }};
   window.bucketPackagingType  = {{ (listing_packaging_type or '') | tojson }};
   window.bucketPackagingNotes = {{ (listing_packaging_notes or '') | tojson }};
   window.bucketConditionNotes = {{ (listing_condition_notes or '') | tojson }};

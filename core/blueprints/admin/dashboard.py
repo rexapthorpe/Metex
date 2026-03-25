@@ -203,22 +203,43 @@ def dashboard():
             })
 
         # ========== ALL USERS (for Users tab) ==========
-        all_users_query = conn.execute('''
-            SELECT
-                u.id,
-                u.username,
-                u.email,
-                u.created_at,
-                u.is_admin,
-                u.is_banned,
-                u.is_frozen,
-                COALESCE(u.is_metex_guaranteed, 0) as is_metex_guaranteed,
-                COUNT(DISTINCT o.id) as transaction_count
-            FROM users u
-            LEFT JOIN orders o ON u.id = o.buyer_id
-            GROUP BY u.id
-            ORDER BY u.created_at DESC
-        ''').fetchall()
+        try:
+            all_users_query = conn.execute('''
+                SELECT
+                    u.id,
+                    u.username,
+                    u.email,
+                    u.created_at,
+                    u.is_admin,
+                    u.is_banned,
+                    u.is_frozen,
+                    COALESCE(u.is_metex_guaranteed, 0) as is_metex_guaranteed,
+                    COALESCE(u.bid_payment_strikes, 0) as bid_payment_strikes,
+                    COUNT(DISTINCT o.id) as transaction_count
+                FROM users u
+                LEFT JOIN orders o ON u.id = o.buyer_id
+                GROUP BY u.id
+                ORDER BY u.created_at DESC
+            ''').fetchall()
+        except Exception:
+            # bid_payment_strikes column not yet migrated — fall back without it
+            all_users_query = conn.execute('''
+                SELECT
+                    u.id,
+                    u.username,
+                    u.email,
+                    u.created_at,
+                    u.is_admin,
+                    u.is_banned,
+                    u.is_frozen,
+                    COALESCE(u.is_metex_guaranteed, 0) as is_metex_guaranteed,
+                    0 as bid_payment_strikes,
+                    COUNT(DISTINCT o.id) as transaction_count
+                FROM users u
+                LEFT JOIN orders o ON u.id = o.buyer_id
+                GROUP BY u.id
+                ORDER BY u.created_at DESC
+            ''').fetchall()
 
         for user in all_users_query:
             created = user['created_at'] or ''
@@ -241,6 +262,7 @@ def dashboard():
                 'is_banned': user['is_banned'] or 0,
                 'is_frozen': user['is_frozen'] or 0,
                 'is_metex_guaranteed': bool(user['is_metex_guaranteed']),
+                'bid_payment_strikes': user['bid_payment_strikes'] or 0,
                 'transactions': user['transaction_count'] or 0,
                 'joined': joined
             })
@@ -414,33 +436,62 @@ def dashboard():
         # ========== ALL TRANSACTIONS (for Transactions tab) ==========
         # LEFT JOINs on listings/seller so orders survive even if a listing
         # or seller account is later deleted.
+        # orders.payout_status is never updated (legacy default); the real status
+        # lives in order_payouts.  Aggregate per-order via a subquery.
         all_tx_query = conn.execute('''
             SELECT
                 o.id,
                 o.buyer_id,
                 o.total_price,
                 o.status,
+                o.payment_status,
+                o.payment_method_type,
+                o.paid_at,
+                o.requires_payment_clearance,
+                o.payment_cleared_at,
+                o.stripe_payment_intent_id,
                 o.created_at,
                 buyer.username as buyer_username,
                 seller.username as seller_username,
-                COUNT(oi.id) as item_count
+                COUNT(oi.id) as item_count,
+                op.agg_status as op_payout_status
             FROM orders o
             JOIN users buyer ON o.buyer_id = buyer.id
             LEFT JOIN order_items oi ON o.id = oi.order_id
             LEFT JOIN listings l ON oi.listing_id = l.id
             LEFT JOIN users seller ON l.seller_id = seller.id
+            LEFT JOIN (
+                SELECT
+                    order_id,
+                    CASE
+                        WHEN SUM(CASE WHEN payout_status = 'PAYOUT_ON_HOLD' THEN 1 ELSE 0 END) > 0
+                            THEN 'PAYOUT_ON_HOLD'
+                        WHEN COUNT(*) > 0
+                             AND SUM(CASE WHEN payout_status NOT IN ('PAID_OUT','PAYOUT_CANCELLED') THEN 1 ELSE 0 END) = 0
+                            THEN 'PAID_OUT'
+                        WHEN SUM(CASE WHEN payout_status = 'PAYOUT_READY' THEN 1 ELSE 0 END) > 0
+                            THEN 'PAYOUT_READY'
+                        WHEN SUM(CASE WHEN payout_status = 'PAYOUT_NOT_READY' THEN 1 ELSE 0 END) > 0
+                            THEN 'PAYOUT_NOT_READY'
+                        ELSE 'PAYOUT_CANCELLED'
+                    END as agg_status
+                FROM order_payouts
+                GROUP BY order_id
+            ) op ON o.id = op.order_id
             GROUP BY o.id
             ORDER BY o.created_at DESC
             LIMIT 100
         ''').fetchall()
 
+        from services.order_state import compute_order_state, get_order_state_label, get_order_state_css, get_block_reason_summary
+
         for tx in all_tx_query:
             created = tx['created_at'] or ''
             time_ago = _format_time_ago(created)
 
-            # Map raw status to a display class
-            status = tx['status'] or 'pending'
-            status_lower = status.lower()
+            # Map raw status to a display class (kept for CSS compat)
+            raw_status = tx['status'] or 'pending'
+            status_lower = raw_status.lower()
             if 'cancel' in status_lower:
                 display_status = 'cancelled'
             elif 'completed' in status_lower or 'delivered' in status_lower:
@@ -452,14 +503,49 @@ def dashboard():
             else:
                 display_status = 'completed'
 
+            payment_method    = tx['payment_method_type'] or ''
+            requires_clearance = bool(tx['requires_payment_clearance'])
+            item_count        = tx['item_count'] or 0
+
+            # Use real payout status from order_payouts aggregate (op_payout_status);
+            # fall back to PAYOUT_NOT_READY for orders without a ledger entry yet.
+            real_payout_status = tx['op_payout_status'] or 'PAYOUT_NOT_READY'
+
+            # Derive order state from raw fields (maps orders.status → OrderStatus-like values)
+            _order_dict = {
+                'order_status':              raw_status.upper().replace(' ', '_'),
+                'payment_status':            tx['payment_status'] or '',
+                'payout_status':             real_payout_status,
+                'refund_status':             '',  # not in this query
+                'requires_payout_recovery':  False,
+                'requires_payment_clearance': requires_clearance,
+            }
+            order_state     = compute_order_state(_order_dict)
+            order_state_lbl = get_order_state_label(_order_dict)
+            order_state_css = get_order_state_css(_order_dict)
+            block_reason    = get_block_reason_summary(_order_dict)
+
             all_transactions.append({
                 'id': tx['id'],
                 'buyer': tx['buyer_username'] or 'Unknown',
                 'seller': tx['seller_username'] or 'Unknown',
-                'items': tx['item_count'],
+                'item_count': item_count,  # renamed from 'items' to avoid Jinja2 dict-method collision
                 'amount': f"${tx['total_price']:,.2f}" if tx['total_price'] else '$0.00',
                 'status': display_status,
-                'date': time_ago
+                'date': time_ago,
+                # Derived order state
+                'order_state':     order_state,
+                'order_state_lbl': order_state_lbl,
+                'order_state_css': order_state_css,
+                'block_reason':    block_reason,
+                # Payment tracking fields
+                'payment_status': tx['payment_status'] or 'unpaid',
+                'payment_method_type': payment_method,
+                'paid_at': tx['paid_at'] or '',
+                'requires_payment_clearance': requires_clearance,
+                'payment_cleared_at': tx['payment_cleared_at'] or '',
+                'payout_status': real_payout_status,
+                'stripe_payment_intent_id': tx['stripe_payment_intent_id'] or '',
             })
 
     except Exception as e:

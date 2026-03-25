@@ -7,39 +7,57 @@ function loadLedgerStats() {
   fetch('/admin/api/ledger/stats')
     .then(response => response.json())
     .then(data => {
-      if (data.success) {
-        const stats = data.stats;
-        document.getElementById('ledger-stat-total-orders').textContent = stats.total_orders.toLocaleString();
-        document.getElementById('ledger-stat-gross-volume').textContent = '$' + stats.total_gross_volume.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('ledger-stat-platform-fees').textContent = '$' + stats.total_platform_fees.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('ledger-stat-pending-payouts').textContent = '$' + stats.pending_payout_total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-      }
+      if (!data.success) return;
+      const s = data.stats;
+      const fmt = (v) => '$' + (v||0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+      document.getElementById('ledger-stat-total-orders').textContent = (s.total_orders||0).toLocaleString();
+      document.getElementById('ledger-stat-gross-volume').textContent = fmt(s.total_gross_volume);
+      document.getElementById('ledger-stat-platform-fees').textContent = fmt(s.total_platform_fees);
+
+      // Split payout stats
+      const pendEl = document.getElementById('ledger-stat-payout-pending');
+      const pendCt = document.getElementById('ledger-stat-payout-pending-count');
+      if (pendEl) pendEl.textContent = fmt(s.payout_pending_total);
+      if (pendCt) pendCt.textContent = (s.payout_pending_count||0) + ' payouts';
+
+      const readyEl = document.getElementById('ledger-stat-payout-ready');
+      const readyCt = document.getElementById('ledger-stat-payout-ready-count');
+      if (readyEl) readyEl.textContent = fmt(s.payout_ready_total);
+      if (readyCt) readyCt.textContent = (s.payout_ready_count||0) + ' payouts';
+
+      const paidEl = document.getElementById('ledger-stat-paid-out');
+      const paidCt = document.getElementById('ledger-stat-paid-out-count');
+      if (paidEl) paidEl.textContent = fmt(s.paid_out_total);
+      if (paidCt) paidCt.textContent = (s.paid_out_count||0) + ' payouts';
     })
     .catch(error => console.error('Error loading ledger stats:', error));
 }
 
 function loadLedgerOrders() {
   const tbody = document.getElementById('ledgerTableBody');
-  tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #6b7280; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading ledger...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #6b7280; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading ledger...</td></tr>';
 
-  // Build query params
   const params = new URLSearchParams();
   params.append('limit', ledgerPageSize);
   params.append('offset', ledgerCurrentPage * ledgerPageSize);
 
-  const status = document.getElementById('ledgerStatusFilter').value;
-  const buyerId = document.getElementById('ledgerBuyerIdFilter').value;
-  const startDate = document.getElementById('ledgerStartDate').value;
-  const endDate = document.getElementById('ledgerEndDate').value;
-  const minGross = document.getElementById('ledgerMinGross').value;
-  const maxGross = document.getElementById('ledgerMaxGross').value;
+  const status        = document.getElementById('ledgerStatusFilter').value;
+  const paymentStatus = document.getElementById('ledgerPaymentStatusFilter') ? document.getElementById('ledgerPaymentStatusFilter').value : '';
+  const payoutStatus  = document.getElementById('ledgerPayoutStatusFilter')  ? document.getElementById('ledgerPayoutStatusFilter').value  : '';
+  const buyerId       = document.getElementById('ledgerBuyerIdFilter').value;
+  const startDate     = document.getElementById('ledgerStartDate').value;
+  const endDate       = document.getElementById('ledgerEndDate').value;
+  const minGross      = document.getElementById('ledgerMinGross').value;
+  const maxGross      = document.getElementById('ledgerMaxGross').value;
 
-  if (status) params.append('status', status);
-  if (buyerId) params.append('buyer_id', buyerId);
-  if (startDate) params.append('start_date', startDate);
-  if (endDate) params.append('end_date', endDate);
-  if (minGross) params.append('min_gross', minGross);
-  if (maxGross) params.append('max_gross', maxGross);
+  if (status)        params.append('status', status);
+  if (paymentStatus) params.append('payment_status', paymentStatus);
+  if (payoutStatus)  params.append('payout_status', payoutStatus);
+  if (buyerId)       params.append('buyer_id', buyerId);
+  if (startDate)     params.append('start_date', startDate);
+  if (endDate)       params.append('end_date', endDate);
+  if (minGross)      params.append('min_gross', minGross);
+  if (maxGross)      params.append('max_gross', maxGross);
 
   fetch('/admin/api/ledger/orders?' + params.toString())
     .then(response => response.json())
@@ -49,12 +67,12 @@ function loadLedgerOrders() {
         ledgerTotalLoaded = data.count;
         updateLedgerPagination();
       } else {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #ef4444; padding: 40px;">Error loading ledger</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #ef4444; padding: 40px;">Error loading ledger</td></tr>';
       }
     })
     .catch(error => {
       console.error('Error loading ledger orders:', error);
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #ef4444; padding: 40px;">Error loading ledger</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #ef4444; padding: 40px;">Error loading ledger</td></tr>';
     });
 }
 
@@ -62,37 +80,91 @@ function renderLedgerOrders(orders) {
   const tbody = document.getElementById('ledgerTableBody');
 
   if (orders.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #6b7280; padding: 40px;">No ledger records found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #6b7280; padding: 40px;">No ledger records found</td></tr>';
     return;
   }
 
   let html = '';
   orders.forEach(order => {
-    const statusClass = getLedgerStatusClass(order.order_status);
+    const statusClass  = getLedgerStatusClass(order.order_status);
+    const stateLabel   = order.order_state_label || formatLedgerStatus(order.order_status);
+    const stateCss     = order.order_state_css   || statusClass;
+    const blockReason  = order.block_reason      || '';
+    const payoutStatus = order.payout_status     || '';
+    const payoutBadge  = formatPayoutStateBadge(payoutStatus);
+    const pmtMethod    = formatPaymentMethodIcon(order.payment_method_type || order.payment_method);
+
     html += `
       <tr>
-        <td><a href="#" onclick="viewLedgerOrder(${order.order_id}); return false;" class="order-link">#${order.order_id}</a></td>
+        <td><a href="/admin/ledger/order/${order.order_id}" class="order-link">#${order.order_id}</a></td>
         <td>
-          <span class="user-name">@${order.buyer_username}</span>
+          <span class="user-name">@${escapeHtml(order.buyer_username)}</span>
           <span style="font-size: 11px; color: #888; margin-left: 4px;">(${order.buyer_id})</span>
         </td>
-        <td><span class="status-badge ${statusClass}">${formatLedgerStatus(order.order_status)}</span></td>
-        <td>${order.item_count}</td>
-        <td>${order.seller_count}</td>
+        <td>
+          <span class="order-state-badge ${stateCss}">${escapeHtml(stateLabel)}</span>
+        </td>
+        <td style="font-size:12px;color:#6b7280;">${order.item_count} item${order.item_count !== 1 ? 's' : ''}</td>
+        <td style="font-size:12px;color:#6b7280;">${order.seller_count}</td>
         <td style="font-family: monospace;">${formatPrice(order.gross_amount)}</td>
         <td style="font-family: monospace; color: #dc2626;">${formatPrice(order.platform_fee_amount)}</td>
-        <td>${order.payment_method || '-'}</td>
+        <td>${pmtMethod}</td>
+        <td>${payoutBadge}</td>
+        <td style="font-size:11px;max-width:160px;">
+          ${blockReason
+            ? `<span style="color:#ef4444;" title="${escapeHtml(blockReason)}">
+                 <i class="fa-solid fa-lock" style="margin-right:3px;"></i>${escapeHtml(blockReason)}
+               </span>`
+            : (payoutStatus === 'PAID_OUT'
+               ? '<span style="color:#10b981;font-size:11px;">✓ Paid out</span>'
+               : '<span style="color:#9ca3af;">—</span>')}
+        </td>
         <td style="font-size: 12px; color: #666;">${order.created_at_display}</td>
-        <td class="actions-cell">
-          <button class="action-icon" title="View Ledger Details" onclick="viewLedgerOrder(${order.order_id})">
+        <td class="actions-cell" style="white-space:nowrap;">
+          <a href="/admin/ledger/order/${order.order_id}" class="action-icon" title="View full ledger detail">
             <i class="fa-solid fa-book"></i>
-          </button>
+          </a>
+          ${payoutStatus === 'PAYOUT_READY'
+            ? `<a href="/admin/ledger/order/${order.order_id}" class="action-icon"
+                 title="View payout details" style="color:#10b981;">
+                 <i class="fa-solid fa-circle-dollar-to-slot"></i>
+               </a>`
+            : ''}
+          ${(order.payment_status === 'paid' && !['PAID_OUT', 'PAYOUT_CANCELLED', 'PAYOUT_ON_HOLD'].includes(payoutStatus))
+            ? `<button class="action-icon" onclick="adminNudgeSeller(${order.order_id}, this)"
+                 title="Nudge seller to upload tracking" style="background:none;border:none;cursor:pointer;padding:0 4px;">
+                 <i class="fa-solid fa-bell" style="color:#3b82f6;"></i>
+               </button>`
+            : ''}
         </td>
       </tr>
     `;
   });
 
   tbody.innerHTML = html;
+}
+
+function formatPayoutStateBadge(ps) {
+  const map = {
+    'PAID_OUT':           '<span style="color:#10b981;font-weight:600;font-size:11px;">✓ Paid Out</span>',
+    'PAYOUT_READY':       '<span style="color:#059669;font-weight:600;font-size:11px;"><i class="fa-solid fa-circle-check"></i> Ready</span>',
+    'PAYOUT_ON_HOLD':     '<span style="color:#d97706;font-size:11px;">On Hold</span>',
+    'PAYOUT_CANCELLED':   '<span style="color:#9ca3af;font-size:11px;">Cancelled</span>',
+    'PAYOUT_NOT_READY':   '<span style="color:#6b7280;font-size:11px;">Not ready</span>',
+    'PAYOUT_SCHEDULED':   '<span style="color:#3b82f6;font-size:11px;">Scheduled</span>',
+    'PAYOUT_IN_PROGRESS': '<span style="color:#3b82f6;font-size:11px;">In progress</span>',
+  };
+  return map[ps] || `<span style="font-size:11px;color:#9ca3af;">${ps ? ps.replace(/_/g,' ') : '—'}</span>`;
+}
+
+function formatPaymentMethodIcon(pmt) {
+  if (!pmt) return '<span style="color:#d1d5db;">—</span>';
+  const p = pmt.toLowerCase();
+  if (p.includes('ach') || p.includes('bank') || p.includes('us_bank'))
+    return '<span style="color:#d97706;font-size:12px;"><i class="fa-solid fa-building-columns"></i> ACH</span>';
+  if (p === 'card')
+    return '<span style="color:#6b7280;font-size:12px;"><i class="fa-solid fa-credit-card"></i> Card</span>';
+  return `<span style="font-size:12px;color:#6b7280;">${escapeHtml(pmt)}</span>`;
 }
 
 function getLedgerStatusClass(status) {
@@ -121,12 +193,12 @@ function applyLedgerFilters() {
 }
 
 function clearLedgerFilters() {
-  document.getElementById('ledgerStatusFilter').value = '';
-  document.getElementById('ledgerBuyerIdFilter').value = '';
-  document.getElementById('ledgerStartDate').value = '';
-  document.getElementById('ledgerEndDate').value = '';
-  document.getElementById('ledgerMinGross').value = '';
-  document.getElementById('ledgerMaxGross').value = '';
+  ['ledgerStatusFilter','ledgerPaymentStatusFilter','ledgerPayoutStatusFilter',
+   'ledgerBuyerIdFilter','ledgerStartDate','ledgerEndDate',
+   'ledgerMinGross','ledgerMaxGross'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   ledgerCurrentPage = 0;
   loadLedgerOrders();
 }

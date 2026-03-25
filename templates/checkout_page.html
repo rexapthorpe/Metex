@@ -149,102 +149,76 @@
         </h2>
       </div>
 
-      <div class="payment-options">
-        <label class="payment-option selected">
-          <input type="radio" name="payment_method" value="card" checked>
-          <div class="payment-option-content">
-            <div class="payment-icon">
-              <i class="fa-solid fa-credit-card"></i>
-            </div>
-            <div class="payment-details">
-              <span class="payment-name">Credit / Debit Card</span>
-              <span class="payment-subtitle">2.99% fee</span>
-            </div>
+      <!-- Saved cards (rendered by JS; hidden until cards are fetched) -->
+      <div id="saved-cards-section" style="display:none; margin-bottom: 20px;">
+        <div id="saved-cards-list"></div>
+        <!-- Use a new card row -->
+        <div class="co-pm-row" id="co-new-card-row"
+             onclick="selectCheckoutNewCard()" role="button" tabindex="0">
+          <div class="co-pm-radio">
+            <input type="radio" name="checkout_pm" id="radio-new-card" value="new"
+              onclick="event.stopPropagation(); selectCheckoutNewCard()">
           </div>
-          <div class="payment-check">
-            <i class="fa-solid fa-circle-check"></i>
-          </div>
-        </label>
-
-        <label class="payment-option">
-          <input type="radio" name="payment_method" value="ach">
-          <div class="payment-option-content">
-            <div class="payment-icon">
-              <i class="fa-solid fa-building-columns"></i>
-            </div>
-            <div class="payment-details">
-              <span class="payment-name">Bank Transfer (ACH)</span>
-              <span class="payment-subtitle">Free</span>
+          <div class="co-pm-info">
+            <span class="co-pm-icon"><i class="fa-solid fa-plus" style="color:#6b7280;font-size:16px;"></i></span>
+            <div>
+              <div class="co-pm-name">Use a new card</div>
             </div>
           </div>
-          <div class="payment-check">
-            <i class="fa-solid fa-circle-check"></i>
-          </div>
-        </label>
-
-      </div>
-
-      <!-- Card Form -->
-      <div class="card-form" id="cardForm">
-        <div class="form-group">
-          <label for="cardNumber">Card Number <span class="required">*</span></label>
-          <input type="text" id="cardNumber" name="card_number" placeholder="1234 5678 9012 3456" maxlength="19">
-        </div>
-
-        <div class="form-group">
-          <label for="cardholderName">Cardholder Name <span class="required">*</span></label>
-          <input type="text" id="cardholderName" name="cardholder_name" placeholder="JOHN DOE">
-        </div>
-
-        <div class="form-row two-col">
-          <div class="form-group">
-            <label for="expiryDate">Expiry Date <span class="required">*</span></label>
-            <input type="text" id="expiryDate" name="expiry_date" placeholder="MM/YY" maxlength="5">
-          </div>
-          <div class="form-group">
-            <label for="cvv">CVV <span class="required">*</span></label>
-            <input type="password" id="cvv" name="cvv" placeholder="•••" maxlength="4">
-          </div>
-        </div>
-
-        <label class="save-card-checkbox">
-          <input type="checkbox" name="save_card" id="saveCard">
-          <span>Save card for future purchases</span>
-        </label>
-      </div>
-
-      <!-- ACH Form (hidden by default) -->
-      <div class="ach-form" id="achForm" style="display: none;">
-        <div class="form-group">
-          <label for="routingNumber">Routing Number <span class="required">*</span></label>
-          <input type="text" id="routingNumber" name="routing_number" placeholder="123456789" maxlength="9">
-        </div>
-        <div class="form-group">
-          <label for="accountNumber">Account Number <span class="required">*</span></label>
-          <input type="text" id="accountNumber" name="account_number" placeholder="••••••••••••">
-        </div>
-        <div class="form-group">
-          <label for="accountType">Account Type</label>
-          <select id="accountType" name="account_type">
-            <option value="checking">Checking</option>
-            <option value="savings">Savings</option>
-          </select>
         </div>
       </div>
 
-      <!-- Crypto Instructions (hidden by default) -->
-      <div class="crypto-form" id="cryptoForm" style="display: none;">
-        <div class="crypto-notice">
-          <i class="fa-solid fa-info-circle"></i>
-          <p>Payment instructions will be provided after order review. You'll receive a wallet address to send your cryptocurrency payment.</p>
+      <!-- Stripe Payment Element (shown for new card or when no saved cards exist) -->
+      <div id="stripe-element-section">
+        <div id="payment-loading-message" style="padding: 20px 0; color: #6b7280; font-size: 14px;">
+          <i class="fa-solid fa-spinner fa-spin" style="margin-right: 6px;"></i>
+          Loading secure payment form...
         </div>
+        <div id="payment-element" style="margin-top: 16px;"></div>
+        <div id="payment-fee-badge" style="display:none; margin-top: 8px; font-size: 12.5px; font-weight: 500; line-height: 1.4;"></div>
       </div>
+
+      <div id="payment-element-error" style="display:none; color: #ef4444; margin-top: 8px; font-size: 14px;"></div>
+      <p style="margin-top: 10px; font-size: 12px; color: #9ca3af; line-height: 1.5;">
+        <i class="fa-solid fa-circle-info" style="margin-right: 4px;"></i>
+        Bank transfer (ACH) payments may take 3–5 business days to clear. Card payments are processed immediately.
+      </p>
 
       <div class="step-actions">
         <button type="button" class="btn-back" onclick="goToStep(1)">Back</button>
         <button type="button" class="btn-continue" onclick="goToStep(3)">Review Order</button>
       </div>
     </div>
+
+    <style>
+    /* Saved-card row styles for checkout step 2 */
+    .co-pm-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: #fff;
+      user-select: none;
+    }
+    .co-pm-row:hover { border-color: #9ca3af; background: #f9fafb; }
+    .co-pm-row-selected { border-color: #1f2937 !important; background: #f9fafb; }
+    .co-pm-radio input[type="radio"] { width: 16px; height: 16px; cursor: pointer; accent-color: #1f2937; }
+    .co-pm-info { display: flex; align-items: center; gap: 10px; flex: 1; }
+    .co-pm-icon { font-size: 22px; color: #374151; min-width: 28px; text-align: center; }
+    .co-pm-name { font-weight: 600; font-size: 14px; color: #111827; }
+    .co-pm-exp { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .co-pm-default-badge {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      background: #e0f2fe; color: #0369a1; border-radius: 4px;
+      padding: 1px 6px; margin-left: 6px; vertical-align: middle;
+      text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    </style>
 
     <!-- Step 3: Review -->
     <div class="checkout-step" id="step-review">
@@ -334,6 +308,8 @@
           <p>Your purchase is protected by our escrow service. Payment is only released to the seller after you confirm receipt and verify authenticity.</p>
         </div>
       </div>
+
+      <div id="step3-error" style="display:none; color:#ef4444; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:14px;"></div>
 
       <div class="step-actions">
         <button type="button" class="btn-back" onclick="goToStep(2)">Back</button>
@@ -546,10 +522,12 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://js.stripe.com/v3/"></script>
 <script>
-  window.checkoutSubtotal    = {{ subtotal }};
-  window.checkoutGradingFee  = {{ grading_fee }};
-  window.checkoutNonce       = {{ checkout_nonce | tojson }};
+  window.checkoutSubtotal       = {{ subtotal }};
+  window.checkoutGradingFee     = {{ grading_fee }};
+  window.checkoutNonce          = {{ checkout_nonce | tojson }};
+  window.stripePublishableKey   = {{ stripe_publishable_key | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/format_utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/checkout_page.js') }}"></script>

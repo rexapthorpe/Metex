@@ -17,11 +17,15 @@ def get_order_ledger(order_id: int) -> Optional[Dict[str, Any]]:
     """Get full ledger data for an order"""
     conn = get_db_connection()
     try:
-        # Get order ledger
+        # Get order ledger — join orders to get webhook-authoritative payment_method_type
         order = conn.execute('''
-            SELECT ol.*, u.username as buyer_username
+            SELECT ol.*, u.username as buyer_username,
+                   o.payment_method_type,
+                   o.payment_status,
+                   o.requires_payment_clearance
             FROM orders_ledger ol
             JOIN users u ON ol.buyer_id = u.id
+            LEFT JOIN orders o ON o.id = ol.order_id
             WHERE ol.order_id = ?
         ''', (order_id,)).fetchone()
 
@@ -90,14 +94,41 @@ def get_orders_ledger_list(
     """
     conn = get_db_connection()
     try:
+        # Base query — payment_method_type is always present in orders
         query = '''
             SELECT ol.*, u.username as buyer_username,
+                   o.payment_method_type,
+                   o.payment_status,
                    (SELECT COUNT(*) FROM order_items_ledger WHERE order_ledger_id = ol.id) as item_count,
                    (SELECT COUNT(DISTINCT seller_id) FROM order_items_ledger WHERE order_ledger_id = ol.id) as seller_count
             FROM orders_ledger ol
             JOIN users u ON ol.buyer_id = u.id
+            LEFT JOIN orders o ON o.id = ol.order_id
             WHERE 1=1
         '''
+        # Detect if extended payment columns exist on orders table (added by migration)
+        # These may be absent in test SQLite schemas.
+        _extended_cols = []
+        try:
+            _probe = conn.execute('SELECT payout_status, refund_status, requires_payment_clearance, requires_payout_recovery FROM orders LIMIT 0')
+            _extended_cols = ['o.payout_status', 'o.refund_status', 'o.requires_payment_clearance', 'o.requires_payout_recovery']
+            query = '''
+                SELECT ol.*, u.username as buyer_username,
+                       o.payment_method_type,
+                       o.payment_status,
+                       o.payout_status,
+                       o.refund_status,
+                       o.requires_payment_clearance,
+                       o.requires_payout_recovery,
+                       (SELECT COUNT(*) FROM order_items_ledger WHERE order_ledger_id = ol.id) as item_count,
+                       (SELECT COUNT(DISTINCT seller_id) FROM order_items_ledger WHERE order_ledger_id = ol.id) as seller_count
+                FROM orders_ledger ol
+                JOIN users u ON ol.buyer_id = u.id
+                LEFT JOIN orders o ON o.id = ol.order_id
+                WHERE 1=1
+            '''
+        except Exception:
+            pass  # Fall back to base query without extended columns
         params = []
 
         if status_filter:

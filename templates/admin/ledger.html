@@ -190,7 +190,7 @@ function renderOrders(orders) {
                 <td>${order.seller_count}</td>
                 <td class="amount">$${order.gross_amount.toFixed(2)}</td>
                 <td class="amount fee">$${order.platform_fee_amount.toFixed(2)}</td>
-                <td>${order.payment_method || '-'}</td>
+                <td>${formatPaymentMethod(order.payment_method_type || order.payment_method)}</td>
                 <td class="timestamp">${order.created_at_display}</td>
                 <td>
                     <a href="/admin/ledger/order/${order.order_id}" class="btn-view">View</a>
@@ -220,6 +220,14 @@ function getStatusClass(status) {
 
 function formatStatus(status) {
     return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function formatPaymentMethod(pmt) {
+    if (!pmt) return '-';
+    const p = pmt.toLowerCase();
+    if (p.includes('ach') || p.includes('bank')) return 'ACH / Bank';
+    if (p === 'card') return 'Card';
+    return pmt;
 }
 
 function applyFilters() {

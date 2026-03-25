@@ -474,28 +474,10 @@ def handle_sell_post():
             if result is not None:
                 return result  # Error response
 
-        # Attempt auto-match: fill existing open bids with this new listing
-        _am_result = None
-        try:
-            from core.blueprints.bids.auto_match import auto_match_listing_to_bids
-            _am_result = auto_match_listing_to_bids(listing_id, cursor)
-        except Exception as e:
-            print(f"[WARNING] Auto-match failed for listing {listing_id}: {e}")
-
+        # Auto-match intentionally disabled: bids fill only when a seller manually
+        # accepts via /bids/accept_bid/<bucket_id>, which charges the buyer's card.
+        # Calling auto_match_listing_to_bids here would create orders without payment.
         conn.commit()
-
-        # Create ledger entries for any auto-matched orders (after commit, own connection)
-        if _am_result and _am_result.get('ledger_orders'):
-            from core.services.ledger.order_creation import create_order_ledger_from_cart
-            for _ledger in _am_result['ledger_orders']:
-                try:
-                    create_order_ledger_from_cart(
-                        buyer_id=_ledger['buyer_id'],
-                        cart_snapshot=_ledger['items'],
-                        order_id=_ledger['order_id'],
-                    )
-                except Exception as _ledger_err:
-                    print(f"[WARN] Ledger creation failed for order {_ledger['order_id']}: {_ledger_err}")
 
         # Update bucket price history after creating new listing
         try:

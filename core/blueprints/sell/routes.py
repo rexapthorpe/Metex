@@ -5,7 +5,6 @@ Sell Routes - Main coordinator module.
 Route handlers for selling items on the marketplace.
 Heavy logic extracted to:
 - listing_creation.py: POST handling for new listings
-- accept_bid.py: Accepting bids on listings
 """
 
 from flask import render_template, request, redirect, url_for, session, flash
@@ -14,10 +13,6 @@ from . import sell_bp
 from routes.category_options import get_dropdown_options
 from utils.auth_utils import frozen_check
 import sqlite3
-
-# Import extracted modules to register their routes
-from . import accept_bid  # noqa: F401 - registers accept_bid route
-
 
 # --- Sell Route ---
 @sell_bp.route('/sell', methods=['GET', 'POST'])

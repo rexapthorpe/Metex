@@ -1,48 +1,63 @@
-      <!-- Ledger Stats -->
+      <!-- Ledger Stats — 3 payout categories instead of single "Pending Payouts" -->
       <div class="stats-grid stats-grid-4">
         <div class="stat-card stat-card-colored stat-card-blue">
           <div class="stat-card-header">
             <span class="stat-label">Total Orders</span>
-            <div class="stat-icon-inline">
-              <i class="fa-solid fa-file-invoice"></i>
-            </div>
+            <div class="stat-icon-inline"><i class="fa-solid fa-file-invoice"></i></div>
           </div>
           <div class="stat-value" id="ledger-stat-total-orders">-</div>
         </div>
         <div class="stat-card stat-card-colored stat-card-dark">
           <div class="stat-card-header">
             <span class="stat-label">Gross Volume</span>
-            <div class="stat-icon-inline">
-              <i class="fa-solid fa-dollar-sign"></i>
-            </div>
+            <div class="stat-icon-inline"><i class="fa-solid fa-dollar-sign"></i></div>
           </div>
           <div class="stat-value" id="ledger-stat-gross-volume">-</div>
         </div>
         <div class="stat-card stat-card-colored stat-card-dark">
           <div class="stat-card-header">
             <span class="stat-label">Platform Fees</span>
-            <div class="stat-icon-inline">
-              <i class="fa-solid fa-percent"></i>
-            </div>
+            <div class="stat-icon-inline"><i class="fa-solid fa-percent"></i></div>
           </div>
           <div class="stat-value" id="ledger-stat-platform-fees">-</div>
         </div>
-        <div class="stat-card stat-card-colored stat-card-dark">
+        <div class="stat-card stat-card-colored stat-card-dark" style="border-left:3px solid #f59e0b;">
           <div class="stat-card-header">
-            <span class="stat-label">Pending Payouts</span>
-            <div class="stat-icon-inline">
-              <i class="fa-solid fa-clock"></i>
-            </div>
+            <span class="stat-label">Payout Pending</span>
+            <div class="stat-icon-inline"><i class="fa-solid fa-hourglass-half"></i></div>
           </div>
-          <div class="stat-value" id="ledger-stat-pending-payouts">-</div>
+          <div class="stat-value" id="ledger-stat-payout-pending">-</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;" id="ledger-stat-payout-pending-count"></div>
         </div>
       </div>
 
+      <!-- Row 2: ready-for-payout + paid-out (actionable metrics) -->
+      <div class="stats-grid stats-grid-4" style="margin-top:-8px;">
+        <div class="stat-card stat-card-colored" style="border-left:3px solid #10b981;">
+          <div class="stat-card-header">
+            <span class="stat-label" style="color:#059669;">Ready for Payout</span>
+            <div class="stat-icon-inline" style="color:#059669;"><i class="fa-solid fa-circle-dollar-to-slot"></i></div>
+          </div>
+          <div class="stat-value" id="ledger-stat-payout-ready">-</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;" id="ledger-stat-payout-ready-count"></div>
+        </div>
+        <div class="stat-card stat-card-colored" style="border-left:3px solid #6366f1;">
+          <div class="stat-card-header">
+            <span class="stat-label" style="color:#4f46e5;">Paid Out</span>
+            <div class="stat-icon-inline" style="color:#4f46e5;"><i class="fa-solid fa-check-double"></i></div>
+          </div>
+          <div class="stat-value" id="ledger-stat-paid-out">-</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;" id="ledger-stat-paid-out-count"></div>
+        </div>
+        <div></div>
+        <div></div>
+      </div>
+
       <!-- Ledger Filters -->
-      <div class="panel-toolbar ledger-toolbar">
-        <div class="search-filter-group">
+      <div class="panel-toolbar ledger-toolbar" style="flex-wrap:wrap;gap:8px;">
+        <div class="search-filter-group" style="flex-wrap:wrap;gap:8px;">
           <select class="filter-select" id="ledgerStatusFilter">
-            <option value="">All Statuses</option>
+            <option value="">All Order Statuses</option>
             <option value="CHECKOUT_INITIATED">Checkout Initiated</option>
             <option value="PAYMENT_PENDING">Payment Pending</option>
             <option value="PAID_IN_ESCROW">Paid In Escrow</option>
@@ -54,15 +69,31 @@
             <option value="CANCELLED">Cancelled</option>
             <option value="REFUNDED">Refunded</option>
           </select>
+          <select class="filter-select" id="ledgerPaymentStatusFilter">
+            <option value="">All Payment Statuses</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+          <select class="filter-select" id="ledgerPayoutStatusFilter">
+            <option value="">All Payout Statuses</option>
+            <option value="PAYOUT_NOT_READY">Not Ready</option>
+            <option value="PAYOUT_READY">Ready</option>
+            <option value="PAYOUT_ON_HOLD">On Hold</option>
+            <option value="PAID_OUT">Paid Out</option>
+            <option value="PAYOUT_CANCELLED">Cancelled</option>
+          </select>
           <input type="number" class="filter-input-sm" id="ledgerBuyerIdFilter" placeholder="Buyer ID">
-          <input type="date" class="filter-input-sm" id="ledgerStartDate" placeholder="Start Date">
-          <input type="date" class="filter-input-sm" id="ledgerEndDate" placeholder="End Date">
+          <input type="date" class="filter-input-sm" id="ledgerStartDate">
+          <input type="date" class="filter-input-sm" id="ledgerEndDate">
           <input type="number" class="filter-input-sm" id="ledgerMinGross" placeholder="Min $" step="0.01">
           <input type="number" class="filter-input-sm" id="ledgerMaxGross" placeholder="Max $" step="0.01">
         </div>
         <div class="toolbar-actions">
           <button class="toolbar-btn" onclick="applyLedgerFilters()"><i class="fa-solid fa-filter"></i> Apply</button>
           <button class="toolbar-btn" onclick="clearLedgerFilters()"><i class="fa-solid fa-xmark"></i> Clear</button>
+          <button class="toolbar-btn toolbar-btn-primary" id="btnRunAutoPayouts" onclick="runAutoPayouts()">
+            <i class="fa-solid fa-bolt"></i> Run Auto Payouts
+          </button>
         </div>
       </div>
 
@@ -76,19 +107,21 @@
             <tr>
               <th>Order ID</th>
               <th>Buyer</th>
-              <th>Status</th>
+              <th>Order State</th>
               <th>Items</th>
               <th>Sellers</th>
               <th>Gross</th>
               <th>Fee</th>
               <th>Payment</th>
+              <th>Payout State</th>
+              <th>Block Reason</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="ledgerTableBody">
             <tr>
-              <td colspan="10" style="text-align: center; color: #6b7280; padding: 40px;">
+              <td colspan="12" style="text-align: center; color: #6b7280; padding: 40px;">
                 <i class="fa-solid fa-spinner fa-spin"></i> Loading ledger...
               </td>
             </tr>
@@ -106,4 +139,60 @@
           Next <i class="fa-solid fa-chevron-right"></i>
         </button>
       </div>
+
+      <!-- Auto Payout Result Banner -->
+      <div id="autoPayoutResult" style="display:none; margin-top:16px; padding:14px 18px;
+           border-radius:8px; font-size:14px; line-height:1.6;"></div>
     </div>
+
+<script>
+function runAutoPayouts() {
+  const btn = document.getElementById('btnRunAutoPayouts');
+  const resultBox = document.getElementById('autoPayoutResult');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Running...';
+  resultBox.style.display = 'none';
+
+  fetch('/admin/api/payouts/run-auto', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const errorLines = (data.errors || []).map(e =>
+        `<li>Payout #${e.payout_id} (order ${e.order_id}): ${e.error}</li>`
+      ).join('');
+      resultBox.style.background = data.errors.length ? '#fef3c7' : '#d1fae5';
+      resultBox.style.border = '1px solid ' + (data.errors.length ? '#f59e0b' : '#10b981');
+      resultBox.style.color = '#111827';
+      resultBox.innerHTML = `
+        <strong>Auto Payout Run Complete</strong><br>
+        Processed: ${data.processed} &nbsp;|&nbsp;
+        Successful: <strong>${data.successful}</strong> &nbsp;|&nbsp;
+        Skipped: ${data.skipped} &nbsp;|&nbsp;
+        Errors: ${data.errors.length}
+        ${errorLines ? '<ul style="margin:8px 0 0 16px;">' + errorLines + '</ul>' : ''}
+      `;
+    } else {
+      resultBox.style.background = '#fee2e2';
+      resultBox.style.border = '1px solid #ef4444';
+      resultBox.style.color = '#111827';
+      resultBox.innerHTML = '<strong>Error:</strong> ' + (data.error || 'Unknown error');
+    }
+    resultBox.style.display = 'block';
+  })
+  .catch(err => {
+    resultBox.style.background = '#fee2e2';
+    resultBox.style.border = '1px solid #ef4444';
+    resultBox.style.color = '#111827';
+    resultBox.innerHTML = '<strong>Network error:</strong> ' + err.message;
+    resultBox.style.display = 'block';
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Run Auto Payouts';
+  });
+}
+</script>

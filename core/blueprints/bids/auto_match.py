@@ -10,12 +10,15 @@ import logging
 import os
 import threading
 
+import stripe
+
 from core.services.ledger.order_creation import create_order_ledger_from_cart
 from services.pricing_service import (
     get_effective_price,
     get_effective_bid_price,
     can_bid_fill_listing,
 )
+from services.notification_types import notify_bid_payment_failed
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +73,54 @@ def _get_spot_prices_from_cursor(cursor):
         return {}
 
 
+def _charge_bid_payment(bid_id: int, order_id: int, buyer_id: int,
+                        pm_id: str, customer_id: str, amount_dollars: float) -> dict:
+    """
+    Create and confirm a Stripe PaymentIntent off-session for a bid auto-fill.
+
+    Returns:
+        {'success': True, 'pi_id': 'pi_xxx'}
+        {'success': False, 'code': '...', 'message': '...', 'is_card_decline': bool}
+    """
+    try:
+        pi = stripe.PaymentIntent.create(
+            amount=max(1, round(amount_dollars * 100)),
+            currency='usd',
+            customer=customer_id,
+            payment_method=pm_id,
+            confirm=True,
+            off_session=True,
+            metadata={
+                'user_id': str(buyer_id),
+                'order_id': str(order_id),
+                'bid_id': str(bid_id),
+                'source': 'bid_auto_fill',
+            },
+            idempotency_key=f'bid-autofill-{bid_id}-{order_id}',
+        )
+        if pi.status == 'succeeded':
+            return {'success': True, 'pi_id': pi.id}
+        return {
+            'success': False,
+            'code': pi.status,
+            'message': f'Payment could not be confirmed automatically (status: {pi.status}).',
+            'is_card_decline': False,
+        }
+    except stripe.error.CardError as e:
+        err = e.error
+        return {
+            'success': False,
+            'code': getattr(err, 'code', 'card_error'),
+            'message': getattr(err, 'message', str(e)) or 'Card declined.',
+            'is_card_decline': True,
+        }
+    except stripe.error.InvalidRequestError as e:
+        return {'success': False, 'code': 'invalid_request', 'message': str(e), 'is_card_decline': False}
+    except stripe.error.StripeError as e:
+        logger.error('[auto_match] Stripe error charging bid %s order %s: %s', bid_id, order_id, e)
+        return {'success': False, 'code': 'stripe_error', 'message': str(e), 'is_card_decline': False}
+
+
 def auto_match_bid_to_listings(bid_id, cursor):
     """
     Automatically match a bid to available listings.
@@ -96,12 +147,23 @@ def auto_match_bid_to_listings(bid_id, cursor):
     if not bid or bid['remaining_quantity'] <= 0:
         return {'filled_quantity': 0, 'orders_created': 0, 'message': 'No quantity to fill'}
 
-    category_id = bid['category_id']
-    buyer_id = bid['buyer_id']
-    delivery_address = bid['delivery_address']
-    quantity_needed = bid['remaining_quantity']
-    recipient_first_name = bid['recipient_first_name']
-    recipient_last_name = bid['recipient_last_name']
+    bid_dict = dict(bid)
+    category_id = bid_dict['category_id']
+    buyer_id = bid_dict['buyer_id']
+    delivery_address = bid_dict['delivery_address']
+    quantity_needed = bid_dict['remaining_quantity']
+    recipient_first_name = bid_dict['recipient_first_name']
+    recipient_last_name = bid_dict['recipient_last_name']
+
+    # Fetch buyer's Stripe credentials for auto-charge
+    bid_pm_id = bid_dict.get('bid_payment_method_id')
+    try:
+        buyer_row = cursor.execute(
+            'SELECT stripe_customer_id FROM users WHERE id = ?', (buyer_id,)
+        ).fetchone()
+        buyer_customer_id = buyer_row['stripe_customer_id'] if buyer_row else None
+    except Exception:
+        buyer_customer_id = None
 
     # Fetch spot prices from spot_price_snapshots (canonical source, same as cart/checkout/
     # bucket page).  Falls back to spot_prices legacy cache if no snapshots exist.
@@ -110,7 +172,6 @@ def auto_match_bid_to_listings(bid_id, cursor):
 
     # Calculate effective bid price (handles both static and premium-to-spot modes)
     # For premium-to-spot, this calculates spot + premium and enforces ceiling
-    bid_dict = dict(bid)
     effective_bid_price = get_effective_bid_price(bid_dict, spot_prices=spot_prices)
 
     # This is the maximum price the buyer will pay
@@ -203,45 +264,24 @@ def auto_match_bid_to_listings(bid_id, cursor):
     if not matched_listings:
         return {'filled_quantity': 0, 'orders_created': 0, 'message': 'No matching listings found (bid price < listing price)'}
 
-    # Group fills by seller (one order per seller)
-    # Store BOTH buyer and seller prices for each fill
-    seller_fills = {}  # seller_id -> list of {listing_id, quantity, buyer_price, seller_price}
-    total_filled = 0
+    # Determine fills (no DB changes yet) — group by seller so we can use SAVEPOINTs
+    seller_fills = {}   # seller_id → [{'listing': dict, 'fill_qty': int, 'buyer_price_each': float, 'seller_price_each': float}]
+    total_planned = 0
 
     for listing in matched_listings:
-        if total_filled >= quantity_needed:
+        if total_planned >= quantity_needed:
             break
-
         seller_id = listing['seller_id']
-        available = listing['quantity']
-        fill_qty = min(available, quantity_needed - total_filled)
-
-        # Atomically deduct listing inventory; skip if already taken
-        _r = cursor.execute('''
-            UPDATE listings
-               SET quantity = quantity - ?,
-                   active   = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
-             WHERE id = ? AND quantity >= ? AND active = 1
-        ''', (fill_qty, fill_qty, listing['id'], fill_qty))
-        if _r.rowcount == 0:
-            continue
-
-        # Track fill for this seller with BOTH prices
+        fill_qty = min(listing['quantity'], quantity_needed - total_planned)
         if seller_id not in seller_fills:
             seller_fills[seller_id] = []
-
-        # SPREAD MODEL:
-        # - Buyer pays: bid effective price
-        # - Seller receives: listing effective price
-        # - Metex keeps: bid effective - listing effective
         seller_fills[seller_id].append({
-            'listing_id': listing['id'],
-            'quantity': fill_qty,
-            'buyer_price_each': listing['bid_effective_price'],      # What buyer pays
-            'seller_price_each': listing['listing_effective_price']  # What seller receives
+            'listing': listing,
+            'fill_qty': fill_qty,
+            'buyer_price_each': listing['bid_effective_price'],
+            'seller_price_each': listing['listing_effective_price'],
         })
-
-        total_filled += fill_qty
+        total_planned += fill_qty
 
     # Get item description for notifications
     category_info = cursor.execute('''
@@ -259,72 +299,157 @@ def auto_match_bid_to_listings(bid_id, cursor):
             item_desc_parts.append(category_info['weight'])
     item_description = ' '.join(item_desc_parts) if item_desc_parts else 'Item'
 
-    # Create one order per seller and collect notification data
+    # Per-seller: SAVEPOINT → deduct inventory → create order → charge card → RELEASE/ROLLBACK
     orders_created = 0
+    total_filled = 0
     notifications_to_send = []
-    ledger_orders = []  # Collected for ledger creation after caller commits
+    ledger_orders = []
+    payment_failed = False
+    payment_failure_notifs = []
 
-    for seller_id, items in seller_fills.items():
-        # Calculate total based on BUYER price (what buyer pays)
-        total_price = sum(item['quantity'] * item['buyer_price_each'] for item in items)
-        fill_qty = sum(item['quantity'] for item in items)
+    for seller_id, fills in seller_fills.items():
+        sp = f'amsp{bid_id}s{seller_id}'
+        cursor.execute(f'SAVEPOINT {sp}')
 
-        # Create order
+        # Atomically deduct inventory for all of this seller's listings
+        deduct_ok = True
+        for fill in fills:
+            _r = cursor.execute('''
+                UPDATE listings
+                   SET quantity = quantity - ?,
+                       active   = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
+                 WHERE id = ? AND quantity >= ? AND active = 1
+            ''', (fill['fill_qty'], fill['fill_qty'], fill['listing']['id'], fill['fill_qty']))
+            if _r.rowcount == 0:
+                deduct_ok = False
+                break
+
+        if not deduct_ok:
+            cursor.execute(f'ROLLBACK TO SAVEPOINT {sp}')
+            cursor.execute(f'RELEASE SAVEPOINT {sp}')
+            continue
+
+        fill_total = sum(f['fill_qty'] * f['buyer_price_each'] for f in fills)
+        fill_qty_total = sum(f['fill_qty'] for f in fills)
+
+        # Create order as unpaid initially
         cursor.execute('''
             INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at,
-                               recipient_first_name, recipient_last_name, source_bid_id)
-            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, ?)
-        ''', (buyer_id, total_price, delivery_address, recipient_first_name, recipient_last_name, bid_id))
-
+                               recipient_first_name, recipient_last_name, payment_status, source_bid_id)
+            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, 'unpaid', ?)
+        ''', (buyer_id, fill_total, delivery_address, recipient_first_name, recipient_last_name, bid_id))
         order_id = cursor.lastrowid
-        orders_created += 1
 
-        # Create order_items with BOTH buyer and seller prices
-        for item in items:
+        for fill in fills:
             cursor.execute('''
                 INSERT INTO order_items (order_id, listing_id, quantity, price_each, seller_price_each)
                 VALUES (?, ?, ?, ?, ?)
-            ''', (
-                order_id,
-                item['listing_id'],
-                item['quantity'],
-                item['buyer_price_each'],   # What buyer pays
-                item['seller_price_each']   # What seller receives
-            ))
+            ''', (order_id, fill['listing']['id'], fill['fill_qty'],
+                  fill['buyer_price_each'], fill['seller_price_each']))
 
-        # Collect notification data for buyer (will be sent after commit)
-        avg_price = total_price / fill_qty if fill_qty > 0 else effective_bid_price
+        # Charge buyer's saved card
+        if bid_pm_id and buyer_customer_id:
+            pay_result = _charge_bid_payment(
+                bid_id=bid_id, order_id=order_id, buyer_id=buyer_id,
+                pm_id=bid_pm_id, customer_id=buyer_customer_id,
+                amount_dollars=fill_total,
+            )
+
+            if not pay_result['success']:
+                cursor.execute(f'ROLLBACK TO SAVEPOINT {sp}')
+                cursor.execute(f'RELEASE SAVEPOINT {sp}')
+
+                cursor.execute('''
+                    UPDATE bids
+                       SET bid_payment_status = 'failed',
+                           bid_payment_failure_code = ?,
+                           bid_payment_failure_message = ?,
+                           bid_payment_attempted_at = datetime('now'),
+                           active = 0,
+                           status = 'Payment Failed'
+                     WHERE id = ?
+                ''', (pay_result.get('code'), pay_result.get('message'), bid_id))
+
+                if pay_result.get('is_card_decline'):
+                    cursor.execute('''
+                        UPDATE users
+                           SET bid_payment_strikes = COALESCE(bid_payment_strikes, 0) + 1
+                         WHERE id = ?
+                    ''', (buyer_id,))
+
+                payment_failed = True
+                payment_failure_notifs.append({
+                    'buyer_id': buyer_id,
+                    'bid_id': bid_id,
+                    'failure_message': pay_result.get('message', 'Payment declined.'),
+                })
+                break
+
+            # Payment succeeded — stamp order with payment info
+            cursor.execute('''
+                UPDATE orders
+                   SET stripe_payment_intent_id = ?,
+                       payment_status = 'paid',
+                       status = 'paid',
+                       paid_at = datetime('now'),
+                       payment_method_type = 'card'
+                 WHERE id = ?
+            ''', (pay_result['pi_id'], order_id))
+
+            cursor.execute('''
+                UPDATE bids
+                   SET bid_payment_status = 'charged',
+                       bid_payment_intent_id = ?,
+                       bid_payment_attempted_at = datetime('now')
+                 WHERE id = ?
+            ''', (pay_result['pi_id'], bid_id))
+        else:
+            logger.warning('[auto_match] Bid %s has no payment method — order %s created as unpaid', bid_id, order_id)
+
+        cursor.execute(f'RELEASE SAVEPOINT {sp}')
+        orders_created += 1
+        total_filled += fill_qty_total
+
+        avg_price = fill_total / fill_qty_total if fill_qty_total > 0 else effective_bid_price
         notifications_to_send.append({
             'buyer_id': buyer_id,
             'order_id': order_id,
             'bid_id': bid_id,
             'item_description': item_description,
-            'quantity_filled': fill_qty,
+            'quantity_filled': fill_qty_total,
             'price_per_unit': avg_price,
-            'total_amount': total_price,
-            'is_partial': False,  # Will be updated below
-            'remaining_quantity': 0  # Will be updated below
+            'total_amount': fill_total,
+            'is_partial': False,
+            'remaining_quantity': 0,
         })
 
-        # Build ledger snapshot (seller_price_each = basis for proceeds display in sold tab)
         ledger_orders.append({
             'buyer_id': buyer_id,
             'order_id': order_id,
             'items': [
                 {
                     'seller_id': seller_id,
-                    'listing_id': item['listing_id'],
-                    'quantity': item['quantity'],
-                    'unit_price': item['seller_price_each'],
+                    'listing_id': fill['listing']['id'],
+                    'quantity': fill['fill_qty'],
+                    'unit_price': fill['seller_price_each'],
                 }
-                for item in items
+                for fill in fills
             ],
         })
+
+    if payment_failed:
+        return {
+            'filled_quantity': 0,
+            'orders_created': 0,
+            'message': 'Auto-fill payment failed — bid closed.',
+            'notifications': [],
+            'ledger_orders': [],
+            'payment_failure_notifs': payment_failure_notifs,
+        }
 
     # Update bid status
     new_remaining = quantity_needed - total_filled
     if new_remaining <= 0:
-        # Fully filled
         cursor.execute('''
             UPDATE bids
             SET remaining_quantity = 0,
@@ -334,7 +459,6 @@ def auto_match_bid_to_listings(bid_id, cursor):
         ''', (bid_id,))
         message = f'Bid fully filled! Matched {total_filled} items from {orders_created} seller(s).'
     else:
-        # Partially filled - update notification data
         cursor.execute('''
             UPDATE bids
             SET remaining_quantity = ?,
@@ -343,7 +467,6 @@ def auto_match_bid_to_listings(bid_id, cursor):
         ''', (new_remaining, bid_id))
         message = f'Bid partially filled! Matched {total_filled} of {quantity_needed} items from {orders_created} seller(s). {new_remaining} items still open.'
 
-        # Mark notifications as partial fills
         for notif in notifications_to_send:
             notif['is_partial'] = True
             notif['remaining_quantity'] = new_remaining
@@ -621,7 +744,12 @@ def check_all_pending_matches(conn):
         # Try to match this bid
         result = auto_match_bid_to_listings(bid_id, cursor)
 
-        if result['filled_quantity'] > 0:
+        if result.get('payment_failure_notifs'):
+            # Payment failed — bid is already marked closed; send buyer notification after commit
+            notifications_to_send.extend([
+                {'type': 'payment_failed', **n} for n in result['payment_failure_notifs']
+            ])
+        elif result['filled_quantity'] > 0:
             total_filled += result['filled_quantity']
             orders_created += result['orders_created']
             bids_matched += 1
@@ -632,6 +760,14 @@ def check_all_pending_matches(conn):
 
     # Commit all changes
     conn.commit()
+
+    # Send payment failure notifications (after commit so bid status is persisted)
+    for notif in notifications_to_send:
+        if notif.get('type') == 'payment_failed':
+            try:
+                notify_bid_payment_failed(notif['buyer_id'], notif['bid_id'], notif['failure_message'])
+            except Exception as _ne:
+                logger.warning('[auto_match] Failed to send payment failure notification: %s', _ne)
 
     # Create ledger entries AFTER commit (ledger service opens its own connection).
     # This locks in the correct bucket fee at execution time so seller proceeds
@@ -653,7 +789,7 @@ def check_all_pending_matches(conn):
         'total_filled': total_filled,
         'orders_created': orders_created,
         'bids_matched': bids_matched,
-        'notifications': notifications_to_send
+        'notifications': [n for n in notifications_to_send if n.get('type') != 'payment_failed'],
     }
 
 

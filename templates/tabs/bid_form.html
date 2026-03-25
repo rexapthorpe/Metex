@@ -15,6 +15,8 @@
   {% if bid %}<input type="hidden" name="bid_id" value="{{ bid.id }}">{% endif %}
   <input type="hidden" name="requires_grading" id="requires_grading" value="{{ 'yes' if bid and bid.requires_grading else 'no' }}">
   <input type="hidden" name="payment_method" id="payment_method" value="credit_card">
+  <input type="hidden" name="selected_payment_method_id" id="selected-pm-id"
+         value="{{ saved_cards[0].id if saved_cards else '' }}">
 
   <div class="bm-wizard">
 
@@ -163,7 +165,7 @@
           <div id="current-spot-price" class="bm-spot-price">
             {% if current_spot_price %}${{ '{:,.2f}'.format(current_spot_price) }}{% else %}Loading...{% endif %}
           </div>
-          <div class="bm-spot-calc">
+          <div class="bm-spot-calc" id="bid-spot-calc-line">
             Your bid: Spot + $<span id="premium-display">{{ '{:,.2f}'.format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}</span>
             = $<span id="effective-bid-price">{{ '{:,.2f}'.format((current_spot_price or 0) + (bid.spot_premium or 0)) }}</span>
           </div>
@@ -273,35 +275,66 @@
     <div class="bm-step-content" id="bm-step-4">
 
       <div class="bm-payment-header">
-        <div class="bm-payment-title">Select Payment Method</div>
-        <div class="bm-payment-desc">Choose how you'd like to pay when your bid is matched</div>
+        <div class="bm-payment-title">Payment Method</div>
+        <div class="bm-payment-desc">Your saved payment method will be charged when the seller accepts your bid</div>
       </div>
 
-      <div class="bm-payment-opts" id="bm-payment-opts">
-
-        <label class="bm-payment-opt" data-value="credit_card">
-          <div class="bm-pm-icon"><i class="fa-regular fa-credit-card"></i></div>
-          <div class="bm-pm-info">
-            <div class="bm-pm-name">Credit / Debit Card</div>
-            <div class="bm-pm-detail">2.99% fee</div>
-          </div>
-          <input type="radio" name="payment_method_radio" value="credit_card" style="display:none">
-          <div class="bm-radio-vis"></div>
-        </label>
-
-        <label class="bm-payment-opt" data-value="bank_transfer">
-          <div class="bm-pm-icon"><i class="fa-solid fa-building-columns"></i></div>
-          <div class="bm-pm-info">
-            <div class="bm-pm-name">ACH Bank Transfer</div>
-            <div class="bm-pm-detail">Free</div>
-          </div>
-          <input type="radio" name="payment_method_radio" value="bank_transfer" style="display:none">
-          <div class="bm-radio-vis"></div>
-        </label>
-
+      {# ── ACH free-fee callout ── #}
+      <div class="bm-ach-info">
+        <i class="fa-solid fa-circle-check bm-ach-info-icon"></i>
+        <div>
+          <span class="bm-ach-info-label">ACH bank transfer has no processing fee.</span>
+          <span class="bm-ach-info-sub">Save on fees by linking a bank account instead of a card.</span>
+        </div>
       </div>
 
-      <div class="bm-payment-hint" id="payment-hint">Please select a payment method to continue</div>
+      {% if not has_saved_card %}
+        {# ── No saved card ── #}
+        <div class="bm-no-card-block" id="bm-no-card-block">
+          <i class="fa-solid fa-circle-exclamation bm-no-card-icon"></i>
+          <div>
+            <div class="bm-no-card-title">No saved payment method on file</div>
+            <div class="bm-no-card-desc">You must have a saved payment method to place a bid. Add one in your account settings and reopen this form.</div>
+            <a href="/account#details-payment" target="_blank" class="bm-add-card-link">
+              <i class="fa-solid fa-plus"></i> Add a payment method
+            </a>
+          </div>
+        </div>
+      {% else %}
+        {# ── Card / bank selector ── #}
+        <div class="bm-saved-cards" id="bm-saved-cards">
+          {% for card in saved_cards %}
+          <div class="bm-payment-opt bm-card-opt{% if loop.first %} selected{% endif %}"
+               data-pm-id="{{ card.id }}"
+               data-pm-type="{{ card.method_type }}"
+               data-card-label="{{ card.brand }} •••• {{ card.last4 }}">
+            <div class="bm-pm-icon">
+              {% if card.method_type == 'bank_account' %}
+              <i class="fa-solid fa-building-columns"></i>
+              {% else %}
+              <i class="fa-regular fa-credit-card"></i>
+              {% endif %}
+            </div>
+            <div class="bm-pm-info">
+              <div class="bm-pm-name">{{ card.brand }} •••• {{ card.last4 }}</div>
+              {% if card.method_type == 'bank_account' %}
+              <div class="bm-pm-detail bm-pm-detail--ach">ACH · No processing fee</div>
+              {% else %}
+              <div class="bm-pm-detail">Expires {{ '%02d'|format(card.exp_month) }}/{{ card.exp_year }}</div>
+              {% endif %}
+            </div>
+            <div class="bm-radio-vis{% if loop.first %} checked{% endif %}"></div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="bm-payment-footer">
+          <span class="bm-payment-hint">Your payment method is only charged when your bid is accepted.</span>
+          <a href="/account#details-payment" target="_blank" class="bm-manage-pm-link">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Manage payment methods
+          </a>
+        </div>
+      {% endif %}
+
     </div>
 
     {# ══════════════════════════════════════════
@@ -333,7 +366,7 @@
           <span id="rv-tax">$0.00</span>
         </div>
         <div class="bm-review-line">
-          <span>Processing fee</span>
+          <span id="rv-fee-label">Processing fee (2.99%)</span>
           <span id="rv-fee">$0.00</span>
         </div>
         <div class="bm-review-sep"></div>
@@ -346,8 +379,8 @@
       <div class="bm-review-card bm-review-card--payment">
         <i class="bm-rv-pm-icon fa-regular fa-credit-card" id="rv-pm-icon"></i>
         <div>
-          <div class="bm-rv-pm-label">Payment Method</div>
-          <div class="bm-rv-pm-val" id="rv-pm-name">Credit Card</div>
+          <div class="bm-rv-pm-label" id="rv-pm-label">Payment Method</div>
+          <div class="bm-rv-pm-val" id="rv-pm-name">{{ saved_cards[0].brand ~ ' •••• ' ~ saved_cards[0].last4 if saved_cards else 'No payment method saved' }}</div>
         </div>
       </div>
 

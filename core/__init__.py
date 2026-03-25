@@ -90,6 +90,11 @@ def create_app(test_config=None):
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
     app.config['MAX_FORM_MEMORY_SIZE'] = 100 * 1024 * 1024  # 100MB
 
+    # Stripe publishable key — safe to expose to templates/frontend (not secret)
+    app.config['STRIPE_PUBLISHABLE_KEY'] = app_config.STRIPE_PUBLISHABLE_KEY or ''
+    # Stripe webhook signing secret — server-side only, never sent to the browser
+    app.config['STRIPE_WEBHOOK_SECRET'] = app_config.STRIPE_WEBHOOK_SECRET or ''
+
     # Apply test config if provided
     if test_config:
         app.config.update(test_config)
@@ -177,24 +182,26 @@ def create_app(test_config=None):
         # Permissions Policy - restrict browser features
         response.headers['Permissions-Policy'] = (
             'accelerometer=(), camera=(), geolocation=(), gyroscope=(), '
-            'magnetometer=(), microphone=(), payment=(), usb=()'
+            'magnetometer=(), microphone=(), usb=()'
         )
 
         # Content Security Policy - tightened but still compatible
         # Uses explicit CDN hosts, restricts object/embed/frame
         csp_directives = [
             "default-src 'self'",
-            # Scripts: Allow self, CDNs for libraries. unsafe-inline needed for existing code
+            # Scripts: Allow self, CDNs for libraries, and Stripe.js. unsafe-inline needed for existing code
             # TODO: Migrate inline scripts to external files and add nonces to remove unsafe-inline
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://js.stripe.com",
             # Styles: Allow self, Google Fonts, CDNs. unsafe-inline for inline styles
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
             # Fonts from Google and CDNjs
             "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com",
             # Images from self, data URIs (for inline images), and HTTPS sources
             "img-src 'self' data: blob: https:",
-            # Connect (AJAX/Fetch) only to self
-            "connect-src 'self'",
+            # Connect: self + Stripe APIs (Payment Element makes requests to api.stripe.com)
+            "connect-src 'self' https://api.stripe.com https://js.stripe.com",
+            # Stripe Payment Element renders inside iframes served from js.stripe.com
+            "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
             # Prevent embedding in frames except self
             "frame-ancestors 'self'",
             # Forms can only submit to self
@@ -204,7 +211,7 @@ def create_app(test_config=None):
             # Block object, embed, applet (Flash, Java plugins)
             "object-src 'none'",
             # Upgrade insecure requests to HTTPS
-            "upgrade-insecure-requests"
+            "upgrade-insecure-requests",
         ]
         response.headers['Content-Security-Policy'] = '; '.join(csp_directives)
 
@@ -380,6 +387,12 @@ def _register_context_processors(app):
 
         return dict(is_user_frozen=False, freeze_reason=None, frozen_admin_id=None)
 
+    @app.context_processor
+    def inject_stripe_publishable_key():
+        """Make the Stripe publishable key available in every template.
+        Only the publishable key is injected — never the secret key."""
+        return dict(stripe_publishable_key=app.config.get('STRIPE_PUBLISHABLE_KEY', ''))
+
 
 def _register_blueprints(app):
     """Register all application blueprints."""
@@ -401,6 +414,7 @@ def _register_blueprints(app):
     from routes.admin_routes import admin_bp
     from routes.cancellation_routes import cancellation_bp
     from routes.report_routes import report_bp
+    from routes.stripe_routes import stripe_bp
 
     # Register blueprints with their URL prefixes
     # IMPORTANT: url_prefix values must remain IDENTICAL during refactoring
@@ -421,6 +435,7 @@ def _register_blueprints(app):
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(cancellation_bp)
     app.register_blueprint(report_bp)
+    app.register_blueprint(stripe_bp)
 
 
 def _register_error_handlers(app):

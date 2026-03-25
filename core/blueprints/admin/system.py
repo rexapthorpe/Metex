@@ -2,16 +2,22 @@
 Admin System Settings Routes
 
 Provides API endpoints for reading and writing system-level settings,
-including the spot snapshot interval.
+including the spot snapshot interval and payment safety controls.
 
 Routes:
-  GET  /admin/api/system-settings/spot-interval  — return current value + bounds
-  POST /admin/api/system-settings/spot-interval  — update value
+  GET  /admin/api/system-settings/spot-interval      — return current value + bounds
+  POST /admin/api/system-settings/spot-interval      — update value
+  GET  /admin/api/system-settings/payment-controls   — return checkout/payout flags
+  POST /admin/api/system-settings/payment-controls   — update one or more flags
 """
 
-from flask import jsonify, request
+import logging
+
+from flask import jsonify, request, session
 from utils.auth_utils import admin_required
 from . import admin_bp
+
+_log = logging.getLogger(__name__)
 
 
 @admin_bp.route("/api/system-settings/spot-interval", methods=["GET"])
@@ -345,6 +351,97 @@ def set_tracking_forfeit():
         "min_seconds": TRACKING_FORFEIT_WINDOW_MIN,
         "max_seconds": TRACKING_FORFEIT_WINDOW_MAX,
         "message": f"Tracking forfeit window updated to {label}.",
+    })
+
+
+@admin_bp.route("/api/system-settings/payment-controls", methods=["GET"])
+@admin_required
+def get_payment_controls():
+    """Return current payment/payout toggle states and pause reason."""
+    from services.system_settings_service import (
+        get_checkout_enabled,
+        get_auto_payouts_enabled,
+        get_manual_payouts_enabled,
+        get_payments_pause_reason,
+    )
+    return jsonify({
+        "success": True,
+        "checkout_enabled": get_checkout_enabled(),
+        "auto_payouts_enabled": get_auto_payouts_enabled(),
+        "manual_payouts_enabled": get_manual_payouts_enabled(),
+        "payments_pause_reason": get_payments_pause_reason(),
+    })
+
+
+@admin_bp.route("/api/system-settings/payment-controls", methods=["POST"])
+@admin_required
+def set_payment_controls():
+    """Update one or more payment/payout toggles. Logs old→new for each change."""
+    from services.system_settings_service import (
+        get_checkout_enabled,
+        get_auto_payouts_enabled,
+        get_manual_payouts_enabled,
+        get_payments_pause_reason,
+        set_checkout_enabled,
+        set_auto_payouts_enabled,
+        set_manual_payouts_enabled,
+        set_payments_pause_reason,
+    )
+
+    data = request.get_json(silent=True) or {}
+    admin_id = session.get("user_id")
+    changed = {}
+
+    if "checkout_enabled" in data:
+        old = get_checkout_enabled()
+        new = bool(data["checkout_enabled"])
+        if old != new:
+            set_checkout_enabled(new)
+            _log.info(
+                "[PaymentControls] checkout_enabled %s→%s  admin=%s",
+                old, new, admin_id,
+            )
+        changed["checkout_enabled"] = new
+
+    if "auto_payouts_enabled" in data:
+        old = get_auto_payouts_enabled()
+        new = bool(data["auto_payouts_enabled"])
+        if old != new:
+            set_auto_payouts_enabled(new)
+            _log.info(
+                "[PaymentControls] auto_payouts_enabled %s→%s  admin=%s",
+                old, new, admin_id,
+            )
+        changed["auto_payouts_enabled"] = new
+
+    if "manual_payouts_enabled" in data:
+        old = get_manual_payouts_enabled()
+        new = bool(data["manual_payouts_enabled"])
+        if old != new:
+            set_manual_payouts_enabled(new)
+            _log.info(
+                "[PaymentControls] manual_payouts_enabled %s→%s  admin=%s",
+                old, new, admin_id,
+            )
+        changed["manual_payouts_enabled"] = new
+
+    if "payments_pause_reason" in data:
+        old = get_payments_pause_reason()
+        new = str(data["payments_pause_reason"])
+        if old != new:
+            set_payments_pause_reason(new)
+            _log.info(
+                "[PaymentControls] payments_pause_reason updated  admin=%s", admin_id
+            )
+        changed["payments_pause_reason"] = new.strip()
+
+    if not changed:
+        return jsonify({"success": False, "message": "No recognised fields provided"}), 400
+
+    return jsonify({
+        "success": True,
+        "message": "Payment controls updated.",
+        **changed,
     })
 
 

@@ -248,6 +248,7 @@ def ensure_user_status_columns():
             ('is_banned', 'INTEGER DEFAULT 0'),
             ('is_frozen', 'INTEGER DEFAULT 0'),
             ('freeze_reason', 'TEXT'),
+            ('bid_payment_strikes', 'INTEGER DEFAULT 0'),
         ]:
             if col_name not in existing:
                 cursor.execute(f'ALTER TABLE users ADD COLUMN {col_name} {col_def}')
@@ -419,6 +420,24 @@ def migrate_default_fee_to_5pct():
         print(f'Error migrating default platform fee: {e}')
 
 
+def ensure_stripe_customer_id_column():
+    """
+    Ensure users table has stripe_customer_id column (migration 028).
+    This is the buyer-facing Stripe Customer ID for saved payment methods.
+    Separate from stripe_account_id (seller payouts).
+    """
+    try:
+        conn = get_db_connection()
+        existing = get_table_columns(conn, 'users')
+        if 'stripe_customer_id' not in existing:
+            conn.execute('ALTER TABLE users ADD COLUMN stripe_customer_id TEXT')
+            conn.commit()
+            print('✅ users.stripe_customer_id column added (migration 028)')
+        conn.close()
+    except Exception as e:
+        print(f'Error ensuring stripe_customer_id column: {e}')
+
+
 def init_database():
     """
     Run all database initialization checks
@@ -438,3 +457,4 @@ def init_database():
     ensure_ratings_multi_seller_constraint()
     ensure_message_type_column()
     migrate_default_fee_to_5pct()
+    ensure_stripe_customer_id_column()

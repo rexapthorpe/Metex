@@ -1,6 +1,148 @@
 // static/js/checkout_page.js
 // Checkout page functionality - 3-step checkout flow
 
+// ---------------------------------------------------------------------------
+// Stripe setup
+// ---------------------------------------------------------------------------
+let _stripe = null;
+let _stripeElements = null;
+let _stripePaymentIntentId = null;
+let _stripeInitStarted = false;     // guard against double-init
+let _stripeSelectedMethod = 'card'; // tracks active Stripe Payment Element tab
+let _clientSecret = null;           // stored for saved-card confirmation
+let _selectedSavedPmId = null;      // null = new card; 'pm_xxx' = saved card selected
+let _savedCardInfo = {};            // pm_id → {brand, last4, exp_month, exp_year}
+let _paymentElementMounted = false; // guard against double-mount
+
+function _showPaymentLoading(visible) {
+  const el = document.getElementById('payment-loading-message');
+  if (el) el.style.display = visible ? 'block' : 'none';
+}
+
+function _showPaymentError(msg) {
+  _showPaymentLoading(false);
+  const el = document.getElementById('payment-element-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+  console.error('[Stripe]', msg);
+}
+
+/**
+ * Called the first time step 2 (Payment) becomes visible.
+ * Always fetches a PaymentIntent (for clientSecret).
+ * Mounts the Stripe Payment Element only in new-card mode.
+ */
+async function initStripeElements() {
+  if (_stripeInitStarted) return;
+  _stripeInitStarted = true;
+
+  console.log('[Stripe] initStripeElements starting');
+
+  const key = window.stripePublishableKey;
+  if (!key) {
+    _showPaymentError('Payment system configuration error. Please contact support.');
+    return;
+  }
+
+  if (typeof Stripe === 'undefined') {
+    _showPaymentError('Stripe.js failed to load. Please refresh the page.');
+    return;
+  }
+
+  _stripe = Stripe(key);
+  _showPaymentLoading(true);
+
+  try {
+    const res = await fetch('/create-payment-intent', { method: 'POST' });
+    console.log('[Stripe] create-payment-intent status:', res.status);
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('[Stripe] server error body:', text);
+      _showPaymentError('Could not start payment session (HTTP ' + res.status + '). Please refresh.');
+      return;
+    }
+
+    const data = await res.json();
+
+    if (data.error) {
+      _showPaymentError('Payment setup failed: ' + data.error);
+      return;
+    }
+
+    if (!data.clientSecret) {
+      _showPaymentError('Payment setup returned no client secret. Please refresh.');
+      return;
+    }
+
+    _clientSecret = data.clientSecret;
+    _stripePaymentIntentId = data.paymentIntentId;
+
+    // If the user already selected a saved card (cards loaded before step 2),
+    // skip mounting the Payment Element — the saved card is all we need.
+    if (_selectedSavedPmId) {
+      _showPaymentLoading(false);
+      console.log('[Stripe] saved card pre-selected — skipping Payment Element mount');
+      return;
+    }
+
+    // New-card mode: mount the Stripe Payment Element.
+    await _mountPaymentElement();
+
+  } catch (err) {
+    _showPaymentError('Payment form failed to load. Please refresh. (' + err.message + ')');
+  }
+}
+
+/**
+ * Mount the Stripe Payment Element into #payment-element.
+ * Safe to call multiple times — guarded by _paymentElementMounted flag.
+ * Requires _stripe and _clientSecret to already be set.
+ */
+async function _mountPaymentElement() {
+  if (_paymentElementMounted) return;
+  if (!_stripe || !_clientSecret) return;
+
+  _paymentElementMounted = true;
+
+  const mountTarget = document.getElementById('payment-element');
+  if (!mountTarget) {
+    _showPaymentError('Payment form container missing. Please refresh.');
+    return;
+  }
+
+  _stripeElements = _stripe.elements({ clientSecret: _clientSecret });
+  const paymentEl = _stripeElements.create('payment');
+  paymentEl.mount('#payment-element');
+  _showPaymentLoading(false);
+  console.log('[Stripe] Payment Element mounted successfully');
+
+  // Fee badge — always shows both options; ACH always highlighted green.
+  var feeBadge = document.getElementById('payment-fee-badge');
+  function _setFeeBadge(type) {
+    _stripeSelectedMethod = type || 'card';
+    if (!feeBadge) return;
+    feeBadge.style.display = 'block';
+    feeBadge.style.background = '';
+    feeBadge.style.color = '';
+    feeBadge.style.border = '';
+    feeBadge.innerHTML =
+      '<span style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
+        '<i class="fa-solid fa-circle-info" style="color:#6b7280;"></i>' +
+        '<span style="color:#374151;">Card payment &mdash; <strong>2.99% processing fee</strong></span>' +
+      '</span>' +
+      '<span style="display:flex;align-items:center;gap:6px;background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;padding:4px 8px;">' +
+        '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i>' +
+        '<span>ACH Bank Transfer &mdash; <strong>Free</strong></span>' +
+      '</span>';
+    updateOrderSummary();
+  }
+  _setFeeBadge('card');
+  paymentEl.on('change', function(event) {
+    var type = event && event.value && event.value.type;
+    _setFeeBadge(type || 'card');
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   initSavedAddresses();
   initPaymentMethodSelection();
@@ -9,6 +151,8 @@ document.addEventListener('DOMContentLoaded', function() {
   loadSavedPaymentMethods();
   updateOrderSummary();
   _restoreCheckoutDraft();
+  // Do NOT call initStripeElements() here — #payment-element is inside a
+  // display:none step at this point.  It is called lazily from goToStep(2).
 });
 
 // Current step tracking
@@ -35,6 +179,12 @@ function goToStep(step) {
   const targetStep = document.getElementById(stepIds[step - 1]);
   if (targetStep) {
     targetStep.classList.add('active');
+  }
+
+  // Lazy-init Stripe the first time the payment step becomes visible.
+  // Must happen AFTER the step div gains display:block (active class added above).
+  if (step === 2) {
+    initStripeElements();
   }
 
   // If going to review step, populate review data
@@ -122,84 +272,16 @@ function validateShippingForm() {
 }
 
 /**
- * Validate payment form
+ * Validate payment form.
+ * A selected saved card is always valid.
+ * For new-card mode, Stripe Elements handles its own validation — just check it loaded.
  */
 function validatePaymentForm() {
-  const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
-
-  // Saved cards don't need validation
-  if (paymentMethod.startsWith('saved_card_')) {
-    return true;
+  if (_selectedSavedPmId) return true;
+  if (!_stripeElements) {
+    alert('Payment form is still loading. Please wait a moment and try again.');
+    return false;
   }
-
-  if (paymentMethod === 'card') {
-    const cardNumber = document.getElementById('cardNumber');
-    const cardholderName = document.getElementById('cardholderName');
-    const expiryDate = document.getElementById('expiryDate');
-    const cvv = document.getElementById('cvv');
-
-    let isValid = true;
-
-    if (!cardNumber.value.replace(/\s/g, '').match(/^\d{13,19}$/)) {
-      cardNumber.style.borderColor = '#ef4444';
-      isValid = false;
-    } else {
-      cardNumber.style.borderColor = '#e5e7eb';
-    }
-
-    if (!cardholderName.value.trim()) {
-      cardholderName.style.borderColor = '#ef4444';
-      isValid = false;
-    } else {
-      cardholderName.style.borderColor = '#e5e7eb';
-    }
-
-    if (!expiryDate.value.match(/^\d{2}\/\d{2}$/)) {
-      expiryDate.style.borderColor = '#ef4444';
-      isValid = false;
-    } else {
-      expiryDate.style.borderColor = '#e5e7eb';
-    }
-
-    if (!cvv.value.match(/^\d{3,4}$/)) {
-      cvv.style.borderColor = '#ef4444';
-      isValid = false;
-    } else {
-      cvv.style.borderColor = '#e5e7eb';
-    }
-
-    if (!isValid) {
-      alert('Please fill in all payment details correctly.');
-    }
-
-    return isValid;
-  } else if (paymentMethod === 'ach') {
-    const routingNumber = document.getElementById('routingNumber');
-    const accountNumber = document.getElementById('accountNumber');
-
-    let isValid = true;
-
-    if (!routingNumber.value.match(/^\d{9}$/)) {
-      routingNumber.style.borderColor = '#ef4444';
-      isValid = false;
-    } else {
-      routingNumber.style.borderColor = '#e5e7eb';
-    }
-
-    if (!accountNumber.value.trim()) {
-      accountNumber.style.borderColor = '#ef4444';
-      isValid = false;
-    } else {
-      accountNumber.style.borderColor = '#e5e7eb';
-    }
-
-    if (!isValid) {
-      alert('Please fill in all bank details correctly.');
-    }
-
-    return isValid;
-  }
-
   return true;
 }
 
@@ -236,21 +318,17 @@ function populateReviewData() {
   document.getElementById('reviewPhone').textContent = phone;
 
   // Payment data
-  const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
   const paymentDisplay = document.getElementById('paymentDisplay');
-
-  if (paymentMethod.startsWith('saved_card_')) {
-    // Get saved card details from the selected option
-    const selectedOption = document.querySelector(`input[value="${paymentMethod}"]`)?.closest('.payment-option');
-    const cardName = selectedOption?.querySelector('.payment-name')?.textContent || 'Saved Card';
-    const cardIcon = selectedOption?.querySelector('.payment-icon i')?.className || 'fa-solid fa-credit-card';
-    paymentDisplay.innerHTML = `<i class="${cardIcon}"></i> <span>${cardName}</span>`;
-  } else if (paymentMethod === 'card') {
-    const cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
-    const lastFour = cardNumber.slice(-4);
-    paymentDisplay.innerHTML = `<i class="fa-solid fa-credit-card"></i> <span>Card ending in ****${lastFour}</span>`;
-  } else if (paymentMethod === 'ach') {
-    paymentDisplay.innerHTML = `<i class="fa-solid fa-building-columns"></i> <span>Bank Transfer (ACH)</span>`;
+  if (paymentDisplay) {
+    if (_selectedSavedPmId && _savedCardInfo[_selectedSavedPmId]) {
+      const c = _savedCardInfo[_selectedSavedPmId];
+      const exp = String(c.exp_month).padStart(2, '0') + '/' + String(c.exp_year).slice(-2);
+      paymentDisplay.innerHTML =
+        '<i class="' + getCardIcon(c.brand) + '"></i> <span>' +
+        capitalizeFirst(c.brand) + ' •••• ' + c.last4 + ' · exp ' + exp + '</span>';
+    } else {
+      paymentDisplay.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Secure payment via Stripe</span>';
+    }
   }
 }
 
@@ -352,7 +430,8 @@ function loadUserInfo() {
 function updateOrderSummary() {
   const checkedRadio = document.querySelector('input[name="payment_method"]:checked');
   const method = checkedRadio ? checkedRadio.value : 'card';
-  const isACH = method === 'ach';
+  // Also treat Stripe Element's ACH tab as ACH
+  const isACH = method === 'ach' || _stripeSelectedMethod === 'us_bank_account';
 
   const subtotal    = window.checkoutSubtotal   || 0;
   const gradingFee  = window.checkoutGradingFee || 0;
@@ -448,76 +527,144 @@ function initCardFormatting() {
 }
 
 /**
- * Load saved payment methods
+ * Load saved payment methods from Stripe (via account API) and render them
+ * in the saved-cards section of the payment step.
+ * Called at DOMContentLoaded so cards are usually ready before the user
+ * reaches step 2.
  */
 function loadSavedPaymentMethods() {
   fetch('/account/api/payment-methods')
-    .then(response => response.json())
-    .then(data => {
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
       if (data.success && data.payment_methods && data.payment_methods.length > 0) {
-        displaySavedCards(data.payment_methods);
+        _renderSavedCards(data.payment_methods);
       }
     })
-    .catch(err => console.error('Error loading payment methods:', err));
+    .catch(function(err) { console.error('[PM] Error loading payment methods:', err); });
 }
 
 /**
- * Display saved cards in the payment options
+ * Render saved card rows into #saved-cards-list and activate the section.
+ * Selects the default card (or first card) automatically.
  */
-function displaySavedCards(cards) {
-  const paymentOptions = document.querySelector('.payment-options');
-  if (!paymentOptions) return;
+function _renderSavedCards(cards) {
+  var section = document.getElementById('saved-cards-section');
+  var list    = document.getElementById('saved-cards-list');
+  if (!section || !list) return;
 
-  // Find the card payment option
-  const cardOption = paymentOptions.querySelector('input[value="card"]')?.closest('.payment-option');
-  if (!cardOption) return;
+  // Cache display info for use in review step
+  cards.forEach(function(card) {
+    _savedCardInfo[card.id] = {
+      brand: card.brand,
+      last4: card.last4,
+      exp_month: card.exp_month,
+      exp_year: card.exp_year,
+    };
+  });
 
-  // Create saved cards section
-  const savedCardsHtml = cards.map((card, index) => {
-    const cardIcon = getCardIcon(card.card_type);
-    const expiry = `${String(card.expiry_month).padStart(2, '0')}/${String(card.expiry_year).slice(-2)}`;
-    const isDefault = card.is_default ? ' (Default)' : '';
+  list.innerHTML = cards.map(function(card) {
+    var icon = getCardIcon(card.brand);
+    var exp  = String(card.exp_month).padStart(2, '0') + '/' + String(card.exp_year).slice(-2);
+    var badge = card.is_default
+      ? '<span class="co-pm-default-badge">Default</span>'
+      : '';
+    return [
+      '<div class="co-pm-row" id="co-pm-' + card.id + '"',
+      '     onclick="selectCheckoutSavedCard(\'' + card.id + '\')" role="button" tabindex="0">',
+      '  <div class="co-pm-radio">',
+      '    <input type="radio" name="checkout_pm" value="' + card.id + '"',
+      '      onclick="event.stopPropagation(); selectCheckoutSavedCard(\'' + card.id + '\')">',
+      '  </div>',
+      '  <div class="co-pm-info">',
+      '    <span class="co-pm-icon"><i class="' + icon + '"></i></span>',
+      '    <div>',
+      '      <div class="co-pm-name">' + capitalizeFirst(card.brand) + ' •••• ' + card.last4 + badge + '</div>',
+      '      <div class="co-pm-exp">Expires ' + exp + '</div>',
+      '    </div>',
+      '  </div>',
+      '</div>',
+    ].join('\n');
+  }).join('\n');
 
-    return `
-      <label class="payment-option saved-card-option" data-card-id="${card.id}">
-        <input type="radio" name="payment_method" value="saved_card_${card.id}">
-        <div class="payment-option-content">
-          <div class="payment-icon">
-            <i class="${cardIcon}"></i>
-          </div>
-          <div class="payment-details">
-            <span class="payment-name">${capitalizeFirst(card.card_type)} •••• ${card.last_four}${isDefault}</span>
-            <span class="payment-subtitle">Expires ${expiry}</span>
-          </div>
-        </div>
-        <div class="payment-check">
-          <i class="fa-solid fa-circle-check"></i>
-        </div>
-      </label>
-    `;
-  }).join('');
+  // Show saved-cards section; hide Payment Element (not needed for saved cards)
+  section.style.display = 'block';
+  var stripeSection = document.getElementById('stripe-element-section');
+  if (stripeSection) stripeSection.style.display = 'none';
 
-  // Insert saved cards before the "new card" option
-  cardOption.insertAdjacentHTML('beforebegin', savedCardsHtml);
+  // Auto-select default card, or first card
+  var defaultCard = cards.find(function(c) { return c.is_default; }) || cards[0];
+  selectCheckoutSavedCard(defaultCard.id);
+}
 
-  // Update the card option label to indicate it's for a new card
-  const cardNameSpan = cardOption.querySelector('.payment-name');
-  if (cardNameSpan) {
-    cardNameSpan.textContent = 'Add New Card';
+/**
+ * Select a saved card as the payment method for this checkout.
+ */
+function selectCheckoutSavedCard(pmId) {
+  _selectedSavedPmId = pmId;
+
+  // Sync radio buttons
+  document.querySelectorAll('input[name="checkout_pm"]').forEach(function(r) {
+    r.checked = (r.value === pmId);
+  });
+
+  // Highlight selected row, clear others
+  document.querySelectorAll('.co-pm-row').forEach(function(row) {
+    row.classList.toggle('co-pm-row-selected', row.id === 'co-pm-' + pmId);
+  });
+
+  // Hide Payment Element (saved card needs no re-entry)
+  var stripeSection = document.getElementById('stripe-element-section');
+  if (stripeSection) stripeSection.style.display = 'none';
+
+  // Show fee badge — always shows both options
+  var feeBadge = document.getElementById('payment-fee-badge');
+  if (feeBadge) {
+    feeBadge.style.display = 'block';
+    feeBadge.style.background = '';
+    feeBadge.style.color = '';
+    feeBadge.style.border = '';
+    feeBadge.innerHTML =
+      '<span style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
+        '<i class="fa-solid fa-circle-info" style="color:#6b7280;"></i>' +
+        '<span style="color:#374151;">Card payment &mdash; <strong>2.99% processing fee</strong></span>' +
+      '</span>' +
+      '<span style="display:flex;align-items:center;gap:6px;background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;padding:4px 8px;">' +
+        '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i>' +
+        '<span>ACH Bank Transfer &mdash; <strong>Free</strong></span>' +
+      '</span>';
   }
+  _stripeSelectedMethod = 'card';
+  updateOrderSummary();
+}
+window.selectCheckoutSavedCard = selectCheckoutSavedCard;
 
-  // Reinitialize payment selection to include saved cards
-  reinitPaymentSelection();
+/**
+ * Switch to "new card" mode — show and initialize the Stripe Payment Element.
+ */
+function selectCheckoutNewCard() {
+  _selectedSavedPmId = null;
 
-  // Select the default card if there is one
-  const defaultCard = cards.find(c => c.is_default);
-  if (defaultCard) {
-    const defaultOption = document.querySelector(`input[value="saved_card_${defaultCard.id}"]`);
-    if (defaultOption) {
-      defaultOption.click();
-    }
+  var radio = document.getElementById('radio-new-card');
+  if (radio) radio.checked = true;
+
+  // Highlight the new-card row
+  document.querySelectorAll('.co-pm-row').forEach(function(row) {
+    row.classList.toggle('co-pm-row-selected', row.id === 'co-new-card-row');
+  });
+
+  // Show the Stripe Payment Element section
+  var stripeSection = document.getElementById('stripe-element-section');
+  if (stripeSection) stripeSection.style.display = 'block';
+
+  // Mount the element if we have credentials but haven't mounted yet
+  if (_stripe && _clientSecret && !_paymentElementMounted) {
+    _mountPaymentElement();
+  } else if (!_stripeInitStarted) {
+    // Step 2 was not yet entered — init will handle mounting
+    initStripeElements();
   }
 }
+window.selectCheckoutNewCard = selectCheckoutNewCard;
 
 /**
  * Get Font Awesome icon for card type
@@ -644,26 +791,59 @@ function _gatherShippingInfo() {
 }
 
 /**
- * Place the order via AJAX.
- * On success: redirect to confirmation page.
+ * Place the order via AJAX, then confirm payment with Stripe.
+ *
+ * Phase 1: POST /checkout (creates order record, decrements inventory)
+ * Phase 2: stripe.confirmPayment() — charges the card
+ *          On success (no 3DS): redirect to /order-success
+ *          On redirect (3DS):   Stripe handles redirect to /order-success
  * On SPOT_EXPIRED: show recalculate modal.
- * On SPOT_UNAVAILABLE / other error: show alert.
  */
 async function placeOrder() {
   const btn = document.getElementById('placeOrderBtn');
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
 
+  // Always show errors in the step-3 error div (visible at review step).
+  const _showError = (msg) => {
+    const div = document.getElementById('step3-error');
+    if (div) { div.textContent = msg; div.style.display = 'block'; }
+    else { alert(msg); }
+  };
+  const _clearError = () => {
+    const div = document.getElementById('step3-error');
+    if (div) { div.style.display = 'none'; div.textContent = ''; }
+  };
+  const _resetBtn = () => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-lock"></i> Place Order • <span id="place-order-total">' +
+      document.getElementById('place-order-total').textContent + '</span>';
+  };
+
+  _clearError();
+
+  if (!_stripe) {
+    _showError('Payment system not ready. Please wait a moment and try again.');
+    _resetBtn();
+    return;
+  }
+  if (!_selectedSavedPmId && !_stripeElements) {
+    _showError('Payment form is still loading. Please wait a moment and try again.');
+    _resetBtn();
+    return;
+  }
+  if (!_clientSecret) {
+    _showError('Payment system is still initializing. Please wait a moment and try again.');
+    _resetBtn();
+    return;
+  }
+
   try {
-    const saveCardCheckbox = document.getElementById('saveCard');
-    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
-
-    if (saveCardCheckbox && saveCardCheckbox.checked && paymentMethod === 'card') {
-      await saveCardToAccount();
-    }
-
     const { shippingAddress, firstName, lastName } = _gatherShippingInfo();
 
+    // Phase 1: Create the order record in our DB.
+    // We include the payment_intent_id so the server stores it on the order immediately —
+    // this lets /order-success find the order by PI ID without needing metadata stamping.
     const response = await fetch('/checkout', {
       method: 'POST',
       headers: {
@@ -672,36 +852,106 @@ async function placeOrder() {
       },
       body: JSON.stringify({
         shipping_address: shippingAddress,
-        payment_method: paymentMethod,
+        payment_method: 'card',
         recipient_first: firstName,
         recipient_last: lastName,
         checkout_nonce: window.checkoutNonce,
+        payment_intent_id: _stripePaymentIntentId,
       }),
     });
 
+    if (!response.ok && response.status !== 409) {
+      const text = await response.text();
+      console.error('[placeOrder] /checkout HTTP error', response.status, text);
+      _showError('Server error processing your order (HTTP ' + response.status + '). Please try again.');
+      _resetBtn();
+      return;
+    }
+
     const data = await response.json();
 
-    if (data.success) {
-      window.location.href = `/checkout/confirm/${data.order_id}`;
-      return; // keep button disabled during redirect
+    if (!data.success) {
+      if (data.error_code === 'SPOT_EXPIRED') {
+        showSpotExpiredModal();
+      } else if (data.error_code === 'SPOT_UNAVAILABLE') {
+        _showError(data.message || 'Live pricing temporarily unavailable. Please try again in a moment.');
+      } else {
+        _showError(data.message || 'Error processing order. Please try again.');
+      }
+      _resetBtn();
+      return;
     }
 
-    if (data.error_code === 'SPOT_EXPIRED') {
-      showSpotExpiredModal();
-    } else if (data.error_code === 'SPOT_UNAVAILABLE') {
-      alert(data.message || 'Live pricing temporarily unavailable. Please try again in a moment.');
-    } else {
-      alert(data.message || 'Error processing order. Please try again.');
+    // Phase 1 succeeded — order created. Now confirm payment with Stripe.
+    console.log('[placeOrder] Phase 1 complete, order_id=' + data.order_id + '. Confirming payment...');
+
+    // Phase 2: Confirm payment with Stripe.
+    let confirmResult;
+    try {
+      if (_selectedSavedPmId) {
+        confirmResult = await _stripe.confirmPayment({
+          clientSecret: _clientSecret,
+          confirmParams: {
+            payment_method: _selectedSavedPmId,
+            return_url: window.location.origin + '/order-success',
+          },
+          redirect: 'if_required',
+        });
+      } else {
+        confirmResult = await _stripe.confirmPayment({
+          elements: _stripeElements,
+          confirmParams: {
+            return_url: window.location.origin + '/order-success',
+          },
+          redirect: 'if_required',
+        });
+      }
+    } catch (stripeErr) {
+      // Stripe SDK threw (network error, etc.). Order exists — go to success page
+      // and let the webhook confirm payment status asynchronously.
+      console.error('[placeOrder] stripe.confirmPayment threw:', stripeErr);
+      window.location.href = '/order-success?payment_intent=' + (_stripePaymentIntentId || '');
+      return;
     }
+
+    const { error, paymentIntent } = confirmResult;
+
+    if (error) {
+      console.error('[Stripe] confirmPayment error:', error);
+      const errMsg = error.message || 'Payment failed. Please check your payment details and try again.';
+      const errDiv = document.getElementById('step3-error');
+      if (errDiv) {
+        errDiv.innerHTML = '';
+        const msgSpan = document.createElement('span');
+        msgSpan.textContent = errMsg;
+        errDiv.appendChild(msgSpan);
+        // If a saved card was used, offer a quick link to go back and change it.
+        if (_selectedSavedPmId) {
+          errDiv.appendChild(document.createTextNode(' '));
+          const link = document.createElement('a');
+          link.href = 'javascript:void(0)';
+          link.textContent = 'Change payment method';
+          link.style.cssText = 'color:#1f2937;font-weight:600;text-decoration:underline;';
+          link.addEventListener('click', function() { goToStep(2); });
+          errDiv.appendChild(link);
+        }
+        errDiv.style.display = 'block';
+      } else {
+        alert(errMsg);
+      }
+      _resetBtn();
+      return;
+    }
+
+    // Payment confirmed — navigate to the confirmation page.
+    console.log('[placeOrder] Payment confirmed, pi=' + paymentIntent.id + ' status=' + paymentIntent.status);
+    window.location.href = '/order-success?payment_intent=' + paymentIntent.id;
+
   } catch (err) {
-    console.error('[placeOrder] network error:', err);
-    alert('Network error. Please check your connection and try again.');
+    console.error('[placeOrder] unexpected error:', err);
+    _showError('An unexpected error occurred. Please refresh the page and try again.');
+    _resetBtn();
   }
-
-  // Re-enable button on any non-redirect outcome
-  btn.disabled = false;
-  btn.innerHTML = '<i class="fa-solid fa-lock"></i> Place Order • <span id="place-order-total">' +
-    document.getElementById('place-order-total').textContent + '</span>';
 }
 window.placeOrder = placeOrder;
 

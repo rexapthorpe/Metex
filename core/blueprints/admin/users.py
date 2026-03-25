@@ -79,11 +79,22 @@ def get_user_details(user_id):
         elif is_frozen and is_frozen['is_frozen']:
             status = 'frozen'
 
-        # Get is_metex_guaranteed
-        guarantee_row = conn.execute(
-            'SELECT is_metex_guaranteed FROM users WHERE id = ?', (user_id,)
-        ).fetchone()
-        is_metex_guaranteed = bool(guarantee_row and guarantee_row['is_metex_guaranteed'])
+        # Get is_metex_guaranteed and bid_payment_strikes
+        try:
+            extras_row = conn.execute(
+                'SELECT COALESCE(is_metex_guaranteed, 0) as is_metex_guaranteed, '
+                'COALESCE(bid_payment_strikes, 0) as bid_payment_strikes '
+                'FROM users WHERE id = ?', (user_id,)
+            ).fetchone()
+            is_metex_guaranteed = bool(extras_row and extras_row['is_metex_guaranteed'])
+            bid_payment_strikes = extras_row['bid_payment_strikes'] if extras_row else 0
+        except Exception:
+            guarantee_row = conn.execute(
+                'SELECT COALESCE(is_metex_guaranteed, 0) as is_metex_guaranteed '
+                'FROM users WHERE id = ?', (user_id,)
+            ).fetchone()
+            is_metex_guaranteed = bool(guarantee_row and guarantee_row['is_metex_guaranteed'])
+            bid_payment_strikes = 0
 
         return jsonify({
             'success': True,
@@ -98,6 +109,7 @@ def get_user_details(user_id):
                 'joined_date': user['created_at'][:10] if user['created_at'] else 'Unknown',
                 'is_admin': user['is_admin'],
                 'is_metex_guaranteed': is_metex_guaranteed,
+                'bid_payment_strikes': bid_payment_strikes,
                 'status': status,
                 'stats': {
                     'purchases': buy_stats['count'],
@@ -913,6 +925,49 @@ def get_order_details(order_id):
         print(f"Error getting order details: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@admin_bp.route('/api/user/<int:user_id>/reset_bid_strikes', methods=['POST'])
+@admin_required
+def reset_bid_strikes(user_id):
+    """Reset a buyer's bid payment strike count (admin action)"""
+    from database import get_db_connection
+
+    data = request.get_json() or {}
+    # Optional: reduce by a specific amount; default is full reset to 0
+    reduce_by = data.get('reduce_by')
+
+    conn = get_db_connection()
+    try:
+        user = conn.execute(
+            'SELECT id, username, COALESCE(bid_payment_strikes, 0) as bid_payment_strikes '
+            'FROM users WHERE id = ?', (user_id,)
+        ).fetchone()
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        current = user['bid_payment_strikes']
+        if reduce_by is not None:
+            new_count = max(0, current - int(reduce_by))
+        else:
+            new_count = 0
+
+        conn.execute(
+            'UPDATE users SET bid_payment_strikes = ? WHERE id = ?', (new_count, user_id)
+        )
+        conn.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f"Bid payment strikes for @{user['username']} reset from {current} to {new_count}.",
+            'bid_payment_strikes': new_count
+        })
+
+    except Exception as e:
+        print(f"Error resetting bid strikes: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         conn.close()

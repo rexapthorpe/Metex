@@ -79,35 +79,45 @@ CREATE TABLE listings (
 );
 
 CREATE TABLE bids (
-    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-    category_id          INTEGER NOT NULL,
-    buyer_id             INTEGER NOT NULL,
-    quantity_requested   INTEGER NOT NULL,
-    price_per_coin       REAL    NOT NULL,
-    remaining_quantity   INTEGER NOT NULL,
-    active               INTEGER DEFAULT 1,
-    delivery_address     TEXT    DEFAULT 'Test Address',
-    status               TEXT    DEFAULT 'Open',
-    pricing_mode         TEXT    DEFAULT 'static',
-    spot_premium         REAL,
-    ceiling_price        REAL,
-    pricing_metal        TEXT,
-    recipient_first_name TEXT    DEFAULT 'Test',
-    recipient_last_name  TEXT    DEFAULT 'User',
-    random_year          INTEGER DEFAULT 0,
-    created_at           TEXT    DEFAULT (datetime('now'))
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id                 INTEGER NOT NULL,
+    buyer_id                    INTEGER NOT NULL,
+    quantity_requested          INTEGER NOT NULL,
+    price_per_coin              REAL    NOT NULL,
+    remaining_quantity          INTEGER NOT NULL,
+    active                      INTEGER DEFAULT 1,
+    delivery_address            TEXT    DEFAULT 'Test Address',
+    status                      TEXT    DEFAULT 'Open',
+    pricing_mode                TEXT    DEFAULT 'static',
+    spot_premium                REAL,
+    ceiling_price               REAL,
+    pricing_metal               TEXT,
+    recipient_first_name        TEXT    DEFAULT 'Test',
+    recipient_last_name         TEXT    DEFAULT 'User',
+    random_year                 INTEGER DEFAULT 0,
+    created_at                  TEXT    DEFAULT (datetime('now')),
+    bid_payment_method_id       TEXT,
+    bid_payment_status          TEXT    DEFAULT 'pending',
+    bid_payment_intent_id       TEXT,
+    bid_payment_failure_code    TEXT,
+    bid_payment_failure_message TEXT,
+    bid_payment_attempted_at    TEXT
 );
 
 CREATE TABLE orders (
-    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-    buyer_id             INTEGER,
-    total_price          REAL,
-    shipping_address     TEXT,
-    status               TEXT,
-    created_at           TEXT,
-    recipient_first_name TEXT,
-    recipient_last_name  TEXT,
-    source_bid_id        INTEGER
+    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+    buyer_id                 INTEGER,
+    total_price              REAL,
+    shipping_address         TEXT,
+    status                   TEXT,
+    created_at               TEXT,
+    recipient_first_name     TEXT,
+    recipient_last_name      TEXT,
+    source_bid_id            INTEGER,
+    payment_status           TEXT    DEFAULT 'unpaid',
+    stripe_payment_intent_id TEXT,
+    paid_at                  TEXT,
+    payment_method_type      TEXT
 );
 
 CREATE TABLE order_items (
@@ -381,26 +391,26 @@ class TestT3NoExternalApiCalls:
         assert result["total_filled"] == 1
 
 
-# ── T4a: Manual admin spot insert triggers rematch ──────────────────────────
+# ── T4a: Manual admin spot insert — triggers rematch ─────────────────────────
 
 class TestT4aManualInsertTrigger:
     """
-    insert_manual_spot_snapshot() must call run_bid_rematch_after_spot_update
-    after committing the new snapshot row.
+    insert_manual_spot_snapshot() completes successfully and triggers bid rematch.
+    Auto-match now charges the buyer's saved card, so it is safe to run automatically.
     """
 
     def test_rematch_called_on_manual_insert(self):
+        """
+        run_bid_rematch_after_spot_update must be called with the updated metal
+        when a manual spot snapshot is inserted.
+        """
         conn = _make_db()
         with patch(
             "core.blueprints.bids.auto_match.run_bid_rematch_after_spot_update"
         ) as mock_rematch:
             insert_manual_spot_snapshot(conn, "gold", 1500.0)
 
-        mock_rematch.assert_called_once()
-        # Verify the correct metal was passed
-        _, kwargs = mock_rematch.call_args
-        metals = kwargs.get("metals") or []
-        assert "gold" in metals
+        mock_rematch.assert_called_once_with(metals=["gold"])
 
     def test_rematch_called_for_silver(self):
         conn = _make_db()
@@ -409,21 +419,15 @@ class TestT4aManualInsertTrigger:
         ) as mock_rematch:
             insert_manual_spot_snapshot(conn, "silver", 25.0)
 
-        mock_rematch.assert_called_once()
-        _, kwargs = mock_rematch.call_args
-        assert "silver" in (kwargs.get("metals") or [])
+        mock_rematch.assert_called_once_with(metals=["silver"])
 
-    def test_rematch_not_blocked_by_error(self):
+    def test_insert_succeeds_regardless(self):
         """
-        Even if run_bid_rematch_after_spot_update raises, insert_manual_spot_snapshot
-        must return successfully (errors are caught in _trigger_bid_rematch).
+        insert_manual_spot_snapshot must return its row dict regardless of what
+        _trigger_bid_rematch does (errors are caught inside it).
         """
         conn = _make_db()
-        with patch(
-            "core.blueprints.bids.auto_match.run_bid_rematch_after_spot_update",
-            side_effect=RuntimeError("DB down"),
-        ):
-            result = insert_manual_spot_snapshot(conn, "gold", 1500.0)
+        result = insert_manual_spot_snapshot(conn, "gold", 1500.0)
 
         # Insert still returned its row dict
         assert result["metal"] == "gold"

@@ -4,9 +4,13 @@ Bid Form Route
 Handles the unified bid form endpoint for creating and editing bids.
 """
 
+import logging
+import stripe
 from flask import render_template, session, url_for, jsonify
 from database import get_db_connection
 from services.spot_price_service import get_spot_price
+
+_log = logging.getLogger(__name__)
 
 from . import bid_bp
 
@@ -133,9 +137,48 @@ def bid_form_unified(bucket_id, bid_id=None):
 
     # Fetch user's first and last name for auto-populating billing fields
     user_info = cursor.execute('''
-        SELECT first_name, last_name FROM users
+        SELECT first_name, last_name, stripe_customer_id FROM users
         WHERE id = ?
     ''', (session['user_id'],)).fetchone()
+
+    # Fetch buyer's saved Stripe payment methods (cards + ACH bank accounts)
+    saved_cards = []
+    customer_id = user_info['stripe_customer_id'] if user_info else None
+    if customer_id:
+        try:
+            customer = stripe.Customer.retrieve(customer_id)
+            default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
+
+            # Cards
+            for pm in stripe.PaymentMethod.list(customer=customer_id, type='card').auto_paging_iter():
+                card = pm.get('card') or {}
+                saved_cards.append({
+                    'id': pm.id,
+                    'method_type': 'card',
+                    'brand': (card.get('brand') or 'card').capitalize(),
+                    'last4': card.get('last4', ''),
+                    'exp_month': card.get('exp_month'),
+                    'exp_year': card.get('exp_year'),
+                    'is_default': pm.id == default_pm_id,
+                })
+
+            # ACH bank accounts
+            for pm in stripe.PaymentMethod.list(customer=customer_id, type='us_bank_account').auto_paging_iter():
+                bank = pm.get('us_bank_account') or {}
+                saved_cards.append({
+                    'id': pm.id,
+                    'method_type': 'bank_account',
+                    'brand': bank.get('bank_name') or 'Bank',
+                    'last4': bank.get('last4', ''),
+                    'exp_month': None,
+                    'exp_year': None,
+                    'is_default': pm.id == default_pm_id,
+                })
+
+            # Default method first
+            saved_cards.sort(key=lambda m: (not m['is_default'],))
+        except stripe.error.StripeError as e:
+            _log.error('[BID FORM] Could not fetch saved payment methods for customer %s: %s', customer_id, e)
 
     conn.close()
 
@@ -180,5 +223,7 @@ def bid_form_unified(bucket_id, bid_id=None):
         addresses=addresses,
         user_info=user_info,
         pricing_info=pricing_info,
-        current_spot_price=current_spot_price
+        current_spot_price=current_spot_price,
+        saved_cards=saved_cards,
+        has_saved_card=len(saved_cards) > 0,
     )

@@ -163,6 +163,14 @@ class EventType(str, Enum):
     REPORT_CREATED = 'REPORT_CREATED'        # User report filed against order
     AUTO_HOLD_FAILED = 'AUTO_HOLD_FAILED'    # Auto-hold on report creation failed
 
+    # Payout recovery events
+    PAYOUT_RECOVERY_ATTEMPTED = 'PAYOUT_RECOVERY_ATTEMPTED'
+    PAYOUT_RECOVERY_SUCCEEDED = 'PAYOUT_RECOVERY_SUCCEEDED'
+    PAYOUT_RECOVERY_FAILED = 'PAYOUT_RECOVERY_FAILED'
+
+    # Payout readiness evaluation events
+    PAYOUT_READINESS_EVALUATED = 'PAYOUT_READINESS_EVALUATED'
+
     # Bucket fee events (admin configuration changes)
     BUCKET_FEE_UPDATED = 'BUCKET_FEE_UPDATED'
 
@@ -170,6 +178,11 @@ class EventType(str, Enum):
 # Default fee configuration
 DEFAULT_PLATFORM_FEE_TYPE = FeeType.PERCENT
 DEFAULT_PLATFORM_FEE_VALUE = 5.0  # 5.0%
+
+# Payout delay windows (days after tracking upload before payout is eligible)
+# Card payments clear quickly; ACH bank transfers carry higher chargeback risk.
+PAYOUT_DELAY_DAYS_CARD = 2   # 2-day delay for card payments
+PAYOUT_DELAY_DAYS_ACH  = 5   # 5-day delay for ACH/bank transfer payments
 
 
 # Order statuses that allow payout

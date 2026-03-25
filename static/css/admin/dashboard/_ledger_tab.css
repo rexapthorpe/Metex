@@ -63,6 +63,55 @@
   color: #9ca3af;
 }
 
+/* ============================================
+   ORDER STATE BADGES
+   Unified display field derived from payment + order + payout status.
+   ============================================ */
+
+.order-state-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.order-state-initiate   { background:#ede9fe; color:#6d28d9; }  /* checkout initiated */
+.order-state-pending    { background:#fef3c7; color:#92400e; }  /* payment pending */
+.order-state-paid       { background:#d1fae5; color:#065f46; }  /* paid, awaiting action */
+.order-state-fulfillment { background:#e0f2fe; color:#0369a1; } /* awaiting shipment */
+.order-state-shipped    { background:#d1fae5; color:#065f46; }  /* shipped */
+.order-state-payout-pending { background:#fef9c3; color:#854d0e; } /* payout pending */
+.order-state-payout-ready   { background:#bbf7d0; color:#14532d; } /* ready for payout — actionable */
+.order-state-paid-out   { background:#d1fae5; color:#065f46; }  /* payout complete */
+.order-state-refunded   { background:#fee2e2; color:#991b1b; }  /* refunded */
+.order-state-recovery   { background:#fde68a; color:#78350f; }  /* recovery pending */
+.order-state-cancelled  { background:#e5e7eb; color:#374151; }  /* cancelled */
+.order-state-review     { background:#fecaca; color:#b91c1c; }  /* under admin review */
+
+/* Inline action buttons for transaction / ledger list rows */
+.btn-action-sm {
+  display: inline-block;
+  padding: 3px 8px;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 11px;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-action-sm:hover   { background: #e5e7eb; }
+.btn-action-green      { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.btn-action-green:hover { background: #a7f3d0; }
+.btn-action-nudge      { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.btn-action-nudge:hover { background: #dbeafe; }
+
 /* XL Modal for Ledger Details */
 .admin-modal-xl {
   max-width: 900px;

@@ -12,7 +12,7 @@ This module contains all ledger-related admin routes:
 IMPORTANT: Route URLs and endpoint names preserved exactly from admin_routes.py
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import render_template, jsonify, request
 from utils.auth_utils import admin_required
 from . import admin_bp
@@ -100,6 +100,81 @@ def ledger_order_detail(order_id):
         else:
             event['payload'] = {}
 
+    # Compute payout eligibility for each payout (drives Release Payout button)
+    payout_eligibility = {}
+    payout_block_reasons = {}
+    for payout in ledger_data['payouts']:
+        payout_eligibility[payout['id']] = LedgerService.get_payout_eligibility(payout['id'])
+        payout_block_reasons[payout['id']] = LedgerService.get_payout_block_reason(payout['id'])
+
+    # Fetch refund info + payout delay info from the orders / tracking tables
+    from database import get_db_connection as _get_db
+    from services.ledger_constants import PAYOUT_DELAY_DAYS_CARD, PAYOUT_DELAY_DAYS_ACH
+    _conn = _get_db()
+    try:
+        _row = _conn.execute(
+            '''SELECT payment_status, refund_status, refund_amount, stripe_refund_id,
+                      refunded_at, refund_reason, requires_payout_recovery,
+                      stripe_payment_intent_id, payment_method_type,
+                      requires_payment_clearance, payment_cleared_at,
+                      payment_cleared_by_admin_id
+               FROM orders WHERE id = ?''',
+            (order_id,)
+        ).fetchone()
+        refund_info = dict(_row) if _row else {}
+        order_payment_method = (refund_info.get('payment_method_type') or '').lower()
+
+        # Compute per-payout delay window info for admin display
+        payout_delay_info = {}
+        for payout in ledger_data['payouts']:
+            pid = payout['id']
+            seller_id = payout['seller_id']
+            delay_days = PAYOUT_DELAY_DAYS_ACH if 'ach' in order_payment_method else PAYOUT_DELAY_DAYS_CARD
+            t_row = _conn.execute(
+                'SELECT updated_at FROM seller_order_tracking WHERE order_id = ? AND seller_id = ?',
+                (order_id, seller_id)
+            ).fetchone()
+            tracking_ts_raw = t_row['updated_at'] if t_row else None
+            tracking_at = None
+            eligible_at = None
+            eligible_at_str = None
+            days_remaining = None
+            if tracking_ts_raw:
+                try:
+                    ts = str(tracking_ts_raw)
+                    if 'T' in ts:
+                        tracking_at = datetime.fromisoformat(
+                            ts.replace('Z', '+00:00')
+                        ).replace(tzinfo=None)
+                    else:
+                        tracking_at = datetime.strptime(ts[:19], '%Y-%m-%d %H:%M:%S')
+                    eligible_at = tracking_at + timedelta(days=delay_days)
+                    eligible_at_str = eligible_at.strftime('%Y-%m-%d %H:%M')
+                    now = datetime.now()
+                    if eligible_at > now:
+                        delta = eligible_at - now
+                        days_remaining = delta.days + (1 if delta.seconds > 0 else 0)
+                except Exception:
+                    pass
+            # Seller Stripe setup status
+            stripe_row = _conn.execute(
+                'SELECT stripe_account_id, stripe_payouts_enabled FROM users WHERE id = ?',
+                (seller_id,)
+            ).fetchone()
+            seller_has_stripe = bool(stripe_row and stripe_row['stripe_account_id'])
+            seller_payouts_enabled = bool(stripe_row and stripe_row['stripe_payouts_enabled'])
+            payout_delay_info[pid] = {
+                'tracking_uploaded_at': str(tracking_ts_raw)[:16] if tracking_ts_raw else None,
+                'eligible_at_str': eligible_at_str,
+                'delay_days': delay_days,
+                'days_remaining': days_remaining,
+                'payment_method_type': order_payment_method or 'card',
+                'seller_has_stripe': seller_has_stripe,
+                'seller_payouts_enabled': seller_payouts_enabled,
+            }
+    finally:
+        _conn.close()
+
     return render_template(
         'admin/ledger_order_detail.html',
         order=ledger_data['order'],
@@ -107,7 +182,11 @@ def ledger_order_detail(order_id):
         payouts=ledger_data['payouts'],
         events=ledger_data['events'],
         order_statuses=OrderStatus.all_values(),
-        payout_statuses=PayoutStatus.all_values()
+        payout_statuses=PayoutStatus.all_values(),
+        payout_eligibility=payout_eligibility,
+        payout_block_reasons=payout_block_reasons,
+        refund_info=refund_info,
+        payout_delay_info=payout_delay_info,
     )
 
 
@@ -120,6 +199,9 @@ def get_ledger_orders():
     Query params:
         - status: Filter by order status
         - buyer_id: Filter by buyer ID
+        - seller_username: Filter by seller username (partial match)
+        - payment_status: Filter by payment_status
+        - payout_status: Filter by payout_status
         - start_date: Start date filter (ISO format)
         - end_date: End date filter (ISO format)
         - min_gross: Minimum gross amount
@@ -128,16 +210,20 @@ def get_ledger_orders():
         - offset: Results offset (default 0)
     """
     from services.ledger_service import LedgerService
+    from services.order_state import compute_order_state, get_order_state_label, get_order_state_css, get_block_reason_summary
 
     try:
-        status_filter = request.args.get('status')
-        buyer_id = request.args.get('buyer_id', type=int)
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        min_gross = request.args.get('min_gross', type=float)
-        max_gross = request.args.get('max_gross', type=float)
-        limit = request.args.get('limit', 100, type=int)
-        offset = request.args.get('offset', 0, type=int)
+        status_filter    = request.args.get('status')
+        buyer_id         = request.args.get('buyer_id', type=int)
+        seller_username  = request.args.get('seller_username', '').strip()
+        payment_status_f = request.args.get('payment_status', '').strip()
+        payout_status_f  = request.args.get('payout_status', '').strip()
+        start_date       = request.args.get('start_date')
+        end_date         = request.args.get('end_date')
+        min_gross        = request.args.get('min_gross', type=float)
+        max_gross        = request.args.get('max_gross', type=float)
+        limit            = request.args.get('limit', 100, type=int)
+        offset           = request.args.get('offset', 0, type=int)
 
         orders = LedgerService.get_orders_ledger_list(
             status_filter=status_filter,
@@ -150,9 +236,26 @@ def get_ledger_orders():
             offset=offset
         )
 
-        # Format for response
+        # Post-filter by seller username if provided (would require a different query path;
+        # for simplicity we filter in Python after fetching since item_count subquery
+        # already runs per-order)
+        if seller_username:
+            seller_low = seller_username.lower()
+            orders = [o for o in orders if seller_low in (o.get('buyer_username') or '').lower()]
+
+        # Post-filter by payment_status and payout_status
+        if payment_status_f:
+            orders = [o for o in orders if (o.get('payment_status') or '') == payment_status_f]
+        if payout_status_f:
+            orders = [o for o in orders if (o.get('payout_status') or '') == payout_status_f]
+
+        # Enrich each order with derived fields
         for order in orders:
             order['created_at_display'] = _format_time_ago(order.get('created_at', ''))
+            order['order_state']        = compute_order_state(order)
+            order['order_state_label']  = get_order_state_label(order)
+            order['order_state_css']    = get_order_state_css(order)
+            order['block_reason']       = get_block_reason_summary(order)
 
         return jsonify({
             'success': True,
@@ -251,13 +354,33 @@ def get_ledger_stats():
             payout_counts[status] = result['count']
         stats['payouts_by_status'] = payout_counts
 
-        # Pending payout total
-        result = conn.execute('''
-            SELECT COALESCE(SUM(seller_net_amount), 0) as total
-            FROM order_payouts
-            WHERE payout_status IN ('PAYOUT_NOT_READY', 'PAYOUT_READY', 'PAYOUT_SCHEDULED')
+        # Split payout totals (Pending / Ready / Paid Out)
+        r = conn.execute('''
+            SELECT COALESCE(SUM(seller_net_amount), 0) as total,
+                   COUNT(*) as cnt
+            FROM order_payouts WHERE payout_status = 'PAYOUT_NOT_READY'
         ''').fetchone()
-        stats['pending_payout_total'] = result['total']
+        stats['payout_pending_total'] = r['total']
+        stats['payout_pending_count'] = r['cnt']
+
+        r = conn.execute('''
+            SELECT COALESCE(SUM(seller_net_amount), 0) as total,
+                   COUNT(*) as cnt
+            FROM order_payouts WHERE payout_status IN ('PAYOUT_READY', 'PAYOUT_SCHEDULED')
+        ''').fetchone()
+        stats['payout_ready_total'] = r['total']
+        stats['payout_ready_count'] = r['cnt']
+
+        r = conn.execute('''
+            SELECT COALESCE(SUM(seller_net_amount), 0) as total,
+                   COUNT(*) as cnt
+            FROM order_payouts WHERE payout_status = 'PAID_OUT'
+        ''').fetchone()
+        stats['paid_out_total'] = r['total']
+        stats['paid_out_count'] = r['cnt']
+
+        # Keep backward-compat key (sum of not-ready + ready)
+        stats['pending_payout_total'] = stats['payout_pending_total'] + stats['payout_ready_total']
 
         return jsonify({
             'success': True,

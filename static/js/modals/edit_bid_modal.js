@@ -334,15 +334,29 @@ function initEditBidFormSafe() {
 
   // Function to update effective bid price display
   function updateEffectiveBidPrice() {
-    if (!premiumInput || !premiumDisplay || !effectiveBidPrice || !currentSpotPriceElem) return;
+    const calcLine = document.getElementById('bid-spot-calc-line');
+    if (!premiumInput || !currentSpotPriceElem || !calcLine) return;
 
     const premium = Number(premiumInput.value) || 0;
     const spotPriceText = currentSpotPriceElem.textContent.replace(/[^0-9.]/g, '');
     const spotPrice = Number(spotPriceText) || 0;
-    const effective = spotPrice + premium;
+    const rawEffective = spotPrice + premium;
 
-    premiumDisplay.textContent = formatWithCommas(premium, 2);
-    effectiveBidPrice.textContent = formatWithCommas(effective, 2);
+    const ceilingInput = document.getElementById('bid-ceiling-price') || floorPriceInput;
+    const ceiling = ceilingInput ? Number(ceilingInput.value) : 0;
+    const ceilingActive = ceiling > 0 && rawEffective > ceiling;
+    const effective = ceilingActive ? ceiling : rawEffective;
+
+    if (ceilingActive) {
+      calcLine.innerHTML =
+        'Your bid: <span style="color:#d97706;font-weight:600;" title="Spot + premium ($' + formatWithCommas(rawEffective, 2) + ') exceeds your max — ceiling price applies">' +
+        '<i class="fa-solid fa-circle-exclamation" style="font-size:11px;margin-right:3px;"></i>Capped at max price</span>' +
+        ' = $<span id="effective-bid-price">' + formatWithCommas(effective, 2) + '</span>';
+    } else {
+      calcLine.innerHTML =
+        'Your bid: Spot + $<span id="premium-display">' + formatWithCommas(premium, 2) + '</span>' +
+        ' = $<span id="effective-bid-price">' + formatWithCommas(effective, 2) + '</span>';
+    }
   }
 
   // Enforce numeric input and format on blur for premium field
@@ -377,12 +391,14 @@ function initEditBidFormSafe() {
       const parts = v.split('.');
       if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
       floorPriceInput.value = v;
+      updateEffectiveBidPrice();
     });
     floorPriceInput.addEventListener('blur', () => {
       const n = Number(floorPriceInput.value);
       if (isFinite(n) && n > 0) {
         floorPriceInput.value = (Math.round(n * 100) / 100).toFixed(2);
       }
+      updateEffectiveBidPrice();
       validateAll();
     });
   }

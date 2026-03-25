@@ -21,6 +21,23 @@ let sidebarLoading = false;     // Prevent concurrent "load more" requests
 let lastSeenNotifId = null;
 let hasInitializedToasts = false;
 
+// Track which notification IDs have already been toasted, persisted across
+// page navigations within the session so we don't double-toast.
+const _TOAST_KEY = 'metex_toasted_notif_ids';
+function _getToastedIds() {
+    try { return new Set(JSON.parse(sessionStorage.getItem(_TOAST_KEY) || '[]')); }
+    catch { return new Set(); }
+}
+function _markToasted(ids) {
+    try {
+        const existing = _getToastedIds();
+        ids.forEach(id => existing.add(id));
+        // Keep the set bounded — only retain the 100 most recent IDs
+        const arr = Array.from(existing).sort((a, b) => b - a).slice(0, 100);
+        sessionStorage.setItem(_TOAST_KEY, JSON.stringify(arr));
+    } catch { /* sessionStorage unavailable */ }
+}
+
 // ===================================
 // NOTIFICATION TYPE → ICON/COLOR MAP
 // ===================================
@@ -291,22 +308,23 @@ function updateViewAllBtn() {
 // ===================================
 
 function checkAndShowToasts() {
-    if (!hasInitializedToasts) {
-        // First load: record the current highest ID so we only toast future arrivals
-        if (notifications.length > 0) {
-            lastSeenNotifId = Math.max(...notifications.map(n => n.id));
-        }
-        hasInitializedToasts = true;
-        return;
-    }
+    const toastedIds = _getToastedIds();
 
-    // Find notifications newer than what we've seen
-    const newNotifs = notifications.filter(n => n.id > (lastSeenNotifId || 0));
+    // Find unread notifications that haven't been toasted yet in this session.
+    // This works correctly on first load after page navigation (e.g., after
+    // checkout redirect) because sessionStorage persists across navigations.
+    const newNotifs = notifications.filter(n => !n.is_read && !toastedIds.has(n.id));
 
-    // Advance the watermark
+    // Advance the in-memory watermark (used as secondary guard during same-page polling)
     if (notifications.length > 0) {
         lastSeenNotifId = Math.max(...notifications.map(n => n.id));
     }
+    hasInitializedToasts = true;
+
+    if (newNotifs.length === 0) return;
+
+    // Mark them as toasted before showing so rapid re-polls don't double-fire
+    _markToasted(newNotifs.map(n => n.id));
 
     // Show toasts (cap at 3 to avoid overwhelming the screen)
     newNotifs.slice(0, 3).forEach((notif, index) => {

@@ -16,6 +16,10 @@ import shutil
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Tell config.py to skip Stripe key enforcement during test runs.
+# Must be set before any app import so config._TESTING resolves correctly.
+os.environ.setdefault('FLASK_TESTING', '1')
+
 
 @pytest.fixture
 def app():

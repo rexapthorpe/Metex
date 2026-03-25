@@ -493,6 +493,98 @@
   </div>
 </div>
 
+<!-- Fee Configuration Modal -->
+<div class="admin-modal-overlay" id="feeConfigModal" style="display: none;">
+  <div class="admin-modal admin-modal-md" id="feeConfigDialog" style="background: #ffffff; min-height: 260px;">
+    <!-- Form Content -->
+    <div class="fee-config-form-content">
+      <div class="admin-modal-header">
+        <h2><i class="fa-solid fa-dollar-sign" style="color: #7c3aed;"></i> Fee Configuration</h2>
+        <button class="admin-modal-close" onclick="closeFeeConfigModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <p style="color: #6b7280; margin-bottom: 16px;">
+          Set the standard platform fee applied to all transactions on buckets without a custom fee override.
+          Changes apply to <strong>future orders only</strong>.
+        </p>
+
+        <!-- Current fee display -->
+        <div style="display: flex; align-items: center; gap: 10px; background: #f5f3ff; border: 1.5px solid #ede9fe;
+                    border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;">
+          <i class="fa-solid fa-circle-info" style="color: #7c3aed; font-size: 15px;"></i>
+          <span style="font-size: 13px; color: #5b21b6;">
+            Current platform fee: <strong id="feeConfigCurrentValue">—</strong>
+          </span>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px;">
+            Platform Fee (%)
+          </label>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="position: relative; flex: 1; max-width: 200px;">
+              <input
+                type="number"
+                id="feeConfigInput"
+                min="0" max="100" step="0.1"
+                placeholder="e.g. 2.5"
+                style="width: 100%; padding: 10px 36px 10px 12px; border: 1.5px solid #d1d5db;
+                       border-radius: 8px; font-size: 15px; color: #111827; outline: none;
+                       box-sizing: border-box; transition: border-color 0.15s;"
+                onfocus="this.style.borderColor='#7c3aed'"
+                onblur="this.style.borderColor='#d1d5db'"
+              >
+              <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+                           font-size: 14px; color: #6b7280; font-weight: 600;">%</span>
+            </div>
+            <span style="font-size: 13px; color: #9ca3af;">0 – 100</span>
+          </div>
+          <p id="feeConfigError" style="color: #ef4444; font-size: 12px; margin-top: 4px; display: none;">
+            Please enter a valid fee between 0 and 100.
+          </p>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeFeeConfigModal()">Cancel</button>
+          <button class="btn-primary" id="feeConfigSaveBtn" onclick="saveFeeConfig()"
+                  style="background: #7c3aed; border-color: #7c3aed;">
+            <i class="fa-solid fa-check"></i> Save Fee
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Animation -->
+    <div class="fee-config-success-content" id="feeConfigSuccessContent" style="display:none;
+         flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; text-align:center;">
+      <div style="width:64px; height:64px; border-radius:50%; background:#f5f3ff;
+                  display:flex; align-items:center; justify-content:center; margin-bottom:16px;">
+        <svg style="width:52px; height:52px;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle style="fill:none; stroke:#7c3aed; stroke-width:2; stroke-dasharray:166;
+                         stroke-dashoffset:166; animation:feeStroke 0.6s cubic-bezier(0.65,0,0.45,1) forwards;"
+                  cx="26" cy="26" r="25"/>
+          <path style="fill:none; stroke:#7c3aed; stroke-width:2; stroke-dasharray:48;
+                       stroke-dashoffset:48; animation:feeStroke 0.3s 0.6s cubic-bezier(0.65,0,0.45,1) forwards;"
+                d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+      </div>
+      <h3 style="font-size:18px; font-weight:700; color:#111827; margin:0 0 6px;">Fee Updated</h3>
+      <p id="feeConfigSuccessMessage" style="font-size:14px; color:#6b7280; margin:0 0 20px;"></p>
+      <button onclick="closeFeeConfigModal()"
+              style="padding:10px 28px; background:#7c3aed; color:#fff; border:none;
+                     border-radius:10px; font-size:14px; font-weight:600; cursor:pointer;">
+        <i class="fa-solid fa-check"></i> Done
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes feeStroke {
+  100% { stroke-dashoffset: 0; }
+}
+</style>
+
 <!-- Metrics Performance Modal -->
 <div class="admin-modal-overlay" id="metricsModal" style="display: none;">
   <div class="admin-modal admin-modal-xl metrics-modal" style="background: #ffffff; min-height: 500px; max-height: 90vh;">

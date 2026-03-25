@@ -213,18 +213,12 @@ def _release_run_lock(conn) -> None:
 
 
 def _trigger_bid_rematch_sync(metals):
-    """
-    After a snapshot commit, synchronously re-evaluate open bids against the
-    updated spot prices.  Uses a fresh DB connection (the snapshot conn has
-    already committed so its write lock is released).
-
-    Errors are caught and logged — snapshot runs must never be blocked.
-    """
+    """Re-evaluate open bids after a spot snapshot update."""
     try:
         from core.blueprints.bids.auto_match import run_bid_rematch_after_spot_update
         run_bid_rematch_after_spot_update(metals=list(metals) if metals else None)
-    except Exception as exc:
-        logger.error("[spot_snapshot] Bid re-match trigger failed: %s", exc)
+    except Exception as e:
+        logger.warning("[spot_snapshot] Bid rematch failed: %s", e)
 
 
 def run_snapshot(use_lock=True, verbose=False, force=False):

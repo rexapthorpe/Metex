@@ -156,6 +156,46 @@
             </div>
           </div>
 
+          <!-- Payout Status Bar -->
+          {% if sale.payout_user_state and sale.payout_user_state != 'cancelled' %}
+          <div class="payout-status-bar payout-status-bar--{{ sale.payout_user_state }}">
+            <div class="payout-status-bar-left">
+              <div class="payout-status-bar-icon">
+                {% if sale.payout_user_state == 'paid' %}<i class="fa-solid fa-circle-check"></i>
+                {% elif sale.payout_user_state == 'delayed' %}<i class="fa-regular fa-clock"></i>
+                {% elif sale.payout_user_state == 'ready' %}<i class="fa-solid fa-money-bill-wave"></i>
+                {% elif sale.payout_user_state == 'waiting' %}<i class="fa-solid fa-box-open"></i>
+                {% elif sale.payout_user_state == 'hold' %}<i class="fa-solid fa-hand"></i>
+                {% elif sale.payout_user_state == 'ach-clearing' %}<i class="fa-regular fa-clock"></i>
+                {% elif sale.payout_user_state == 'under-review' %}<i class="fa-solid fa-magnifying-glass"></i>
+                {% elif sale.payout_user_state == 'in-progress' %}<i class="fa-solid fa-arrow-right-arrow-left"></i>
+                {% else %}<i class="fa-regular fa-clock"></i>
+                {% endif %}
+              </div>
+              <div class="payout-status-bar-text">
+                <div class="payout-status-bar-label">{{ sale.payout_user_label }}</div>
+                {% if sale.payout_user_state == 'delayed' and sale.payout_tracking_uploaded_str %}
+                  <div class="payout-status-bar-sub">Tracking uploaded {{ sale.payout_tracking_uploaded_str }} · Available {{ sale.payout_eligible_at_str }}</div>
+                {% elif sale.payout_user_state == 'waiting' %}
+                  <div class="payout-status-bar-sub">Add tracking to start the payout process</div>
+                {% elif sale.payout_user_state == 'hold' %}
+                  <div class="payout-status-bar-sub">Your payout is on hold — contact support if this persists</div>
+                {% elif sale.payout_user_state == 'ach-clearing' %}
+                  <div class="payout-status-bar-sub">ACH bank transfers require a short clearance period before payout</div>
+                {% elif sale.payout_user_state == 'under-review' %}
+                  <div class="payout-status-bar-sub">This order is under review — payouts are paused until resolved</div>
+                {% elif sale.payout_user_state == 'ready' %}
+                  <div class="payout-status-bar-sub">Your payout is queued for processing</div>
+                {% elif sale.payout_user_state == 'in-progress' %}
+                  <div class="payout-status-bar-sub">Transfer initiated — funds on the way</div>
+                {% elif sale.payout_user_state == 'paid' and sale.payout_tracking_uploaded_str %}
+                  <div class="payout-status-bar-sub">Shipped {{ sale.payout_tracking_uploaded_str }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
           <!-- Cancellation Request Bar -->
           {% if sale.cancel_status == 'pending' and sale.seller_cancel_response is none %}
           <div class="cancel-request-bar">
@@ -289,8 +329,20 @@
                   </div>
                 </button>
               {% else %}
-                <button class="order-quick-action" onclick="addTrackingNumber({{ sale.order_id }})">
-                  <i class="fa-solid fa-truck"></i> Add Tracking
+                {# --- Non-pending order without tracking: show countdown bar --- #}
+                {% set _pct = sale.forfeit_elapsed_pct %}
+                {% set _critical = _pct >= 75 %}
+                <button class="order-tracking-forfeit{% if _critical %} order-tracking-forfeit--critical{% endif %}"
+                        onclick="addTrackingNumber({{ sale.order_id }})">
+                  <div class="tracking-forfeit-top">
+                    <i class="fa-solid fa-box"></i> Add Tracking
+                  </div>
+                  <div class="tracking-forfeit-bar">
+                    <div class="tracking-forfeit-bar-track">
+                      <div class="tracking-forfeit-bar-fill" style="width: {{ _pct }}%"></div>
+                    </div>
+                    <div class="tracking-forfeit-label">{{ sale.forfeit_time_label }}</div>
+                  </div>
                 </button>
               {% endif %}
               {% set sale_title = [sale.weight or '', sale.year or '', sale.metal or '', sale.product_line or '', sale.product_type or ''] | select | join(' ') | trim %}

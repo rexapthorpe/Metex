@@ -158,6 +158,12 @@ class SchemaManager:
         self.add_column('users', 'phone', 'TEXT')
         self.add_column('users', 'bio', 'TEXT')
         self.add_column('users', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+        self.add_column('users', 'stripe_account_id', 'TEXT')
+        self.add_column('users', 'stripe_onboarding_complete', 'INTEGER DEFAULT 0')
+        self.add_column('users', 'stripe_charges_enabled', 'INTEGER DEFAULT 0')
+        self.add_column('users', 'stripe_payouts_enabled', 'INTEGER DEFAULT 0')
+        self.add_column('users', 'stripe_customer_id', 'TEXT')  # buyer payment methods
+        self.add_column('users', 'bid_payment_strikes', 'INTEGER DEFAULT 0')  # failed accepted-bid payments
 
         # Create indexes
         self.create_index('idx_users_is_admin', 'users', 'is_admin')
@@ -332,6 +338,13 @@ class SchemaManager:
         self.add_column('bids', 'recipient_first_name', 'TEXT')
         self.add_column('bids', 'recipient_last_name', 'TEXT')
         self.add_column('bids', 'random_year', 'INTEGER DEFAULT 0')
+        # Payment method columns (bid-payment architecture)
+        self.add_column('bids', 'bid_payment_method_id', 'TEXT')
+        self.add_column('bids', 'bid_payment_status', "TEXT DEFAULT 'pending'")
+        self.add_column('bids', 'bid_payment_intent_id', 'TEXT')
+        self.add_column('bids', 'bid_payment_failure_code', 'TEXT')
+        self.add_column('bids', 'bid_payment_failure_message', 'TEXT')
+        self.add_column('bids', 'bid_payment_attempted_at', 'TIMESTAMP')
 
     def create_orders_table(self):
         """Create the orders table"""
@@ -365,6 +378,21 @@ class SchemaManager:
         self.add_column('orders', 'canceled_at', 'TIMESTAMP')
         self.add_column('orders', 'cancellation_reason', 'TEXT')
         self.add_column('orders', 'source_bid_id', 'INTEGER')
+        self.add_column('orders', 'stripe_payment_intent_id', 'TEXT')
+        self.add_column('orders', 'paid_at', 'TIMESTAMP')
+        self.add_column('orders', 'payment_method_type', 'TEXT')
+        self.add_column('orders', 'requires_payment_clearance', 'INTEGER DEFAULT 0')
+        self.add_column('orders', 'payment_cleared_at', 'TIMESTAMP')
+        self.add_column('orders', 'payment_cleared_by_admin_id', 'INTEGER')
+        self.add_column('orders', 'payment_status', "TEXT NOT NULL DEFAULT 'unpaid'")
+        self.add_column('orders', 'payout_status', "TEXT NOT NULL DEFAULT 'not_ready_for_payout'")
+        # Refund tracking (migration 022)
+        self.add_column('orders', 'refund_status', "TEXT NOT NULL DEFAULT 'not_refunded'")
+        self.add_column('orders', 'refund_amount', 'REAL DEFAULT 0')
+        self.add_column('orders', 'stripe_refund_id', 'TEXT')
+        self.add_column('orders', 'refunded_at', 'TIMESTAMP')
+        self.add_column('orders', 'refund_reason', 'TEXT')
+        self.add_column('orders', 'requires_payout_recovery', 'INTEGER DEFAULT 0')
 
     def create_order_items_table(self):
         """Create the order_items table"""
@@ -1237,6 +1265,14 @@ class SchemaManager:
         self.create_index('idx_order_payouts_seller_id', 'order_payouts', 'seller_id')
         self.create_index('idx_order_payouts_status', 'order_payouts', 'payout_status')
         self.create_index('idx_order_payouts_scheduled', 'order_payouts', 'scheduled_for')
+        # Recovery tracking (migration 022)
+        self.add_column('order_payouts', 'payout_recovery_status', "TEXT NOT NULL DEFAULT 'not_needed'")
+        # Recovery audit fields (migration 023)
+        self.add_column('order_payouts', 'recovery_attempted_at', 'TIMESTAMP')
+        self.add_column('order_payouts', 'recovery_completed_at', 'TIMESTAMP')
+        self.add_column('order_payouts', 'recovery_attempted_by_admin_id', 'INTEGER')
+        self.add_column('order_payouts', 'recovery_failure_reason', 'TEXT')
+        self.add_column('order_payouts', 'provider_reversal_id', 'TEXT')
 
     def create_order_events_table(self):
         """Create the order_events audit table (migration 021)"""

@@ -126,6 +126,12 @@
       modalOverlay.classList.remove('show');
       modalElements.input.style.display = 'none';
       modalElements.input.value = '';
+      // Wait for slide-down transition before hiding
+      setTimeout(() => {
+        if (!modalOverlay.classList.contains('show')) {
+          modalOverlay.style.display = 'none';
+        }
+      }, 350);
     }
   }
 
@@ -185,7 +191,10 @@
       modalElements.input.style.display = 'none';
     }
 
-    // Show modal
+    // Show modal — set display first, then force reflow before adding class
+    // so the translateY(100%) → translateY(0) transition actually fires
+    modalOverlay.style.display = 'flex';
+    modalOverlay.offsetHeight; // force reflow
     modalOverlay.classList.add('show');
 
     // Focus confirm button for non-prompt modals

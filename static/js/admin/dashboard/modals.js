@@ -89,7 +89,88 @@ function openSecuritySettings() {
 }
 
 function openFeeConfig() {
-  alert('Fee Configuration would open here.');
+  var overlay = document.getElementById('feeConfigModal');
+  var formEl  = document.querySelector('.fee-config-form-content');
+  var successEl = document.getElementById('feeConfigSuccessContent');
+  var input   = document.getElementById('feeConfigInput');
+  var errEl   = document.getElementById('feeConfigError');
+  var current = document.getElementById('feeConfigCurrentValue');
+  var saveBtn = document.getElementById('feeConfigSaveBtn');
+
+  if (!overlay) return;
+
+  // Reset to form view
+  if (formEl)     formEl.style.display = '';
+  if (successEl)  successEl.style.display = 'none';
+  if (errEl)      errEl.style.display = 'none';
+  if (input)      input.value = '';
+  if (current)    current.textContent = 'Loading…';
+  if (saveBtn)    saveBtn.disabled = false;
+
+  overlay.style.display = 'flex';
+
+  // Load current fee
+  fetch('/admin/api/system-settings/default-fee')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success && current) {
+        current.textContent = data.fee_value + '%';
+        if (input) input.value = data.fee_value;
+      } else if (current) {
+        current.textContent = 'Unknown';
+      }
+    })
+    .catch(function () {
+      if (current) current.textContent = 'Error loading';
+    });
+}
+
+function closeFeeConfigModal() {
+  var overlay = document.getElementById('feeConfigModal');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function saveFeeConfig() {
+  var input   = document.getElementById('feeConfigInput');
+  var errEl   = document.getElementById('feeConfigError');
+  var saveBtn = document.getElementById('feeConfigSaveBtn');
+  var formEl  = document.querySelector('.fee-config-form-content');
+  var successEl = document.getElementById('feeConfigSuccessContent');
+  var successMsg = document.getElementById('feeConfigSuccessMessage');
+
+  var val = parseFloat(input.value);
+  if (input.value === '' || isNaN(val) || val < 0 || val > 100) {
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+
+  fetch('/admin/api/system-settings/default-fee', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ fee_type: 'percent', fee_value: val }),
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success) {
+        if (formEl)    formEl.style.display = 'none';
+        if (successEl) { successEl.style.display = 'flex'; }
+        if (successMsg) successMsg.textContent = 'Platform fee set to ' + val + '%.';
+      } else {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save Fee';
+        errEl.textContent = data.message || 'Failed to save. Please try again.';
+        errEl.style.display = 'block';
+      }
+    })
+    .catch(function () {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save Fee';
+      errEl.textContent = 'Network error — please try again.';
+      errEl.style.display = 'block';
+    });
 }
 
 function openApiManagement() {

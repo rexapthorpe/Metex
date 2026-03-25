@@ -55,6 +55,7 @@ NOTIFICATION_DEFAULTS = {  # type: dict[str, bool]
     'bid_accepted':                         True,
     'bid_partially_accepted':               True,
     'bid_fully_filled':                     True,
+    'bid_payment_failed':                   True,   # buyer notified when accepted bid payment declines
     # ── Orders (buyer) ────────────────────────────────────────────────────
     'order_created':                        True,
     'payment_succeeded':                    False,   # stub – OFF

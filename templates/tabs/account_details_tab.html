@@ -110,12 +110,262 @@
       <!-- Payment Methods -->
       <div class="details-section" id="section-payment">
         <h3>Payment Methods</h3>
-        <div class="payment-methods-list">
-          <p class="empty-state">
-            No payment methods added yet. Payment methods will be added during checkout.
-          </p>
+        <p class="section-description">Saved cards speed up checkout. Your card details are stored securely by Stripe — Metex never sees your full card number.</p>
+
+        {% if relist_bid %}
+        <!-- Relist bid banner -->
+        <div class="relist-bid-banner" id="relistBidBanner">
+          <div class="relist-bid-banner-icon"><i class="fa-solid fa-rotate-right"></i></div>
+          <div class="relist-bid-banner-body">
+            <strong>Bid payment failed</strong>
+            <p>Your previous bid on <em>{{ relist_bid.metal or '' }} {{ relist_bid.weight or '' }} {{ relist_bid.product_line or relist_bid.product_type or '' }}</em> failed because your card was declined. Add or update your card below, then click <strong>Relist Bid</strong> to place it again with the same specs.</p>
+            <button class="relist-bid-btn" onclick="relistBid({{ relist_bid.id }})">
+              <i class="fa-solid fa-rotate-right"></i> Relist Bid
+            </button>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Saved cards list (populated by JS) -->
+        <div id="pmList" class="pm-list">
+          <div class="pm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
+        </div>
+
+        <!-- Add Payment Method button (shown only when form is hidden) -->
+        <button class="pm-add-btn" id="pmAddBtn" onclick="pmShowForm()" style="display:none;">
+          <i class="fa-solid fa-plus"></i> Add Payment Method
+        </button>
+
+        <!-- Stripe SetupIntent form (shown by JS after load — visible when no saved cards) -->
+        <div id="pmFormWrap" class="pm-form-wrap" style="display:none;">
+          <div class="pm-form-header">
+            <span>New Card</span>
+            <button class="pm-form-close" onclick="pmHideForm()" aria-label="Close">&times;</button>
+          </div>
+          <div id="pmStripeElement"></div>
+          <div id="pmFormError" class="pm-form-error" style="display:none;"></div>
+          <button class="pm-form-submit" id="pmSubmitBtn" onclick="pmSubmit()">
+            <i class="fa-solid fa-lock"></i> Save Card
+          </button>
+        </div>
+
+        <!-- Seller Payouts (Stripe Connect) — kept separate -->
+        <div class="stripe-payout-card">
+          <div class="stripe-payout-header">
+            <i class="fa-solid fa-building-columns"></i>
+            <h4>Seller Payouts</h4>
+          </div>
+          {% if user.stripe_charges_enabled and user.stripe_payouts_enabled %}
+            <div class="stripe-payout-status stripe-payout-status--active">
+              <i class="fa-solid fa-circle-check"></i> Payouts enabled
+            </div>
+          {% elif user.stripe_account_id %}
+            <p class="stripe-payout-sub">Your payout account setup is incomplete.</p>
+            <a href="{{ url_for('stripe_connect.create_account_link') }}" class="btn-stripe">
+              <i class="fa-solid fa-arrow-right"></i> Continue onboarding
+            </a>
+          {% else %}
+            <p class="stripe-payout-sub">Connect a bank account to receive funds from your sales.</p>
+            <a href="{{ url_for('stripe_connect.create_account') }}" class="btn-stripe">
+              <i class="fa-solid fa-plus"></i> Set up payouts
+            </a>
+          {% endif %}
         </div>
       </div>
+
+      <!-- ── Remove Card Confirmation Modal ─────────────────────────────── -->
+      <div id="pmRemoveModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+        <div class="pm-remove-dialog">
+          <h4 class="pm-remove-title">Remove Card</h4>
+          <p class="pm-remove-body">Are you sure you want to remove this payment method? This cannot be undone.</p>
+          <div class="pm-remove-actions">
+            <button type="button" class="pm-remove-btn-cancel" onclick="pmRemoveCancel()">Cancel</button>
+            <button type="button" class="pm-remove-btn-confirm" onclick="pmRemoveConfirm()">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Payment Methods JS ──────────────────────────────────────────── -->
+      <script src="https://js.stripe.com/v3/"></script>
+      <script>
+      (function () {
+        var STRIPE_KEY = {{ stripe_publishable_key | tojson }};
+        var stripe = Stripe(STRIPE_KEY);
+        var elements = null;
+        var paymentElement = null;
+        var _pmPendingRemoveId = null;
+
+        // ── Load and render saved cards ────────────────────────────────────
+        function pmLoad() {
+          var list = document.getElementById('pmList');
+          list.innerHTML = '<div class="pm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+          fetch('/account/api/payment-methods')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (!data.success) { list.innerHTML = '<p class="empty-state">Could not load cards.</p>'; return; }
+              pmRender(data.payment_methods);
+            })
+            .catch(function() { list.innerHTML = '<p class="empty-state">Could not load cards.</p>'; });
+        }
+
+        function pmBrandIcon(brand) {
+          var icons = {
+            visa:       'fa-brands fa-cc-visa',
+            mastercard: 'fa-brands fa-cc-mastercard',
+            amex:       'fa-brands fa-cc-amex',
+            discover:   'fa-brands fa-cc-discover',
+            jcb:        'fa-brands fa-cc-jcb',
+            diners:     'fa-brands fa-cc-diners-club',
+            unionpay:   'fa-solid fa-credit-card',
+          };
+          return icons[brand] || 'fa-solid fa-credit-card';
+        }
+
+        function pmRender(methods) {
+          var list = document.getElementById('pmList');
+          if (!methods || methods.length === 0) {
+            list.innerHTML = '';
+            // No saved cards — show form, hide add button
+            document.getElementById('pmFormWrap').style.display = '';
+            document.getElementById('pmAddBtn').style.display = 'none';
+            pmInitElement();
+            return;
+          }
+          // Has saved cards — hide form, show add button
+          document.getElementById('pmFormWrap').style.display = 'none';
+          document.getElementById('pmAddBtn').style.display = '';
+          if (paymentElement) { paymentElement.unmount(); paymentElement = null; elements = null; }
+          list.innerHTML = methods.map(function(m) {
+            var expStr = (m.exp_month ? String(m.exp_month).padStart(2,'0') : '--') + '/' + (m.exp_year ? String(m.exp_year).slice(-2) : '--');
+            var brandName = m.brand ? m.brand.charAt(0).toUpperCase() + m.brand.slice(1) : 'Card';
+            return [
+              '<div class="pm-card' + (m.is_default ? ' pm-card--default' : '') + '" data-pmid="' + m.id + '">',
+              '  <div class="pm-card-left">',
+              '    <i class="' + pmBrandIcon(m.brand) + ' pm-brand-icon"></i>',
+              '    <div class="pm-card-info">',
+              '      <span class="pm-card-number">' + brandName + ' •••• ' + (m.last4 || '----') + '</span>',
+              '      <span class="pm-card-exp">Expires ' + expStr + '</span>',
+              '    </div>',
+              '  </div>',
+              '  <div class="pm-card-right">',
+              m.is_default
+                ? '<span class="pm-default-badge"><i class="fa-solid fa-star"></i> Default</span>'
+                : '<button class="pm-btn pm-btn--default" onclick="pmSetDefault(\'' + m.id + '\')" title="Set as default">Set default</button>',
+              '    <button class="pm-btn pm-btn--remove" onclick="pmRemove(\'' + m.id + '\')" title="Remove">Remove</button>',
+              '  </div>',
+              '</div>',
+            ].join('\n');
+          }).join('\n');
+        }
+
+        // ── Show / hide the add form ───────────────────────────────────────
+        window.pmShowForm = function() {
+          var wrap = document.getElementById('pmFormWrap');
+          wrap.style.display = 'block';
+          document.getElementById('pmAddBtn').style.display = 'none';
+          if (!elements) pmInitElement();
+        };
+
+        window.pmHideForm = function() {
+          document.getElementById('pmFormWrap').style.display = 'none';
+          document.getElementById('pmAddBtn').style.display = '';
+          document.getElementById('pmFormError').style.display = 'none';
+          if (paymentElement) { paymentElement.unmount(); paymentElement = null; elements = null; }
+        };
+
+        // ── Mount Stripe Payment Element ───────────────────────────────────
+        function pmInitElement() {
+          fetch('/account/api/payment-methods/setup-intent', { method: 'POST',
+            headers: { 'Content-Type': 'application/json',
+                       'X-CSRFToken': (document.querySelector('meta[name=csrf-token]') || {}).content || '' }
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (!data.success || !data.client_secret) {
+              pmShowError(data.error || 'Could not start card setup.');
+              return;
+            }
+            elements = stripe.elements({ clientSecret: data.client_secret, appearance: { theme: 'stripe' } });
+            paymentElement = elements.create('payment');
+            paymentElement.mount('#pmStripeElement');
+          })
+          .catch(function() { pmShowError('Could not connect to payment service.'); });
+        }
+
+        // ── Submit (confirm SetupIntent) ───────────────────────────────────
+        window.pmSubmit = function() {
+          if (!elements) return;
+          var btn = document.getElementById('pmSubmitBtn');
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+          document.getElementById('pmFormError').style.display = 'none';
+
+          stripe.confirmSetup({
+            elements: elements,
+            redirect: 'if_required',
+          }).then(function(result) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-lock"></i> Save Card';
+            if (result.error) {
+              pmShowError(result.error.message);
+            } else {
+              pmHideForm();
+              pmLoad();
+            }
+          });
+        };
+
+        // ── Remove a card ──────────────────────────────────────────────────
+        window.pmRemove = function(pmId) {
+          _pmPendingRemoveId = pmId;
+          document.getElementById('pmRemoveModal').style.display = 'flex';
+        };
+
+        window.pmRemoveConfirm = function() {
+          var pmId = _pmPendingRemoveId;
+          if (!pmId) return;
+          _pmPendingRemoveId = null;
+          document.getElementById('pmRemoveModal').style.display = 'none';
+          fetch('/account/api/payment-methods/' + pmId + '/detach', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json',
+                       'X-CSRFToken': (document.querySelector('meta[name=csrf-token]') || {}).content || '' }
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) { if (data.success) pmLoad(); else alert(data.error || 'Could not remove card.'); })
+          .catch(function() { alert('Could not remove card.'); });
+        };
+
+        window.pmRemoveCancel = function() {
+          _pmPendingRemoveId = null;
+          document.getElementById('pmRemoveModal').style.display = 'none';
+        };
+
+        // ── Set default ────────────────────────────────────────────────────
+        window.pmSetDefault = function(pmId) {
+          fetch('/account/api/payment-methods/' + pmId + '/default', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json',
+                       'X-CSRFToken': (document.querySelector('meta[name=csrf-token]') || {}).content || '' }
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) { if (data.success) pmLoad(); else alert(data.error || 'Could not update default.'); })
+          .catch(function() { alert('Could not update default.'); });
+        };
+
+        function pmShowError(msg) {
+          var el = document.getElementById('pmFormError');
+          el.textContent = msg;
+          el.style.display = 'block';
+        }
+
+        // Load on page open and whenever the payment section is shown
+        pmLoad();
+        document.addEventListener('detailsSectionShown', function(e) {
+          if (e.detail === 'payment') pmLoad();
+        });
+      })();
+      </script>
 
       <!-- Shipping Addresses -->
       <div class="details-section" id="section-shipping">

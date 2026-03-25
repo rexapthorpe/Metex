@@ -18,6 +18,30 @@
       {% for order in all_orders %}
         {% set order_filter = order.status | lower | replace(' ', '-') %}
         {% set is_canceled = order_filter in ('canceled', 'cancelled') %}
+        {% set s = order.status | lower %}
+        {# Map backend status → user-friendly badge #}
+        {% if s in ('pending', 'pending shipment') %}
+          {% set badge_class = 'processing' %}{% set badge_label = 'Payment Processing' %}
+        {% elif s in ('awaiting shipment', 'awaiting confirmation', 'awaiting-confirmation') %}
+          {% set badge_class = 'processing' %}{% set badge_label = 'Awaiting Shipment' %}
+        {% elif s == 'awaiting delivery' %}
+          {% set badge_class = 'shipped' %}{% set badge_label = 'Shipped' %}
+        {% elif s in ('delivered', 'complete') %}
+          {% set badge_class = 'delivered' %}{% set badge_label = 'Delivered' %}
+        {% elif s == 'refunded' %}
+          {% set badge_class = 'refunded' %}{% set badge_label = 'Refund Issued' %}
+        {% elif s == 'partially refunded' %}
+          {% set badge_class = 'refunded' %}{% set badge_label = 'Partially Refunded' %}
+        {% elif is_canceled %}
+          {% set badge_class = 'canceled' %}{% set badge_label = 'Cancelled' %}
+        {% else %}
+          {% set badge_class = 'pending' %}{% set badge_label = order.status %}
+        {% endif %}
+        {# Map backend status → progress step #}
+        {% if s in ('delivered', 'complete') %}{% set step_idx = 4 %}
+        {% elif s == 'awaiting delivery' %}{% set step_idx = 3 %}
+        {% elif s in ('awaiting shipment', 'pending shipment', 'awaiting-shipment') %}{% set step_idx = 2 %}
+        {% else %}{% set step_idx = 1 %}{% endif %}
         <div class="order-card{% if is_canceled %} order-card--canceled{% endif %}" id="order-{{ order.id }}" data-order-filter="{{ order_filter }}">
           <!-- Left: Image -->
           <div class="order-card-image">
@@ -29,6 +53,9 @@
             <!-- Status + Order Number + Price -->
             <div class="order-card-top">
               <div class="order-card-badges">
+                <span class="order-status-badge order-status-badge--{{ badge_class }}">
+                  <span class="order-status-dot"></span>{{ badge_label }}
+                </span>
                 <span class="order-number">#ORD-{{ '%04d' % order.id }}</span>
               </div>
               <div class="order-card-price-block">
@@ -46,16 +73,23 @@
               {{ order.product_type or '' }}
             </div>
 
-            <!-- Progress Bar -->
+            <!-- Progress Bar / Status Bar -->
             {% if is_canceled %}
             <div class="order-canceled-bar">
               <i class="fa-solid fa-circle-xmark"></i> This order was canceled
+            </div>
+            {% elif s in ('refunded', 'partially refunded') %}
+            <div class="order-refund-bar">
+              <i class="fa-solid fa-rotate-left"></i>
+              <div>
+                <div class="order-refund-bar-title">{% if s == 'refunded' %}Refund Issued{% else %}Partial Refund Issued{% endif %}</div>
+                <div class="order-refund-bar-sub">Your refund has been processed and returned to your original payment method.</div>
+              </div>
             </div>
             {% else %}
             <div class="order-progress">
               <div class="order-progress-label">Progress</div>
               <div class="order-progress-track">
-                {% set step_idx = {'pending': 1, 'processing': 2, 'shipped': 3, 'delivered': 4, 'awaiting-confirmation': 1}.get(order_filter, 1) %}
                 <div class="order-progress-step {% if 1 <= step_idx %}order-progress-step--done{% endif %}">Placed</div>
                 <div class="order-progress-connector {% if 1 < step_idx %}order-progress-connector--done{% endif %}"></div>
                 <div class="order-progress-step {% if 2 <= step_idx %}order-progress-step--done{% endif %}">Processing</div>

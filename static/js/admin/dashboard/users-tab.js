@@ -101,6 +101,19 @@ function renderUserDetails(user) {
             : '<span style="color:#9ca3af">Not granted</span>'}
         </span>
       </div>
+      <div class="user-info-row">
+        <span class="user-info-label">Bid Payment Strikes</span>
+        <span class="user-info-value" id="userStrikeDisplay-${user.id}">
+          ${user.bid_payment_strikes >= 3
+            ? `<span style="color:#ef4444; font-weight:700;">${user.bid_payment_strikes} — Bid placement BLOCKED</span>`
+            : user.bid_payment_strikes > 0
+              ? `<span style="color:#f59e0b; font-weight:600;">${user.bid_payment_strikes}</span>`
+              : '<span style="color:#9ca3af">0</span>'}
+          ${user.bid_payment_strikes > 0
+            ? `&nbsp;<button onclick="resetBidStrikes(${user.id})" style="margin-left:8px; padding:3px 10px; font-size:12px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; color:#374151;">Reset</button>`
+            : ''}
+        </span>
+      </div>
     </div>
 
     <div class="modal-actions-full">
@@ -313,6 +326,35 @@ function closeMessageModal() {
   if (messagesPanel && messagesPanel.classList.contains('active')) {
     loadAdminConversations();
   }
+}
+
+function resetBidStrikes(userId) {
+  if (!confirm('Reset bid payment strikes to 0 for this user? This will restore their ability to place bids.')) return;
+
+  fetch(`/admin/api/user/${userId}/reset_bid_strikes`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message, 'success');
+        // Refresh user detail modal if open
+        if (document.getElementById('userDetailModal').style.display === 'flex') {
+          viewUser(userId);
+        }
+        // Update the strikes badge in the table row
+        const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+        if (row) {
+          const strikeBadge = row.querySelector('.strike-badge');
+          if (strikeBadge) {
+            strikeBadge.textContent = '0';
+            strikeBadge.className = 'strike-badge strike-badge-none';
+            strikeBadge.title = '';
+          }
+        }
+      } else {
+        alert('Error: ' + (data.error || 'Failed to reset strikes'));
+      }
+    })
+    .catch(() => alert('Failed to reset bid strikes'));
 }
 
 // ============================================

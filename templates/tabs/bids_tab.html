@@ -68,8 +68,9 @@
         {% set filled_units = [0, (bid.quantity_requested or 0) - (remaining or 0)] | max %}
         {% set fill_pct = ((filled_units / bid.quantity_requested * 100) | int) if bid.quantity_requested and bid.quantity_requested > 0 else 0 %}
         {% set bid_filter = 'filled' if bid.status == 'Filled' else ('active' if bid.status in ['Open','Partially Filled'] else 'expired') %}
+        {# Payment Failed and Relisted bids land in 'expired' filter #}
 
-        <div class="bid-card" data-bid-filter="{{ bid_filter }}" data-bid-id="{{ bid.id }}">
+        <div class="bid-card{% if bid.status == 'Payment Failed' %} bid-card--payment-failed{% endif %}" data-bid-filter="{{ bid_filter }}" data-bid-id="{{ bid.id }}">
           <!-- Main Row -->
           <div class="bid-card-main">
             <!-- Image -->
@@ -79,6 +80,8 @@
                 <div class="bid-image-badge bid-image-badge--filled"><i class="fa-solid fa-circle-check"></i></div>
               {% elif bid.status == 'Partially Filled' %}
                 <div class="bid-image-badge bid-image-badge--partial"><i class="fa-solid fa-arrows-rotate"></i></div>
+              {% elif bid.status == 'Payment Failed' %}
+                <div class="bid-image-badge bid-image-badge--failed"><i class="fa-solid fa-circle-exclamation"></i></div>
               {% endif %}
             </div>
 
@@ -120,6 +123,10 @@
                 <span class="bid-status-badge bid-status-badge--partial">Partial</span>
               {% elif bid.status == 'Open' %}
                 <span class="bid-status-badge bid-status-badge--open">Open</span>
+              {% elif bid.status == 'Payment Failed' %}
+                <span class="bid-status-badge bid-status-badge--failed">Payment Failed</span>
+              {% elif bid.status == 'Relisted' %}
+                <span class="bid-status-badge bid-status-badge--expired">Relisted</span>
               {% else %}
                 <span class="bid-status-badge bid-status-badge--expired">Expired</span>
               {% endif %}
@@ -152,6 +159,14 @@
             </div>
           </div>
 
+          {% if bid.status == 'Payment Failed' %}
+          <!-- Always-visible payment failure warning -->
+          <div class="bid-payment-failed-strip">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Payment declined — your card was charged when a seller accepted this bid, but the payment failed. Update your card and relist to continue.</span>
+          </div>
+          {% endif %}
+
           <!-- Expandable Details -->
           <div class="bid-card-details" style="display:none;">
             <div class="bid-details-grid">
@@ -181,6 +196,16 @@
               </div>
             </div>
             {% endif %}
+
+            {% if bid.bid_payment_failure_message %}
+            <div class="bid-payment-failed-alert">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <div>
+                <strong>Payment Declined</strong>
+                <p>A seller tried to accept this bid but your card was declined. This bid is now closed. Please update your payment method and place a new bid.</p>
+              </div>
+            </div>
+            {% endif %}
           </div>
 
           <!-- Card Footer Actions (always visible, bottom right) -->
@@ -197,6 +222,10 @@
               <button type="button" onclick="closeBid({{ bid.id }})" class="bid-footer-btn bid-footer-btn--close">
                 <i class="fas fa-trash"></i> Close
               </button>
+            {% elif bid.status == 'Payment Failed' %}
+              <a href="/account?relist_bid_id={{ bid.id }}#details-payment" class="bid-footer-btn bid-footer-btn--relist">
+                <i class="fa-solid fa-rotate-right"></i> Change card &amp; relist bid
+              </a>
             {% else %}
               {% if bid.bucket_id %}
               <a href="{{ url_for('buy.view_bucket', bucket_id=bid.bucket_id) }}" class="bid-footer-btn">

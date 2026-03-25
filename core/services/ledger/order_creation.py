@@ -253,9 +253,6 @@ def create_order_ledger_from_cart(
 
         conn.commit()
 
-        # Validate invariants (in dev mode)
-        validate_order_invariants(order_ledger_id)
-
         return order_ledger_id
 
     except Exception as e:

@@ -601,3 +601,362 @@
     gap: 12px;
   }
 }
+
+/* ── Stripe Payout Card ───────────────────────────────────── */
+.stripe-payout-card {
+  margin-top: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  background: #fafafa;
+}
+
+.stripe-payout-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stripe-payout-header i {
+  font-size: 1.1rem;
+  color: #4a5568;
+}
+
+.stripe-payout-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.stripe-payout-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+}
+
+.stripe-payout-status--active {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.stripe-payout-sub {
+  font-size: 0.88rem;
+  color: #6b7280;
+  margin: 0 0 14px 0;
+}
+
+.btn-stripe {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  background: #635bff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.btn-stripe:hover {
+  background: #4f46e5;
+  color: #fff;
+  text-decoration: none;
+}
+
+/* ── Saved Payment Methods ──────────────────────────────────────────────── */
+
+.pm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+  min-height: 24px;
+}
+
+.pm-loading {
+  font-size: 0.88rem;
+  color: #94a3b8;
+  padding: 4px 0;
+}
+
+/* Individual saved card row */
+.pm-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.pm-card--default {
+  border-color: #a5b4fc;
+  background: #f5f3ff;
+}
+
+.pm-card-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pm-brand-icon {
+  font-size: 1.75rem;
+  color: #374151;
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.pm-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pm-card-number {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.pm-card-exp {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.pm-card-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pm-default-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4f46e5;
+  background: #ede9fe;
+  border-radius: 6px;
+  padding: 3px 9px;
+}
+
+.pm-btn {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  background: transparent;
+}
+
+.pm-btn--default {
+  color: #4f46e5;
+  border-color: #c4b5fd;
+}
+.pm-btn--default:hover { background: #ede9fe; }
+
+.pm-btn--remove {
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+.pm-btn--remove:hover { background: #fef2f2; }
+
+/* Add button */
+.pm-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #374151;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-bottom: 20px;
+}
+.pm-add-btn:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.pm-add-btn i { color: #3b82f6; }
+
+/* SetupIntent form container */
+.pm-form-wrap {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  background: #fafafa;
+  margin-bottom: 20px;
+}
+
+.pm-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.pm-form-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #9ca3af;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.pm-form-close:hover { color: #374151; }
+
+.pm-form-error {
+  font-size: 0.85rem;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  padding: 8px 12px;
+  margin-top: 12px;
+}
+
+.pm-form-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 11px 22px;
+  background: #635bff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pm-form-submit:hover  { background: #4f46e5; }
+.pm-form-submit:disabled { opacity: 0.65; cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  .pm-card { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .pm-card-right { width: 100%; justify-content: flex-end; }
+}
+
+/* ── Remove Card Confirmation Modal ──────────────────────────────────────── */
+.pm-remove-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 24px 20px;
+  max-width: 380px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+.pm-remove-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #111827;
+}
+.pm-remove-body {
+  margin: 0 0 22px;
+  font-size: 0.88rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+.pm-remove-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.pm-remove-btn-cancel {
+  padding: 8px 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pm-remove-btn-cancel:hover { background: #f3f4f6; }
+.pm-remove-btn-confirm {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pm-remove-btn-confirm:hover { background: #b91c1c; }
+
+/* ===== Relist Bid Banner ===== */
+.relist-bid-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+.relist-bid-banner-icon {
+  font-size: 18px;
+  color: #d97706;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.relist-bid-banner-body strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+.relist-bid-banner-body p {
+  font-size: 13px;
+  color: #78350f;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+.relist-bid-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #d97706;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.relist-bid-btn:hover { background: #b45309; }
+.relist-bid-btn:disabled { opacity: 0.6; cursor: not-allowed; }

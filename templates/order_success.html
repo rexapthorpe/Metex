@@ -1,10 +1,76 @@
 {% extends "base.html" %}
 
-{% block title %}Order Successful{% endblock %}
+{% block title %}Order Confirmed - MetEx{% endblock %}
 
 {% block content %}
+<style>
+@keyframes scaleIn {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes checkDraw {
+  0%   { stroke-dashoffset: 48; }
+  100% { stroke-dashoffset: 0; }
+}
+.success-circle {
+  width: 80px; height: 80px;
+  background: #d1fae5; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 24px;
+  animation: scaleIn 0.45s cubic-bezier(0.22,0.61,0.36,1) both;
+}
+.success-circle svg {
+  width: 40px; height: 40px;
+}
+.success-circle svg path {
+  stroke: #059669; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: checkDraw 0.35s ease-out 0.3s forwards;
+}
+</style>
 
-    <h2>✅ Order Completed!</h2>
-    <p>The bid has been accepted and the order is now completed.</p>
-    <p><a href="{{ url_for('buy.buy') }}">Back to Buy Page</a></p>
+<div style="max-width: 560px; margin: 80px auto; text-align: center; padding: 0 24px;">
+
+  {% if payment_received %}
+  <div class="success-circle">
+    <svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 7"/></svg>
+  </div>
+  <h1 style="font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 12px;">Order Confirmed!</h1>
+  <p style="font-size: 16px; color: #6b7280; margin: 0 0 8px;">
+    Your order has been placed and payment confirmed.
+  </p>
+  {% else %}
+  <div style="width: 72px; height: 72px; background: #fef3c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 32px; color: #d97706;">
+    ⏳
+  </div>
+  <h1 style="font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 12px;">Payment Processing</h1>
+  <p style="font-size: 16px; color: #6b7280; margin: 0 0 8px;">
+    Your payment was received. We're finalizing your order — this usually takes just a moment.
+  </p>
+  {% endif %}
+
+  {% if order %}
+  <p style="font-size: 15px; color: #9ca3af; margin: 0 0 32px;">
+    Order #{{ order.id }} &nbsp;·&nbsp; ${{ '{:,.2f}'.format(order.total_price) }}
+  </p>
+  {% endif %}
+
+  <p style="font-size: 14px; color: #9ca3af; margin: 0 0 32px;">
+    You'll receive a confirmation notification. Your items will ship within 1–2 business days.
+  </p>
+
+  <div style="display: flex; gap: 12px; justify-content: center;">
+    <a href="{{ url_for('account.account') }}"
+       style="padding: 12px 24px; background: #111827; color: #fff; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px;">
+      View Order
+    </a>
+    <a href="{{ url_for('buy.buy') }}"
+       style="padding: 12px 24px; background: #f3f4f6; color: #374151; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px;">
+      Continue Shopping
+    </a>
+  </div>
+</div>
 {% endblock %}

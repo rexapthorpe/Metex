@@ -245,6 +245,21 @@ def notify_bid_rejected_or_expired(bidder_id, bid_id, item_description):
     )
 
 
+def notify_bid_payment_failed(buyer_id, bid_id, failure_message='Payment declined.'):
+    """Notify a buyer that a seller tried to accept their bid but payment failed."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='bid_payment_failed',
+        title='Bid Payment Failed',
+        body=(
+            'A seller tried to accept your bid, but your payment could not be processed. '
+            'This bid has been closed. Please update your payment method and place a new bid.'
+        ),
+        related_bid_id=bid_id,
+        metadata={'failure_message': failure_message},
+    )
+
+
 # ---------------------------------------------------------------------------
 # Legacy alias – many callers use notify_bid_filled
 # ---------------------------------------------------------------------------

@@ -181,8 +181,9 @@ function closeAcceptBidConfirmModal() {
  * Open success modal with order details
  * ✅ NOW SUPPORTS SINGLE OR MULTIPLE ORDERS
  * @param {Object|Array} ordersData - Single order object OR array of order objects
+ * @param {Array} [paymentFailures] - Optional array of failed bids (mixed-result case)
  */
-function openAcceptBidSuccessModal(ordersData) {
+function openAcceptBidSuccessModal(ordersData, paymentFailures) {
   // Normalize to array (support both single order and multiple orders)
   const ordersArray = Array.isArray(ordersData) ? ordersData : [ordersData];
 
@@ -329,6 +330,21 @@ function openAcceptBidSuccessModal(ordersData) {
     ordersContainer.appendChild(orderCard);
   });
 
+  // If some bids failed payment, show a warning below the order cards
+  if (paymentFailures && paymentFailures.length > 0) {
+    const failureSection = document.createElement('div');
+    failureSection.style.cssText = 'background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;margin-top:16px;';
+    const failureTitle = document.createElement('p');
+    failureTitle.style.cssText = 'margin:0 0 6px 0;font-size:13px;font-weight:700;color:#ef4444;display:flex;align-items:center;gap:6px;';
+    failureTitle.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${paymentFailures.length} bid${paymentFailures.length > 1 ? 's' : ''} could not be charged`;
+    const failureBody = document.createElement('p');
+    failureBody.style.cssText = 'margin:0;font-size:13px;color:#7f1d1d;line-height:1.5;';
+    failureBody.textContent = "The buyer's payment was declined for the bid(s) above. Those bids have been permanently closed and removed from your list.";
+    failureSection.appendChild(failureTitle);
+    failureSection.appendChild(failureBody);
+    ordersContainer.appendChild(failureSection);
+  }
+
   // Reset the checkmark SVG animation so it replays each time
   const animContainer = modal.querySelector('.abm-success-anim');
   if (animContainer) {
@@ -405,16 +421,13 @@ function handleConfirmAccept() {
 
         // Show success modal with order details from backend response
         setTimeout(() => {
+          const paymentFailures = data.payment_failures || [];
           if (data.all_order_details) {
-            // ✅ Use all order details from backend (multiple orders)
-            openAcceptBidSuccessModal(data.all_order_details);
+            openAcceptBidSuccessModal(data.all_order_details, paymentFailures);
           } else if (data.order_details) {
-            // Legacy: single order (backward compatibility)
-            openAcceptBidSuccessModal([data.order_details]);
+            openAcceptBidSuccessModal([data.order_details], paymentFailures);
           } else {
-            // Fallback: construct from bidsData
             const fallbackOrders = bidsData.map(bid => {
-              // Use effective_price for correct display (handles both fixed and variable bids)
               const effectivePrice = bid.effective_price || bid.price_per_coin || 0;
               return {
                 buyer_name: bid.buyer_name,
@@ -424,13 +437,13 @@ function handleConfirmAccept() {
                 total_price: effectivePrice * bid.quantity
               };
             });
-            openAcceptBidSuccessModal(fallbackOrders);
+            openAcceptBidSuccessModal(fallbackOrders, paymentFailures);
           }
         }, 350);
       } else {
-        // Show error
-        alert(data.message || 'Failed to accept bids. Please try again.');
+        // Payment failed for all selected bids — show styled message
         closeAcceptBidConfirmModal();
+        showAcceptBidPaymentFailure(data.message || 'Payment failed for the selected bid(s).');
       }
     })
     .catch(err => {
@@ -438,12 +451,8 @@ function handleConfirmAccept() {
 
       // Show specific message for authentication errors
       if (err.message.startsWith('AUTHENTICATION_REQUIRED')) {
-        alert('You must be logged in to accept bids. Please log in and try again.');
         closeAcceptBidConfirmModal();
-        // Redirect to login after a short delay
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 1000);
+        showAcceptBidAuthPrompt();
       } else {
         alert('An error occurred while accepting the bids. Please try again.');
         closeAcceptBidConfirmModal();
@@ -459,6 +468,67 @@ function handleConfirmAccept() {
 }
 
 /**
+ * Show a payment failure message inside #bidModal after an accept attempt.
+ * The bid has been permanently closed; guide the seller to try another bid.
+ */
+function showAcceptBidPaymentFailure(message) {
+  const modal = document.getElementById('bidModal');
+  const content = document.getElementById('bidModalContent');
+  if (!modal || !content) {
+    // Fallback: bare alert if container is missing
+    alert(message || 'Payment failed. The bid has been closed.');
+    return;
+  }
+  content.innerHTML = `
+    <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
+    <div class="bm-auth-prompt">
+      <div class="bm-auth-icon" style="background: rgba(239,68,68,0.1);">
+        <i class="fa-solid fa-credit-card" style="color: #ef4444;"></i>
+      </div>
+      <h2 class="bm-auth-title" style="color: #ef4444;">Payment Failed</h2>
+      <p class="bm-auth-sub">The buyer's payment could not be processed. This bid has been permanently closed.</p>
+      <p class="bm-auth-sub" style="margin-top: 8px;">You can accept a different bid from the list below.</p>
+      <div class="bm-auth-actions">
+        <button type="button" onclick="location.reload()" class="bm-auth-btn-primary">
+          <i class="fa-solid fa-arrow-left"></i> Back to Bids
+        </button>
+      </div>
+    </div>
+  `;
+  modal.style.display = 'flex';
+  modal.classList.add('active');
+}
+
+/**
+ * Show auth prompt inside #bidModal (reuses existing modal + CSS)
+ */
+function showAcceptBidAuthPrompt() {
+  const modal = document.getElementById('bidModal');
+  const content = document.getElementById('bidModalContent');
+  if (!modal || !content) return;
+  content.innerHTML = `
+    <button type="button" class="modal-close" onclick="closeBidModal()" aria-label="Close modal">×</button>
+    <div class="bm-auth-prompt">
+      <div class="bm-auth-icon"><i class="fa-solid fa-lock"></i></div>
+      <div class="bm-auth-logo">MetEx</div>
+      <h2 class="bm-auth-title">Sign in to accept bids</h2>
+      <p class="bm-auth-sub">Join thousands of buyers and sellers trading precious metals with confidence.</p>
+      <div class="bm-auth-actions">
+        <button type="button" onclick="window.location.href='/login'" class="bm-auth-btn-primary">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Log In
+        </button>
+        <button type="button" onclick="window.location.href='/login?mode=signup'" class="bm-auth-btn-secondary">
+          Create an account
+        </button>
+      </div>
+      <p class="bm-auth-dismiss" onclick="closeBidModal()">Continue browsing</p>
+    </div>
+  `;
+  modal.style.display = 'flex';
+  modal.classList.add('active');
+}
+
+/**
  * Intercept "Accept Bids" form submission
  * ✅ NOW SUPPORTS MULTIPLE BIDS
  */
@@ -468,6 +538,12 @@ function interceptAcceptBidsForm() {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+
+    // Fast auth check: show login prompt without a network round-trip
+    if (window.isUserLoggedIn === false) {
+      showAcceptBidAuthPrompt();
+      return;
+    }
 
     // Get selected bids
     const selectedCheckboxes = form.querySelectorAll('.selected-checkbox:checked');
@@ -486,7 +562,7 @@ function interceptAcceptBidsForm() {
       const quantity = parseInt(hiddenInput?.value || '0', 10);
 
       if (quantity <= 0) {
-        alert(`Please set a quantity greater than 0 for Bid #${bidId}.`);
+        showAlert(`Bid #${bidId} has a quantity of 0. Please enter a quantity of at least 1 before accepting.`, { title: 'Quantity Required', iconType: 'warning' });
         return;
       }
 

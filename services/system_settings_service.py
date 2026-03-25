@@ -205,3 +205,53 @@ def set_maintenance_mode(enabled: bool) -> bool:
     """Enable or disable maintenance mode. Returns the new state."""
     set_setting(MAINTENANCE_MODE_KEY, "1" if enabled else "0")
     return enabled
+
+
+# ---------------------------------------------------------------------------
+# Payment controls
+# ---------------------------------------------------------------------------
+
+CHECKOUT_ENABLED_KEY = "checkout_enabled"
+AUTO_PAYOUTS_ENABLED_KEY = "auto_payouts_enabled"
+MANUAL_PAYOUTS_ENABLED_KEY = "manual_payouts_enabled"
+PAYMENTS_PAUSE_REASON_KEY = "payments_pause_reason"
+
+
+def get_checkout_enabled() -> bool:
+    """Return True if checkout/payments are open. Defaults to True."""
+    return get_setting(CHECKOUT_ENABLED_KEY, "1") == "1"
+
+
+def set_checkout_enabled(enabled: bool) -> bool:
+    set_setting(CHECKOUT_ENABLED_KEY, "1" if enabled else "0")
+    return enabled
+
+
+def get_auto_payouts_enabled() -> bool:
+    """Return True if the auto-payout runner may execute. Defaults to False."""
+    return get_setting(AUTO_PAYOUTS_ENABLED_KEY, "0") == "1"
+
+
+def set_auto_payouts_enabled(enabled: bool) -> bool:
+    set_setting(AUTO_PAYOUTS_ENABLED_KEY, "1" if enabled else "0")
+    return enabled
+
+
+def get_manual_payouts_enabled() -> bool:
+    """Return True if admin manual payout releases are permitted. Defaults to True."""
+    return get_setting(MANUAL_PAYOUTS_ENABLED_KEY, "1") == "1"
+
+
+def set_manual_payouts_enabled(enabled: bool) -> bool:
+    set_setting(MANUAL_PAYOUTS_ENABLED_KEY, "1" if enabled else "0")
+    return enabled
+
+
+def get_payments_pause_reason() -> str:
+    """Return the optional admin-provided reason shown when checkout is blocked."""
+    return get_setting(PAYMENTS_PAUSE_REASON_KEY, "") or ""
+
+
+def set_payments_pause_reason(reason: str) -> str:
+    set_setting(PAYMENTS_PAUSE_REASON_KEY, reason.strip())
+    return reason.strip()

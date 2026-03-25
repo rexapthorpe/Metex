@@ -8,12 +8,61 @@ Routes:
 - POST /bids/create/<bucket_id>: create_bid_unified - AJAX-based unified modal bid creation
 """
 
+import logging
+import stripe
 from flask import request, redirect, url_for, session, flash, jsonify
 from database import get_db_connection
-from services.notification_types import notify_bid_placed, notify_bid_on_bucket, notify_bid_filled
-from .auto_match import auto_match_bid_to_listings
+from services.notification_types import notify_bid_placed, notify_bid_on_bucket
 from services.pricing_service import get_effective_bid_price
 from utils.auth_utils import frozen_check
+
+_log = logging.getLogger(__name__)
+
+# Number of failed accepted-bid payments that blocks further bid placement
+_BID_STRIKE_THRESHOLD = 3
+
+
+def _verify_saved_card(user_id: int, conn, selected_pm_id: str):
+    """
+    Verify that the user has at least one saved Stripe card and that
+    selected_pm_id (if given) belongs to their Stripe customer.
+
+    Returns (pm_id_to_use, error_message).
+    On success error_message is None.
+    On failure pm_id_to_use is None.
+    """
+    row = conn.execute(
+        'SELECT stripe_customer_id FROM users WHERE id = ?', (user_id,)
+    ).fetchone()
+    customer_id = row['stripe_customer_id'] if row else None
+
+    if not customer_id:
+        return None, 'You must save a payment card before placing a bid.'
+
+    try:
+        # Check that user has at least one saved card
+        pms = stripe.PaymentMethod.list(customer=customer_id, type='card', limit=10)
+        pm_list = list(pms.auto_paging_iter())
+        if not pm_list:
+            return None, 'You must save a payment card before placing a bid.'
+
+        if selected_pm_id:
+            # Verify ownership
+            matching = [pm for pm in pm_list if pm.id == selected_pm_id]
+            if not matching:
+                return None, 'The selected payment method was not found on your account.'
+            return selected_pm_id, None
+        else:
+            # Auto-select the first (default) card
+            customer = stripe.Customer.retrieve(customer_id)
+            default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
+            if default_pm_id and any(pm.id == default_pm_id for pm in pm_list):
+                return default_pm_id, None
+            return pm_list[0].id, None
+
+    except stripe.error.StripeError as e:
+        _log.error('[BID PLACE] Stripe error verifying card for user %s: %s', user_id, e)
+        return None, 'Unable to verify payment method. Please try again.'
 
 from . import bid_bp
 
@@ -24,6 +73,25 @@ def place_bid(bucket_id):
     if 'user_id' not in session:
         flash("You must be logged in to place a bid.", "error")
         return redirect(url_for('auth.login'))
+
+    # Block buyers who have reached the strike threshold
+    conn_check = get_db_connection()
+    try:
+        strike_row = conn_check.execute(
+            'SELECT COALESCE(bid_payment_strikes, 0) as strikes FROM users WHERE id = ?',
+            (session['user_id'],)
+        ).fetchone()
+        strikes = strike_row['strikes'] if strike_row else 0
+    finally:
+        conn_check.close()
+
+    if strikes >= _BID_STRIKE_THRESHOLD:
+        flash(
+            "Your account has been restricted from placing bids due to multiple payment failures. "
+            "Please contact support to restore access.",
+            "error"
+        )
+        return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
     try:
         # Extract pricing mode (normalize 'variable' to 'premium_to_spot' for backward compatibility)
@@ -81,9 +149,18 @@ def place_bid(bucket_id):
         flash("Bid quantity must be greater than zero.", "error")
         return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
+    selected_pm_id = request.form.get('selected_payment_method_id', '').strip()
+
     # Get recipient name from user's Account Details (source of truth)
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # Validate saved card before any other work
+    pm_id_to_use, card_error = _verify_saved_card(session['user_id'], conn, selected_pm_id)
+    if card_error:
+        conn.close()
+        flash(card_error, "error")
+        return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
 
     user_info = cursor.execute(
         'SELECT first_name, last_name FROM users WHERE id = ?',
@@ -124,8 +201,9 @@ def place_bid(bucket_id):
             remaining_quantity, active, requires_grading,
             delivery_address, status,
             pricing_mode, spot_premium, ceiling_price, pricing_metal,
-            recipient_first_name, recipient_last_name, random_year
-        ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?)
+            recipient_first_name, recipient_last_name, random_year,
+            bid_payment_method_id, bid_payment_status
+        ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         ''',
         (
             actual_category_id,
@@ -141,16 +219,15 @@ def place_bid(bucket_id):
             pricing_metal,
             recipient_first,
             recipient_last,
-            random_year
+            random_year,
+            pm_id_to_use,
         )
     )
     new_bid_id = cursor.lastrowid
 
-    try:
-        auto_match_bid_to_listings(new_bid_id, cursor)
-    except Exception as e:
-        print(f"[WARNING] Auto-match failed for bid {new_bid_id}: {e}")
-
+    # Auto-match intentionally disabled: bids fill only when a seller manually
+    # accepts via /bids/accept_bid/<bucket_id>, which charges the buyer's card.
+    # Calling auto_match here would create orders without payment.
     conn.commit()
     conn.close()
 
@@ -177,6 +254,25 @@ def create_bid_unified(bucket_id):
     """
     if 'user_id' not in session:
         return jsonify(success=False, message="Authentication required"), 401
+
+    # Block buyers who have reached the strike threshold
+    conn_check = get_db_connection()
+    try:
+        strike_row = conn_check.execute(
+            'SELECT COALESCE(bid_payment_strikes, 0) as strikes FROM users WHERE id = ?',
+            (session['user_id'],)
+        ).fetchone()
+        strikes = strike_row['strikes'] if strike_row else 0
+    finally:
+        conn_check.close()
+
+    if strikes >= _BID_STRIKE_THRESHOLD:
+        return jsonify(
+            success=False,
+            message="Your account is restricted from placing bids due to multiple payment failures. "
+                    "Please contact support to restore access.",
+            strike_blocked=True
+        ), 403
 
     errors = {}
     try:
@@ -236,9 +332,17 @@ def create_bid_unified(bucket_id):
     if errors:
         return jsonify(success=False, errors=errors), 400
 
+    selected_pm_id = request.form.get('selected_payment_method_id', '').strip()
+
     # Get recipient name from user's Account Details (source of truth)
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # Validate saved card before any other work
+    pm_id_to_use, card_error = _verify_saved_card(session['user_id'], conn, selected_pm_id)
+    if card_error:
+        conn.close()
+        return jsonify(success=False, message=card_error, requires_saved_card=True), 400
 
     user_info = cursor.execute(
         'SELECT first_name, last_name FROM users WHERE id = ?',
@@ -282,8 +386,9 @@ def create_bid_unified(bucket_id):
                 remaining_quantity, active, requires_grading,
                 delivery_address, status,
                 pricing_mode, spot_premium, ceiling_price, pricing_metal,
-                recipient_first_name, recipient_last_name, random_year
-            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?)
+                recipient_first_name, recipient_last_name, random_year,
+                bid_payment_method_id, bid_payment_status
+            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             ''',
             (
                 actual_category_id,
@@ -299,13 +404,16 @@ def create_bid_unified(bucket_id):
                 pricing_metal,
                 recipient_first,
                 recipient_last,
-                random_year
+                random_year,
+                pm_id_to_use,
             )
         )
         new_bid_id = cursor.lastrowid
 
-        # Attempt auto-match: fill bid against available listings immediately
-        match_result = auto_match_bid_to_listings(new_bid_id, cursor)
+        # Auto-match intentionally disabled: bids fill only when a seller manually
+        # accepts via /bids/accept_bid/<bucket_id>, which charges the buyer's card.
+        # Calling auto_match here would create orders without payment.
+        match_result = {'filled_quantity': 0, 'orders_created': 0, 'message': '', 'notifications': [], 'ledger_orders': []}
 
         conn.commit()
 
@@ -459,3 +567,119 @@ def create_bid_unified(bucket_id):
         except:
             pass  # Connection may already be closed
         return jsonify(success=False, message=f"Database error: {str(e)}"), 500
+
+
+@bid_bp.route('/relist/<int:bid_id>', methods=['POST'])
+@frozen_check
+def relist_failed_bid(bid_id):
+    """
+    Relist a payment-failed bid with the same specs on the same bucket.
+    The original failed bid is left as-is; a new Open bid is created.
+    """
+    if 'user_id' not in session:
+        return jsonify(success=False, error='Authentication required'), 401
+
+    user_id = session['user_id']
+
+    # Block buyers who have reached the strike threshold
+    conn = get_db_connection()
+    try:
+        strike_row = conn.execute(
+            'SELECT COALESCE(bid_payment_strikes, 0) as strikes FROM users WHERE id = ?',
+            (user_id,)
+        ).fetchone()
+        strikes = strike_row['strikes'] if strike_row else 0
+        if strikes >= _BID_STRIKE_THRESHOLD:
+            conn.close()
+            return jsonify(
+                success=False,
+                error='Your account is restricted from placing bids due to multiple payment failures. '
+                      'Please contact support to restore access.'
+            ), 403
+
+        # Fetch the original failed bid (must not have been relisted already)
+        original = conn.execute(
+            '''SELECT b.*, c.bucket_id
+               FROM bids b
+               LEFT JOIN categories c ON b.category_id = c.id
+               WHERE b.id = ? AND b.buyer_id = ?
+                 AND b.bid_payment_status = 'failed'
+                 AND b.status != 'Relisted'
+            ''',
+            (bid_id, user_id)
+        ).fetchone()
+
+        if not original:
+            conn.close()
+            return jsonify(success=False, error='Bid not found or not eligible for relisting'), 404
+
+        # Verify the bucket is still active (at least one non-owned listing exists)
+        bucket_id = original['bucket_id']
+        counts = conn.execute(
+            '''SELECT COUNT(*) AS total,
+                      SUM(CASE WHEN l.seller_id != ? THEN 1 ELSE 0 END) AS others
+               FROM listings l
+               JOIN categories c ON l.category_id = c.id
+               WHERE c.bucket_id = ? AND l.active = 1 AND l.quantity > 0
+            ''',
+            (user_id, bucket_id)
+        ).fetchone()
+        if not counts or counts['total'] == 0 or not (counts['others'] or 0):
+            conn.close()
+            return jsonify(
+                success=False,
+                error='No eligible listings remain on this bucket — cannot relist.'
+            ), 400
+
+        # Verify user still has a saved card (use their current default)
+        pm_id_to_use, card_error = _verify_saved_card(user_id, conn, None)
+        if card_error:
+            conn.close()
+            return jsonify(success=False, error=card_error), 400
+
+        # Insert new bid with same specs, using current default payment method
+        conn.execute(
+            '''INSERT INTO bids (
+                   category_id, buyer_id, quantity_requested, price_per_coin,
+                   remaining_quantity, active, requires_grading,
+                   delivery_address, status,
+                   pricing_mode, spot_premium, ceiling_price, pricing_metal,
+                   recipient_first_name, recipient_last_name, random_year,
+                   bid_payment_method_id, bid_payment_status
+               ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'Open', ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+            ''',
+            (
+                original['category_id'],
+                user_id,
+                original['quantity_requested'],
+                original['price_per_coin'],
+                original['quantity_requested'],
+                original['requires_grading'],
+                original['delivery_address'],
+                original['pricing_mode'],
+                original['spot_premium'],
+                original['ceiling_price'],
+                original['pricing_metal'],
+                original['recipient_first_name'],
+                original['recipient_last_name'],
+                original['random_year'] or 0,
+                pm_id_to_use,
+            )
+        )
+        # Mark original bid as Relisted so it no longer shows the relist button
+        conn.execute(
+            "UPDATE bids SET status = 'Relisted' WHERE id = ?",
+            (bid_id,)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify(success=True, message='Bid relisted successfully')
+
+    except Exception as e:
+        try:
+            conn.rollback()
+            conn.close()
+        except Exception:
+            pass
+        _log.error('[RELIST BID] Error relisting bid %s for user %s: %s', bid_id, user_id, e)
+        return jsonify(success=False, error='Failed to relist bid'), 500

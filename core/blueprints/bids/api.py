@@ -1,6 +1,6 @@
 # core/blueprints/bids/api.py
 
-from flask import jsonify, session
+from flask import jsonify
 from database import get_db_connection
 from services.pricing_service import get_effective_bid_price
 from datetime import datetime
@@ -10,17 +10,14 @@ from . import bid_bp
 @bid_bp.route('/api/bid/<int:bid_id>/bidder_info')
 def get_bidder_info(bid_id):
     """
-    API endpoint to fetch bidder information for a specific bid
-    Used by the View Bidder modal on the Bucket ID page
-    Returns enriched bidder data matching the seller modal format
+    API endpoint to fetch bidder information for a specific bid.
+    Used by the View Bidder modal on the Bucket ID page.
+    Returns enriched bidder data matching the seller modal format.
 
-    SECURITY: Only sellers with listings in the same bucket as the bid can view
-    bidder information (since they might accept the bid).
+    Public endpoint — the bucket page itself is public and bid tiles are visible
+    to all visitors, so bidder profile info (username, rating, member since) is
+    treated the same as any other public marketplace profile.
     """
-    # SECURITY: Require authentication
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'Authentication required'}), 401
 
     conn = get_db_connection()
 

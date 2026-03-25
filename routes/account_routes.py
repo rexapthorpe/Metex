@@ -6,6 +6,7 @@ from utils.cart_utils import build_cart_summary, validate_and_refill_cart
 from services.pricing_service import get_effective_price, get_effective_bid_price
 from services.reference_price_service import get_current_spots_from_snapshots
 from services.ledger_constants import DEFAULT_PLATFORM_FEE_VALUE
+from config import STRIPE_PUBLISHABLE_KEY
 from core.services.ledger.fee_config import calculate_fee
 from collections import defaultdict
 import os
@@ -322,7 +323,7 @@ def account():
            JOIN listings l     ON oi.listing_id = l.id
            JOIN categories c   ON l.category_id = c.id
           WHERE o.buyer_id = ?
-            AND o.status IN ('Pending','Pending Shipment','Awaiting Shipment','Awaiting Delivery')
+            AND LOWER(o.status) IN ('pending','paid','pending shipment','awaiting shipment','awaiting delivery')
           GROUP BY o.id, o.status, o.created_at, o.delivery_address, o.shipping_address
           ORDER BY o.created_at DESC
         """, (user_id, user_id, user_id, user_id, user_id)
@@ -540,6 +541,10 @@ def account():
                   (SELECT sot2.carrier FROM seller_order_tracking sot2
                      WHERE sot2.order_id = o.id AND sot2.seller_id = l.seller_id
                      LIMIT 1) AS seller_tracking_carrier,
+                  (SELECT sot2.updated_at FROM seller_order_tracking sot2
+                     WHERE sot2.order_id = o.id AND sot2.seller_id = l.seller_id
+                     LIMIT 1) AS tracking_uploaded_at,
+                  o.payment_method_type,
                   oi.third_party_grading_requested,
                   oi.grading_fee_charged,
                   oi.grading_service AS grading_service_requested,
@@ -563,6 +568,8 @@ def account():
                   oil.seller_net_amount AS ledger_seller_net,
                   oil.gross_amount AS ledger_gross_amount,
                   op.payout_status,
+                  o.requires_payment_clearance,
+                  COALESCE(ol2.order_status, '') AS ledger_order_status,
                   (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_status,
                   (SELECT cr.reason FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_reason,
                   (SELECT csr.response
@@ -577,6 +584,7 @@ def account():
            JOIN users u        ON o.buyer_id = u.id
            LEFT JOIN order_items_ledger oil ON oil.order_id = o.id AND oil.listing_id = l.id
            LEFT JOIN order_payouts op ON op.order_id = o.id AND op.seller_id = l.seller_id
+           LEFT JOIN orders_ledger ol2 ON ol2.order_id = o.id
           WHERE l.seller_id = ?
           ORDER BY o.created_at DESC
         """, (user_id, user_id, user_id)
@@ -708,6 +716,71 @@ def account():
             sale['seconds_until_forfeit'] = 9999999
             sale['forfeit_elapsed_pct'] = 0
             sale['forfeit_time_label'] = ''
+
+        # ── Payout delay window (seller-facing display) ──────────────────────
+        from datetime import timedelta
+        from services.ledger_constants import PAYOUT_DELAY_DAYS_CARD, PAYOUT_DELAY_DAYS_ACH
+        _payout_status = sale.get('payout_status')
+        _tracking_uploaded_at = sale.get('tracking_uploaded_at')
+        _order_payment_method = (sale.get('payment_method_type') or '').lower()
+        _delay_days = PAYOUT_DELAY_DAYS_ACH if 'ach' in _order_payment_method else PAYOUT_DELAY_DAYS_CARD
+        sale['payout_delay_days_remaining'] = None
+        sale['payout_eligible_at_str'] = None
+        sale['payout_tracking_uploaded_str'] = None
+        if _tracking_uploaded_at and _payout_status not in ('PAID_OUT', 'PAYOUT_CANCELLED'):
+            try:
+                _ts = str(_tracking_uploaded_at)
+                if 'T' in _ts:
+                    _tracking_at = datetime.fromisoformat(_ts.replace('Z', '+00:00')).replace(tzinfo=None)
+                else:
+                    _tracking_at = datetime.strptime(_ts[:19], '%Y-%m-%d %H:%M:%S')
+                _eligible_at = _tracking_at + timedelta(days=_delay_days)
+                _now = datetime.now()
+                sale['payout_tracking_uploaded_str'] = _tracking_at.strftime('%b %-d')
+                sale['payout_eligible_at_str'] = _eligible_at.strftime('%b %-d')
+                if _now < _eligible_at:
+                    _delta = _eligible_at - _now
+                    sale['payout_delay_days_remaining'] = _delta.days + (1 if _delta.seconds > 0 else 0)
+            except Exception:
+                pass
+
+        # User-friendly payout status label (no internal terminology exposed)
+        _days_remaining = sale.get('payout_delay_days_remaining')
+        _has_tracking = sale.get('has_tracking', False)
+        _requires_ach_clearance = bool(sale.get('requires_payment_clearance'))
+        _ledger_order_status = (sale.get('ledger_order_status') or '').upper()
+        if _payout_status == 'PAID_OUT':
+            sale['payout_user_label'] = 'Paid'
+            sale['payout_user_state'] = 'paid'
+        elif _payout_status == 'PAYOUT_CANCELLED':
+            sale['payout_user_label'] = 'Payout cancelled'
+            sale['payout_user_state'] = 'cancelled'
+        elif _ledger_order_status == 'UNDER_REVIEW':
+            sale['payout_user_label'] = 'Order under review'
+            sale['payout_user_state'] = 'under-review'
+        elif _requires_ach_clearance and _payout_status not in ('PAID_OUT', 'PAYOUT_CANCELLED', 'PAYOUT_READY', 'PAYOUT_IN_PROGRESS'):
+            # ACH orders stay at PAYOUT_NOT_READY (not ON_HOLD) until admin marks cleared.
+            # Check requires_payment_clearance directly rather than relying on payout_status.
+            sale['payout_user_label'] = 'Waiting for ACH clearance'
+            sale['payout_user_state'] = 'ach-clearing'
+        elif _payout_status == 'PAYOUT_ON_HOLD':
+            sale['payout_user_label'] = 'On hold — contact support'
+            sale['payout_user_state'] = 'hold'
+        elif not _has_tracking:
+            sale['payout_user_label'] = 'Waiting for shipment'
+            sale['payout_user_state'] = 'waiting'
+        elif _days_remaining and _days_remaining > 0:
+            sale['payout_user_label'] = f'Payout available in {_days_remaining} day{"s" if _days_remaining != 1 else ""}'
+            sale['payout_user_state'] = 'delayed'
+        elif _payout_status in ('PAYOUT_READY', 'PAYOUT_SCHEDULED'):
+            sale['payout_user_label'] = 'Ready for payout'
+            sale['payout_user_state'] = 'ready'
+        elif _payout_status == 'PAYOUT_IN_PROGRESS':
+            sale['payout_user_label'] = 'Payout in progress'
+            sale['payout_user_state'] = 'in-progress'
+        else:
+            sale['payout_user_label'] = 'Processing'
+            sale['payout_user_state'] = 'processing'
 
         sales.append(sale)
 
@@ -863,6 +936,24 @@ def account():
             existing['messages'].sort(key=lambda m: m['_ts_raw'])
     conversations.extend(_person_convos.values())
 
+    # Relist bid: if a relist_bid_id query param is present, fetch that failed bid
+    relist_bid = None
+    relist_bid_id = request.args.get('relist_bid_id', type=int)
+    if relist_bid_id:
+        relist_row = conn.execute(
+            '''SELECT b.id, b.bid_payment_status, b.category_id,
+                      c.bucket_id, c.metal, c.weight, c.product_type, c.product_line
+               FROM bids b
+               LEFT JOIN categories c ON b.category_id = c.id
+               WHERE b.id = ? AND b.buyer_id = ?
+                 AND b.bid_payment_status = 'failed'
+                 AND b.status != 'Relisted'
+            ''',
+            (relist_bid_id, user_id)
+        ).fetchone()
+        if relist_row:
+            relist_bid = dict(relist_row)
+
     conn.close()
 
     # Import grading service addresses for Sold tab grading instructions
@@ -894,6 +985,8 @@ def account():
         current_user_id=user_id,
         grading_service_addresses=GRADING_SERVICE_ADDRESSES,
         notification_settings=notification_settings,
+        stripe_publishable_key=STRIPE_PUBLISHABLE_KEY or '',
+        relist_bid=relist_bid,
     )
 
 
@@ -1868,98 +1961,179 @@ def include_order_in_portfolio(order_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# ── Payment Methods ──────────────────────────────────────────────────────────
+# ── Payment Methods (Stripe-backed) ──────────────────────────────────────────
+# Cards are stored on Stripe Customers (stripe_customer_id on users table).
+# No raw card data is stored in Metex.
 
-@account_bp.route('/api/payment-methods', methods=['GET'])
-def get_payment_methods():
-    """List saved payment methods for current user."""
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
-    user_id = session['user_id']
-    conn = get_db_connection()
-    methods = conn.execute(
-        'SELECT id, card_type, last_four, expiry_month, expiry_year, '
-        'cardholder_name, is_default, created_at FROM payment_methods WHERE user_id = ? ORDER BY is_default DESC, created_at DESC',
+import logging as _pm_logging
+_pm_log = _pm_logging.getLogger(__name__)
+
+
+def _pm_ensure_customer(user_id, conn):
+    """
+    Return stripe_customer_id for user_id, creating a Stripe Customer if needed.
+    Commits the new customer_id to the DB before returning.
+    Caller must own the connection lifecycle.
+    """
+    import stripe
+    row = conn.execute(
+        'SELECT stripe_customer_id, email, first_name, last_name FROM users WHERE id = ?',
         (user_id,)
-    ).fetchall()
-    conn.close()
-    return jsonify({'success': True, 'payment_methods': [dict(m) for m in methods]})
+    ).fetchone()
+    if not row:
+        raise ValueError(f'User {user_id} not found')
 
+    customer_id = row['stripe_customer_id']
+    if customer_id:
+        return customer_id
 
-@account_bp.route('/api/payment-methods', methods=['POST'])
-def add_payment_method():
-    """Add a new payment method."""
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
-    user_id = session['user_id']
-    data = request.get_json() or {}
-    card_type = data.get('card_type', '')
-    last_four = data.get('last_four', '')
-    expiry_month = data.get('expiry_month')
-    expiry_year = data.get('expiry_year')
-    cardholder_name = data.get('cardholder_name', '')
-    if not card_type or not last_four or not expiry_month or not expiry_year:
-        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
-    conn = get_db_connection()
-    count = conn.execute(
-        'SELECT COUNT(*) as count FROM payment_methods WHERE user_id = ?', (user_id,)
-    ).fetchone()['count']
-    is_default = 1 if count == 0 else 0
-    conn.execute(
-        'INSERT INTO payment_methods (user_id, card_type, last_four, expiry_month, expiry_year, cardholder_name, is_default) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?)',
-        (user_id, card_type, last_four, expiry_month, expiry_year, cardholder_name, is_default)
+    name_parts = [p for p in (row['first_name'], row['last_name']) if p]
+    customer = stripe.Customer.create(
+        email=row['email'],
+        name=' '.join(name_parts) if name_parts else None,
+        metadata={'metex_user_id': str(user_id)},
     )
+    conn.execute('UPDATE users SET stripe_customer_id = ? WHERE id = ?', (customer.id, user_id))
     conn.commit()
-    conn.close()
-    return jsonify({'success': True, 'message': 'Payment method added'})
+    _pm_log.info('[PM] Created Stripe customer %s for user %s', customer.id, user_id)
+    return customer.id
 
 
-@account_bp.route('/api/payment-methods/<int:method_id>', methods=['DELETE'])
-def delete_payment_method(method_id):
-    """Delete a saved payment method."""
+@account_bp.route('/account/api/payment-methods/setup-intent', methods=['POST'])
+def create_payment_method_setup_intent():
+    """Create a Stripe SetupIntent so the buyer can save a new card."""
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    import stripe
     user_id = session['user_id']
     conn = get_db_connection()
-    method = conn.execute(
-        'SELECT id, is_default FROM payment_methods WHERE id = ? AND user_id = ?',
-        (method_id, user_id)
-    ).fetchone()
-    if not method:
+    try:
+        customer_id = _pm_ensure_customer(user_id, conn)
+    except Exception as exc:
         conn.close()
-        return jsonify({'success': False, 'error': 'Payment method not found'}), 403
-    conn.execute('DELETE FROM payment_methods WHERE id = ?', (method_id,))
-    if method['is_default']:
-        other = conn.execute(
-            'SELECT id FROM payment_methods WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
-            (user_id,)
+        _pm_log.exception('[PM] setup-intent: could not resolve customer for user %s', user_id)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+    conn.close()
+
+    try:
+        setup_intent = stripe.SetupIntent.create(
+            customer=customer_id,
+            payment_method_types=['card'],
+            usage='off_session',
+        )
+    except stripe.error.StripeError as exc:
+        _pm_log.error('[PM] SetupIntent create failed for user %s: %s', user_id, exc)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+    return jsonify({'success': True, 'client_secret': setup_intent.client_secret})
+
+
+@account_bp.route('/account/api/payment-methods', methods=['GET'])
+def get_payment_methods():
+    """List saved payment methods for current user (fetched live from Stripe)."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    import stripe
+    user_id = session['user_id']
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT stripe_customer_id FROM users WHERE id = ?', (user_id,)
         ).fetchone()
-        if other:
-            conn.execute('UPDATE payment_methods SET is_default = 1 WHERE id = ?', (other['id'],))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True, 'message': 'Payment method deleted'})
+        customer_id = row['stripe_customer_id'] if row else None
+    finally:
+        conn.close()
+
+    if not customer_id:
+        return jsonify({'success': True, 'payment_methods': []})
+
+    try:
+        customer = stripe.Customer.retrieve(customer_id)
+        default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
+        pms = stripe.PaymentMethod.list(customer=customer_id, type='card')
+        methods = []
+        for pm in pms.auto_paging_iter():
+            card = pm.get('card') or {}
+            methods.append({
+                'id': pm.id,
+                'brand': card.get('brand', 'unknown'),
+                'last4': card.get('last4', ''),
+                'exp_month': card.get('exp_month'),
+                'exp_year': card.get('exp_year'),
+                'is_default': pm.id == default_pm_id,
+            })
+        # Default card first
+        methods.sort(key=lambda m: (not m['is_default'], 0))
+    except stripe.error.StripeError as exc:
+        _pm_log.error('[PM] list failed for customer %s: %s', customer_id, exc)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+    return jsonify({'success': True, 'payment_methods': methods})
 
 
-@account_bp.route('/api/payment-methods/<int:method_id>/default', methods=['POST'])
-def set_default_payment_method(method_id):
-    """Set a payment method as the default."""
+@account_bp.route('/account/api/payment-methods/<string:pm_id>/detach', methods=['POST'])
+def detach_payment_method(pm_id):
+    """Remove a saved card. Ownership is verified against stripe_customer_id."""
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    import stripe
     user_id = session['user_id']
     conn = get_db_connection()
-    method = conn.execute(
-        'SELECT id FROM payment_methods WHERE id = ? AND user_id = ?',
-        (method_id, user_id)
-    ).fetchone()
-    if not method:
+    try:
+        row = conn.execute(
+            'SELECT stripe_customer_id FROM users WHERE id = ?', (user_id,)
+        ).fetchone()
+        customer_id = row['stripe_customer_id'] if row else None
+    finally:
         conn.close()
-        return jsonify({'success': False, 'error': 'Payment method not found'}), 403
-    conn.execute('UPDATE payment_methods SET is_default = 0 WHERE user_id = ?', (user_id,))
-    conn.execute('UPDATE payment_methods SET is_default = 1 WHERE id = ?', (method_id,))
-    conn.commit()
-    conn.close()
+
+    if not customer_id:
+        return jsonify({'success': False, 'error': 'No payment account found'}), 404
+
+    try:
+        pm = stripe.PaymentMethod.retrieve(pm_id)
+        if pm.get('customer') != customer_id:
+            return jsonify({'success': False, 'error': 'Payment method not found'}), 403
+        stripe.PaymentMethod.detach(pm_id)
+        _pm_log.info('[PM] Detached %s from customer %s (user %s)', pm_id, customer_id, user_id)
+    except stripe.error.InvalidRequestError:
+        return jsonify({'success': False, 'error': 'Payment method not found'}), 404
+    except stripe.error.StripeError as exc:
+        _pm_log.error('[PM] detach failed for %s: %s', pm_id, exc)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+    return jsonify({'success': True, 'message': 'Payment method removed'})
+
+
+@account_bp.route('/account/api/payment-methods/<string:pm_id>/default', methods=['POST'])
+def set_default_payment_method(pm_id):
+    """Set a saved card as the default for the buyer's Stripe customer."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    import stripe
+    user_id = session['user_id']
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT stripe_customer_id FROM users WHERE id = ?', (user_id,)
+        ).fetchone()
+        customer_id = row['stripe_customer_id'] if row else None
+    finally:
+        conn.close()
+
+    if not customer_id:
+        return jsonify({'success': False, 'error': 'No payment account found'}), 404
+
+    try:
+        pm = stripe.PaymentMethod.retrieve(pm_id)
+        if pm.get('customer') != customer_id:
+            return jsonify({'success': False, 'error': 'Payment method not found'}), 403
+        stripe.Customer.modify(customer_id, invoice_settings={'default_payment_method': pm_id})
+        _pm_log.info('[PM] Default set to %s for customer %s (user %s)', pm_id, customer_id, user_id)
+    except stripe.error.StripeError as exc:
+        _pm_log.error('[PM] set-default failed for %s: %s', pm_id, exc)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
     return jsonify({'success': True, 'message': 'Default payment method updated'})
 
 

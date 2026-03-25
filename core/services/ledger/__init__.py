@@ -52,7 +52,15 @@ from .escrow_control import (
     hold_payout,
     release_payout,
     process_refund,
-    handle_report_auto_hold
+    refund_buyer_stripe,
+    attempt_payout_recovery,
+    handle_report_auto_hold,
+    get_payout_eligibility,
+    release_stripe_transfer,
+    mark_ach_cleared,
+    get_payout_block_reason,
+    evaluate_payout_readiness,
+    run_auto_payouts,
 )
 
 from .retrieval import (
@@ -94,7 +102,15 @@ class LedgerService:
     hold_payout = staticmethod(hold_payout)
     release_payout = staticmethod(release_payout)
     process_refund = staticmethod(process_refund)
+    refund_buyer_stripe = staticmethod(refund_buyer_stripe)
+    attempt_payout_recovery = staticmethod(attempt_payout_recovery)
     handle_report_auto_hold = staticmethod(handle_report_auto_hold)
+    get_payout_eligibility = staticmethod(get_payout_eligibility)
+    release_stripe_transfer = staticmethod(release_stripe_transfer)
+    mark_ach_cleared = staticmethod(mark_ach_cleared)
+    get_payout_block_reason = staticmethod(get_payout_block_reason)
+    evaluate_payout_readiness = staticmethod(evaluate_payout_readiness)
+    run_auto_payouts = staticmethod(run_auto_payouts)
 
     # Retrieval
     get_order_ledger = staticmethod(get_order_ledger)
@@ -127,7 +143,14 @@ __all__ = [
     'hold_payout',
     'release_payout',
     'process_refund',
+    'refund_buyer_stripe',
+    'attempt_payout_recovery',
     'handle_report_auto_hold',
+    'get_payout_eligibility',
+    'release_stripe_transfer',
+    'get_payout_block_reason',
+    'evaluate_payout_readiness',
+    'run_auto_payouts',
     'get_order_ledger',
     'get_orders_ledger_list',
 ]

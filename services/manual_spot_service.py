@@ -36,12 +36,12 @@ PRICE_MIN_BY_METAL = {
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _trigger_bid_rematch(metal: str) -> None:
-    """After a manual snapshot commit, re-evaluate open bids. Errors are caught."""
+    """Re-evaluate open bids after a manual spot price update."""
     try:
         from core.blueprints.bids.auto_match import run_bid_rematch_after_spot_update
         run_bid_rematch_after_spot_update(metals=[metal])
-    except Exception as exc:
-        logger.error("[manual_spot] Bid re-match trigger failed: %s", exc)
+    except Exception as e:
+        logger.warning("[manual_spot] Bid rematch failed for %s: %s", metal, e)
 
 
 # ─── Service function ─────────────────────────────────────────────────────────

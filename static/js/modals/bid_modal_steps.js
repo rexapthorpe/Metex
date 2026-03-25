@@ -3,11 +3,16 @@
 
 (function () {
 
-  /* Payment method display labels */
+  /* Payment method display labels (legacy — kept for review fallback) */
   const PM_LABELS = {
     credit_card:   { name: 'Credit / Debit Card', icon: 'fa-regular fa-credit-card' },
     bank_transfer: { name: 'ACH Bank Transfer',   icon: 'fa-solid fa-building-columns' },
   };
+
+  // Label of the currently selected saved card (set by initPaymentOptions)
+  let selectedCardLabel = null;
+  // 'card' or 'bank_account' — drives fee calculation
+  let selectedPmType = 'card';
 
   const TOTAL_STEPS = 5;
   let currentStep = 1;
@@ -22,6 +27,8 @@
 
     currentStep = 1;
     selectedPaymentMethod = null;
+    selectedCardLabel = null;
+    selectedPmType = 'card';
 
     const btnBack     = document.getElementById('bm-back');
     const btnContinue = document.getElementById('bm-continue');
@@ -168,18 +175,33 @@
   }
 
   function validatePayment() {
-    if (!selectedPaymentMethod) {
+    // If there's a no-card block visible, block progression
+    const noCardBlock = document.getElementById('bm-no-card-block');
+    if (noCardBlock) {
       const hint = document.getElementById('payment-hint');
       if (hint) {
         hint.style.color = '#dc2626';
-        hint.textContent = 'Please select a payment method to continue';
+        hint.textContent = 'You must add a saved card before placing a bid.';
       }
       return false;
     }
 
-    /* Write selected payment to hidden input */
+    // Saved-card flow: ensure a card is selected
+    const pmIdHidden = document.getElementById('selected-pm-id');
+    if (!pmIdHidden || !pmIdHidden.value) {
+      const hint = document.getElementById('payment-hint');
+      if (hint) {
+        hint.style.color = '#dc2626';
+        hint.textContent = 'Please select a payment card to continue';
+      }
+      return false;
+    }
+
+    // Set payment_method hidden field based on selected PM type
+    const pmValue = selectedPmType === 'bank_account' ? 'bank_transfer' : 'credit_card';
     const pmHidden = document.getElementById('payment_method');
-    if (pmHidden) pmHidden.value = selectedPaymentMethod;
+    if (pmHidden) pmHidden.value = pmValue;
+    selectedPaymentMethod = pmValue;
 
     return true;
   }
@@ -229,19 +251,21 @@
       }
     }
 
-    const subtotal = price * qty;
-    const tax      = subtotal * 0.0825;
-
-    // Processing fee: free for ACH bank transfer, 2.99% of subtotal for credit/debit card
-    const isACH = selectedPaymentMethod === 'bank_transfer';
-    const fee   = isACH ? 0 : subtotal * 0.0299;
+    const itemTotal  = price * qty;
 
     // 3rd party grading fee: $70/item when grading is requested
     const reqEl  = document.getElementById('requires_grading');
     const hasGrading = reqEl && reqEl.value === 'yes';
     const gradingFee = hasGrading ? 70.00 * qty : 0;
 
-    const total = subtotal + tax + fee + gradingFee;
+    const subtotal = itemTotal + gradingFee;
+    const tax      = subtotal * 0.0825;
+
+    // Processing fee: free for ACH, 2.99% for card/debit
+    const isACH = selectedPmType === 'bank_account';
+    const fee   = isACH ? 0 : subtotal * 0.0299;
+
+    const total = subtotal + tax + fee;
 
     setText('rv-price-label', priceLabel);
     setText('rv-price-val',   fmt(price));
@@ -249,7 +273,9 @@
     setText('rv-subtotal',    fmt(subtotal));
     setText('rv-tax',         fmt(tax));
 
-    // Processing fee — green "Free" for ACH
+    // Processing fee label + value — green "Free" for ACH
+    const feeLabelEl = document.getElementById('rv-fee-label');
+    if (feeLabelEl) feeLabelEl.textContent = isACH ? 'Processing fee (ACH)' : 'Processing fee (2.99%)';
     const feeEl = document.getElementById('rv-fee');
     if (feeEl) {
       feeEl.textContent = isACH ? 'Free' : fmt(fee);
@@ -270,12 +296,16 @@
 
     setText('rv-total', fmt(total));
 
-    /* Payment method */
-    const pm = PM_LABELS[selectedPaymentMethod] || PM_LABELS['credit_card'];
-    setText('rv-pm-name', pm.name);
+    /* Payment method — show saved label + correct icon */
+    const cardLabel = selectedCardLabel || (PM_LABELS[selectedPaymentMethod] || PM_LABELS['credit_card']).name;
+    setText('rv-pm-name', cardLabel);
 
     const pmIcon = document.getElementById('rv-pm-icon');
-    if (pmIcon) pmIcon.className = 'bm-rv-pm-icon ' + pm.icon;
+    if (pmIcon) {
+      pmIcon.className = isACH
+        ? 'bm-rv-pm-icon fa-solid fa-building-columns'
+        : 'bm-rv-pm-icon fa-regular fa-credit-card';
+    }
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -306,28 +336,56 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     PAYMENT OPTIONS
+     PAYMENT OPTIONS (saved-card selector)
      ══════════════════════════════════════════════════════════════ */
   function initPaymentOptions() {
-    const opts = document.querySelectorAll('.bm-payment-opt');
+    const opts = document.querySelectorAll('.bm-card-opt');
+
+    // Auto-select first method if none selected
+    const pmIdHidden = document.getElementById('selected-pm-id');
+    if (opts.length > 0 && pmIdHidden && !pmIdHidden.value) {
+      const first = opts[0];
+      first.classList.add('selected');
+      const vis = first.querySelector('.bm-radio-vis');
+      if (vis) vis.classList.add('checked');
+      pmIdHidden.value = first.dataset.pmId || '';
+      selectedCardLabel = first.dataset.cardLabel || '';
+      selectedPmType = first.dataset.pmType || 'card';
+      selectedPaymentMethod = selectedPmType === 'bank_account' ? 'bank_transfer' : 'credit_card';
+    } else if (opts.length > 0 && pmIdHidden && pmIdHidden.value) {
+      opts.forEach(opt => {
+        if (opt.dataset.pmId === pmIdHidden.value) {
+          selectedCardLabel = opt.dataset.cardLabel || '';
+          selectedPmType = opt.dataset.pmType || 'card';
+          selectedPaymentMethod = selectedPmType === 'bank_account' ? 'bank_transfer' : 'credit_card';
+        }
+      });
+    }
+
     opts.forEach(opt => {
       opt.addEventListener('click', () => {
-        opts.forEach(o => o.classList.remove('selected'));
+        // Update selected state
+        opts.forEach(o => {
+          o.classList.remove('selected');
+          const vis = o.querySelector('.bm-radio-vis');
+          if (vis) vis.classList.remove('checked');
+        });
         opt.classList.add('selected');
+        const vis = opt.querySelector('.bm-radio-vis');
+        if (vis) vis.classList.add('checked');
 
-        selectedPaymentMethod = opt.dataset.value || null;
-
-        const radio = opt.querySelector('input[type="radio"]');
-        if (radio) radio.checked = true;
+        // Store selected PM ID and type
+        const pmId = opt.dataset.pmId || '';
+        if (pmIdHidden) pmIdHidden.value = pmId;
+        selectedCardLabel = opt.dataset.cardLabel || '';
+        selectedPmType = opt.dataset.pmType || 'card';
+        selectedPaymentMethod = selectedPmType === 'bank_account' ? 'bank_transfer' : 'credit_card';
 
         const hint = document.getElementById('payment-hint');
         if (hint) {
           hint.style.color = '#9ca3af';
-          hint.textContent = '';
+          hint.textContent = 'Your payment method is only charged when your bid is accepted.';
         }
-
-        const pmHidden = document.getElementById('payment_method');
-        if (pmHidden && selectedPaymentMethod) pmHidden.value = selectedPaymentMethod;
       });
     });
   }
