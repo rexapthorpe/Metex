@@ -49,10 +49,10 @@
               <th>Buyer</th>
               <th>Items</th>
               <th>Amount</th>
-              <th>Order State</th>
-              <th>Payment</th>
-              <th>Clearance</th>
-              <th>Payout</th>
+              <th>Order State <button class="col-help-btn" onclick="showColInfo('order-state')" title="What do these states mean?"><i class="fa-regular fa-circle-question"></i></button></th>
+              <th>Payment <button class="col-help-btn" onclick="showColInfo('payment')" title="Payment status & method guide"><i class="fa-regular fa-circle-question"></i></button></th>
+              <th>Clearance <button class="col-help-btn" onclick="showColInfo('clearance')" title="ACH clearance guide"><i class="fa-regular fa-circle-question"></i></button></th>
+              <th>Payout <button class="col-help-btn" onclick="showColInfo('payout')" title="Payout status guide"><i class="fa-regular fa-circle-question"></i></button></th>
               <th>Paid At</th>
               <th>Date</th>
               <th>Actions</th>
@@ -231,4 +231,269 @@ function adminNudgeSeller(orderId, btn) {
     btn.innerHTML = '<i class="fa-solid fa-bell"></i> Nudge';
   });
 }
+</script>
+
+{# ── Column-info modal (shared by both Transactions and Ledger tabs) ── #}
+<div id="col-info-modal" style="display:none;" aria-modal="true" role="dialog">
+  <div class="col-info-backdrop" onclick="hideColInfo()"></div>
+  <div class="col-info-box">
+    <div class="col-info-header">
+      <h4 id="col-info-title"></h4>
+      <button class="col-info-close" onclick="hideColInfo()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="col-info-body" class="col-info-body"></div>
+  </div>
+</div>
+
+<style>
+/* ── Column help button ── */
+.col-help-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0 0 5px;
+  color: #9ca3af;
+  font-size: 13px;
+  vertical-align: middle;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.col-help-btn:hover { color: #4f46e5; }
+
+/* ── Modal overlay ── */
+#col-info-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.col-info-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+}
+.col-info-box {
+  position: relative;
+  background: #fff;
+  border-radius: 14px;
+  width: 92%;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+}
+.col-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+.col-info-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+.col-info-close {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.col-info-close:hover { background: #e5e7eb; color: #111827; }
+.col-info-body {
+  padding: 16px 22px 22px;
+}
+
+/* ── Status rows inside modal ── */
+.col-info-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px 14px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.col-info-row:last-child { border-bottom: none; }
+.col-info-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.ci-gray   { background:#f3f4f6; color:#374151; }
+.ci-blue   { background:#dbeafe; color:#1d4ed8; }
+.ci-green  { background:#dcfce7; color:#15803d; }
+.ci-amber  { background:#fef9c3; color:#854d0e; }
+.ci-red    { background:#fee2e2; color:#991b1b; }
+.ci-purple { background:#ede9fe; color:#5b21b6; }
+.ci-teal   { background:#ccfbf1; color:#0f766e; }
+.col-info-desc {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+}
+.col-info-intro {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 14px;
+  line-height: 1.55;
+}
+</style>
+
+<script>
+// ── Column info content map ──────────────────────────────────────────────────
+const COL_INFO = {
+  'order-state': {
+    title: 'Order State',
+    intro: 'A composite view of where the order stands, combining payment, shipping, and fulfillment progress.',
+    rows: [
+      { badge: 'Checkout Initiated', cls: 'ci-gray',   desc: 'Buyer opened checkout but has not submitted a payment yet.' },
+      { badge: 'Payment Pending',    cls: 'ci-amber',  desc: 'Payment has been submitted to Stripe and is being processed — not yet captured.' },
+      { badge: 'Paid In Escrow',     cls: 'ci-blue',   desc: 'Funds are captured and held securely. Sellers cannot access them until the order is fulfilled.' },
+      { badge: 'Under Review',       cls: 'ci-red',    desc: 'The order has been flagged for admin review before it can proceed.' },
+      { badge: 'Awaiting Shipment',  cls: 'ci-teal',   desc: 'Payment confirmed. Waiting for the seller(s) to upload tracking numbers.' },
+      { badge: 'Partially Shipped',  cls: 'ci-teal',   desc: 'At least one seller has uploaded tracking, but others in the same order have not.' },
+      { badge: 'Shipped',            cls: 'ci-blue',   desc: 'All sellers in the order have uploaded tracking numbers.' },
+      { badge: 'Completed',          cls: 'ci-green',  desc: 'Order fully fulfilled and closed.' },
+      { badge: 'Cancelled',          cls: 'ci-gray',   desc: 'Order was cancelled before completion. No payout will be made.' },
+      { badge: 'Refunded',           cls: 'ci-red',    desc: 'Buyer was issued a full Stripe refund. Any released payouts require recovery.' },
+    ]
+  },
+  'payment': {
+    title: 'Payment',
+    intro: 'Shows whether the buyer\'s payment was captured, and how they paid. The method affects how quickly payouts can be released.',
+    rows: [
+      { badge: 'paid · Card',     cls: 'ci-green',  desc: 'Credit or debit card. Funds are available immediately — no clearance wait.' },
+      { badge: 'paid · ACH',      cls: 'ci-amber',  desc: 'Bank transfer (ACH). Funds take 3–5 business days to settle. Payouts are blocked until an admin marks the payment as cleared.' },
+      { badge: 'unpaid',          cls: 'ci-gray',   desc: 'No payment captured yet. Order may still be in checkout or payment failed.' },
+    ]
+  },
+  'clearance': {
+    title: 'ACH Clearance',
+    intro: 'ACH (bank transfer) payments do not settle instantly. This column tracks whether admin has confirmed the funds have arrived before releasing seller payouts.',
+    rows: [
+      { badge: '✓ Cleared',       cls: 'ci-green',  desc: 'An admin has confirmed this ACH payment settled. Payouts are no longer blocked by clearance.' },
+      { badge: 'Mark Cleared',    cls: 'ci-amber',  desc: 'ACH payment is pending confirmation. Click the button to mark it as cleared and unblock payouts.' },
+      { badge: 'N/A',             cls: 'ci-gray',   desc: 'Card payment — ACH clearance is not required.' },
+      { badge: '—',               cls: 'ci-gray',   desc: 'Clearance is not applicable for this order (e.g. unpaid or cancelled).' },
+    ]
+  },
+  'payout': {
+    title: 'Payout Status',
+    intro: 'Tracks the state of the seller payout(s) for this order. An order may have multiple sellers, so this reflects the overall picture.',
+    rows: [
+      { badge: 'Not Ready',     cls: 'ci-gray',   desc: 'Payout conditions are not yet met — could be missing tracking, active hold period, ACH pending, or no Stripe account.' },
+      { badge: 'Ready',         cls: 'ci-green',  desc: 'All release conditions are satisfied. Payout can be sent to the seller from the order detail page.' },
+      { badge: 'On Hold',       cls: 'ci-amber',  desc: 'An admin has manually paused this payout. It will not auto-release until the hold is lifted.' },
+      { badge: 'Paid Out',      cls: 'ci-purple', desc: 'Stripe transfer completed — funds have been sent to the seller\'s connected account.' },
+      { badge: 'Cancelled',     cls: 'ci-gray',   desc: 'Payout was voided (e.g. the order was refunded or cancelled after payout was released).' },
+    ]
+  },
+  'gross': {
+    title: 'Gross Amount',
+    intro: 'The total amount the buyer paid for this order.',
+    rows: [
+      { badge: 'Gross',  cls: 'ci-blue',  desc: 'Full purchase price paid by the buyer, before any platform fees are deducted. This is the number on the buyer\'s receipt.' },
+    ]
+  },
+  'fee': {
+    title: 'Platform Fee',
+    intro: 'Metex\'s revenue from this order.',
+    rows: [
+      { badge: 'Fee',  cls: 'ci-red',  desc: 'The percentage or fixed amount Metex deducts from the gross. The seller receives Gross − Fee. Fee rates are set per listing or category.' },
+    ]
+  },
+  'payment-ledger': {
+    title: 'Payment Status',
+    intro: 'Whether Stripe has captured funds for this order.',
+    rows: [
+      { badge: 'paid',    cls: 'ci-green',  desc: 'Payment successfully captured by Stripe. Funds are held in escrow.' },
+      { badge: 'unpaid',  cls: 'ci-gray',   desc: 'No payment captured yet — order may be in checkout or abandoned.' },
+    ]
+  },
+  'payout-state-ledger': {
+    title: 'Payout State',
+    intro: 'The release state of the seller payout(s) associated with this ledger entry.',
+    rows: [
+      { badge: 'PAYOUT_NOT_READY',  cls: 'ci-gray',   desc: 'Conditions not met: likely missing tracking, hold window active, ACH not cleared, or seller has no Stripe account.' },
+      { badge: 'PAYOUT_READY',      cls: 'ci-green',  desc: 'All release conditions met. Go to the order detail page to release the payout.' },
+      { badge: 'PAYOUT_ON_HOLD',    cls: 'ci-amber',  desc: 'Admin hold is active — payout will not release automatically.' },
+      { badge: 'PAID_OUT',          cls: 'ci-purple', desc: 'Stripe transfer sent. Seller has been paid.' },
+      { badge: 'PAYOUT_CANCELLED',  cls: 'ci-gray',   desc: 'Payout voided — order refunded or cancelled.' },
+    ]
+  },
+  'block-reason': {
+    title: 'Block Reason',
+    intro: 'Why a payout cannot be released yet. An empty dash means no block — the payout is eligible.',
+    rows: [
+      { badge: 'No tracking',           cls: 'ci-red',   desc: 'Seller has not uploaded a tracking number. Payouts are held until shipping is confirmed.' },
+      { badge: 'Hold period active',    cls: 'ci-amber', desc: 'The mandatory waiting period after tracking upload has not elapsed yet (3 days for card, 7 days for ACH).' },
+      { badge: 'ACH not cleared',       cls: 'ci-amber', desc: 'ACH bank payment has not been manually confirmed by an admin. Mark it cleared to unblock.' },
+      { badge: 'Active refund',         cls: 'ci-red',   desc: 'A refund was issued. Payouts are blocked to prevent paying out funds that were already returned.' },
+      { badge: 'No Stripe account',     cls: 'ci-red',   desc: 'Seller has not connected a Stripe account. They must do so before any payout can be sent.' },
+      { badge: 'Payouts disabled',      cls: 'ci-red',   desc: 'Seller\'s Stripe account exists but payouts are disabled on their Stripe profile. They need to resolve this with Stripe.' },
+      { badge: 'Recovery pending',      cls: 'ci-red',   desc: 'A previously released payout needs to be reversed because a refund was issued afterward.' },
+      { badge: '—',                     cls: 'ci-gray',  desc: 'No block — payout is eligible for release.' },
+    ]
+  },
+};
+
+function showColInfo(key) {
+  const data = COL_INFO[key];
+  if (!data) return;
+
+  document.getElementById('col-info-title').textContent = data.title;
+
+  let html = '';
+  if (data.intro) {
+    html += '<p class="col-info-intro">' + data.intro + '</p>';
+  }
+  data.rows.forEach(function(row) {
+    html += '<div class="col-info-row">'
+      + '<span class="col-info-badge ' + row.cls + '">' + row.badge + '</span>'
+      + '<span class="col-info-desc">' + row.desc + '</span>'
+      + '</div>';
+  });
+
+  document.getElementById('col-info-body').innerHTML = html;
+  const modal = document.getElementById('col-info-modal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function hideColInfo() {
+  document.getElementById('col-info-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') hideColInfo();
+});
+
+window.showColInfo = showColInfo;
+window.hideColInfo = hideColInfo;
 </script>

@@ -918,6 +918,18 @@ async function placeOrder() {
 
     if (error) {
       console.error('[Stripe] confirmPayment error:', error);
+
+      // Transient errors: network blip or internal Stripe error. The order was already
+      // created in Phase 1 and the payment may have reached Stripe before the error.
+      // Navigate to /order-success and let the webhook determine the real outcome
+      // rather than incorrectly telling the user the payment failed.
+      if (error.type === 'api_connection_error' || error.type === 'api_error') {
+        console.warn('[placeOrder] Transient Stripe error (' + error.type + ') — order exists, navigating to order-success');
+        window.location.href = '/order-success?payment_intent=' + (_stripePaymentIntentId || '');
+        return;
+      }
+
+      // Definitive errors (card declined, 3DS auth failure, validation, etc.) — show and allow retry.
       const errMsg = error.message || 'Payment failed. Please check your payment details and try again.';
       const errDiv = document.getElementById('step3-error');
       if (errDiv) {

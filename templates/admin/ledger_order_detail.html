@@ -1,761 +1,811 @@
 {% extends "base.html" %}
-{% block title %}Ledger Order #{{ order.order_id }}{% endblock %}
+{% block title %}Order #{{ order.order_id }} — Admin{% endblock %}
 
-{% block extra_css %}
+{% block page_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/ledger.css') }}">
 {% endblock %}
 
 {% block content %}
 <div class="ledger-order-detail">
-    <div class="detail-header">
-        <a href="/admin/ledger" class="back-link">Back to Ledger</a>
-        <h1>Order #{{ order.order_id }}</h1>
-    </div>
 
-    <!-- Order Header -->
-    <div class="order-header-card">
-        <div class="header-grid">
-            <div class="header-item">
-                <span class="label">Status</span>
-                <span class="value status-badge {{ 'status-' + order.order_status.lower().replace('_', '-') }}">
-                    {{ order.order_status.replace('_', ' ').title() }}
-                </span>
-            </div>
-            <div class="header-item">
-                <span class="label">Buyer</span>
-                <span class="value">@{{ order.buyer_username }} (ID: {{ order.buyer_id }})</span>
-            </div>
-            <div class="header-item">
-                <span class="label">Payment Method</span>
-                <span class="value">
-                    {%- set _pmt = order.payment_method_type or order.payment_method or '' -%}
-                    {%- if 'ach' in _pmt.lower() or 'bank' in _pmt.lower() -%}
-                        ACH / Bank Transfer
-                    {%- elif _pmt == 'card' -%}
-                        Card
-                    {%- elif _pmt -%}
-                        {{ _pmt }}
-                    {%- else -%}
-                        Not Set
-                    {%- endif -%}
-                </span>
-            </div>
-            <div class="header-item">
-                <span class="label">Created</span>
-                <span class="value">{{ order.created_at }}</span>
-            </div>
-        </div>
-        <div class="header-amounts">
-            <div class="amount-item">
-                <span class="amount-label">Gross Amount</span>
-                <span class="amount-value">${{ '{:,.2f}'.format(order.gross_amount) }}</span>
-            </div>
-            <div class="amount-item fee">
-                <span class="amount-label">Platform Fee</span>
-                <span class="amount-value">${{ '{:,.2f}'.format(order.platform_fee_amount) }}</span>
-            </div>
-            <div class="amount-item net">
-                <span class="amount-label">Net to Sellers</span>
-                <span class="amount-value">${{ '{:,.2f}'.format(order.gross_amount - order.platform_fee_amount) }}</span>
-            </div>
-        </div>
+  {# ── Page Header ─────────────────────────────────────────────── #}
+  <div class="detail-page-header">
+    <a href="/admin/dashboard" class="back-link">
+      <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+    </a>
+    <div class="detail-title-row">
+      <h1>Order <span class="order-id-accent">#{{ order.order_id }}</span></h1>
+      <span class="status-badge {{ 'status-' + order.order_status.lower().replace('_', '-') }}">
+        {{ order.order_status.replace('_', ' ').title() }}
+      </span>
     </div>
+    <p class="detail-created-at">
+      <i class="fa-regular fa-calendar"></i>
+      Created {{ order.created_at[:16] if order.created_at else 'Unknown' }}
+    </p>
+  </div>
 
-    <!-- Refund Section -->
+  {# ── Financial Summary Strip ──────────────────────────────────── #}
+  <div class="order-summary-strip">
+    <div class="summary-metric">
+      <span class="summary-metric-label">Order Total</span>
+      <span class="summary-metric-value">${{ '{:,.2f}'.format(order.gross_amount) }}</span>
+      <span class="summary-metric-sub">Amount buyer paid</span>
+    </div>
+    <div class="summary-metric summary-metric-fee">
+      <span class="summary-metric-label">Platform Fee</span>
+      <span class="summary-metric-value">${{ '{:,.2f}'.format(order.platform_fee_amount) }}</span>
+      <span class="summary-metric-sub">Metex revenue</span>
+    </div>
+    <div class="summary-metric summary-metric-net">
+      <span class="summary-metric-label">Paid to Sellers</span>
+      <span class="summary-metric-value">${{ '{:,.2f}'.format(order.gross_amount - order.platform_fee_amount) }}</span>
+      <span class="summary-metric-sub">Net seller payouts</span>
+    </div>
+  </div>
+
+  {# ── ACH Clearance Banner (full-width, shown when relevant) ───── #}
+  {% if refund_info.get('requires_payment_clearance') %}
+  <div class="status-alert status-alert-amber full-width-alert">
+    <i class="fa-solid fa-clock"></i>
+    <div class="alert-body">
+      <strong>ACH Payment Awaiting Clearance</strong>
+      <p>Seller payouts are blocked until this ACH payment is manually confirmed as cleared by an admin.</p>
+    </div>
+    <button id="btn-mark-ach-cleared" data-order-id="{{ order.order_id }}" class="btn-warning-sm">
+      Mark as Cleared
+    </button>
+  </div>
+  {% elif refund_info.get('payment_cleared_at') %}
+  <div class="status-alert status-alert-green full-width-alert">
+    <i class="fa-solid fa-circle-check"></i>
+    ACH payment cleared at {{ refund_info.payment_cleared_at[:16] }}
+  </div>
+  {% endif %}
+
+  {# ── Order Details + Refund Status (side-by-side) ─────────────── #}
+  <div class="detail-info-grid">
+
     <div class="section-card">
-        <h2>Buyer Refund</h2>
-        {% set rs = refund_info.get('refund_status', 'not_refunded') %}
-        {% if rs == 'refunded' %}
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-            <span style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;padding:5px 12px;border-radius:6px;font-weight:600;font-size:13px;">Refunded</span>
-            <span style="color:#6b7280;font-size:13px;">${{ '{:,.2f}'.format(refund_info.get('refund_amount') or 0) }}</span>
-            {% if refund_info.get('stripe_refund_id') %}
-            <span style="color:#6b7280;font-size:12px;">Stripe ID: {{ refund_info.stripe_refund_id }}</span>
-            {% endif %}
-            {% if refund_info.get('refunded_at') %}
-            <span style="color:#9ca3af;font-size:12px;">{{ refund_info.refunded_at }}</span>
-            {% endif %}
-            {% if refund_info.get('refund_reason') %}
-            <span style="color:#6b7280;font-size:12px;">Reason: {{ refund_info.refund_reason }}</span>
-            {% endif %}
+      <h2>Order Details</h2>
+      <dl class="detail-dl">
+        <dt>Buyer</dt>
+        <dd>@{{ order.buyer_username }} <span class="muted-id">(ID {{ order.buyer_id }})</span></dd>
+
+        <dt>Payment Method</dt>
+        <dd>
+          {%- set _pmt = order.payment_method_type or order.payment_method or '' -%}
+          {%- if 'ach' in _pmt.lower() or 'bank' in _pmt.lower() -%}
+            <i class="fa-solid fa-building-columns" style="color:#d97706;margin-right:4px;"></i>ACH / Bank Transfer
+          {%- elif _pmt == 'card' -%}
+            <i class="fa-solid fa-credit-card" style="margin-right:4px;"></i>Credit / Debit Card
+          {%- elif _pmt -%}
+            {{ _pmt }}
+          {%- else -%}
+            <span class="muted-text">Not recorded</span>
+          {%- endif -%}
+        </dd>
+
+        <dt>Payment Status</dt>
+        <dd>
+          {% if refund_info.get('payment_status') == 'paid' %}
+            <span class="inline-badge badge-green"><i class="fa-solid fa-circle-check"></i> Paid</span>
+          {% else %}
+            <span class="inline-badge badge-yellow">{{ (refund_info.get('payment_status') or 'Unknown') | replace('_', ' ') | title }}</span>
+          {% endif %}
+        </dd>
+
+        <dt>Order Created</dt>
+        <dd class="muted-text">{{ order.created_at[:16] if order.created_at else '—' }}</dd>
+      </dl>
+    </div>
+
+    <div class="section-card">
+      <h2>Refund Status</h2>
+      {% set rs = refund_info.get('refund_status', 'not_refunded') %}
+      {% if rs == 'refunded' %}
+        <div class="status-alert status-alert-red" style="margin-bottom:12px;">
+          <i class="fa-solid fa-rotate-left"></i> <strong>Refund Issued</strong>
         </div>
+        <dl class="detail-dl">
+          <dt>Refund Amount</dt>
+          <dd>${{ '{:,.2f}'.format(refund_info.get('refund_amount') or 0) }}</dd>
+          {% if refund_info.get('stripe_refund_id') %}
+          <dt>Stripe Refund ID</dt>
+          <dd class="mono-text muted-text" style="font-size:12px;">{{ refund_info.stripe_refund_id }}</dd>
+          {% endif %}
+          {% if refund_info.get('refunded_at') %}
+          <dt>Refunded At</dt>
+          <dd class="muted-text">{{ refund_info.refunded_at[:16] }}</dd>
+          {% endif %}
+          {% if refund_info.get('refund_reason') %}
+          <dt>Reason</dt>
+          <dd>{{ refund_info.refund_reason }}</dd>
+          {% endif %}
+        </dl>
         {% if refund_info.get('requires_payout_recovery') %}
-        <div style="margin-top:10px;padding:10px 14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;font-size:13px;color:#92400e;">
-            <strong>Payout Recovery Required</strong> — one or more seller payouts were already released before this refund. Manual recovery is pending.
+        <div class="status-alert status-alert-amber" style="margin-top:12px;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <strong>Payout Recovery Needed</strong> — one or more seller payouts were already released before this refund was issued.
         </div>
         {% endif %}
-        {% elif refund_info.get('payment_status') == 'paid' and rs == 'not_refunded' %}
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-            <span style="color:#6b7280;font-size:13px;">No refund issued.</span>
-            <button
-                id="btn-refund-buyer"
-                data-order-id="{{ order.order_id }}"
-                style="background:#dc2626;color:#fff;border:none;padding:6px 16px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;">
-                Refund Buyer
-            </button>
+      {% elif refund_info.get('payment_status') == 'paid' and rs == 'not_refunded' %}
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <span class="inline-badge badge-gray" style="align-self:flex-start;">
+            <i class="fa-solid fa-ban"></i> No Refund Issued
+          </span>
+          <button
+            id="btn-refund-buyer"
+            data-order-id="{{ order.order_id }}"
+            class="btn-danger-sm">
+            <i class="fa-solid fa-rotate-left"></i> Issue Full Refund
+          </button>
+          <p class="muted-text" style="font-size:12px;margin:0;">
+            This issues an immediate Stripe refund and cannot be undone.
+          </p>
         </div>
-        {% else %}
-        <span style="color:#6b7280;font-size:13px;">No refund applicable (payment not captured or order not refundable).</span>
-        {% endif %}
+      {% else %}
+        <p class="muted-text">No refund applicable — payment not captured or order is not refundable.</p>
+      {% endif %}
     </div>
+  </div>
 
-    <!-- Items Section -->
-    <div class="section-card">
-        <h2>Order Items</h2>
-        <table class="detail-table">
-            <thead>
-                <tr>
-                    <th>Item ID</th>
-                    <th>Listing</th>
-                    <th>Seller</th>
-                    <th>Qty</th>
-                    <th>Unit Price</th>
-                    <th>Gross</th>
-                    <th>Fee Type</th>
-                    <th>Fee Value</th>
-                    <th>Fee Amount</th>
-                    <th>Seller Net</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in items %}
-                <tr>
-                    <td>{{ item.id }}</td>
-                    <td>#{{ item.listing_id }}</td>
-                    <td>@{{ item.seller_username }} ({{ item.seller_id }})</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>${{ '{:,.2f}'.format(item.unit_price) }}</td>
-                    <td>${{ '{:,.2f}'.format(item.gross_amount) }}</td>
-                    <td><span class="fee-type">{{ item.fee_type }}</span></td>
-                    <td>{{ '{:,.2f}'.format(item.fee_value) }}{{ '%' if item.fee_type == 'percent' else '' }}</td>
-                    <td class="fee-amount">${{ '{:,.2f}'.format(item.fee_amount) }}</td>
-                    <td class="seller-net">${{ '{:,.2f}'.format(item.seller_net_amount) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="5"><strong>Total</strong></td>
-                    <td><strong>${{ '{:,.2f}'.format(order.gross_amount) }}</strong></td>
-                    <td colspan="2"></td>
-                    <td class="fee-amount"><strong>${{ '{:,.2f}'.format(order.platform_fee_amount) }}</strong></td>
-                    <td class="seller-net"><strong>${{ '{:,.2f}'.format(order.gross_amount - order.platform_fee_amount) }}</strong></td>
-                </tr>
-            </tfoot>
-        </table>
+  {# ── Items ────────────────────────────────────────────────────── #}
+  <div class="section-card">
+    <h2>Items in This Order</h2>
+    <div class="table-scroll">
+      <table class="detail-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Listing</th>
+            <th>Seller</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Line Total</th>
+            <th>Platform Fee</th>
+            <th>Seller Receives</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td class="muted-text" style="font-size:12px;">#{{ item.id }}</td>
+            <td>
+              <span style="font-weight:500;">#{{ item.listing_id }}</span>
+            </td>
+            <td>
+              @{{ item.seller_username }}
+              <span class="muted-id">({{ item.seller_id }})</span>
+            </td>
+            <td style="text-align:center;">{{ item.quantity }}</td>
+            <td class="mono-text">${{ '{:,.2f}'.format(item.unit_price) }}</td>
+            <td class="mono-text">${{ '{:,.2f}'.format(item.gross_amount) }}</td>
+            <td class="fee-amount mono-text">
+              ${{ '{:,.2f}'.format(item.fee_amount) }}
+              <span class="muted-text" style="font-size:11px;">
+                ({{ '{:,.1f}'.format(item.fee_value) }}{{ '%' if item.fee_type == 'percent' else '' }})
+              </span>
+            </td>
+            <td class="seller-net mono-text">${{ '{:,.2f}'.format(item.seller_net_amount) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5" style="font-weight:600;">Totals</td>
+            <td class="mono-text" style="font-weight:600;">${{ '{:,.2f}'.format(order.gross_amount) }}</td>
+            <td class="fee-amount mono-text" style="font-weight:600;">${{ '{:,.2f}'.format(order.platform_fee_amount) }}</td>
+            <td class="seller-net mono-text" style="font-weight:600;">${{ '{:,.2f}'.format(order.gross_amount - order.platform_fee_amount) }}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
+  </div>
 
-    <!-- Payouts Section -->
-    <div class="section-card">
-        <h2>Seller Payouts</h2>
+  {# ── Seller Payouts (card per seller) ─────────────────────────── #}
+  <div class="section-card">
+    <h2>Seller Payouts</h2>
+    <div class="payout-cards">
+      {% for payout in payouts %}
+      {% set block = payout_block_reasons.get(payout.id) %}
+      {% set di = payout_delay_info.get(payout.id, {}) %}
 
-        {# Order-level payment context banner #}
-        {% set _pm = (refund_info.get('payment_method_type') or '') %}
-        {% if refund_info.get('requires_payment_clearance') %}
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;margin-bottom:12px;font-size:13px;color:#92400e;">
-            <i class="fa-solid fa-clock" style="flex-shrink:0;"></i>
-            <span><strong>ACH Payment Pending Clearance</strong> — Payouts for this order are blocked until an admin marks the ACH payment as cleared.</span>
-            <button
-                id="btn-mark-ach-cleared"
-                data-order-id="{{ order.order_id }}"
-                style="margin-left:auto;background:#d97706;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;flex-shrink:0;">
-                Mark ACH Cleared
-            </button>
+      <div class="payout-card" id="payout-row-{{ payout.id }}">
+
+        {# Card header: seller identity + payout status #}
+        <div class="payout-card-header">
+          <div class="payout-seller-info">
+            <span class="payout-seller-name">@{{ payout.seller_username }}</span>
+            <span class="muted-id">ID {{ payout.seller_id }}</span>
+            {% if not di.get('seller_has_stripe') %}
+              <span class="stripe-badge stripe-badge-missing">
+                <i class="fa-solid fa-xmark"></i> No Stripe account
+              </span>
+            {% elif not di.get('seller_payouts_enabled') %}
+              <span class="stripe-badge stripe-badge-warning">
+                <i class="fa-solid fa-triangle-exclamation"></i> Payouts disabled
+              </span>
+            {% else %}
+              <span class="stripe-badge stripe-badge-ok">
+                <i class="fa-solid fa-circle-check"></i> Stripe connected
+              </span>
+            {% endif %}
+          </div>
+          <span class="payout-status payout-{{ payout.payout_status.lower().replace('_', '-') }}"
+                id="payout-status-badge-{{ payout.id }}">
+            {{ payout.payout_status.replace('_', ' ').title() }}
+          </span>
         </div>
-        {% elif refund_info.get('payment_cleared_at') %}
-        <div style="padding:8px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;margin-bottom:12px;font-size:12px;color:#15803d;">
-            <i class="fa-solid fa-circle-check" style="margin-right:6px;"></i>
-            ACH payment cleared at {{ refund_info.payment_cleared_at[:16] }}
+
+        {# Amount breakdown #}
+        <div class="payout-amounts">
+          <div class="payout-amount-row">
+            <span>Seller's share of order</span>
+            <span class="mono-text">${{ '{:,.2f}'.format(payout.seller_gross_amount) }}</span>
+          </div>
+          <div class="payout-amount-row payout-amount-fee">
+            <span>Platform fee deducted</span>
+            <span class="mono-text fee-amount">− ${{ '{:,.2f}'.format(payout.fee_amount) }}</span>
+          </div>
+          <div class="payout-amount-row payout-amount-net">
+            <span><strong>Seller receives</strong></span>
+            <span class="mono-text seller-net"><strong>${{ '{:,.2f}'.format(payout.seller_net_amount) }}</strong></span>
+          </div>
         </div>
-        {% endif %}
 
-        <table class="detail-table">
-            <thead>
-                <tr>
-                    <th>Payout ID</th>
-                    <th>Seller</th>
-                    <th>Status</th>
-                    <th>Seller Gross</th>
-                    <th>Fee</th>
-                    <th>Net</th>
-                    <th>Transfer ID</th>
-                    <th>Delay / Eligible At</th>
-                    <th>Recovery</th>
-                    <th>Readiness Checklist</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for payout in payouts %}
-                {% set block = payout_block_reasons.get(payout.id) %}
-                {% set di = payout_delay_info.get(payout.id, {}) %}
-                <tr id="payout-row-{{ payout.id }}">
-                    <td>{{ payout.id }}</td>
-                    <td style="font-size:12px;">
-                        @{{ payout.seller_username }}<br>
-                        <span style="color:#9ca3af;font-size:11px;">ID {{ payout.seller_id }}</span>
-                        {% if not di.get('seller_has_stripe') %}
-                        <div style="margin-top:3px;color:#ef4444;font-size:11px;font-weight:600;">✗ No Stripe acct</div>
-                        {% elif not di.get('seller_payouts_enabled') %}
-                        <div style="margin-top:3px;color:#f59e0b;font-size:11px;font-weight:600;">⚠ Payouts disabled</div>
-                        {% else %}
-                        <div style="margin-top:3px;color:#10b981;font-size:11px;">✓ Stripe connected</div>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <span class="payout-status payout-{{ payout.payout_status.lower().replace('_', '-') }}"
-                              id="payout-status-badge-{{ payout.id }}">
-                            {{ payout.payout_status.replace('_', ' ').title() }}
-                        </span>
-                        {% if payout.payout_status == 'PAYOUT_ON_HOLD' %}
-                        <div style="font-size:10px;color:#f59e0b;margin-top:3px;">Admin hold active</div>
-                        {% endif %}
-                    </td>
-                    <td>${{ '{:,.2f}'.format(payout.seller_gross_amount) }}</td>
-                    <td class="fee-amount">${{ '{:,.2f}'.format(payout.fee_amount) }}</td>
-                    <td class="seller-net">${{ '{:,.2f}'.format(payout.seller_net_amount) }}</td>
-                    <td class="provider-id" id="payout-transfer-{{ payout.id }}" style="font-size:11px;max-width:140px;word-break:break-all;">
-                        {{ payout.provider_transfer_id or '—' }}
-                    </td>
-                    <td id="payout-delay-cell-{{ payout.id }}" style="font-size:12px;min-width:140px;">
-                        {% if payout.payout_status in ('PAID_OUT', 'PAYOUT_CANCELLED') %}
-                        <span style="color:#9ca3af;">—</span>
-                        {% elif di and di.tracking_uploaded_at %}
-                        <div style="color:#374151;">
-                            <span style="color:#6b7280;font-size:11px;">Tracking:</span>
-                            {{ di.tracking_uploaded_at }}
-                        </div>
-                        {% if di.eligible_at_str %}
-                        <div style="margin-top:3px;">
-                            <span style="color:#6b7280;font-size:11px;">Eligible at:</span>
-                            <strong>{{ di.eligible_at_str }}</strong>
-                        </div>
-                        {% if di.days_remaining %}
-                        <div style="margin-top:3px;color:#f59e0b;font-weight:600;font-size:11px;">
-                            {{ di.days_remaining }}d remaining
-                            <span style="color:#9ca3af;font-weight:normal;">({{ di.payment_method_type }}, {{ di.delay_days }}d window)</span>
-                        </div>
-                        {% else %}
-                        <div style="margin-top:3px;color:#10b981;font-weight:600;font-size:11px;">✓ Window passed</div>
-                        {% endif %}
-                        {% endif %}
-                        {% else %}
-                        <span style="color:#ef4444;font-size:11px;">✗ No tracking yet</span>
-                        {% endif %}
-                    </td>
-                    <td id="payout-recovery-cell-{{ payout.id }}" style="min-width:120px;">
-                        {% set rec = payout.get('payout_recovery_status', 'not_needed') %}
-                        {% if rec == 'not_needed' %}
-                        <span style="color:#9ca3af;font-size:12px;">Not needed</span>
-                        {% elif rec == 'recovered' %}
-                        <span style="color:#10b981;font-weight:600;font-size:12px;">✓ Recovered</span>
-                        {% if payout.get('provider_reversal_id') %}
-                        <div style="color:#9ca3af;font-size:10px;margin-top:2px;word-break:break-all;">{{ payout.provider_reversal_id }}</div>
-                        {% endif %}
-                        {% if payout.get('recovery_completed_at') %}
-                        <div style="color:#9ca3af;font-size:10px;">{{ payout.recovery_completed_at[:16] }}</div>
-                        {% endif %}
-                        {% elif rec == 'pending' %}
-                        <div style="color:#d97706;font-size:12px;font-weight:600;margin-bottom:4px;">⚠ Recovery Pending</div>
-                        <div style="font-size:10px;color:#6b7280;margin-bottom:6px;">Refund issued after payout. Reversal required.</div>
-                        <button
-                            class="btn-attempt-recovery"
-                            data-payout-id="{{ payout.id }}"
-                            data-seller="{{ payout.seller_username }}"
-                            data-transfer-id="{{ payout.provider_transfer_id or '' }}"
-                            style="background:#d97706;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">
-                            Attempt Recovery
-                        </button>
-                        {% elif rec == 'manual_review' %}
-                        <div style="color:#7c3aed;font-size:12px;font-weight:600;margin-bottom:4px;">⚠ Manual Review Required</div>
-                        {% if payout.get('recovery_failure_reason') %}
-                        <div style="color:#6b7280;font-size:10px;margin-bottom:6px;">{{ payout.recovery_failure_reason[:80] }}</div>
-                        {% else %}
-                        <div style="color:#6b7280;font-size:10px;margin-bottom:6px;">Seller likely withdrew funds. Contact seller directly.</div>
-                        {% endif %}
-                        <button
-                            class="btn-attempt-recovery"
-                            data-payout-id="{{ payout.id }}"
-                            data-seller="{{ payout.seller_username }}"
-                            data-transfer-id="{{ payout.provider_transfer_id or '' }}"
-                            style="background:#7c3aed;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">
-                            Retry Recovery
-                        </button>
-                        {% elif rec == 'failed' %}
-                        <div style="color:#ef4444;font-size:12px;font-weight:600;margin-bottom:4px;">✗ Recovery Failed</div>
-                        {% if payout.get('recovery_failure_reason') %}
-                        <div style="color:#6b7280;font-size:10px;margin-bottom:6px;">{{ payout.recovery_failure_reason[:80] }}</div>
-                        {% endif %}
-                        <button
-                            class="btn-attempt-recovery"
-                            data-payout-id="{{ payout.id }}"
-                            data-seller="{{ payout.seller_username }}"
-                            data-transfer-id="{{ payout.provider_transfer_id or '' }}"
-                            style="background:#ef4444;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">
-                            Retry Recovery
-                        </button>
-                        {% else %}
-                        <span style="color:#9ca3af;font-size:12px;">—</span>
-                        {% endif %}
-                    </td>
+        {# Stripe Transfer ID (hidden until paid out; JS updates this) #}
+        <div class="payout-transfer-row" id="payout-transfer-{{ payout.id }}"
+             {% if not payout.provider_transfer_id %}style="display:none;"{% endif %}>
+          <span class="payout-meta-label">Stripe Transfer ID</span>
+          <span class="mono-text muted-text">{{ payout.provider_transfer_id or '' }}</span>
+        </div>
 
-                    {# Readiness checklist cell #}
-                    <td id="payout-readiness-cell-{{ payout.id }}" style="min-width:200px;">
-                        {% if payout.payout_status == 'PAID_OUT' %}
-                        <span style="color:#10b981;font-size:12px;font-weight:600;">✓ Paid Out</span>
-                        {% elif payout.payout_status == 'PAYOUT_CANCELLED' %}
-                        <span style="color:#6b7280;font-size:12px;">Cancelled</span>
-                        {% else %}
+        {# Lower body: tracking/delay + readiness side-by-side #}
+        <div class="payout-card-body">
 
-                        {# Compact condition checklist #}
-                        {% set _paid = refund_info.get('payment_status') == 'paid' %}
-                        {% set _no_refund = refund_info.get('refund_status') == 'not_refunded' %}
-                        {% set _no_recovery = not refund_info.get('requires_payout_recovery') %}
-                        {% set _ach_ok = not refund_info.get('requires_payment_clearance') %}
-                        {% set _stripe_ok = di.get('seller_has_stripe') %}
-                        {% set _payouts_ok = di.get('seller_payouts_enabled') %}
-                        {% set _tracking_ok = di.get('tracking_uploaded_at') is not none %}
-                        {% set _window_ok = not di.get('days_remaining') %}
+          {# Tracking & payout window #}
+          <div class="payout-delay-section" id="payout-delay-cell-{{ payout.id }}">
+            <span class="payout-meta-label">Tracking &amp; Payout Window</span>
+            {% if payout.payout_status in ('PAID_OUT', 'PAYOUT_CANCELLED') %}
+              <span class="muted-text">—</span>
+            {% elif di and di.tracking_uploaded_at %}
+              <div class="delay-row">
+                <i class="fa-solid fa-truck" style="color:#6b7280;font-size:11px;"></i>
+                Tracking uploaded: <strong>{{ di.tracking_uploaded_at }}</strong>
+              </div>
+              {% if di.eligible_at_str %}
+              <div class="delay-row" style="margin-top:4px;">
+                <i class="fa-solid fa-calendar-check" style="color:#6b7280;font-size:11px;"></i>
+                Payout eligible: <strong>{{ di.eligible_at_str }}</strong>
+              </div>
+              {% if di.days_remaining %}
+              <div class="delay-remaining">
+                <i class="fa-solid fa-hourglass-half"></i>
+                {{ di.days_remaining }} day{{ 's' if di.days_remaining != 1 else '' }} remaining
+                <span class="muted-text">({{ di.payment_method_type }} — {{ di.delay_days }}-day hold)</span>
+              </div>
+              {% else %}
+              <div class="delay-window-passed">
+                <i class="fa-solid fa-circle-check"></i> Hold period complete
+              </div>
+              {% endif %}
+              {% endif %}
+            {% else %}
+              <div class="delay-no-tracking">
+                <i class="fa-solid fa-xmark"></i> No tracking uploaded yet
+              </div>
+            {% endif %}
+          </div>
 
-                        <div style="font-size:11px;line-height:1.8;">
-                            <div style="color:{{ '#10b981' if _paid else '#ef4444' }};">
-                                {{ '✓' if _paid else '✗' }} Payment complete
-                            </div>
-                            <div style="color:{{ '#10b981' if _no_refund else '#ef4444' }};">
-                                {{ '✓' if _no_refund else '✗' }} No refund
-                            </div>
-                            {% if not _no_recovery %}
-                            <div style="color:#ef4444;">✗ Recovery pending</div>
-                            {% endif %}
-                            {% if 'ach' in (di.get('payment_method_type') or '') %}
-                            <div style="color:{{ '#10b981' if _ach_ok else '#f59e0b' }};">
-                                {{ '✓' if _ach_ok else '⟳' }} ACH cleared
-                            </div>
-                            {% endif %}
-                            <div style="color:{{ '#10b981' if _stripe_ok else '#ef4444' }};">
-                                {{ '✓' if _stripe_ok else '✗' }} Stripe connected
-                            </div>
-                            <div style="color:{{ '#10b981' if _payouts_ok else '#ef4444' }};">
-                                {{ '✓' if _payouts_ok else '✗' }} Payouts enabled
-                            </div>
-                            <div style="color:{{ '#10b981' if _tracking_ok else '#ef4444' }};">
-                                {{ '✓' if _tracking_ok else '✗' }} Tracking uploaded
-                            </div>
-                            <div style="color:{{ '#10b981' if _window_ok else '#f59e0b' }};">
-                                {{ '✓' if _window_ok else ('⟳ ' ~ di.days_remaining ~ 'd remaining') }} Delay window
-                            </div>
-                        </div>
+          {# Readiness checklist #}
+          <div id="payout-readiness-cell-{{ payout.id }}" class="payout-readiness-section">
+            <span class="payout-meta-label">Release Checklist</span>
+            {% if payout.payout_status == 'PAID_OUT' %}
+              <div class="readiness-complete">
+                <i class="fa-solid fa-circle-check"></i> Payout complete
+              </div>
+            {% elif payout.payout_status == 'PAYOUT_CANCELLED' %}
+              <span class="muted-text">Cancelled</span>
+            {% else %}
+              {% set _paid       = refund_info.get('payment_status') == 'paid' %}
+              {% set _no_refund  = refund_info.get('refund_status') == 'not_refunded' %}
+              {% set _no_rec     = not refund_info.get('requires_payout_recovery') %}
+              {% set _ach_ok     = not refund_info.get('requires_payment_clearance') %}
+              {% set _stripe_ok  = di.get('seller_has_stripe') %}
+              {% set _payouts_ok = di.get('seller_payouts_enabled') %}
+              {% set _track_ok   = di.get('tracking_uploaded_at') is not none %}
+              {% set _window_ok  = not di.get('days_remaining') %}
 
-                        {% if block is none %}
-                        <div style="margin-top:6px;color:#10b981;font-weight:600;font-size:12px;">✓ Ready to release</div>
-                        {% else %}
-                        <div style="margin-top:6px;color:#ef4444;font-size:11px;font-weight:600;" title="{{ block }}">
-                            Blocked: {{ block }}
-                        </div>
-                        {% endif %}
+              <ul class="readiness-list">
+                <li class="{{ 'check' if _paid else 'cross' }}">Payment received</li>
+                <li class="{{ 'check' if _no_refund else 'cross' }}">No active refund</li>
+                {% if not _no_rec %}
+                <li class="cross">Payout recovery pending</li>
+                {% endif %}
+                {% if 'ach' in (di.get('payment_method_type') or '') %}
+                <li class="{{ 'check' if _ach_ok else 'pending' }}">ACH cleared</li>
+                {% endif %}
+                <li class="{{ 'check' if _stripe_ok else 'cross' }}">Stripe account connected</li>
+                <li class="{{ 'check' if _payouts_ok else 'cross' }}">Stripe payouts enabled</li>
+                <li class="{{ 'check' if _track_ok else 'cross' }}">Tracking uploaded</li>
+                <li class="{{ 'check' if _window_ok else 'pending' }}">
+                  Hold period complete{% if not _window_ok and di.days_remaining %} ({{ di.days_remaining }}d left){% endif %}
+                </li>
+              </ul>
 
-                        <button
-                            class="btn-refresh-readiness"
-                            data-payout-id="{{ payout.id }}"
-                            style="margin-top:5px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;">
-                            Refresh
-                        </button>
-                        {% endif %}
-                    </td>
+              {% if block is none %}
+              <div class="readiness-all-clear">
+                <i class="fa-solid fa-circle-check"></i> Ready to release
+              </div>
+              {% else %}
+              <div class="readiness-blocked" title="{{ block }}">
+                <i class="fa-solid fa-lock"></i> {{ block }}
+              </div>
+              {% endif %}
 
-                    {# Action cell — only show Release button when block reason is None #}
-                    <td style="min-width:140px;">
-                        {% if payout.payout_status == 'PAID_OUT' %}
-                        <span style="color:#10b981;font-weight:600;font-size:13px;">✓ Paid Out</span>
-                        {% elif payout.payout_status == 'PAYOUT_CANCELLED' %}
-                        <span style="color:#6b7280;font-size:13px;">Cancelled</span>
-                        {% elif block is none %}
-                        {# Show two-step confirmation — no native confirm() dialog #}
-                        <div id="release-wrap-{{ payout.id }}">
-                            <button
-                                class="btn-initiate-release"
-                                data-payout-id="{{ payout.id }}"
-                                data-amount="{{ '{:.2f}'.format(payout.seller_net_amount) }}"
-                                data-seller="{{ payout.seller_username }}"
-                                style="background:#10b981;color:#fff;border:none;padding:6px 14px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;">
-                                Release Payout
-                            </button>
-                            <div id="confirm-strip-{{ payout.id }}" style="display:none;flex-direction:column;gap:6px;padding:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;margin-top:6px;">
-                                <div style="font-size:12px;color:#374151;font-weight:600;">
-                                    Send ${{ '{:,.2f}'.format(payout.seller_net_amount) }} to @{{ payout.seller_username }}?
-                                </div>
-                                <div style="font-size:11px;color:#6b7280;">This creates an immediate Stripe transfer. This action cannot be undone.</div>
-                                <div style="display:flex;gap:6px;">
-                                    <button
-                                        class="btn-release-payout btn-confirm-release"
-                                        data-payout-id="{{ payout.id }}"
-                                        data-amount="{{ '{:.2f}'.format(payout.seller_net_amount) }}"
-                                        data-seller="{{ payout.seller_username }}"
-                                        style="background:#10b981;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">
-                                        Confirm Release
-                                    </button>
-                                    <button
-                                        onclick="cancelPayoutConfirm('{{ payout.id }}')"
-                                        style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px;">
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        {% elif payout.payout_status == 'PAYOUT_ON_HOLD' %}
-                        <div style="font-size:12px;color:#d97706;font-weight:600;margin-bottom:6px;">On Hold</div>
-                        <button
-                            class="btn-release-hold"
-                            data-payout-id="{{ payout.id }}"
-                            style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;">
-                            Release Hold
-                        </button>
-                        {% else %}
-                        <div style="font-size:11px;color:#ef4444;font-weight:600;">
-                            <i class="fa-solid fa-lock" style="margin-right:3px;"></i>Blocked
-                        </div>
-                        <div style="font-size:10px;color:#6b7280;margin-top:2px;max-width:130px;">{{ block }}</div>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+              <button class="btn-refresh-readiness btn-sm-ghost" data-payout-id="{{ payout.id }}" style="margin-top:8px;">
+                <i class="fa-solid fa-rotate"></i> Refresh
+              </button>
+            {% endif %}
+          </div>
+        </div>
 
-    <script>
-    // Two-step payout release — show confirmation strip instead of native confirm()
-    document.querySelectorAll('.btn-initiate-release').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var payoutId = btn.dataset.payoutId;
-            btn.style.display = 'none';
-            var strip = document.getElementById('confirm-strip-' + payoutId);
-            if (strip) strip.style.display = 'flex';
-        });
-    });
-
-    function cancelPayoutConfirm(payoutId) {
-        var strip = document.getElementById('confirm-strip-' + payoutId);
-        var btn = document.querySelector('.btn-initiate-release[data-payout-id="' + payoutId + '"]');
-        if (strip) strip.style.display = 'none';
-        if (btn) btn.style.display = '';
-    }
-    window.cancelPayoutConfirm = cancelPayoutConfirm;
-
-    document.querySelectorAll('.btn-confirm-release').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var payoutId = btn.dataset.payoutId;
-            var amount = btn.dataset.amount;
-            var seller = btn.dataset.seller;
-
-            btn.disabled = true;
-            btn.textContent = 'Processing…';
-
-            fetch('/admin/api/payouts/' + payoutId + '/stripe-transfer', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-                credentials: 'same-origin',
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    var badge = document.getElementById('payout-status-badge-' + payoutId);
-                    if (badge) {
-                        badge.className = 'payout-status payout-paid-out';
-                        badge.textContent = 'Paid Out';
-                    }
-                    var cell = document.getElementById('payout-transfer-' + payoutId);
-                    if (cell) { cell.textContent = data.transfer_id; }
-                    var wrap = document.getElementById('release-wrap-' + payoutId);
-                    if (wrap) { wrap.innerHTML = '<span style="color:#10b981;font-weight:600;font-size:13px;">✓ Paid Out</span>'; }
-                } else {
-                    alert('Error: ' + data.error);
-                    btn.disabled = false;
-                    btn.textContent = 'Confirm Release';
-                }
-            })
-            .catch(function(err) {
-                alert('Network error: ' + err);
-                btn.disabled = false;
-                btn.textContent = 'Confirm Release';
-            });
-        });
-    });
-
-    // Release-from-hold button
-    document.querySelectorAll('.btn-release-hold').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var payoutId = btn.dataset.payoutId;
-            btn.disabled = true;
-            btn.textContent = '…';
-            fetch('/admin/api/payouts/' + payoutId + '/release', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-                credentials: 'same-origin',
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                    btn.disabled = false;
-                    btn.textContent = 'Release Hold';
-                }
-            })
-            .catch(function(err) {
-                alert('Network error: ' + err);
-                btn.disabled = false;
-                btn.textContent = 'Release Hold';
-            });
-        });
-    });
-
-    // Mark ACH cleared
-    (function() {
-        var achBtn = document.getElementById('btn-mark-ach-cleared');
-        if (!achBtn) return;
-        achBtn.addEventListener('click', function() {
-            var orderId = achBtn.dataset.orderId;
-            achBtn.disabled = true;
-            achBtn.textContent = 'Processing…';
-            fetch('/admin/api/orders/' + orderId + '/mark-ach-cleared', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-                credentials: 'same-origin',
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                    achBtn.disabled = false;
-                    achBtn.textContent = 'Mark ACH Cleared';
-                }
-            })
-            .catch(function(err) {
-                alert('Network error: ' + err);
-                achBtn.disabled = false;
-                achBtn.textContent = 'Mark ACH Cleared';
-            });
-        });
-    })();
-
-    function getCsrfToken() {
-        var meta = document.querySelector('meta[name="csrf-token"]');
-        return meta ? meta.getAttribute('content') : '';
-    }
-
-    document.querySelectorAll('.btn-refresh-readiness').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var payoutId = btn.dataset.payoutId;
-            btn.disabled = true;
-            btn.textContent = '…';
-
-            fetch('/admin/api/payouts/' + payoutId + '/evaluate-readiness', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-                credentials: 'same-origin',
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                var cell = document.getElementById('payout-readiness-cell-' + payoutId);
-                if (!cell) { location.reload(); return; }
-                var inner = '';
-                if (data.success) {
-                    if (data.ready) {
-                        inner = '<span style="color:#10b981;font-weight:600;font-size:12px;">Ready</span>';
-                    } else {
-                        inner = '<div style="color:#ef4444;font-size:11px;margin-bottom:4px;" title="' +
-                            (data.reason || '') + '">' + (data.reason || 'Not ready') + '</div>';
-                    }
-                    if (data.status_updated) {
-                        var badge = document.getElementById('payout-status-badge-' + payoutId);
-                        if (badge) {
-                            badge.textContent = data.new_status.replace(/_/g, ' ');
-                            badge.className = 'payout-status payout-' + data.new_status.toLowerCase().replace(/_/g, '-');
-                        }
-                    }
-                } else {
-                    inner = '<span style="color:#ef4444;font-size:11px;">' + (data.error || 'Error') + '</span>';
-                }
-                inner += '<button class="btn-refresh-readiness" data-payout-id="' + payoutId +
-                    '" style="margin-top:4px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;">Refresh</button>';
-                cell.innerHTML = inner;
-                // Re-attach listener to new button
-                var newBtn = cell.querySelector('.btn-refresh-readiness');
-                if (newBtn) { attachRefreshListener(newBtn); }
-            })
-            .catch(function(err) {
-                btn.disabled = false;
-                btn.textContent = 'Refresh';
-                alert('Network error: ' + err);
-            });
-        });
-    });
-
-    function attachRefreshListener(btn) {
-        btn.addEventListener('click', function() {
-            var payoutId = btn.dataset.payoutId;
-            btn.disabled = true;
-            btn.textContent = '…';
-            fetch('/admin/api/payouts/' + payoutId + '/evaluate-readiness', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-                credentials: 'same-origin',
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                var cell = document.getElementById('payout-readiness-cell-' + payoutId);
-                if (!cell) { location.reload(); return; }
-                var inner = '';
-                if (data.success) {
-                    if (data.ready) {
-                        inner = '<span style="color:#10b981;font-weight:600;font-size:12px;">Ready</span>';
-                    } else {
-                        inner = '<div style="color:#ef4444;font-size:11px;margin-bottom:4px;" title="' +
-                            (data.reason || '') + '">' + (data.reason || 'Not ready') + '</div>';
-                    }
-                    if (data.status_updated) {
-                        var badge = document.getElementById('payout-status-badge-' + payoutId);
-                        if (badge) {
-                            badge.textContent = data.new_status.replace(/_/g, ' ');
-                            badge.className = 'payout-status payout-' + data.new_status.toLowerCase().replace(/_/g, '-');
-                        }
-                    }
-                } else {
-                    inner = '<span style="color:#ef4444;font-size:11px;">' + (data.error || 'Error') + '</span>';
-                }
-                inner += '<button class="btn-refresh-readiness" data-payout-id="' + payoutId +
-                    '" style="margin-top:4px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;">Refresh</button>';
-                cell.innerHTML = inner;
-                var newBtn = cell.querySelector('.btn-refresh-readiness');
-                if (newBtn) { attachRefreshListener(newBtn); }
-            })
-            .catch(function(err) {
-                btn.disabled = false;
-                btn.textContent = 'Refresh';
-                alert('Network error: ' + err);
-            });
-        });
-    }
-
-    document.querySelectorAll('.btn-attempt-recovery').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var payoutId = btn.dataset.payoutId;
-            var seller = btn.dataset.seller;
-            var transferId = btn.dataset.transferId;
-
-            if (!confirm(
-                'Attempt Stripe Transfer Reversal for payout #' + payoutId +
-                ' (@' + seller + ')?\n\nTransfer: ' + (transferId || 'unknown') +
-                '\n\nThis will attempt to pull funds back from the seller\'s Stripe account.' +
-                ' If the seller has withdrawn funds, it will be flagged for manual review.'
-            )) return;
-
-            btn.disabled = true;
-            btn.textContent = 'Attempting…';
-
-            fetch('/admin/api/payouts/' + payoutId + '/attempt-recovery', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-                credentials: 'same-origin',
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (!data.success) {
-                    alert('Error: ' + data.error);
-                    btn.disabled = false;
-                    btn.textContent = 'Attempt Recovery';
-                    return;
-                }
-                var cell = document.getElementById('payout-recovery-cell-' + payoutId);
-                if (!cell) { location.reload(); return; }
-                if (data.outcome === 'recovered') {
-                    cell.innerHTML = '<span style="color:#10b981;font-weight:600;font-size:12px;">Recovered</span>' +
-                        (data.reversal_id ? '<div style="color:#9ca3af;font-size:11px;margin-top:2px;">' + data.reversal_id + '</div>' : '');
-                } else if (data.outcome === 'manual_review') {
-                    cell.innerHTML = '<span style="color:#7c3aed;font-weight:600;font-size:12px;">Manual Review</span>' +
-                        (data.reason ? '<div style="color:#9ca3af;font-size:11px;margin-top:2px;">' + data.reason.substring(0, 80) + '</div>' : '');
-                } else {
-                    cell.innerHTML = '<span style="color:#ef4444;font-weight:600;font-size:12px;">Failed</span>' +
-                        (data.reason ? '<div style="color:#9ca3af;font-size:11px;margin-top:2px;">' + data.reason.substring(0, 80) + '</div>' : '');
-                }
-            })
-            .catch(function(err) {
-                alert('Network error: ' + err);
-                btn.disabled = false;
-                btn.textContent = 'Attempt Recovery';
-            });
-        });
-    });
-    </script>
-
-    <script>
-    (function() {
-        var refundBtn = document.getElementById('btn-refund-buyer');
-        if (!refundBtn) return;
-        refundBtn.addEventListener('click', function() {
-            var orderId = refundBtn.dataset.orderId;
-            var reason = prompt('Optional refund reason (or leave blank):') || 'Admin refund';
-            if (!confirm('Issue a FULL Stripe refund for order #' + orderId + '?\n\nThis is irreversible.')) return;
-
-            refundBtn.disabled = true;
-            refundBtn.textContent = 'Processing…';
-
-            fetch('/admin/api/orders/' + orderId + '/refund-stripe', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-                credentials: 'same-origin',
-                body: JSON.stringify({reason: reason}),
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Refund failed: ' + data.error);
-                    refundBtn.disabled = false;
-                    refundBtn.textContent = 'Refund Buyer';
-                }
-            })
-            .catch(function(err) {
-                alert('Network error: ' + err);
-                refundBtn.disabled = false;
-                refundBtn.textContent = 'Refund Buyer';
-            });
-        });
-    })();
-    </script>
-
-    <!-- Events Section -->
-    <div class="section-card">
-        <h2>Event Timeline</h2>
-        <div class="events-timeline">
-            {% for event in events %}
-            <div class="event-item">
-                <div class="event-dot"></div>
-                <div class="event-content">
-                    <div class="event-header">
-                        <span class="event-type">{{ event.event_type.replace('_', ' ').title() }}</span>
-                        <span class="event-time">{{ event.created_at }}</span>
-                    </div>
-                    <div class="event-meta">
-                        <span class="actor-type">{{ event.actor_type }}</span>
-                        {% if event.actor_id %}
-                        <span class="actor-id">(ID: {{ event.actor_id }})</span>
-                        {% endif %}
-                    </div>
-                    {% if event.payload %}
-                    <div class="event-payload">
-                        <pre>{{ event.payload | tojson(indent=2) }}</pre>
-                    </div>
-                    {% endif %}
+        {# Recovery status (only shown when recovery is active) #}
+        <div id="payout-recovery-cell-{{ payout.id }}" class="payout-recovery-section">
+          {% set rec = payout.get('payout_recovery_status', 'not_needed') %}
+          {% if rec != 'not_needed' %}
+          <div class="payout-recovery-inner">
+            <span class="payout-meta-label">Payout Recovery</span>
+            {% if rec == 'recovered' %}
+              <div class="recovery-status recovery-ok">
+                <i class="fa-solid fa-circle-check"></i> Recovered
+                {% if payout.get('provider_reversal_id') %}
+                  <span class="mono-text muted-text" style="font-size:11px;margin-left:8px;">{{ payout.provider_reversal_id }}</span>
+                {% endif %}
+                {% if payout.get('recovery_completed_at') %}
+                  <span class="muted-text" style="font-size:11px;margin-left:8px;">{{ payout.recovery_completed_at[:16] }}</span>
+                {% endif %}
+              </div>
+            {% elif rec == 'pending' %}
+              <div class="recovery-status recovery-pending">
+                <div class="recovery-header">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <strong>Recovery Needed</strong>
                 </div>
-            </div>
-            {% endfor %}
+                <p>The order was refunded after this payout was released. A Stripe transfer reversal is required.</p>
+                <button class="btn-attempt-recovery btn-warning-sm"
+                        data-payout-id="{{ payout.id }}"
+                        data-seller="{{ payout.seller_username }}"
+                        data-transfer-id="{{ payout.provider_transfer_id or '' }}">
+                  Attempt Recovery
+                </button>
+              </div>
+            {% elif rec in ('manual_review', 'failed') %}
+              <div class="recovery-status recovery-warning">
+                <div class="recovery-header">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <strong>{{ 'Manual Review Required' if rec == 'manual_review' else 'Recovery Failed' }}</strong>
+                </div>
+                {% if payout.get('recovery_failure_reason') %}
+                  <p>{{ payout.recovery_failure_reason[:120] }}</p>
+                {% else %}
+                  <p>Seller may have already withdrawn funds. Contact the seller directly.</p>
+                {% endif %}
+                <button class="btn-attempt-recovery btn-warning-sm"
+                        data-payout-id="{{ payout.id }}"
+                        data-seller="{{ payout.seller_username }}"
+                        data-transfer-id="{{ payout.provider_transfer_id or '' }}">
+                  Retry Recovery
+                </button>
+              </div>
+            {% endif %}
+          </div>
+          {% endif %}
         </div>
+
+        {# Action area: release button or status indicator #}
+        <div class="payout-action-area">
+          {% if payout.payout_status == 'PAID_OUT' %}
+            <span class="payout-action-done">
+              <i class="fa-solid fa-circle-check"></i> Payout complete
+            </span>
+          {% elif payout.payout_status == 'PAYOUT_CANCELLED' %}
+            <span class="payout-action-cancelled">Cancelled</span>
+          {% elif block is none %}
+            <div id="release-wrap-{{ payout.id }}">
+              <button
+                class="btn-initiate-release btn-release"
+                data-payout-id="{{ payout.id }}"
+                data-amount="{{ '{:.2f}'.format(payout.seller_net_amount) }}"
+                data-seller="{{ payout.seller_username }}">
+                <i class="fa-solid fa-circle-dollar-to-slot"></i> Release Payout
+              </button>
+              <div id="confirm-strip-{{ payout.id }}" class="confirm-release-strip" style="display:none;flex-direction:column;">
+                <div class="confirm-release-text">
+                  <i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i>
+                  Send <strong>${{ '{:,.2f}'.format(payout.seller_net_amount) }}</strong> to @{{ payout.seller_username }}?
+                </div>
+                <p class="confirm-release-subtext">
+                  This triggers an immediate Stripe transfer and cannot be undone.
+                </p>
+                <div class="confirm-release-buttons">
+                  <button
+                    class="btn-release-payout btn-confirm-release btn-release"
+                    data-payout-id="{{ payout.id }}"
+                    data-amount="{{ '{:.2f}'.format(payout.seller_net_amount) }}"
+                    data-seller="{{ payout.seller_username }}">
+                    Confirm &amp; Release
+                  </button>
+                  <button onclick="cancelPayoutConfirm('{{ payout.id }}')" class="btn-sm-ghost">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          {% elif payout.payout_status == 'PAYOUT_ON_HOLD' %}
+            <div class="payout-on-hold-state">
+              <span class="hold-label">
+                <i class="fa-solid fa-hand"></i> Admin Hold Active
+              </span>
+              <button class="btn-release-hold btn-sm-ghost" data-payout-id="{{ payout.id }}" style="margin-top:8px;">
+                Release Hold
+              </button>
+            </div>
+          {% else %}
+            <div class="payout-blocked-state">
+              <i class="fa-solid fa-lock"></i> Blocked
+              {% if block %}
+              <p class="muted-text" style="font-size:12px;margin:4px 0 0;">{{ block }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+
+      </div>
+      {% else %}
+      <p class="muted-text">No payout records for this order.</p>
+      {% endfor %}
     </div>
+  </div>
+
+  {# ── Payout & refund JavaScript (unchanged) ───────────────────── #}
+  <script>
+  // Two-step payout release — show confirmation strip instead of native confirm()
+  document.querySelectorAll('.btn-initiate-release').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+          var payoutId = btn.dataset.payoutId;
+          btn.style.display = 'none';
+          var strip = document.getElementById('confirm-strip-' + payoutId);
+          if (strip) strip.style.display = 'flex';
+      });
+  });
+
+  function cancelPayoutConfirm(payoutId) {
+      var strip = document.getElementById('confirm-strip-' + payoutId);
+      var btn = document.querySelector('.btn-initiate-release[data-payout-id="' + payoutId + '"]');
+      if (strip) strip.style.display = 'none';
+      if (btn) btn.style.display = '';
+  }
+  window.cancelPayoutConfirm = cancelPayoutConfirm;
+
+  document.querySelectorAll('.btn-confirm-release').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+          var payoutId = btn.dataset.payoutId;
+          var amount = btn.dataset.amount;
+          var seller = btn.dataset.seller;
+
+          btn.disabled = true;
+          btn.textContent = 'Processing…';
+
+          fetch('/admin/api/payouts/' + payoutId + '/stripe-transfer', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+              credentials: 'same-origin',
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              if (data.success) {
+                  var badge = document.getElementById('payout-status-badge-' + payoutId);
+                  if (badge) {
+                      badge.className = 'payout-status payout-paid-out';
+                      badge.textContent = 'Paid Out';
+                  }
+                  var cell = document.getElementById('payout-transfer-' + payoutId);
+                  if (cell) {
+                      cell.style.display = '';
+                      cell.querySelector('.mono-text') && (cell.querySelector('.mono-text').textContent = data.transfer_id);
+                  }
+                  var wrap = document.getElementById('release-wrap-' + payoutId);
+                  if (wrap) { wrap.innerHTML = '<span class="payout-action-done"><i class="fa-solid fa-circle-check"></i> Payout complete</span>'; }
+              } else {
+                  alert('Error: ' + data.error);
+                  btn.disabled = false;
+                  btn.textContent = 'Confirm Release';
+              }
+          })
+          .catch(function(err) {
+              alert('Network error: ' + err);
+              btn.disabled = false;
+              btn.textContent = 'Confirm Release';
+          });
+      });
+  });
+
+  // Release-from-hold button
+  document.querySelectorAll('.btn-release-hold').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+          var payoutId = btn.dataset.payoutId;
+          btn.disabled = true;
+          btn.textContent = '…';
+          fetch('/admin/api/payouts/' + payoutId + '/release', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+              credentials: 'same-origin',
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              if (data.success) {
+                  location.reload();
+              } else {
+                  alert('Error: ' + data.error);
+                  btn.disabled = false;
+                  btn.textContent = 'Release Hold';
+              }
+          })
+          .catch(function(err) {
+              alert('Network error: ' + err);
+              btn.disabled = false;
+              btn.textContent = 'Release Hold';
+          });
+      });
+  });
+
+  // Mark ACH cleared
+  (function() {
+      var achBtn = document.getElementById('btn-mark-ach-cleared');
+      if (!achBtn) return;
+      achBtn.addEventListener('click', function() {
+          var orderId = achBtn.dataset.orderId;
+          achBtn.disabled = true;
+          achBtn.textContent = 'Processing…';
+          fetch('/admin/api/orders/' + orderId + '/mark-ach-cleared', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+              credentials: 'same-origin',
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              if (data.success) {
+                  location.reload();
+              } else {
+                  alert('Error: ' + data.error);
+                  achBtn.disabled = false;
+                  achBtn.textContent = 'Mark as Cleared';
+              }
+          })
+          .catch(function(err) {
+              alert('Network error: ' + err);
+              achBtn.disabled = false;
+              achBtn.textContent = 'Mark as Cleared';
+          });
+      });
+  })();
+
+  function getCsrfToken() {
+      var meta = document.querySelector('meta[name="csrf-token"]');
+      return meta ? meta.getAttribute('content') : '';
+  }
+
+  document.querySelectorAll('.btn-refresh-readiness').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+          var payoutId = btn.dataset.payoutId;
+          btn.disabled = true;
+          btn.textContent = '…';
+
+          fetch('/admin/api/payouts/' + payoutId + '/evaluate-readiness', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+              credentials: 'same-origin',
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              var cell = document.getElementById('payout-readiness-cell-' + payoutId);
+              if (!cell) { location.reload(); return; }
+              var inner = '';
+              if (data.success) {
+                  if (data.ready) {
+                      inner = '<div class="readiness-all-clear"><i class="fa-solid fa-circle-check"></i> Ready to release</div>';
+                  } else {
+                      inner = '<div class="readiness-blocked" title="' + (data.reason || '') + '"><i class="fa-solid fa-lock"></i> ' + (data.reason || 'Not ready') + '</div>';
+                  }
+                  if (data.status_updated) {
+                      var badge = document.getElementById('payout-status-badge-' + payoutId);
+                      if (badge) {
+                          badge.textContent = data.new_status.replace(/_/g, ' ');
+                          badge.className = 'payout-status payout-' + data.new_status.toLowerCase().replace(/_/g, '-');
+                      }
+                  }
+              } else {
+                  inner = '<span style="color:#ef4444;font-size:12px;">' + (data.error || 'Error') + '</span>';
+              }
+              inner += '<button class="btn-refresh-readiness btn-sm-ghost" data-payout-id="' + payoutId + '" style="margin-top:8px;"><i class="fa-solid fa-rotate"></i> Refresh</button>';
+              cell.innerHTML = inner;
+              var newBtn = cell.querySelector('.btn-refresh-readiness');
+              if (newBtn) { attachRefreshListener(newBtn); }
+          })
+          .catch(function(err) {
+              btn.disabled = false;
+              btn.textContent = 'Refresh';
+              alert('Network error: ' + err);
+          });
+      });
+  });
+
+  function attachRefreshListener(btn) {
+      btn.addEventListener('click', function() {
+          var payoutId = btn.dataset.payoutId;
+          btn.disabled = true;
+          btn.textContent = '…';
+          fetch('/admin/api/payouts/' + payoutId + '/evaluate-readiness', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+              credentials: 'same-origin',
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              var cell = document.getElementById('payout-readiness-cell-' + payoutId);
+              if (!cell) { location.reload(); return; }
+              var inner = '';
+              if (data.success) {
+                  if (data.ready) {
+                      inner = '<div class="readiness-all-clear"><i class="fa-solid fa-circle-check"></i> Ready to release</div>';
+                  } else {
+                      inner = '<div class="readiness-blocked" title="' + (data.reason || '') + '"><i class="fa-solid fa-lock"></i> ' + (data.reason || 'Not ready') + '</div>';
+                  }
+                  if (data.status_updated) {
+                      var badge = document.getElementById('payout-status-badge-' + payoutId);
+                      if (badge) {
+                          badge.textContent = data.new_status.replace(/_/g, ' ');
+                          badge.className = 'payout-status payout-' + data.new_status.toLowerCase().replace(/_/g, '-');
+                      }
+                  }
+              } else {
+                  inner = '<span style="color:#ef4444;font-size:12px;">' + (data.error || 'Error') + '</span>';
+              }
+              inner += '<button class="btn-refresh-readiness btn-sm-ghost" data-payout-id="' + payoutId + '" style="margin-top:8px;"><i class="fa-solid fa-rotate"></i> Refresh</button>';
+              cell.innerHTML = inner;
+              var newBtn = cell.querySelector('.btn-refresh-readiness');
+              if (newBtn) { attachRefreshListener(newBtn); }
+          })
+          .catch(function(err) {
+              btn.disabled = false;
+              btn.textContent = 'Refresh';
+              alert('Network error: ' + err);
+          });
+      });
+  }
+
+  document.querySelectorAll('.btn-attempt-recovery').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+          var payoutId = btn.dataset.payoutId;
+          var seller = btn.dataset.seller;
+          var transferId = btn.dataset.transferId;
+
+          if (!confirm(
+              'Attempt Stripe Transfer Reversal for payout #' + payoutId +
+              ' (@' + seller + ')?\n\nTransfer: ' + (transferId || 'unknown') +
+              '\n\nThis will attempt to pull funds back from the seller\'s Stripe account.' +
+              ' If the seller has withdrawn funds, it will be flagged for manual review.'
+          )) return;
+
+          btn.disabled = true;
+          btn.textContent = 'Attempting…';
+
+          fetch('/admin/api/payouts/' + payoutId + '/attempt-recovery', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+              credentials: 'same-origin',
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              if (!data.success) {
+                  alert('Error: ' + data.error);
+                  btn.disabled = false;
+                  btn.textContent = 'Attempt Recovery';
+                  return;
+              }
+              var cell = document.getElementById('payout-recovery-cell-' + payoutId);
+              if (!cell) { location.reload(); return; }
+              if (data.outcome === 'recovered') {
+                  cell.innerHTML = '<div class="payout-recovery-inner"><span class="payout-meta-label">Payout Recovery</span><div class="recovery-status recovery-ok"><i class="fa-solid fa-circle-check"></i> Recovered' +
+                      (data.reversal_id ? '<span class="mono-text muted-text" style="font-size:11px;margin-left:8px;">' + data.reversal_id + '</span>' : '') + '</div></div>';
+              } else if (data.outcome === 'manual_review') {
+                  cell.innerHTML = '<div class="payout-recovery-inner"><span class="payout-meta-label">Payout Recovery</span><div class="recovery-status recovery-warning"><div class="recovery-header"><i class="fa-solid fa-triangle-exclamation"></i><strong>Manual Review Required</strong></div>' +
+                      (data.reason ? '<p>' + data.reason.substring(0, 120) + '</p>' : '') + '</div></div>';
+              } else {
+                  cell.innerHTML = '<div class="payout-recovery-inner"><span class="payout-meta-label">Payout Recovery</span><div class="recovery-status recovery-warning"><div class="recovery-header"><i class="fa-solid fa-triangle-exclamation"></i><strong>Recovery Failed</strong></div>' +
+                      (data.reason ? '<p>' + data.reason.substring(0, 120) + '</p>' : '') + '</div></div>';
+              }
+          })
+          .catch(function(err) {
+              alert('Network error: ' + err);
+              btn.disabled = false;
+              btn.textContent = 'Attempt Recovery';
+          });
+      });
+  });
+  </script>
+
+  <script>
+  (function() {
+      var refundBtn = document.getElementById('btn-refund-buyer');
+      if (!refundBtn) return;
+      refundBtn.addEventListener('click', function() {
+          var orderId = refundBtn.dataset.orderId;
+          var reason = prompt('Optional refund reason (or leave blank):') || 'Admin refund';
+          if (!confirm('Issue a FULL Stripe refund for order #' + orderId + '?\n\nThis is irreversible.')) return;
+
+          refundBtn.disabled = true;
+          refundBtn.textContent = 'Processing…';
+
+          fetch('/admin/api/orders/' + orderId + '/refund-stripe', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+              credentials: 'same-origin',
+              body: JSON.stringify({reason: reason}),
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              if (data.success) {
+                  location.reload();
+              } else {
+                  alert('Refund failed: ' + data.error);
+                  refundBtn.disabled = false;
+                  refundBtn.textContent = 'Issue Full Refund';
+              }
+          })
+          .catch(function(err) {
+              alert('Network error: ' + err);
+              refundBtn.disabled = false;
+              refundBtn.textContent = 'Issue Full Refund';
+          });
+      });
+  })();
+  </script>
+
+  {# ── Order History / Event Timeline ──────────────────────────── #}
+  <div class="section-card">
+    <h2>Order History</h2>
+    {% if events %}
+    <div class="events-timeline">
+      {% for event in events %}
+      <div class="event-item">
+        <div class="event-dot"></div>
+        <div class="event-content">
+          <div class="event-header">
+            <span class="event-type">{{ event.event_type.replace('_', ' ').title() }}</span>
+            <span class="event-time">{{ event.created_at[:16] if event.created_at else '—' }}</span>
+          </div>
+          <div class="event-meta">
+            <span class="actor-type">{{ event.actor_type | title }}</span>
+            {% if event.actor_id %}
+            <span class="actor-id">ID {{ event.actor_id }}</span>
+            {% endif %}
+          </div>
+          {% if event.payload %}
+          <div class="event-payload">
+            <pre>{{ event.payload | tojson(indent=2) }}</pre>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted-text">No events recorded for this order.</p>
+    {% endif %}
+  </div>
+
 </div>
 {% endblock %}
