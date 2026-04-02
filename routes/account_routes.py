@@ -287,7 +287,12 @@ def account():
              MAX(oi.third_party_grading_requested) AS third_party_grading,
              SUM(oi.grading_fee_charged) AS grading_fee_total,
              MAX(oi.grading_service) AS grading_service_requested,
-             MAX(oi.grading_status) AS grading_status,
+             CASE
+               WHEN MAX(CASE WHEN oi.grading_status = 'mismatch_hold'      THEN 1 ELSE 0 END) = 1 THEN 'mismatch_hold'
+               WHEN MAX(CASE WHEN oi.grading_status = 'returned_to_seller' THEN 1 ELSE 0 END) = 1 THEN 'returned_to_seller'
+               ELSE MAX(oi.grading_status)
+             END AS grading_status,
+             MAX(oi.grader_tracking_to_buyer) AS grader_tracking_to_buyer,
              (SELECT 1 FROM ratings r
                 WHERE r.order_id = o.id
                   AND r.rater_id = ?
@@ -317,7 +322,9 @@ def account():
                 JOIN cancellation_requests cr2 ON csr.request_id = cr2.id
                WHERE cr2.order_id = o.id AND cr2.created_at >= o.created_at) AS cancel_seller_count,
              (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status,
-             (SELECT lp.file_path FROM listing_photos lp WHERE lp.listing_id IN (SELECT oi2.listing_id FROM order_items oi2 WHERE oi2.order_id = o.id) LIMIT 1) AS photo_path
+             (SELECT lp.file_path FROM listing_photos lp WHERE lp.listing_id IN (SELECT oi2.listing_id FROM order_items oi2 WHERE oi2.order_id = o.id) LIMIT 1) AS photo_path,
+             (SELECT d.id FROM disputes d WHERE d.order_id = o.id ORDER BY d.opened_at DESC LIMIT 1) AS dispute_id,
+             (SELECT d.status FROM disputes d WHERE d.order_id = o.id ORDER BY d.opened_at DESC LIMIT 1) AS dispute_status
            FROM orders o
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id
@@ -355,7 +362,12 @@ def account():
              MAX(oi.third_party_grading_requested) AS third_party_grading,
              SUM(oi.grading_fee_charged) AS grading_fee_total,
              MAX(oi.grading_service) AS grading_service_requested,
-             MAX(oi.grading_status) AS grading_status,
+             CASE
+               WHEN MAX(CASE WHEN oi.grading_status = 'mismatch_hold'      THEN 1 ELSE 0 END) = 1 THEN 'mismatch_hold'
+               WHEN MAX(CASE WHEN oi.grading_status = 'returned_to_seller' THEN 1 ELSE 0 END) = 1 THEN 'returned_to_seller'
+               ELSE MAX(oi.grading_status)
+             END AS grading_status,
+             MAX(oi.grader_tracking_to_buyer) AS grader_tracking_to_buyer,
              (SELECT 1 FROM ratings r
                 WHERE r.order_id = o.id
                   AND r.rater_id = ?
@@ -376,7 +388,9 @@ def account():
              ) AS excluded_count,
              (SELECT cr.status FROM cancellation_requests cr WHERE cr.order_id = o.id AND cr.created_at >= o.created_at ORDER BY cr.created_at DESC LIMIT 1) AS cancel_status,
              (SELECT r.status FROM reports r WHERE r.order_id = o.id AND r.reporter_user_id = ? LIMIT 1) AS report_status,
-             (SELECT lp.file_path FROM listing_photos lp WHERE lp.listing_id IN (SELECT oi2.listing_id FROM order_items oi2 WHERE oi2.order_id = o.id) LIMIT 1) AS photo_path
+             (SELECT lp.file_path FROM listing_photos lp WHERE lp.listing_id IN (SELECT oi2.listing_id FROM order_items oi2 WHERE oi2.order_id = o.id) LIMIT 1) AS photo_path,
+             (SELECT d.id FROM disputes d WHERE d.order_id = o.id ORDER BY d.opened_at DESC LIMIT 1) AS dispute_id,
+             (SELECT d.status FROM disputes d WHERE d.order_id = o.id ORDER BY d.opened_at DESC LIMIT 1) AS dispute_status
            FROM orders o
            JOIN order_items oi ON oi.order_id = o.id
            JOIN listings l     ON oi.listing_id = l.id
@@ -545,6 +559,7 @@ def account():
                      WHERE sot2.order_id = o.id AND sot2.seller_id = l.seller_id
                      LIMIT 1) AS tracking_uploaded_at,
                   o.payment_method_type,
+                  oi.id AS order_item_id,
                   oi.third_party_grading_requested,
                   oi.grading_fee_charged,
                   oi.grading_service AS grading_service_requested,
@@ -576,7 +591,9 @@ def account():
                      FROM cancellation_seller_responses csr
                      JOIN cancellation_requests cr2 ON csr.request_id = cr2.id
                     WHERE cr2.order_id = o.id AND csr.seller_id = l.seller_id
-                    LIMIT 1) AS seller_cancel_response
+                    LIMIT 1) AS seller_cancel_response,
+                  (SELECT d.id FROM disputes d WHERE d.order_id = o.id ORDER BY d.opened_at DESC LIMIT 1) AS dispute_id,
+                  (SELECT d.status FROM disputes d WHERE d.order_id = o.id ORDER BY d.opened_at DESC LIMIT 1) AS dispute_status
            FROM orders o
            JOIN order_items oi ON o.id = oi.order_id
            JOIN listings l     ON oi.listing_id = l.id
@@ -956,9 +973,6 @@ def account():
 
     conn.close()
 
-    # Import grading service addresses for Sold tab grading instructions
-    from config import GRADING_SERVICE_ADDRESSES
-
     # 8) Single return with _all_ context
     return render_template(
         'account.html',
@@ -978,12 +992,12 @@ def account():
         sold_summary=sold_summary,
         buckets=buckets,
         cart_total=cart_total,
-        grading_fee_per_unit=cart_summary['grading_fee_per_unit'],
-        third_party_grading=has_tpg,
+        grading_fee_per_unit=0.0,
+        third_party_grading=False,
         grand_total=grand_total,
         conversations=conversations,
         current_user_id=user_id,
-        grading_service_addresses=GRADING_SERVICE_ADDRESSES,
+        grading_service_addresses={},
         notification_settings=notification_settings,
         stripe_publishable_key=STRIPE_PUBLISHABLE_KEY or '',
         relist_bid=relist_bid,

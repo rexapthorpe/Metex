@@ -182,7 +182,7 @@ class TestBucketFeeConfiguration:
         fee_type, fee_value = LedgerService.get_bucket_fee_config(TEST_BUCKET_ID)
 
         assert fee_type == 'percent'
-        assert fee_value == 2.5  # Global default
+        assert fee_value == 5.0  # Global default (DEFAULT_PLATFORM_FEE_VALUE = 5.0)
 
     def test_get_bucket_fee_config_raises_on_missing(self):
         """Test that BucketFeeConfigError is raised when no config exists."""

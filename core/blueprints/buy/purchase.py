@@ -14,8 +14,6 @@ from flask import request, redirect, url_for, session, flash, jsonify
 from database import get_db_connection
 from services.pricing_service import get_effective_price
 from services.reference_price_service import get_current_spots_from_snapshots
-from config import GRADING_FEE_PER_UNIT
-
 from . import buy_bp
 
 # Import extracted module to register routes
@@ -532,12 +530,9 @@ def preview_buy(bucket_id):
         if total_filled == 0:
             return jsonify(success=False, message='No items could be filled.'), 400
 
-        # Calculate grading fees if requested
-        grading_fee_per_unit = GRADING_FEE_PER_UNIT if third_party_grading else 0
-        grading_fee_total = grading_fee_per_unit * total_filled
-        grand_total = total_cost + grading_fee_total
+        grand_total = total_cost
 
-        # Return preview data with price lock info and grading fees
+        # Return preview data with price lock info
         response_data = {
             'success': True,
             'total_quantity': total_filled,
@@ -548,9 +543,8 @@ def preview_buy(bucket_id):
             'has_price_lock': has_premium_to_spot and len(price_locks) > 0,
             'price_locks': price_locks,
             'lock_expires_at': lock_expires_at,
-            'third_party_grading': third_party_grading,
-            'grading_fee_per_unit': grading_fee_per_unit,
-            'grading_fee_total': grading_fee_total,
+            'grading_fee_per_unit': 0,
+            'grading_fee_total': 0,
             'grand_total': grand_total
         }
 

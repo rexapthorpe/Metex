@@ -269,13 +269,13 @@ async function openBidConfirmModal(data) {
     }
   }
 
-  // Grading fee rows
+  // Phase 0A: grading fee rows always hidden
   const gradingFeeRow   = modal.querySelector('#bid-confirm-grading-fee-row');
   const gradingTotalRow = modal.querySelector('#bid-confirm-grading-total-row');
-  const gradingFeeEl    = modal.querySelector('#bid-confirm-grading-fee');
-  const gradingTotalEl  = modal.querySelector('#bid-confirm-grading-total');
+  if (gradingFeeRow)   gradingFeeRow.style.display   = 'none';
+  if (gradingTotalRow) gradingTotalRow.style.display = 'none';
 
-  if (data.requiresGrading && gradingFeeRow && gradingTotalRow) {
+  if (false && data.requiresGrading && gradingFeeRow && gradingTotalRow) {
     const qty        = parseInt(data.quantity) || 1;
     const basePrice  = isVariablePricing ? effectivePrice : (parseFloat(data.price) || 0);
     const feeTotal   = BID_GRADING_FEE_PER_ITEM * qty;
@@ -739,32 +739,11 @@ function openBidSuccessModal(data) {
     }
   }
 
-  // Grading fee rows
+  // Phase 0A: grading fee rows always hidden
   const successGradingFeeRow   = modal.querySelector('#success-grading-fee-row');
   const successGradingTotalRow = modal.querySelector('#success-grading-total-row');
-  const successGradingFeeEl    = modal.querySelector('#success-grading-fee');
-  const successGradingTotalEl  = modal.querySelector('#success-grading-total');
-
-  if (data.requiresGrading && successGradingFeeRow && successGradingTotalRow) {
-    const qty       = parseInt(data.quantity) || 1;
-    const basePrice = isVariablePricing
-      ? (parseFloat(data.effectivePrice) || 0)
-      : (parseFloat(data.price) || 0);
-    const feeTotal  = BID_GRADING_FEE_PER_ITEM * qty;
-    const estTotal  = (basePrice * qty) + feeTotal;
-
-    const feeLabel = data.preferredGrader
-      ? `+${formatPrice(BID_GRADING_FEE_PER_ITEM)}/item (${data.preferredGrader})`
-      : `+${formatPrice(BID_GRADING_FEE_PER_ITEM)}/item`;
-
-    if (successGradingFeeEl)   successGradingFeeEl.textContent   = feeLabel;
-    if (successGradingTotalEl) successGradingTotalEl.textContent = formatPrice(estTotal);
-    successGradingFeeRow.style.display   = 'flex';
-    successGradingTotalRow.style.display = 'flex';
-  } else {
-    if (successGradingFeeRow)   successGradingFeeRow.style.display   = 'none';
-    if (successGradingTotalRow) successGradingTotalRow.style.display = 'none';
-  }
+  if (successGradingFeeRow)   successGradingFeeRow.style.display   = 'none';
+  if (successGradingTotalRow) successGradingTotalRow.style.display = 'none';
 
   // Parse and display delivery address
   if (data.deliveryAddress) {

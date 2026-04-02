@@ -57,7 +57,11 @@
               <td>{{ listing.created }}</td>
               <td class="actions-cell">
                 <button class="action-icon" title="Price Details" onclick="openListingDetailModal({{ listing.id }})"><i class="fa-solid fa-circle-info"></i></button>
+                {% if listing.bucket_id %}
                 <a href="{{ url_for('buy.view_bucket', bucket_id=listing.bucket_id) }}" class="action-icon" title="View Bucket"><i class="fa-solid fa-eye"></i></a>
+                {% else %}
+                <span class="action-icon" title="Bucket deleted" style="opacity:0.35;cursor:default"><i class="fa-solid fa-eye"></i></span>
+                {% endif %}
               </td>
             </tr>
             {% else %}

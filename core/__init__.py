@@ -415,6 +415,7 @@ def _register_blueprints(app):
     from routes.cancellation_routes import cancellation_bp
     from routes.report_routes import report_bp
     from routes.stripe_routes import stripe_bp
+    from routes.dispute_routes import disputes_bp
 
     # Register blueprints with their URL prefixes
     # IMPORTANT: url_prefix values must remain IDENTICAL during refactoring
@@ -436,6 +437,7 @@ def _register_blueprints(app):
     app.register_blueprint(cancellation_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(stripe_bp)
+    app.register_blueprint(disputes_bp)
 
 
 def _register_error_handlers(app):

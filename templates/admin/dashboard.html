@@ -56,6 +56,14 @@
       <i class="fa-solid fa-triangle-exclamation"></i>
       Disputes
     </button>
+    <button class="admin-tab" data-tab="refunds">
+      <i class="fa-solid fa-rotate-left"></i>
+      Refunds
+    </button>
+    <button class="admin-tab" data-tab="risk">
+      <i class="fa-solid fa-shield-halved"></i>
+      User Risk
+    </button>
     <button class="admin-tab" data-tab="messages">
       <i class="fa-solid fa-message"></i>
       Messages
@@ -103,6 +111,16 @@
       {% include 'admin/partials/_disputes_tab.html' %}
     </div>
 
+    <!-- Refunds Tab -->
+    <div class="tab-panel" id="panel-refunds">
+      {% include 'admin/partials/_refunds_tab.html' %}
+    </div>
+
+    <!-- User Risk Tab -->
+    <div class="tab-panel" id="panel-risk">
+      {% include 'admin/partials/_risk_tab.html' %}
+    </div>
+
     <!-- Messages Tab -->
     <div class="tab-panel" id="panel-messages">
       {% include 'admin/partials/_messages_tab.html' %}
@@ -112,6 +130,7 @@
     <div class="tab-panel" id="panel-system">
       {% include 'admin/partials/_system_tab.html' %}
     </div>
+
   </div>
 </div>
 
@@ -132,6 +151,8 @@
 <script src="{{ url_for('static', filename='js/admin/dashboard/clear-data.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/admin/dashboard/window-exports-1.js') }}?v=3"></script>
 <script src="{{ url_for('static', filename='js/admin/dashboard/disputes-tab.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/refunds-tab.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/risk-tab.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/admin/dashboard/ledger-tab.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/admin/dashboard/buckets-tab.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/admin/dashboard/metrics.js') }}?v=1"></script>

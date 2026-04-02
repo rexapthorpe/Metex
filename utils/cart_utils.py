@@ -25,9 +25,7 @@ def validate_and_refill_cart(conn, user_id):
             listings.seller_id,
             categories.id as category_id,
             categories.bucket_id,
-            listings.price_per_coin,
-            cart.third_party_grading_requested,
-            cart.grading_preference
+            listings.price_per_coin
         FROM cart
         JOIN listings ON cart.listing_id = listings.id
         JOIN categories ON listings.category_id = categories.id
@@ -52,8 +50,6 @@ def validate_and_refill_cart(conn, user_id):
                 'lost_qty': cart_qty,
                 'old_listing_id': entry['listing_id'],
                 'seller_id': entry['seller_id'],
-                'third_party_grading_requested': entry['third_party_grading_requested'] or 0,
-                'grading_preference': entry['grading_preference'] or ''
             })
         elif available_qty < cart_qty:
             # Listing partially consumed - reduce cart qty and refill difference
@@ -62,17 +58,12 @@ def validate_and_refill_cart(conn, user_id):
                 'lost_qty': cart_qty - available_qty,
                 'old_listing_id': entry['listing_id'],
                 'seller_id': entry['seller_id'],
-                'third_party_grading_requested': entry['third_party_grading_requested'] or 0,
-                'grading_preference': entry['grading_preference'] or ''
             })
 
     # Now refill from other listings in each affected bucket
     for bucket_id, items_to_refill in buckets_to_refill.items():
         total_lost = sum(item['lost_qty'] for item in items_to_refill)
         total_refilled = 0
-        # Preserve grading preference from the lost entries (all items in a bucket share one preference)
-        bucket_grading = items_to_refill[0].get('third_party_grading_requested', 0)
-        bucket_grading_pref = items_to_refill[0].get('grading_preference', '')
 
         # Get available listings in this bucket (excluding user's own and already-processed listings)
         excluded_listing_ids = [item['old_listing_id'] for item in items_to_refill]
@@ -118,8 +109,8 @@ def validate_and_refill_cart(conn, user_id):
                     )
                 else:
                     cursor.execute(
-                        'INSERT INTO cart (user_id, listing_id, quantity, third_party_grading_requested, grading_preference) VALUES (?, ?, ?, ?, ?)',
-                        (user_id, listing['id'], take, bucket_grading, bucket_grading_pref)
+                        'INSERT INTO cart (user_id, listing_id, quantity) VALUES (?, ?, ?)',
+                        (user_id, listing['id'], take)
                     )
                 remaining_to_fill -= take
                 total_refilled += take
@@ -471,28 +462,20 @@ def build_cart_summary(conn, user_id=None, spot_prices=None):
     Single authoritative source of truth for cart contents and pricing.
 
     Groups cart items by category_id, applies effective prices, and computes
-    all totals and grading fees in one place.  Every page that displays cart
-    data (cart page, account cart tab, checkout) should call this function
-    instead of implementing its own pricing logic.
-
-    Grading detection uses BOTH DB columns (third_party_grading_requested and
-    grading_preference) so the result is correct regardless of which code path
-    was used to add the item.
-
-    Grading fee is per-bucket: only buckets where the user requested grading
-    are charged GRADING_FEE_PER_UNIT × qty.  Other buckets are unaffected.
+    all totals in one place.  Every page that displays cart data (cart page,
+    account cart tab, checkout) should call this function instead of
+    implementing its own pricing logic.
 
     Returns a dict with:
         buckets            – dict keyed by category_id
         item_count         – total units in cart
         subtotal           – sum of (qty × effective_price) across all buckets
-        grading_fee        – total grading fees across all buckets
-        grand_total        – subtotal + grading_fee
-        has_tpg            – True if any bucket requires grading
-        grading_fee_per_unit – value from config
+        grading_fee        – always 0.0 (grading removed in Phase 6)
+        grand_total        – subtotal
+        has_tpg            – always False (grading removed in Phase 6)
+        grading_fee_per_unit – always 0.0
     """
     from services.pricing_service import get_effective_price
-    from config import GRADING_FEE_PER_UNIT
 
     if user_id is None:
         from flask import session as _session
@@ -509,11 +492,9 @@ def build_cart_summary(conn, user_id=None, spot_prices=None):
         qty = item['quantity']
         line_total = effective_price * qty
 
-        # Canonical grading: third_party_grading_requested is the sole boolean source of truth.
-        # grading_preference is a derived text artifact written for compatibility but never
-        # used for business-logic decisions.
-        requires_grading = bool(item.get('third_party_grading_requested'))
-        grading_pref_str = 'ANY' if requires_grading else 'NONE'
+        # Phase 0A: grading deactivated — always treat as not required regardless of DB value.
+        requires_grading = False
+        grading_pref_str = 'NONE'
 
         category_id = item['category_id']
         # Bucket key encodes both category and grading configuration so that a listing
@@ -588,10 +569,6 @@ def build_cart_summary(conn, user_id=None, spot_prices=None):
         if bucket['total_qty'] > 0:
             bucket['avg_price'] = round(bucket['total_price'] / bucket['total_qty'], 2)
 
-        if bucket['requires_grading']:
-            bucket['grading_fee'] = round(GRADING_FEE_PER_UNIT * bucket['total_qty'], 2)
-            total_grading_fee += bucket['grading_fee']
-
         if user_id:
             result = conn.execute(
                 'SELECT SUM(quantity) as total_available FROM listings '
@@ -615,8 +592,8 @@ def build_cart_summary(conn, user_id=None, spot_prices=None):
         'buckets': buckets,
         'item_count': item_count,
         'subtotal': round(subtotal, 2),
-        'grading_fee': round(total_grading_fee, 2),
+        'grading_fee': 0.0,
         'grand_total': grand_total,
-        'has_tpg': total_grading_fee > 0,
-        'grading_fee_per_unit': GRADING_FEE_PER_UNIT,
+        'has_tpg': False,
+        'grading_fee_per_unit': 0.0,
     }

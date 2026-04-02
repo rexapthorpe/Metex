@@ -703,6 +703,38 @@
   font-family: inherit;
 }
 
+/* ── Phase 3: admin dispute filter bar + modals ─────────────────────────── */
+.form-input,
+.form-select {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1f2937;
+  background: #ffffff;
+}
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1f2937;
+  background: #ffffff;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+.form-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .dispute-header-row {

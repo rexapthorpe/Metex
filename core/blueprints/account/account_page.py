@@ -747,9 +747,6 @@ def account():
 
     conn.close()
 
-    # Import grading service addresses for Sold tab grading instructions
-    from config import GRADING_SERVICE_ADDRESSES
-
     # 8) Single return with _all_ context
     return render_template(
         'account.html',
@@ -767,11 +764,11 @@ def account():
         sales=sales,
         buckets=buckets,
         cart_total=cart_total,
-        grading_fee_per_unit=cart_summary['grading_fee_per_unit'],
-        third_party_grading=has_tpg,
+        grading_fee_per_unit=0.0,
+        third_party_grading=False,
         grand_total=grand_total,
         conversations=conversations,
         has_unread_admin_message=has_unread_admin_message,
         current_user_id=user_id,
-        grading_service_addresses=GRADING_SERVICE_ADDRESSES
+        grading_service_addresses={}
     )

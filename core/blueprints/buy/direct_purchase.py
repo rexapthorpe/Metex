@@ -17,7 +17,6 @@ from services.notification_service import notify_listing_sold, notify_order_conf
 from services.checkout_spot_service import (
     check_spot_map_freshness, SpotExpiredError, SpotUnavailableError
 )
-from config import GRADING_FEE_PER_UNIT, GRADING_SERVICE_DEFAULT, GRADING_STATUS_NOT_REQUESTED, GRADING_STATUS_PENDING_SELLER_SHIP
 
 from . import buy_bp
 
@@ -138,7 +137,6 @@ def direct_buy_item(bucket_id):
         # Get form data
         quantity = int(request.form.get('quantity', 1))
         random_year = request.form.get('random_year') == '1'
-        third_party_grading = request.form.get('third_party_grading') == '1'
 
         # Get packaging filters (multi-select)
         packaging_styles = request.form.getlist('packaging_styles')
@@ -359,9 +357,7 @@ def direct_buy_item(bucket_id):
             seller_fills[seller_id].append({
                 'listing_id': listing['id'],
                 'quantity': fill_qty,
-                'price_each': listing['effective_price'],  # Use effective price
-                'graded': listing.get('graded', 0),
-                'grading_service': listing.get('grading_service')
+                'price_each': listing['effective_price'],
             })
 
             selected_prices.append(listing['effective_price'])
@@ -390,9 +386,6 @@ def direct_buy_item(bucket_id):
         if random_year:
             bucket_dict['year'] = 'Random'
 
-        # Calculate grading fees if requested
-        grading_fee_per_unit = GRADING_FEE_PER_UNIT if third_party_grading else 0
-
         # Collect notification data (will send after commit to avoid database locking)
         notifications_to_send = []
 
@@ -401,13 +394,7 @@ def direct_buy_item(bucket_id):
         for seller_id, items in seller_fills.items():
             # Calculate total for items
             items_total = sum(item['quantity'] * item['price_each'] for item in items)
-
-            # Calculate grading fees for this order
-            total_quantity_in_order = sum(item['quantity'] for item in items)
-            grading_fee_total = grading_fee_per_unit * total_quantity_in_order
-
-            # Grand total includes item cost + grading fees
-            total_price = items_total + grading_fee_total
+            total_price = items_total
 
             # Create order
             cursor.execute('''
@@ -420,20 +407,10 @@ def direct_buy_item(bucket_id):
 
             # Create order_items and notify seller for each listing
             for item in items:
-                # Calculate grading fee for this line item
-                item_grading_fee = grading_fee_per_unit * item['quantity']
-
-                # Determine grading status
-                grading_status = GRADING_STATUS_PENDING_SELLER_SHIP if third_party_grading else GRADING_STATUS_NOT_REQUESTED
-
                 cursor.execute('''
-                    INSERT INTO order_items (order_id, listing_id, quantity, price_each,
-                                           third_party_grading_requested, grading_fee_charged,
-                                           grading_service, grading_status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (order_id, item['listing_id'], item['quantity'], item['price_each'],
-                      1 if third_party_grading else 0, item_grading_fee,
-                      GRADING_SERVICE_DEFAULT if third_party_grading else None, grading_status))
+                    INSERT INTO order_items (order_id, listing_id, quantity, price_each)
+                    VALUES (?, ?, ?, ?)
+                ''', (order_id, item['listing_id'], item['quantity'], item['price_each']))
 
                 # Build item description for notification
                 item_desc_parts = []
@@ -473,13 +450,9 @@ def direct_buy_item(bucket_id):
                 'order_id': order_id,
                 'total_price': total_price,
                 'items_total': items_total,
-                'grading_fee_total': grading_fee_total,
+                'grading_fee_total': 0,
                 'quantity': sum(i['quantity'] for i in items),
-                'price_each': items[0]['price_each'],  # First item price for display
-                'graded': items[0].get('graded', 0),  # Grading status from first item (legacy field)
-                'grading_service': items[0].get('grading_service'),  # Grading service from first item (legacy field)
-                'third_party_grading': third_party_grading,
-                'grading_fee_per_unit': grading_fee_per_unit
+                'price_each': items[0]['price_each'],
             })
 
         conn.commit()
@@ -516,9 +489,6 @@ def direct_buy_item(bucket_id):
             except Exception as notify_error:
                 print(f"[ERROR] Failed to notify buyer for order {order['order_id']}: {notify_error}")
 
-        # Calculate overall grading fee
-        overall_grading_fee_total = grading_fee_per_unit * total_filled
-
         # Build success response with order details
         return jsonify(
             success=True,
@@ -529,9 +499,8 @@ def direct_buy_item(bucket_id):
             shipping_address=shipping_address,
             delivery_address=delivery_address,
             user_listings_skipped=user_listings_skipped,
-            third_party_grading=third_party_grading,
-            grading_fee_per_unit=grading_fee_per_unit,
-            grading_fee_total=overall_grading_fee_total
+            grading_fee_per_unit=0,
+            grading_fee_total=0
         )
 
     except ValueError as e:

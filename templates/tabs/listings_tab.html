@@ -118,9 +118,11 @@
               <a href="{{ url_for('sell.sell') }}?edit_listing_id={{ listing.listing_id }}" class="order-quick-action">
                 <i class="fas fa-pencil-alt"></i> Edit Listing
               </a>
+              {% if listing.bucket_id %}
               <a href="{{ url_for('buy.view_bucket', bucket_id=listing.bucket_id) }}" class="order-quick-action">
                 <i class="fas fa-eye"></i> View Bucket
               </a>
+              {% endif %}
               <button
                 type="button"
                 class="order-quick-action"

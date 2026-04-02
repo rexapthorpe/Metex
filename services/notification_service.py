@@ -88,6 +88,11 @@ NOTIFICATION_DEFAULTS = {  # type: dict[str, bool]
     'price_alert_triggered':                False,   # future – OFF
     'availability_alert_triggered':         False,   # future – OFF
     'saved_search_match':                   False,   # future – OFF
+    # ── Disputes (Phase 2 + Phase 3) ─────────────────────────────────────
+    'dispute_opened':                       True,   # seller notified when buyer opens dispute
+    'dispute_seller_responded':             True,   # buyer notified when seller responds
+    'dispute_evidence_requested':           True,   # both parties notified when admin requests evidence
+    'dispute_resolved':                     True,   # both parties notified when admin resolves
     # ── Forfeiture ────────────────────────────────────────────────────────
     'order_forfeited_buyer':                True,
     'order_forfeited_seller':               True,

@@ -205,9 +205,9 @@ function initBidForm() {
   const effectiveBidPrice = document.getElementById('effective-bid-price');
   const currentSpotPriceElem = document.getElementById('current-spot-price');
 
-  // Grading
-  const requiresGrading = document.getElementById('requires_grading');  // hidden
-  const requireTPGToggle = document.getElementById('require_tpg_bid');
+  // Phase 0A: grading deactivated — always treat as not required
+  const requiresGrading = document.getElementById('requires_grading');  // hidden (kept for form compat)
+  const requireTPGToggle = null;  // grading toggle removed from UI
 
   // Quantity
   const qtyInput = document.getElementById('qty-input');
@@ -336,15 +336,12 @@ function initBidForm() {
     if (confirmBtn) confirmBtn.disabled = !(priceOk && qtyOk && addrOk);
   }
 
-  /* ----- Grading toggle logic ----- */
-
+  /* ----- Grading toggle logic (Phase 0A: deactivated) ----- */
   function syncTPGToggle() {
-    if (requiresGrading) {
-      requiresGrading.value = (requireTPGToggle && requireTPGToggle.checked) ? 'yes' : 'no';
-    }
+    // Always set requires_grading to 'no' — grading deactivated
+    if (requiresGrading) requiresGrading.value = 'no';
     validateAll();
   }
-  requireTPGToggle && requireTPGToggle.addEventListener('change', syncTPGToggle);
   syncTPGToggle();
 
   /* ----- Pricing Mode Toggle ----- */

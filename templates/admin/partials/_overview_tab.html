@@ -82,6 +82,57 @@
         </div>
       </div>
 
+      <!-- Phase 5: Operational Risk Metrics (loaded async) -->
+      <div class="stats-grid stats-grid-4" style="margin-top:12px;">
+        <div class="stat-card stat-card-compact stat-card-clickable" onclick="switchTab('disputes')">
+          <div class="stat-card-row">
+            <div class="stat-icon-small stat-icon-red">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label-small">Open Disputes</span>
+              <span class="stat-value-small" id="ovMetricOpenDisputes">—</span>
+            </div>
+            <i class="fa-solid fa-chevron-right stat-arrow"></i>
+          </div>
+        </div>
+        <div class="stat-card stat-card-compact">
+          <div class="stat-card-row">
+            <div class="stat-icon-small stat-icon-blue">
+              <i class="fa-solid fa-clock"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label-small">Avg Resolution</span>
+              <span class="stat-value-small" id="ovMetricAvgResolution">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card stat-card-compact stat-card-clickable" onclick="switchTab('refunds')">
+          <div class="stat-card-row">
+            <div class="stat-icon-small stat-icon-orange">
+              <i class="fa-solid fa-rotate-left"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label-small">Refunds (30d)</span>
+              <span class="stat-value-small" id="ovMetricRefunds30d">—</span>
+            </div>
+            <i class="fa-solid fa-chevron-right stat-arrow"></i>
+          </div>
+        </div>
+        <div class="stat-card stat-card-compact stat-card-clickable" onclick="switchTab('risk')">
+          <div class="stat-card-row">
+            <div class="stat-icon-small stat-icon-red">
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label-small">High-Risk Users</span>
+              <span class="stat-value-small" id="ovMetricHighRisk">—</span>
+            </div>
+            <i class="fa-solid fa-chevron-right stat-arrow"></i>
+          </div>
+        </div>
+      </div>
+
       <!-- Recent Activity Grid -->
       <div class="activity-grid">
         <!-- Recent Transactions -->

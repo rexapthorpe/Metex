@@ -917,8 +917,8 @@ class TestSetF_DefensiveFailures:
         conn = mock_get_db()
         ledger = conn.execute('SELECT * FROM orders_ledger WHERE id = ?', (ledger_id,)).fetchone()
 
-        # Should use 2.5% default from ledger_constants.py
-        assert ledger['platform_fee_amount'] == 2.50
+        # Should use 5.0% default from ledger_constants.py
+        assert ledger['platform_fee_amount'] == 5.00
 
         conn.close()
 

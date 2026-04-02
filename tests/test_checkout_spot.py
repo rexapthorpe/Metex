@@ -73,19 +73,23 @@ CREATE TABLE IF NOT EXISTS categories (
     condition_category TEXT
 );
 CREATE TABLE IF NOT EXISTS listings (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    seller_id      INTEGER NOT NULL,
-    category_id    INTEGER NOT NULL,
-    quantity       INTEGER DEFAULT 1,
-    price_per_coin REAL    DEFAULT 0,
-    active         INTEGER DEFAULT 1,
-    pricing_mode   TEXT    DEFAULT 'static',
-    spot_premium   REAL,
-    floor_price    REAL,
-    pricing_metal  TEXT,
-    is_isolated    INTEGER DEFAULT 0,
-    name           TEXT,
-    listing_title  TEXT
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    seller_id       INTEGER NOT NULL,
+    category_id     INTEGER NOT NULL,
+    quantity        INTEGER DEFAULT 1,
+    price_per_coin  REAL    DEFAULT 0,
+    active          INTEGER DEFAULT 1,
+    pricing_mode    TEXT    DEFAULT 'static',
+    spot_premium    REAL,
+    floor_price     REAL,
+    pricing_metal   TEXT,
+    is_isolated     INTEGER DEFAULT 0,
+    name            TEXT,
+    listing_title   TEXT,
+    description     TEXT,
+    packaging_type  TEXT,
+    packaging_notes TEXT,
+    condition_notes TEXT
 );
 CREATE TABLE IF NOT EXISTS orders (
     id                   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,7 +99,49 @@ CREATE TABLE IF NOT EXISTS orders (
     shipping_address     TEXT,
     recipient_first_name TEXT,
     recipient_last_name  TEXT,
+    placed_from_ip       TEXT,
     created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS listing_photos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    listing_id  INTEGER NOT NULL,
+    file_path   TEXT NOT NULL,
+    uploader_id INTEGER,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS transaction_snapshots (
+    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id               INTEGER NOT NULL,
+    order_item_id          INTEGER,
+    snapshot_at            TEXT NOT NULL,
+    listing_id             INTEGER,
+    listing_title          TEXT,
+    listing_description    TEXT,
+    metal                  TEXT,
+    product_line           TEXT,
+    product_type           TEXT,
+    weight                 TEXT,
+    year                   TEXT,
+    mint                   TEXT,
+    purity                 TEXT,
+    finish                 TEXT,
+    condition_category     TEXT,
+    series_variant         TEXT,
+    packaging_type         TEXT,
+    packaging_notes        TEXT,
+    condition_notes        TEXT,
+    photo_filenames        TEXT,
+    quantity               INTEGER,
+    price_each             REAL,
+    pricing_mode           TEXT,
+    spot_price_at_purchase REAL,
+    seller_id              INTEGER,
+    seller_username        TEXT,
+    seller_email           TEXT,
+    buyer_id               INTEGER,
+    buyer_username         TEXT,
+    buyer_email            TEXT,
+    payment_intent_id      TEXT
 );
 CREATE TABLE IF NOT EXISTS order_items (
     id                          INTEGER PRIMARY KEY AUTOINCREMENT,

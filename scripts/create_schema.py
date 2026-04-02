@@ -393,6 +393,7 @@ class SchemaManager:
         self.add_column('orders', 'refunded_at', 'TIMESTAMP')
         self.add_column('orders', 'refund_reason', 'TEXT')
         self.add_column('orders', 'requires_payout_recovery', 'INTEGER DEFAULT 0')
+        self.add_column('orders', 'placed_from_ip', 'TEXT')
 
     def create_order_items_table(self):
         """Create the order_items table"""
@@ -414,9 +415,7 @@ class SchemaManager:
             cert_number TEXT,
             condition_notes TEXT,
             grading_fee_charged REAL DEFAULT 0,
-            grading_service TEXT DEFAULT 'PCGS',
             grading_status TEXT DEFAULT 'not_requested',
-            seller_tracking_to_grader TEXT,
             FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
             FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
         )
@@ -438,9 +437,10 @@ class SchemaManager:
         self.add_column('order_items', 'cert_number', 'TEXT')
         self.add_column('order_items', 'condition_notes', 'TEXT')
         self.add_column('order_items', 'grading_fee_charged', 'REAL DEFAULT 0')
-        self.add_column('order_items', 'grading_service', "TEXT DEFAULT 'PCGS'")
         self.add_column('order_items', 'grading_status', "TEXT DEFAULT 'not_requested'")
-        self.add_column('order_items', 'seller_tracking_to_grader', 'TEXT')
+        # Note: grading_service, seller_tracking_to_grader, grader_tracking_to_buyer,
+        # grading_notes, mismatch_description removed in Phase 6 (grading cleanup).
+        # Existing DB rows retain these columns; they are no longer written by active code.
 
     def create_cart_table(self):
         """Create the cart table"""
@@ -1395,6 +1395,236 @@ class SchemaManager:
         self.create_index('idx_set_item_photos_set_item', 'listing_set_item_photos', 'set_item_id')
         self.create_index('idx_set_item_photos_position', 'listing_set_item_photos', 'set_item_id, position_index')
 
+    def create_transaction_snapshots_table(self):
+        """Create the transaction_snapshots table (Phase 1 — immutable evidence layer)"""
+        print("\n[39/39] Creating TRANSACTION_SNAPSHOTS table...")
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS transaction_snapshots (
+            id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id               INTEGER NOT NULL,
+            order_item_id          INTEGER,
+            snapshot_at            TEXT NOT NULL,
+
+            listing_id             INTEGER,
+            listing_title          TEXT,
+            listing_description    TEXT,
+
+            metal                  TEXT,
+            product_line           TEXT,
+            product_type           TEXT,
+            weight                 TEXT,
+            year                   TEXT,
+            mint                   TEXT,
+            purity                 TEXT,
+            finish                 TEXT,
+            condition_category     TEXT,
+            series_variant         TEXT,
+
+            packaging_type         TEXT,
+            packaging_notes        TEXT,
+            condition_notes        TEXT,
+
+            photo_filenames        TEXT,
+
+            quantity               INTEGER,
+            price_each             REAL,
+            pricing_mode           TEXT,
+            spot_price_at_purchase REAL,
+
+            seller_id              INTEGER,
+            seller_username        TEXT,
+            seller_email           TEXT,
+
+            buyer_id               INTEGER,
+            buyer_username         TEXT,
+            buyer_email            TEXT,
+
+            payment_intent_id      TEXT,
+
+            FOREIGN KEY (order_id) REFERENCES orders(id)
+        )
+        """
+
+        if not self.table_exists('transaction_snapshots'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created transaction_snapshots table")
+        else:
+            self.log_skip("Table 'transaction_snapshots' already exists")
+
+        self.create_index('idx_txn_snapshots_order', 'transaction_snapshots', 'order_id')
+        self.create_index('idx_txn_snapshots_order_item', 'transaction_snapshots', 'order_item_id')
+        self.create_index('idx_txn_snapshots_listing', 'transaction_snapshots', 'listing_id')
+        self.create_index('idx_txn_snapshots_buyer', 'transaction_snapshots', 'buyer_id')
+        self.create_index('idx_txn_snapshots_seller', 'transaction_snapshots', 'seller_id')
+
+    def create_disputes_table(self):
+        """Create the disputes table (Phase 2 — dispute data model)"""
+        print("\n[40/42] Creating DISPUTES table...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS disputes (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id             INTEGER NOT NULL,
+            order_item_id        INTEGER,
+            opened_by_user_id    INTEGER NOT NULL,
+            buyer_id             INTEGER NOT NULL,
+            seller_id            INTEGER,
+            dispute_type         TEXT NOT NULL,
+            status               TEXT NOT NULL DEFAULT 'open',
+            description          TEXT NOT NULL,
+            opened_at            TEXT NOT NULL,
+            resolved_at          TEXT,
+            resolved_by_admin_id INTEGER,
+            resolution_note      TEXT,
+            refund_amount        REAL,
+            stripe_refund_id     TEXT,
+            FOREIGN KEY (order_id) REFERENCES orders(id)
+        )
+        """
+        if not self.table_exists('disputes'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created disputes table")
+        else:
+            self.log_skip("Table 'disputes' already exists")
+        self.create_index('idx_disputes_order', 'disputes', 'order_id')
+        self.create_index('idx_disputes_buyer', 'disputes', 'buyer_id')
+        self.create_index('idx_disputes_seller', 'disputes', 'seller_id')
+        self.create_index('idx_disputes_status', 'disputes', 'status')
+
+    def create_dispute_evidence_table(self):
+        """Create the dispute_evidence table (Phase 2 — evidence collection)"""
+        print("\n[41/42] Creating DISPUTE_EVIDENCE table...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS dispute_evidence (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            dispute_id           INTEGER NOT NULL,
+            submitted_by_user_id INTEGER NOT NULL,
+            actor_type           TEXT NOT NULL,
+            evidence_type        TEXT NOT NULL,
+            file_path            TEXT,
+            note                 TEXT,
+            submitted_at         TEXT NOT NULL,
+            FOREIGN KEY (dispute_id) REFERENCES disputes(id)
+        )
+        """
+        if not self.table_exists('dispute_evidence'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created dispute_evidence table")
+        else:
+            self.log_skip("Table 'dispute_evidence' already exists")
+        self.create_index('idx_dispute_evidence_dispute', 'dispute_evidence', 'dispute_id')
+
+    def create_refunds_table(self):
+        """Create the refunds table (Phase 3 — admin-issued refund records)"""
+        print("\n[42/43] Creating REFUNDS table...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS refunds (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            dispute_id          INTEGER NOT NULL,
+            order_id            INTEGER NOT NULL,
+            order_item_id       INTEGER,
+            buyer_id            INTEGER NOT NULL,
+            seller_id           INTEGER,
+            amount              REAL NOT NULL,
+            provider_refund_id  TEXT,
+            issued_by_admin_id  INTEGER NOT NULL,
+            issued_at           TEXT NOT NULL,
+            note                TEXT,
+            FOREIGN KEY (dispute_id) REFERENCES disputes(id),
+            FOREIGN KEY (order_id)   REFERENCES orders(id)
+        )
+        """
+        if not self.table_exists('refunds'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created refunds table")
+        else:
+            self.log_skip("Table 'refunds' already exists")
+        self.create_index('idx_refunds_dispute', 'refunds', 'dispute_id')
+        self.create_index('idx_refunds_order', 'refunds', 'order_id')
+        self.create_index('idx_refunds_buyer', 'refunds', 'buyer_id')
+
+    def create_dispute_timeline_table(self):
+        """Create the dispute_timeline table (Phase 2 — audit trail)"""
+        print("\n[43/43] Creating DISPUTE_TIMELINE table...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS dispute_timeline (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            dispute_id  INTEGER NOT NULL,
+            actor_type  TEXT NOT NULL,
+            actor_id    INTEGER NOT NULL,
+            event_type  TEXT NOT NULL,
+            note        TEXT,
+            created_at  TEXT NOT NULL,
+            FOREIGN KEY (dispute_id) REFERENCES disputes(id)
+        )
+        """
+        if not self.table_exists('dispute_timeline'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created dispute_timeline table")
+        else:
+            self.log_skip("Table 'dispute_timeline' already exists")
+        self.create_index('idx_dispute_timeline_dispute', 'dispute_timeline', 'dispute_id')
+
+    def create_user_risk_profile_table(self):
+        """Create the user_risk_profile table (Phase 4 — risk monitoring)"""
+        print("\n[44/45] Creating USER_RISK_PROFILE table...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS user_risk_profile (
+            user_id                         INTEGER PRIMARY KEY,
+            risk_score                      INTEGER NOT NULL DEFAULT 0,
+            manual_risk_flag                TEXT NOT NULL DEFAULT 'none',
+            manual_flag_reason              TEXT,
+            manual_flagged_at               TEXT,
+            manual_flagged_by_admin_id      INTEGER,
+            total_disputes_as_buyer         INTEGER NOT NULL DEFAULT 0,
+            disputes_upheld_buyer           INTEGER NOT NULL DEFAULT 0,
+            disputes_denied_buyer           INTEGER NOT NULL DEFAULT 0,
+            total_disputes_as_seller        INTEGER NOT NULL DEFAULT 0,
+            disputes_upheld_against_seller  INTEGER NOT NULL DEFAULT 0,
+            total_orders_bought             INTEGER NOT NULL DEFAULT 0,
+            total_orders_sold               INTEGER NOT NULL DEFAULT 0,
+            refunds_issued_count            INTEGER NOT NULL DEFAULT 0,
+            refunds_issued_amount           REAL NOT NULL DEFAULT 0,
+            last_login_ip                   TEXT,
+            last_login_at                   TEXT,
+            account_created_ip              TEXT,
+            notes                           TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+        if not self.table_exists('user_risk_profile'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created user_risk_profile table")
+        else:
+            self.log_skip("Table 'user_risk_profile' already exists")
+        self.create_index('idx_urp_score', 'user_risk_profile', 'risk_score')
+        self.create_index('idx_urp_flag', 'user_risk_profile', 'manual_risk_flag')
+
+    def create_user_risk_events_table(self):
+        """Create the user_risk_events table (Phase 4 — risk audit trail)"""
+        print("\n[45/45] Creating USER_RISK_EVENTS table...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS user_risk_events (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER NOT NULL,
+            event_type      TEXT NOT NULL,
+            triggered_by    TEXT NOT NULL,
+            old_score       INTEGER,
+            new_score       INTEGER,
+            old_flag        TEXT,
+            new_flag        TEXT,
+            note            TEXT,
+            created_at      TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+        if not self.table_exists('user_risk_events'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created user_risk_events table")
+        else:
+            self.log_skip("Table 'user_risk_events' already exists")
+        self.create_index('idx_ure_user', 'user_risk_events', 'user_id')
+
     def run(self):
         """Run the complete schema creation/update process"""
         print("=" * 70)
@@ -1447,6 +1677,13 @@ class SchemaManager:
             self.create_fee_config_table()
             self.create_bucket_fee_events_table()
             self.create_listing_set_item_photos_table()
+            self.create_transaction_snapshots_table()
+            self.create_disputes_table()
+            self.create_dispute_evidence_table()
+            self.create_dispute_timeline_table()
+            self.create_refunds_table()
+            self.create_user_risk_profile_table()
+            self.create_user_risk_events_table()
 
             # Add cancellation columns to orders table (idempotent — also in create_orders_table)
             self.add_column('orders', 'canceled_at', 'TIMESTAMP')

@@ -78,12 +78,8 @@ function openBuyItemConfirmModal(itemData) {
     formData.append('random_year', '1');
   }
 
-  // Include Third-Party Grading toggle if enabled (tpgToggle already declared above)
-  if (tpgToggle && tpgToggle.checked) {
-    formData.append('third_party_grading', '1');
-  } else {
-    formData.append('third_party_grading', '0');
-  }
+  // Phase 0A: grading deactivated — always send 0
+  formData.append('third_party_grading', '0');
 
   // Include packaging filters (multi-select)
   const packagingTypeCheckboxes = document.querySelectorAll('.packaging-type-checkbox:checked');
@@ -105,45 +101,15 @@ function openBuyItemConfirmModal(itemData) {
         const avgPrice = data.average_price || 0;
         const totalCost = data.total_cost || 0;
         const totalQty = data.total_quantity || 0;
-        const thirdPartyGrading = data.third_party_grading || false;
-        const gradingFeePerUnit = data.grading_fee_per_unit || 0;
-        const gradingFeeTotal = data.grading_fee_total || 0;
-        const grandTotal = data.grand_total || totalCost;
-
         document.getElementById('buy-confirm-price').textContent = `${formatPrice(avgPrice)} USD (avg)`;
         document.getElementById('buy-confirm-quantity').textContent = totalQty;
         document.getElementById('buy-confirm-total').textContent = `${formatPrice(totalCost)} USD`;
 
-        // Update grading fee display
+        // Phase 0A: grading fee rows always hidden
         const gradingFeeRow = document.getElementById('buy-confirm-grading-fee-row');
-        const gradingFeeEl = document.getElementById('buy-confirm-grading-fee');
         const grandTotalRow = document.getElementById('buy-confirm-grand-total-row');
-        const grandTotalEl = document.getElementById('buy-confirm-grand-total');
-
-        if (thirdPartyGrading && gradingFeeTotal > 0) {
-          // Show grading fee row
-          if (gradingFeeEl) {
-            gradingFeeEl.textContent = `${formatPrice(gradingFeeTotal)} USD`;
-          }
-          if (gradingFeeRow) {
-            gradingFeeRow.style.display = '';
-          }
-          // Show grand total row
-          if (grandTotalEl) {
-            grandTotalEl.textContent = `${formatPrice(grandTotal)} USD`;
-          }
-          if (grandTotalRow) {
-            grandTotalRow.style.display = '';
-          }
-        } else {
-          // Hide grading fee and grand total rows
-          if (gradingFeeRow) {
-            gradingFeeRow.style.display = 'none';
-          }
-          if (grandTotalRow) {
-            grandTotalRow.style.display = 'none';
-          }
-        }
+        if (gradingFeeRow) gradingFeeRow.style.display = 'none';
+        if (grandTotalRow) grandTotalRow.style.display = 'none';
 
         // Store preview data for later use
         pendingBuyData.previewData = data;
@@ -211,48 +177,18 @@ function openBuyItemSuccessModal(orderData) {
   const totalAmount = orders.reduce((sum, order) => sum + order.total_price, 0);
   const avgPrice = totalQuantity > 0 ? totalAmount / totalQuantity : 0;
 
-  // Get grading info
-  const thirdPartyGrading = orderData.third_party_grading || false;
-  const gradingFeeTotal = orderData.grading_fee_total || 0;
-  const itemsTotal = totalAmount - gradingFeeTotal;
-
   // Populate summary (with comma formatting)
   modal.querySelector('#success-total-quantity').textContent = typeof formatQuantity === 'function' ? formatQuantity(totalQuantity) : totalQuantity;
   modal.querySelector('#success-avg-price').textContent = typeof formatPrice === 'function' ? `$${formatPrice(avgPrice, false)} USD` : `$${avgPrice.toFixed(2)} USD`;
   modal.querySelector('#success-total-amount').textContent = typeof formatPrice === 'function' ? `$${formatPrice(totalAmount, false)} USD` : `$${totalAmount.toFixed(2)} USD`;
 
-  // Show/hide grading fee breakdown
+  // Phase 0A: grading fee rows always hidden
   const successGradingFeeRow = modal.querySelector('#success-grading-fee-row');
   const successItemsTotalRow = modal.querySelector('#success-items-total-row');
   const successGradingCallout = modal.querySelector('#success-grading-callout');
-
-  if (thirdPartyGrading && gradingFeeTotal > 0) {
-    // Show items total row
-    if (successItemsTotalRow) {
-      const itemsTotalEl = successItemsTotalRow.querySelector('#success-items-total');
-      if (itemsTotalEl) {
-        itemsTotalEl.textContent = typeof formatPrice === 'function' ? `$${formatPrice(itemsTotal, false)} USD` : `$${itemsTotal.toFixed(2)} USD`;
-      }
-      successItemsTotalRow.style.display = '';
-    }
-    // Show grading fee row
-    if (successGradingFeeRow) {
-      const gradingFeeEl = successGradingFeeRow.querySelector('#success-grading-fee');
-      if (gradingFeeEl) {
-        gradingFeeEl.textContent = typeof formatPrice === 'function' ? `$${formatPrice(gradingFeeTotal, false)} USD` : `$${gradingFeeTotal.toFixed(2)} USD`;
-      }
-      successGradingFeeRow.style.display = '';
-    }
-    // Show grading callout
-    if (successGradingCallout) {
-      successGradingCallout.style.display = '';
-    }
-  } else {
-    // Hide grading-related rows and callout
-    if (successItemsTotalRow) successItemsTotalRow.style.display = 'none';
-    if (successGradingFeeRow) successGradingFeeRow.style.display = 'none';
-    if (successGradingCallout) successGradingCallout.style.display = 'none';
-  }
+  if (successItemsTotalRow) successItemsTotalRow.style.display = 'none';
+  if (successGradingFeeRow) successGradingFeeRow.style.display = 'none';
+  if (successGradingCallout) successGradingCallout.style.display = 'none';
 
   // Populate delivery address fields from structured data
   const deliveryAddress = orderData.delivery_address;

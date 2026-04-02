@@ -105,7 +105,10 @@
       "Read(//dev/**)",
       "Bash(/dev/null echo:*)",
       "Bash(cat >> /Users/rexapthorpe/Desktop/Metex/static/css/tabs/account_details_tab.css << 'EOF'\n\n/* ── Remove Card Confirmation Modal ──────────────────────────────────────── */\n.pm-remove-dialog {\n  background: #fff;\n  border-radius: 12px;\n  padding: 28px 24px 20px;\n  max-width: 380px;\n  width: 90%;\n  box-shadow: 0 8px 32px rgba\\(0,0,0,0.18\\);\n}\n.pm-remove-title {\n  margin: 0 0 8px;\n  font-size: 1.05rem;\n  font-weight: 600;\n  color: #111827;\n}\n.pm-remove-body {\n  margin: 0 0 22px;\n  font-size: 0.88rem;\n  color: #6b7280;\n  line-height: 1.5;\n}\n.pm-remove-actions {\n  display: flex;\n  gap: 10px;\n  justify-content: flex-end;\n}\n.pm-remove-btn-cancel {\n  padding: 8px 18px;\n  border: 1px solid #d1d5db;\n  border-radius: 8px;\n  background: #fff;\n  color: #374151;\n  font-size: 0.88rem;\n  font-weight: 500;\n  cursor: pointer;\n  transition: background 0.15s;\n}\n.pm-remove-btn-cancel:hover { background: #f3f4f6; }\n.pm-remove-btn-confirm {\n  padding: 8px 18px;\n  border: none;\n  border-radius: 8px;\n  background: #dc2626;\n  color: #fff;\n  font-size: 0.88rem;\n  font-weight: 600;\n  cursor: pointer;\n  transition: background 0.15s;\n}\n.pm-remove-btn-confirm:hover { background: #b91c1c; }\nEOF)",
-      "Bash(python -m pytest tests/ -q --tb=no --timeout=60 2>&1 | tee /tmp/test_result.txt; cat /tmp/test_result.txt | tail -5)"
+      "Bash(python -m pytest tests/ -q --tb=no --timeout=60 2>&1 | tee /tmp/test_result.txt; cat /tmp/test_result.txt | tail -5)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(wait)",
+      "Bash(echo \"EXIT:$?\")"
     ],
     "deny": [],
     "ask": []

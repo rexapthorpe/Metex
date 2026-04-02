@@ -438,6 +438,281 @@ def ensure_stripe_customer_id_column():
         print(f'Error ensuring stripe_customer_id column: {e}')
 
 
+
+def ensure_orders_placed_from_ip_column():
+    """
+    Ensure orders table has placed_from_ip column (Phase 1 — transaction evidence).
+    Stores the buyer's IP address at the time of checkout submission.
+    NULL for bid-accepted orders (no buyer HTTP request at acceptance time).
+    Idempotent.
+    """
+    try:
+        conn = get_db_connection()
+        existing = get_table_columns(conn, 'orders')
+        if 'placed_from_ip' not in existing:
+            conn.execute('ALTER TABLE orders ADD COLUMN placed_from_ip TEXT')
+            conn.commit()
+            print('✅ orders.placed_from_ip column added (Phase 1)')
+        conn.close()
+    except Exception as e:
+        print(f'Error ensuring orders.placed_from_ip column: {e}')
+
+
+def ensure_transaction_snapshots_table():
+    """
+    Ensure the transaction_snapshots table exists (Phase 1 — immutable evidence layer).
+
+    Stores a point-in-time snapshot of every purchased order item at the moment of
+    order creation.  Future listing edits or deletions cannot erase this record.
+
+    Safe to call multiple times (idempotent via CREATE TABLE IF NOT EXISTS).
+    Historical orders (pre-Phase-1) will have no snapshot rows; that is expected.
+    """
+    try:
+        conn = get_db_connection()
+        conn.execute(_ddl('''
+            CREATE TABLE IF NOT EXISTS transaction_snapshots (
+                id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id               INTEGER NOT NULL,
+                order_item_id          INTEGER,
+                snapshot_at            TEXT NOT NULL,
+
+                listing_id             INTEGER,
+                listing_title          TEXT,
+                listing_description    TEXT,
+
+                metal                  TEXT,
+                product_line           TEXT,
+                product_type           TEXT,
+                weight                 TEXT,
+                year                   TEXT,
+                mint                   TEXT,
+                purity                 TEXT,
+                finish                 TEXT,
+                condition_category     TEXT,
+                series_variant         TEXT,
+
+                packaging_type         TEXT,
+                packaging_notes        TEXT,
+                condition_notes        TEXT,
+
+                photo_filenames        TEXT,
+
+                quantity               INTEGER,
+                price_each             REAL,
+                pricing_mode           TEXT,
+                spot_price_at_purchase REAL,
+
+                seller_id              INTEGER,
+                seller_username        TEXT,
+                seller_email           TEXT,
+
+                buyer_id               INTEGER,
+                buyer_username         TEXT,
+                buyer_email            TEXT,
+
+                payment_intent_id      TEXT,
+
+                FOREIGN KEY (order_id) REFERENCES orders(id)
+            )
+        '''))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f'Error ensuring transaction_snapshots table: {e}')
+
+
+def ensure_refunds_table():
+    """
+    Ensure the refunds table exists (Phase 3 — admin-issued refund records).
+    Every admin-triggered dispute refund writes a row here for auditability and reporting.
+    Safe to call multiple times (idempotent via CREATE TABLE IF NOT EXISTS).
+    """
+    try:
+        conn = get_db_connection()
+        conn.execute(_ddl('''
+            CREATE TABLE IF NOT EXISTS refunds (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                dispute_id          INTEGER NOT NULL,
+                order_id            INTEGER NOT NULL,
+                order_item_id       INTEGER,
+                buyer_id            INTEGER NOT NULL,
+                seller_id           INTEGER,
+                amount              REAL NOT NULL,
+                provider_refund_id  TEXT,
+                issued_by_admin_id  INTEGER NOT NULL,
+                issued_at           TEXT NOT NULL,
+                note                TEXT,
+                FOREIGN KEY (dispute_id) REFERENCES disputes(id),
+                FOREIGN KEY (order_id)   REFERENCES orders(id)
+            )
+        '''))
+        conn.commit()
+        conn.close()
+        print('✅ refunds table ensured (Phase 3)')
+    except Exception as e:
+        print(f'Error ensuring refunds table: {e}')
+
+
+def ensure_disputes_table():
+    """
+    Ensure the disputes table exists (Phase 2 — dispute data model).
+    Stores one row per dispute opened by a buyer against an order.
+    order_item_id is nullable: Phase 2 disputes are opened at order level from the buyer UI.
+    Safe to call multiple times (idempotent via CREATE TABLE IF NOT EXISTS).
+    """
+    try:
+        conn = get_db_connection()
+        conn.execute(_ddl('''
+            CREATE TABLE IF NOT EXISTS disputes (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id            INTEGER NOT NULL,
+                order_item_id       INTEGER,
+                opened_by_user_id   INTEGER NOT NULL,
+                buyer_id            INTEGER NOT NULL,
+                seller_id           INTEGER,
+                dispute_type        TEXT NOT NULL,
+                status              TEXT NOT NULL DEFAULT 'open',
+                description         TEXT NOT NULL,
+                opened_at           TEXT NOT NULL,
+                resolved_at         TEXT,
+                resolved_by_admin_id INTEGER,
+                resolution_note     TEXT,
+                refund_amount       REAL,
+                stripe_refund_id    TEXT,
+                FOREIGN KEY (order_id) REFERENCES orders(id)
+            )
+        '''))
+        conn.commit()
+        conn.close()
+        print('✅ disputes table ensured (Phase 2)')
+    except Exception as e:
+        print(f'Error ensuring disputes table: {e}')
+
+
+def ensure_dispute_evidence_table():
+    """
+    Ensure the dispute_evidence table exists (Phase 2 — evidence collection).
+    Safe to call multiple times (idempotent via CREATE TABLE IF NOT EXISTS).
+    """
+    try:
+        conn = get_db_connection()
+        conn.execute(_ddl('''
+            CREATE TABLE IF NOT EXISTS dispute_evidence (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                dispute_id          INTEGER NOT NULL,
+                submitted_by_user_id INTEGER NOT NULL,
+                actor_type          TEXT NOT NULL,
+                evidence_type       TEXT NOT NULL,
+                file_path           TEXT,
+                note                TEXT,
+                submitted_at        TEXT NOT NULL,
+                FOREIGN KEY (dispute_id) REFERENCES disputes(id)
+            )
+        '''))
+        conn.commit()
+        conn.close()
+        print('✅ dispute_evidence table ensured (Phase 2)')
+    except Exception as e:
+        print(f'Error ensuring dispute_evidence table: {e}')
+
+
+def ensure_dispute_timeline_table():
+    """
+    Ensure the dispute_timeline table exists (Phase 2 — audit trail).
+    Records every state change, evidence submission, and message in a dispute.
+    Safe to call multiple times (idempotent via CREATE TABLE IF NOT EXISTS).
+    """
+    try:
+        conn = get_db_connection()
+        conn.execute(_ddl('''
+            CREATE TABLE IF NOT EXISTS dispute_timeline (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                dispute_id  INTEGER NOT NULL,
+                actor_type  TEXT NOT NULL,
+                actor_id    INTEGER NOT NULL,
+                event_type  TEXT NOT NULL,
+                note        TEXT,
+                created_at  TEXT NOT NULL,
+                FOREIGN KEY (dispute_id) REFERENCES disputes(id)
+            )
+        '''))
+        conn.commit()
+        conn.close()
+        print('✅ dispute_timeline table ensured (Phase 2)')
+    except Exception as e:
+        print(f'Error ensuring dispute_timeline table: {e}')
+
+
+def ensure_user_risk_profile_table():
+    """
+    Ensure the user_risk_profile table exists (Phase 4 — risk monitoring).
+    One row per user; upserted on relevant events.
+    Safe to call multiple times (idempotent via CREATE TABLE IF NOT EXISTS).
+    """
+    try:
+        conn = get_db_connection()
+        conn.execute(_ddl('''
+            CREATE TABLE IF NOT EXISTS user_risk_profile (
+                user_id                         INTEGER PRIMARY KEY,
+                risk_score                      INTEGER NOT NULL DEFAULT 0,
+                manual_risk_flag                TEXT NOT NULL DEFAULT 'none',
+                manual_flag_reason              TEXT,
+                manual_flagged_at               TEXT,
+                manual_flagged_by_admin_id      INTEGER,
+                total_disputes_as_buyer         INTEGER NOT NULL DEFAULT 0,
+                disputes_upheld_buyer           INTEGER NOT NULL DEFAULT 0,
+                disputes_denied_buyer           INTEGER NOT NULL DEFAULT 0,
+                total_disputes_as_seller        INTEGER NOT NULL DEFAULT 0,
+                disputes_upheld_against_seller  INTEGER NOT NULL DEFAULT 0,
+                total_orders_bought             INTEGER NOT NULL DEFAULT 0,
+                total_orders_sold               INTEGER NOT NULL DEFAULT 0,
+                refunds_issued_count            INTEGER NOT NULL DEFAULT 0,
+                refunds_issued_amount           REAL NOT NULL DEFAULT 0,
+                last_login_ip                   TEXT,
+                last_login_at                   TEXT,
+                account_created_ip              TEXT,
+                notes                           TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        '''))
+        conn.commit()
+        conn.close()
+        print('✅ user_risk_profile table ensured (Phase 4)')
+    except Exception as e:
+        print(f'Error ensuring user_risk_profile table: {e}')
+
+
+def ensure_user_risk_events_table():
+    """
+    Ensure the user_risk_events table exists (Phase 4 — risk audit trail).
+    Every score recalculation and flag change writes a row here.
+    Safe to call multiple times (idempotent via CREATE TABLE IF NOT EXISTS).
+    """
+    try:
+        conn = get_db_connection()
+        conn.execute(_ddl('''
+            CREATE TABLE IF NOT EXISTS user_risk_events (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL,
+                event_type      TEXT NOT NULL,
+                triggered_by    TEXT NOT NULL,
+                old_score       INTEGER,
+                new_score       INTEGER,
+                old_flag        TEXT,
+                new_flag        TEXT,
+                note            TEXT,
+                created_at      TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        '''))
+        conn.commit()
+        conn.close()
+        print('✅ user_risk_events table ensured (Phase 4)')
+    except Exception as e:
+        print(f'Error ensuring user_risk_events table: {e}')
+
+
 def init_database():
     """
     Run all database initialization checks
@@ -458,3 +733,11 @@ def init_database():
     ensure_message_type_column()
     migrate_default_fee_to_5pct()
     ensure_stripe_customer_id_column()
+    ensure_orders_placed_from_ip_column()
+    ensure_transaction_snapshots_table()
+    ensure_disputes_table()
+    ensure_dispute_evidence_table()
+    ensure_dispute_timeline_table()
+    ensure_refunds_table()
+    ensure_user_risk_profile_table()
+    ensure_user_risk_events_table()

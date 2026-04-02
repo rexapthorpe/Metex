@@ -22,7 +22,7 @@ from services.notification_service import notify_listing_sold, notify_order_conf
 from services.pricing_service import get_effective_price, create_price_lock
 from services.checkout_spot_service import SpotUnavailableError, SpotExpiredError
 from utils.auth_utils import frozen_check
-from config import GRADING_FEE_PER_UNIT, STRIPE_PUBLISHABLE_KEY
+from config import STRIPE_PUBLISHABLE_KEY
 
 from . import checkout_bp
 
@@ -329,8 +329,8 @@ def checkout():
             # Check if this is an AJAX request (from Buy Item button)
             is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-            # Capture grading toggle from the Buy Item form — canonical boolean (0/1 int).
-            buy_tpg_int = int(request.form.get('third_party_grading', 0) or 0)
+            # Phase 0A: grading deactivated — always treat as non-grading.
+            buy_tpg_int = 0
 
             if is_ajax:
                 # Return JSON for AJAX requests (so modal can be shown before redirect)
@@ -399,7 +399,9 @@ def checkout():
                     from services.checkout_spot_service import check_spot_map_freshness
 
                     session_items = session.pop('checkout_items', None)
-                    buy_tpg = bool(session.pop('checkout_tpg', 0))
+                    # Phase 0A: discard any stale tpg session value.
+                    session.pop('checkout_tpg', None)
+                    buy_tpg = False
 
                     if session_items:
                         # ── Bucket finalize: use locked prices from session ──
@@ -408,7 +410,7 @@ def checkout():
                                 'listing_id': i['listing_id'],
                                 'quantity': i['quantity'],
                                 'price_each': i['price_each'],
-                                'requires_grading': buy_tpg,
+                                'requires_grading': False,  # Phase 0A: grading deactivated
                             }
                             for i in session_items
                         ]
@@ -427,7 +429,7 @@ def checkout():
                         except SpotExpiredError:
                             # Restore session so recalculate endpoint can find items
                             session['checkout_items'] = session_items
-                            session['checkout_tpg'] = int(buy_tpg)
+                            session['checkout_tpg'] = 0  # Phase 0A: always 0
                             conn.close()
                             return jsonify({
                                 'success': False,
@@ -436,7 +438,7 @@ def checkout():
                             }), 409
                         except SpotUnavailableError:
                             session['checkout_items'] = session_items
-                            session['checkout_tpg'] = int(buy_tpg)
+                            session['checkout_tpg'] = 0  # Phase 0A: always 0
                             conn.close()
                             return jsonify({
                                 'success': False,
@@ -504,7 +506,9 @@ def checkout():
 
                     # ── Create order ────────────────────────────────────────────
                     order_id = create_order(
-                        user_id, cart_data, shipping_address, recipient_first, recipient_last
+                        user_id, cart_data, shipping_address, recipient_first, recipient_last,
+                        placed_from_ip=request.remote_addr,
+                        payment_intent_id=payment_intent_id or None,
                     )
                     _create_ledger_for_order(user_id, order_id, cart_data, conn)
 
@@ -709,7 +713,10 @@ def checkout():
                 _enrich_cart_data_with_spot_audit(cart_data, spot_map_si, listing_meta_si)
 
             # Create the order record (service inserts into orders & order_items)
-            order_id = create_order(user_id, cart_data, shipping_address, recipient_first, recipient_last)
+            order_id = create_order(
+                user_id, cart_data, shipping_address, recipient_first, recipient_last,
+                placed_from_ip=request.remote_addr,
+            )
 
             # Create ledger records for this order
             _create_ledger_for_order(user_id, order_id, cart_data, conn)
@@ -783,13 +790,10 @@ def checkout():
 
             # Send buyer notification AFTER commit
             try:
-                # Calculate totals (items + grading, no insurance)
-                from config import GRADING_FEE_PER_UNIT as _GFU
-                from services.order_service import _item_requires_grading
+                # Phase 0A: no grading fee in total
                 total_items = sum(item['quantity'] for item in cart_data)
                 order_total = round(
-                    sum(item['quantity'] * item['price_each'] for item in cart_data) +
-                    sum(_GFU * item['quantity'] for item in cart_data if _item_requires_grading(item)),
+                    sum(item['quantity'] * item['price_each'] for item in cart_data),
                     2
                 )
 
@@ -833,10 +837,9 @@ def checkout():
 
         if session_items:
             # ── Direct bucket-purchase display ────────────────────────────────
-            # Items and grading were chosen on the bucket page and stored in session.
-            # checkout_tpg is the canonical boolean (0/1 int) stored by the bucket POST.
-            buy_tpg = bool(session.get('checkout_tpg', 0))
-            buy_grading = 'ANY' if buy_tpg else 'NONE'
+            # Phase 0A: grading deactivated — ignore any stale tpg session value.
+            buy_tpg = False
+            buy_grading = 'NONE'
 
             raw_cart_items = []
             subtotal = 0.0
@@ -907,7 +910,7 @@ def checkout():
                 cart_items.append(g)
 
             item_count = sum(i['quantity'] for i in cart_items)
-            grading_fee = round(GRADING_FEE_PER_UNIT * item_count, 2) if buy_tpg else 0.0
+            grading_fee = 0.0
             cart_total = round(subtotal + grading_fee, 2)
 
         else:
@@ -947,8 +950,8 @@ def checkout():
 
             item_count = summary['item_count']
             subtotal = summary['subtotal']
-            grading_fee = summary['grading_fee']
-            cart_total = round(subtotal + grading_fee, 2)
+            grading_fee = 0.0
+            cart_total = round(subtotal, 2)
 
         # Fetch user info for auto-population (shared by both paths)
         user_info = conn.execute('''
@@ -968,8 +971,8 @@ def checkout():
             cart_items=cart_items,
             item_count=item_count,
             subtotal=round(subtotal, 2),
-            grading_fee=grading_fee,
-            grading_fee_per_unit=GRADING_FEE_PER_UNIT,
+            grading_fee=0.0,
+            grading_fee_per_unit=0.0,
             cart_total=cart_total,
             user_info=dict(user_info) if user_info else {},
             checkout_nonce=checkout_nonce,
@@ -1006,10 +1009,9 @@ def recalculate_spot():
     try:
         from services.checkout_spot_service import get_spot_map_for_checkout
         from services.pricing_service import get_effective_price
-        from config import GRADING_FEE_PER_UNIT as _GFU
 
         session_items = session.get('checkout_items')
-        buy_tpg = bool(session.get('checkout_tpg', 0))
+        buy_tpg = False  # Phase 0A: grading deactivated
 
         if session_items:
             # ── Bucket purchase: recompute price_each with fresh spot ──
@@ -1055,7 +1057,7 @@ def recalculate_spot():
             ]
 
             total_items = sum(i['quantity'] for i in updated_items)
-            grading_fee = round(_GFU * total_items, 2) if buy_tpg else 0.0
+            grading_fee = 0.0  # Phase 0A: grading deactivated
 
         else:
             # ── Cart checkout: rebuild summary with fresh spot ──
@@ -1074,7 +1076,7 @@ def recalculate_spot():
             summary = build_cart_summary(conn, user_id, spot_prices=spot_prices_dict)
 
             subtotal = summary['subtotal']
-            grading_fee = summary['grading_fee']
+            grading_fee = 0.0  # Phase 0A: grading deactivated
             total_items = summary['item_count']
             updated_items = [
                 {
@@ -1182,21 +1184,20 @@ def create_payment_intent():
             _log.warning('[PI] could not resolve Stripe customer for user %s — saved cards unavailable', user_id)
 
         session_items = session.get('checkout_items')
-        buy_tpg = bool(session.get('checkout_tpg', 0))
+        # Phase 0A: grading deactivated — no grading fee in PaymentIntent.
 
         if session_items:
             subtotal = sum(i['price_each'] * i['quantity'] for i in session_items)
-            total_items = sum(i['quantity'] for i in session_items)
-            grading_fee = round(GRADING_FEE_PER_UNIT * total_items, 2) if buy_tpg else 0.0
-            _log.info('[PI] cart from session: subtotal=%.2f grading=%.2f', subtotal, grading_fee)
+            grading_fee = 0.0
+            _log.info('[PI] cart from session: subtotal=%.2f', subtotal)
         else:
             from services.reference_price_service import get_current_spots_from_snapshots
             spot_prices = get_current_spots_from_snapshots(conn)
             summary = build_cart_summary(conn, user_id, spot_prices=spot_prices)
             subtotal = summary['subtotal']
-            grading_fee = summary['grading_fee']
-            _log.info('[PI] cart from DB: subtotal=%.2f grading=%.2f buckets=%d',
-                      subtotal, grading_fee, len(summary['buckets']))
+            grading_fee = 0.0
+            _log.info('[PI] cart from DB: subtotal=%.2f buckets=%d',
+                      subtotal, len(summary['buckets']))
     except Exception as e:
         _log.exception('[PI] failed to compute cart total for user %s', user_id)
         return jsonify({'error': 'Could not read cart: ' + str(e)}), 500

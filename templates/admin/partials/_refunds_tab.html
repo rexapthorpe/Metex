@@ -1,0 +1,85 @@
+      <!-- Stats Row -->
+      <div class="stats-grid stats-grid-3">
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Shown</span>
+            <div class="stat-icon stat-icon-blue">
+              <i class="fa-solid fa-rotate-left"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="refundStatCount">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Total Amount</span>
+            <div class="stat-icon stat-icon-red">
+              <i class="fa-solid fa-dollar-sign"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="refundStatTotal">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Last 30 Days</span>
+            <div class="stat-icon stat-icon-orange">
+              <i class="fa-solid fa-calendar-days"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="refundStat30d">—</div>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="section-header" style="margin-top:20px;">
+        <h3>Refunds</h3>
+      </div>
+      <div class="filter-bar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+        <input id="refundFilterDateFrom" type="date" class="form-input" style="min-width:140px;"
+               title="From date">
+        <input id="refundFilterDateTo" type="date" class="form-input" style="min-width:140px;"
+               title="To date">
+        <input id="refundFilterDisputeId" type="number" placeholder="Dispute ID"
+               class="form-input" style="min-width:110px;max-width:120px;">
+        <input id="refundFilterBuyer" type="text" placeholder="Buyer username"
+               class="form-input" style="min-width:130px;">
+        <input id="refundFilterSeller" type="text" placeholder="Seller username"
+               class="form-input" style="min-width:130px;">
+        <button class="admin-action-btn" onclick="loadRefunds()">
+          <i class="fa-solid fa-magnifying-glass"></i> Filter
+        </button>
+        <button class="admin-action-btn" onclick="loadRefundsLast30()" style="margin-left:auto;">
+          <i class="fa-solid fa-calendar-days"></i> Last 30 Days
+        </button>
+      </div>
+
+      <!-- Refunds Table -->
+      <div id="adminRefundsList" style="overflow-x:auto;">
+        <div class="dispute-loading">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <span>Loading refunds...</span>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="adminRefundsEmpty" style="display:none;">
+        <div class="empty-state-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>No Refunds Found</h3>
+        <p>No refunds match the current filters.</p>
+      </div>
+
+      <!-- ═══════════ REFUND DETAIL MODAL ═══════════ -->
+      <div id="adminRefundDetailModal" class="admin-modal-overlay" style="display:none;">
+        <div class="admin-modal admin-modal-md">
+          <div class="admin-modal-header">
+            <h2 id="adminRefundDetailTitle">
+              <i class="fa-solid fa-rotate-left"></i> Refund Detail
+            </h2>
+            <button class="modal-close-btn" onclick="closeRefundDetailModal()">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="admin-modal-body" id="adminRefundDetailBody">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>

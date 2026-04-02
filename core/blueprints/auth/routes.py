@@ -205,6 +205,16 @@ def login():
             if AUDIT_ENABLED:
                 log_login_success(user_id, username)
 
+            # Update risk profile last_login_ip/at (Phase 4 — best-effort)
+            try:
+                from services import risk_service
+                risk_service.update_last_login(
+                    user_id,
+                    request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip(),
+                )
+            except Exception as _risk_exc:
+                print(f'[RISK] login IP capture failed: {_risk_exc}')
+
             # Merge guest cart after session setup — preserve grading preference per line item
             for item in guest_cart:
                 tpg = int(item.get('third_party_grading_requested', 0) or 0)

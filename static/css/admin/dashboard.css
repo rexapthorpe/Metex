@@ -53,3 +53,6 @@
 
 /* System tab layout */
 @import 'dashboard/_system_tab.css';
+
+/* User Risk tab */
+@import 'dashboard/_risk_tab.css';

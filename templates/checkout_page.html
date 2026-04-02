@@ -328,7 +328,6 @@
 
       <div class="summary-items">
         {% for item in cart_items %}
-        {% set item_grading = item.grading_preference if item.grading_preference is defined else 'NONE' %}
         <div class="summary-item">
           <div class="summary-item-image">
             <span class="summary-item-qty-badge">{{ item.quantity }}</span>
@@ -346,20 +345,12 @@
           </div>
           <span class="summary-item-price">${{ '{:,.2f}'.format(item.total_price) }}</span>
         </div>
-        {% if item_grading and item_grading != 'NONE' %}
-        <div class="summary-item-grading-row">
-          <span class="summary-item-grading-label">
-            3rd-Party Grading (×{{ item.quantity }})
-          </span>
-          <span class="summary-item-grading-price">${{ '{:,.2f}'.format(grading_fee_per_unit * item.quantity) }}</span>
-        </div>
-        {% endif %}
         {% endfor %}
       </div>
 
       <div class="summary-row">
         <span class="summary-label">Subtotal</span>
-        <span class="summary-value" id="summary-subtotal">${{ '{:,.2f}'.format(subtotal + grading_fee) }}</span>
+        <span class="summary-value" id="summary-subtotal">${{ '{:,.2f}'.format(subtotal) }}</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Shipping</span>

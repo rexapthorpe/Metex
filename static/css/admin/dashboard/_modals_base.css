@@ -58,6 +58,10 @@
   max-width: 720px;
 }
 
+.admin-modal-xl {
+  max-width: 960px;
+}
+
 .admin-modal-sm {
   max-width: 420px;
 }

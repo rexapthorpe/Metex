@@ -20,21 +20,16 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             console.log('[AddToCartAJAX] Add to Cart form submitted - intercepting');
 
-            // Read grading preference from toggle (source of truth)
-            const tpgToggle = document.querySelector('#tpgToggle');
-            const isTPG = tpgToggle && tpgToggle.checked;
-            const gradingPref = isTPG ? 'ANY' : 'NONE';
-
-            // Build form data, overriding grading fields from UI state
+            // Phase 0A: grading deactivated — always send non-grading
             const formData = new FormData(form);
-            formData.set('grading_preference', gradingPref);
-            formData.set('third_party_grading', isTPG ? '1' : '0');
+            formData.set('grading_preference', 'NONE');
+            formData.set('third_party_grading', '0');
 
             // Extract bucket_id from form action URL (/purchase_from_bucket/<id>)
             const actionUrl = form.action;
             const bucketId = actionUrl.split('/').pop();
 
-            console.log('[AddToCartAJAX] Sending AJAX POST to:', actionUrl, 'grading:', gradingPref);
+            console.log('[AddToCartAJAX] Sending AJAX POST to:', actionUrl);
 
             fetch(actionUrl, {
                 method: 'POST',

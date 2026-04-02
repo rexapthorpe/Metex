@@ -701,3 +701,91 @@ def notify_order_forfeited_seller(seller_id, order_id, item_description):
         related_order_id=order_id,
         metadata={'order_id': order_id, 'item_description': item_description},
     )
+
+
+# ---------------------------------------------------------------------------
+# ── Disputes (Phase 2) ───────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def notify_dispute_opened(seller_id, dispute_id, order_id, dispute_type):
+    """Notify the seller that the buyer has opened a dispute on their order."""
+    type_labels = {
+        'not_received': 'Item Not Received',
+        'not_as_described': 'Item Not as Described',
+        'counterfeit': 'Counterfeit Item',
+        'wrong_item': 'Wrong Item Received',
+    }
+    type_label = type_labels.get(dispute_type, dispute_type.replace('_', ' ').title())
+    return notify(
+        user_id=seller_id,
+        notification_type='dispute_opened',
+        title='Dispute Opened',
+        body=(
+            f'A buyer has opened a dispute on order #{order_id}: {type_label}. '
+            f'Please respond to the dispute to help resolve it.'
+        ),
+        related_order_id=order_id,
+        metadata={'dispute_id': dispute_id, 'dispute_type': dispute_type, 'order_id': order_id},
+    )
+
+
+def notify_dispute_seller_responded(buyer_id, dispute_id, order_id):
+    """Notify the buyer that the seller has responded to their dispute."""
+    return notify(
+        user_id=buyer_id,
+        notification_type='dispute_seller_responded',
+        title='Seller Responded to Dispute',
+        body=(
+            f'The seller has responded to your dispute on order #{order_id}. '
+            f'Your case is now under review.'
+        ),
+        related_order_id=order_id,
+        metadata={'dispute_id': dispute_id, 'order_id': order_id},
+    )
+
+
+# ---------------------------------------------------------------------------
+# ── Disputes (Phase 3) ──────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def notify_dispute_evidence_requested(user_id, dispute_id, order_id, note=None):
+    """Notify a dispute party that an admin has requested additional evidence."""
+    body = f'An admin has requested additional evidence for the dispute on order #{order_id}.'
+    if note:
+        body += f' Note: {note}'
+    return notify(
+        user_id=user_id,
+        notification_type='dispute_evidence_requested',
+        title='Evidence Requested',
+        body=body,
+        related_order_id=order_id,
+        metadata={'dispute_id': dispute_id, 'order_id': order_id},
+    )
+
+
+def notify_dispute_resolved(user_id, dispute_id, order_id, resolution, note=None):
+    """Notify a dispute party of the admin resolution outcome."""
+    resolution_labels = {
+        'resolved_refund':  ('Dispute Resolved — Refund Issued',
+                             f'Your dispute on order #{order_id} has been resolved. '
+                             f'A refund has been issued to the buyer.'),
+        'resolved_denied':  ('Dispute Resolved — Claim Denied',
+                             f'Your dispute on order #{order_id} has been reviewed. '
+                             f'The claim was not upheld.'),
+        'closed':           ('Dispute Closed',
+                             f'Your dispute on order #{order_id} has been closed by an admin.'),
+    }
+    title, body = resolution_labels.get(
+        resolution,
+        ('Dispute Updated', f'Your dispute on order #{order_id} has been updated.'),
+    )
+    if note:
+        body += f' Details: {note}'
+    return notify(
+        user_id=user_id,
+        notification_type='dispute_resolved',
+        title=title,
+        body=body,
+        related_order_id=order_id,
+        metadata={'dispute_id': dispute_id, 'order_id': order_id, 'resolution': resolution},
+    )

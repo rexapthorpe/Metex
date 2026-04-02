@@ -1,0 +1,156 @@
+      <!-- Stats Row -->
+      <div class="stats-grid stats-grid-3">
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Flagged Users</span>
+            <div class="stat-icon stat-icon-red">
+              <i class="fa-solid fa-flag"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="riskStatsFlagged">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">High Score (&ge;40)</span>
+            <div class="stat-icon stat-icon-yellow">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="riskStatsHighScore">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Total Tracked</span>
+            <div class="stat-icon stat-icon-blue">
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="riskStatsTotal">—</div>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="section-header" style="margin-top:20px;">
+        <h3>User Risk Profiles</h3>
+      </div>
+      <div class="filter-bar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+        <select id="riskFilterFlag" class="form-select" style="min-width:150px;">
+          <option value="">All Flags</option>
+          <option value="none">None</option>
+          <option value="watch">Watch</option>
+          <option value="restricted">Restricted</option>
+          <option value="suspended">Suspended</option>
+        </select>
+        <input id="riskFilterScoreMin" type="number" placeholder="Min score" min="0" max="100"
+               class="form-input" style="min-width:110px;max-width:120px;">
+        <input id="riskFilterUsername" type="text" placeholder="Username search"
+               class="form-input" style="min-width:150px;">
+        <button class="admin-action-btn" onclick="loadRiskProfiles()">
+          <i class="fa-solid fa-magnifying-glass"></i> Filter
+        </button>
+        <button class="admin-action-btn admin-action-btn--warning" onclick="loadRepeatOffenders()" style="margin-left:auto;">
+          <i class="fa-solid fa-repeat"></i> Repeat Offenders
+        </button>
+      </div>
+
+      <!-- Risk Table -->
+      <div id="adminRiskList" style="overflow-x:auto;">
+        <div class="dispute-loading">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <span>Loading risk profiles...</span>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="adminRiskEmpty" style="display:none;">
+        <div class="empty-state-icon"><i class="fa-solid fa-shield-check"></i></div>
+        <h3>No Risk Profiles Found</h3>
+        <p>No profiles match the current filters.</p>
+      </div>
+
+      <!-- ═══════════ RISK DETAIL MODAL ═══════════ -->
+      <div id="adminRiskDetailModal" class="admin-modal-overlay" style="display:none;">
+        <div class="admin-modal admin-modal-lg">
+          <div class="admin-modal-header">
+            <h2 id="adminRiskDetailTitle">
+              <i class="fa-solid fa-shield-halved"></i> User Risk Profile
+            </h2>
+            <button class="modal-close-btn" onclick="closeRiskDetailModal()">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="admin-modal-body" id="adminRiskDetailBody">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ FLAG MODAL ═══════════ -->
+      <div id="adminRiskFlagModal" class="admin-modal-overlay" style="display:none;">
+        <div class="admin-modal admin-modal-sm">
+          <div class="admin-modal-header">
+            <h2 id="adminRiskFlagTitle">
+              <i class="fa-solid fa-flag"></i> Set Risk Flag
+            </h2>
+            <button class="modal-close-btn" onclick="closeRiskFlagModal()">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="admin-modal-body">
+            <input type="hidden" id="riskFlagUserId">
+            <div class="form-group">
+              <label>Flag Level</label>
+              <select id="riskFlagValue" class="form-select">
+                <option value="watch">Watch</option>
+                <option value="restricted">Restricted</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Reason <span style="color:#ef4444">*</span></label>
+              <input type="text" id="riskFlagReason" class="form-input"
+                     placeholder="Brief reason for flagging...">
+            </div>
+            <div class="form-group">
+              <label>Note (optional)</label>
+              <textarea id="riskFlagNote" rows="2" class="form-textarea"
+                        placeholder="Internal note..."></textarea>
+            </div>
+            <p id="adminRiskFlagError" style="color:#ef4444;font-size:13px;margin-top:6px;"></p>
+          </div>
+          <div class="admin-modal-footer" style="display:flex;gap:10px;justify-content:flex-end;padding:16px 24px;border-top:1px solid #e5e7eb;">
+            <button class="btn-outline" onclick="closeRiskFlagModal()">Cancel</button>
+            <button class="btn-primary" onclick="submitRiskFlag()">Set Flag</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ NOTE MODAL ═══════════ -->
+      <div id="adminRiskNoteModal" class="admin-modal-overlay" style="display:none;">
+        <div class="admin-modal admin-modal-sm">
+          <div class="admin-modal-header">
+            <h2>
+              <i class="fa-solid fa-note-sticky"></i> Admin Note
+            </h2>
+            <button class="modal-close-btn" onclick="closeRiskNoteModal()">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="admin-modal-body">
+            <input type="hidden" id="riskNoteUserId">
+            <p style="font-size:13px;color:#6b7280;margin-bottom:12px;">
+              Internal notes are not visible to the user.
+            </p>
+            <div class="form-group">
+              <label>Note</label>
+              <textarea id="riskNoteText" rows="4" class="form-textarea"
+                        placeholder="Internal admin note about this user..."></textarea>
+            </div>
+            <p id="adminRiskNoteError" style="color:#ef4444;font-size:13px;margin-top:6px;"></p>
+          </div>
+          <div class="admin-modal-footer" style="display:flex;gap:10px;justify-content:flex-end;padding:16px 24px;border-top:1px solid #e5e7eb;">
+            <button class="btn-outline" onclick="closeRiskNoteModal()">Cancel</button>
+            <button class="btn-primary" onclick="submitRiskNote()">Save Note</button>
+          </div>
+        </div>
+      </div>

@@ -57,12 +57,6 @@
                 {% if bucket.category.purity %} • {{ bucket.category.purity }}{% endif %}
                 {% if bucket.category.year %} • {{ bucket.category.year }}{% endif %}
               </div>
-              {% if bucket.requires_grading %}
-              <div class="cart-grading-badge">
-                <i class="fa-solid fa-certificate"></i> 3rd-party grading
-                <span style="font-weight:400; opacity:0.85;">+${{ '{:,.2f}'.format(bucket.grading_fee) }}</span>
-              </div>
-              {% endif %}
               <div class="cart-item-seller">
                 Sold by
                 {% if bucket.listings %}
@@ -166,15 +160,9 @@
             <span class="summary-label">Average Price:</span>
             <span class="summary-value" id="summary-avg-price-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.avg_price) }}</span>
           </div>
-          {% if bucket.requires_grading %}
-          <div class="summary-line">
-            <span class="summary-label" id="summary-grading-label-{{ bucket_id }}">3rd Party Grading (×{{ bucket.total_qty }})</span>
-            <span class="summary-value" id="summary-grading-fee-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.grading_fee) }}</span>
-          </div>
-          {% endif %}
           <div class="summary-line">
             <span class="summary-label">Subtotal:</span>
-            <span class="summary-value" id="summary-total-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price + bucket.grading_fee) }}</span>
+            <span class="summary-value" id="summary-total-{{ bucket_id }}">${{ '{:,.2f}'.format(bucket.total_price) }}</span>
           </div>
         </div>
       {% endfor %}

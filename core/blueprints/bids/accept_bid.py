@@ -13,6 +13,7 @@ from database import get_db_connection
 from services.notification_service import notify_bid_filled
 from services.notification_types import notify_bid_payment_failed
 from services.pricing_service import get_effective_price, get_effective_bid_price
+from services.order_service import write_order_item_snapshot
 
 from . import bid_bp
 
@@ -335,12 +336,14 @@ def accept_bid(bucket_id):
 
             order_id = cursor.lastrowid
 
-            # Create order_items for each fill
+            # Create order_items for each fill; track order_item_id for snapshots
+            order_item_ids = []
             for item in order_items_to_create:
                 cursor.execute('''
                     INSERT INTO order_items (order_id, listing_id, quantity, price_each)
                     VALUES (?, ?, ?, ?)
                 ''', (order_id, item['listing_id'], item['quantity'], item['price_each']))
+                order_item_ids.append(cursor.lastrowid)
 
             # ── Attempt payment ──────────────────────────────────────────
             pay_result = _charge_bid_payment(
@@ -416,6 +419,32 @@ def accept_bid(bucket_id):
                  WHERE id = ?
             ''', (pi_id, bid_id))
 
+            # Phase 1: write immutable transaction snapshots inside the savepoint.
+            # placed_from_ip is NULL for bid-accepted orders — no buyer HTTP request exists
+            # at acceptance time; the action is seller-triggered.
+            buyer_row = cursor.execute(
+                'SELECT username, email FROM users WHERE id = ?', (buyer_id,)
+            ).fetchone()
+            _snap_buyer_username = buyer_row['username'] if buyer_row else None
+            _snap_buyer_email = buyer_row['email'] if buyer_row else None
+            for _snap_item, _snap_oi_id in zip(order_items_to_create, order_item_ids):
+                try:
+                    write_order_item_snapshot(
+                        cursor=cursor,
+                        order_id=order_id,
+                        order_item_id=_snap_oi_id,
+                        listing_id=_snap_item['listing_id'],
+                        quantity=_snap_item['quantity'],
+                        price_each=_snap_item['price_each'],
+                        buyer_id=buyer_id,
+                        buyer_username=_snap_buyer_username,
+                        buyer_email=_snap_buyer_email,
+                        payment_intent_id=pi_id,
+                    )
+                except Exception as _snap_err:
+                    _log.warning('[BID ACCEPT] snapshot write failed for order %s item %s: %s',
+                                 order_id, _snap_oi_id, _snap_err)
+
             cursor.execute(f'RELEASE SAVEPOINT {sp_name}')
             # ─────────────────────────────────────────────────────────────
 
@@ -474,10 +503,15 @@ def accept_bid(bucket_id):
                  WHERE id = ?
             ''', (bid_id,))
         else:
+            # Partial fill: reset bid_payment_status so a future seller can
+            # accept the remaining quantity. Leaving it 'charged' would
+            # permanently block re-acceptance (see guard at top of loop).
             cursor.execute('''
                 UPDATE bids
                    SET remaining_quantity = ?,
-                       status = 'Partially Filled'
+                       status = 'Partially Filled',
+                       bid_payment_status = 'pending',
+                       bid_payment_intent_id = NULL
                  WHERE id = ?
             ''', (new_remaining, bid_id))
 

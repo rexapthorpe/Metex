@@ -229,6 +229,37 @@
                 {% endif %}
               {% endif %}
             {% endif %}
+            {# ── Dispute controls ─────────────────────────────────────── #}
+            {% set ds = order.dispute_status %}
+            {% set active_ds = ds in ('open', 'evidence_requested', 'under_review', 'escalated') %}
+            {% if not is_canceled %}
+              {% if active_ds %}
+                <div class="order-dispute-bar order-dispute-bar--active">
+                  <i class="fa-solid fa-shield-halved"></i>
+                  <div>
+                    <div class="order-dispute-bar-title">Dispute Open</div>
+                    <div class="order-dispute-bar-sub">Status: {{ ds | replace('_', ' ') | title }}</div>
+                  </div>
+                </div>
+                <button class="order-quick-action"
+                        onclick="openDisputeEvidenceModal({{ order.id }}, {{ order.dispute_id }})">
+                  <i class="fa-solid fa-file-arrow-up"></i> Add Evidence
+                </button>
+              {% elif ds in ('resolved_refund', 'resolved_denied', 'resolved_partial', 'closed') %}
+                <div class="order-dispute-bar order-dispute-bar--resolved">
+                  <i class="fa-solid fa-circle-check"></i>
+                  <div>
+                    <div class="order-dispute-bar-title">Dispute Resolved</div>
+                    <div class="order-dispute-bar-sub">{{ ds | replace('_', ' ') | title }}</div>
+                  </div>
+                </div>
+              {% else %}
+                <button class="order-action-dispute"
+                        onclick="openDisputeModal({{ order.id }})">
+                  <i class="fa-solid fa-shield-halved"></i> Open Dispute
+                </button>
+              {% endif %}
+            {% endif %}
             <button
               class="order-action-report{% if order.report_status %} order-action-report--reported{% endif %}"
               {% if not order.report_status %}onclick="openReportUserModalForOrder({{ order.id }})"{% endif %}
@@ -290,6 +321,103 @@ function filterOrders(filter) {
 }
 window.filterOrders = filterOrders;
 
+/* ── Dispute Modal ─────────────────────────────────────────────────── */
+function openDisputeModal(orderId) {
+  var modal = document.getElementById('disputeOpenModal');
+  if (!modal) return;
+  modal.querySelector('#disputeOrderId').value = orderId;
+  modal.querySelector('#disputeType').value = '';
+  modal.querySelector('#disputeDescription').value = '';
+  modal.querySelector('#disputeErrorMsg').textContent = '';
+  modal.style.display = 'flex';
+}
+window.openDisputeModal = openDisputeModal;
+
+function closeDisputeModal() {
+  var modal = document.getElementById('disputeOpenModal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeDisputeModal = closeDisputeModal;
+
+function submitDisputeForm() {
+  var modal = document.getElementById('disputeOpenModal');
+  var orderId = modal.querySelector('#disputeOrderId').value;
+  var disputeType = modal.querySelector('#disputeType').value;
+  var description = modal.querySelector('#disputeDescription').value;
+  var errEl = modal.querySelector('#disputeErrorMsg');
+  errEl.textContent = '';
+
+  if (!disputeType) { errEl.textContent = 'Please select a dispute type.'; return; }
+  if (!description || description.trim().length < 10) { errEl.textContent = 'Description must be at least 10 characters.'; return; }
+
+  var formData = new FormData();
+  formData.append('order_id', orderId);
+  formData.append('dispute_type', disputeType);
+  formData.append('description', description.trim());
+
+  fetch('/disputes/open', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        closeDisputeModal();
+        location.reload();
+      } else {
+        errEl.textContent = data.error || 'Something went wrong.';
+      }
+    })
+    .catch(function() { errEl.textContent = 'Network error. Please try again.'; });
+}
+window.submitDisputeForm = submitDisputeForm;
+
+/* ── Dispute Evidence Modal ────────────────────────────────────────── */
+function openDisputeEvidenceModal(orderId, disputeId) {
+  var modal = document.getElementById('disputeEvidenceModal');
+  if (!modal) return;
+  modal.querySelector('#evidenceDisputeId').value = disputeId;
+  modal.querySelector('#evidenceType').value = 'photo';
+  modal.querySelector('#evidenceNote').value = '';
+  modal.querySelector('#evidenceFile').value = '';
+  modal.querySelector('#evidenceErrorMsg').textContent = '';
+  modal.style.display = 'flex';
+}
+window.openDisputeEvidenceModal = openDisputeEvidenceModal;
+
+function closeDisputeEvidenceModal() {
+  var modal = document.getElementById('disputeEvidenceModal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeDisputeEvidenceModal = closeDisputeEvidenceModal;
+
+function submitEvidenceForm() {
+  var modal = document.getElementById('disputeEvidenceModal');
+  var disputeId = modal.querySelector('#evidenceDisputeId').value;
+  var note = modal.querySelector('#evidenceNote').value;
+  var evidenceType = modal.querySelector('#evidenceType').value;
+  var fileInput = modal.querySelector('#evidenceFile');
+  var errEl = modal.querySelector('#evidenceErrorMsg');
+  errEl.textContent = '';
+
+  if (!note.trim() && (!fileInput.files || !fileInput.files.length)) {
+    errEl.textContent = 'Please add a note or attach a file.'; return;
+  }
+
+  var formData = new FormData();
+  formData.append('evidence_type', evidenceType);
+  formData.append('note', note.trim());
+  if (fileInput.files && fileInput.files.length) {
+    formData.append('evidence_file', fileInput.files[0]);
+  }
+
+  fetch('/disputes/' + disputeId + '/evidence', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) { closeDisputeEvidenceModal(); alert('Evidence submitted successfully.'); }
+      else { errEl.textContent = data.error || 'Something went wrong.'; }
+    })
+    .catch(function() { errEl.textContent = 'Network error. Please try again.'; });
+}
+window.submitEvidenceForm = submitEvidenceForm;
+
 function openReportUserModalForOrder(orderId) {
   fetch('/orders/api/' + orderId + '/message_sellers')
     .then(function(res) { return res.json(); })
@@ -310,3 +438,71 @@ function openReportUserModalForOrder(orderId) {
 }
 window.openReportUserModalForOrder = openReportUserModalForOrder;
 </script>
+
+<!-- ── Open Dispute Modal ─────────────────────────────────────────────── -->
+<div id="disputeOpenModal" class="dispute-modal-overlay" style="display:none;" onclick="if(event.target===this)closeDisputeModal()">
+  <div class="dispute-modal">
+    <div class="dispute-modal-header">
+      <h3><i class="fa-solid fa-shield-halved"></i> Open a Dispute</h3>
+      <button class="dispute-modal-close" onclick="closeDisputeModal()">&times;</button>
+    </div>
+    <div class="dispute-modal-body">
+      <p class="dispute-modal-intro">Describe the issue with your order. Disputes must be opened within 30 days of placing the order.</p>
+      <input type="hidden" id="disputeOrderId">
+      <div class="dispute-field">
+        <label for="disputeType">Issue Type</label>
+        <select id="disputeType">
+          <option value="">— Select a type —</option>
+          <option value="not_received">Item Not Received</option>
+          <option value="not_as_described">Item Not as Described</option>
+          <option value="wrong_item">Wrong Item Received</option>
+          <option value="counterfeit">Counterfeit Item</option>
+        </select>
+      </div>
+      <div class="dispute-field">
+        <label for="disputeDescription">Description</label>
+        <textarea id="disputeDescription" rows="4" placeholder="Describe the problem in detail (min. 10 characters)…"></textarea>
+      </div>
+      <p id="disputeErrorMsg" class="dispute-error"></p>
+    </div>
+    <div class="dispute-modal-footer">
+      <button class="dispute-btn dispute-btn--cancel" onclick="closeDisputeModal()">Cancel</button>
+      <button class="dispute-btn dispute-btn--submit" onclick="submitDisputeForm()">Submit Dispute</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Evidence Modal ─────────────────────────────────────────────── -->
+<div id="disputeEvidenceModal" class="dispute-modal-overlay" style="display:none;" onclick="if(event.target===this)closeDisputeEvidenceModal()">
+  <div class="dispute-modal">
+    <div class="dispute-modal-header">
+      <h3><i class="fa-solid fa-file-arrow-up"></i> Add Evidence</h3>
+      <button class="dispute-modal-close" onclick="closeDisputeEvidenceModal()">&times;</button>
+    </div>
+    <div class="dispute-modal-body">
+      <input type="hidden" id="evidenceDisputeId">
+      <div class="dispute-field">
+        <label for="evidenceType">Evidence Type</label>
+        <select id="evidenceType">
+          <option value="photo">Photo</option>
+          <option value="tracking_info">Tracking Info</option>
+          <option value="message_screenshot">Message Screenshot</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="dispute-field">
+        <label for="evidenceFile">Attach File (optional)</label>
+        <input type="file" id="evidenceFile" accept="image/png,image/jpeg,image/webp,image/heic">
+      </div>
+      <div class="dispute-field">
+        <label for="evidenceNote">Note</label>
+        <textarea id="evidenceNote" rows="3" placeholder="Add context or explanation…"></textarea>
+      </div>
+      <p id="evidenceErrorMsg" class="dispute-error"></p>
+    </div>
+    <div class="dispute-modal-footer">
+      <button class="dispute-btn dispute-btn--cancel" onclick="closeDisputeEvidenceModal()">Cancel</button>
+      <button class="dispute-btn dispute-btn--submit" onclick="submitEvidenceForm()">Submit Evidence</button>
+    </div>
+  </div>
+</div>

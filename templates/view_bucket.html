@@ -485,22 +485,7 @@
           <span class="qty-available" id="qtyAvailable">Only {{ availability['total_available'] }} left</span>
         </div>
 
-        <!-- Grading Preference Toggle -->
-        <section class="grading-tile" aria-label="Third-Party Grading" style="margin-top: 16px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
-            <div style="flex: 1;">
-              <div style="font-weight: 600; font-size: 14px; color: #111827;">Require 3rd-party grading</div>
-              <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Professional certification (+$70/item)</div>
-            </div>
-            <label class="toggle" style="margin-left: 16px;">
-              <input type="checkbox" id="tpgToggle" autocomplete="off">
-              <span class="slider"></span>
-            </label>
-          </div>
-        </section>
-
         <input type="hidden" id="quantityInput" name="quantity" value="1">
-        <input type="hidden" id="tpgInput" name="third_party_grading" value="0">
 
         <!-- Hidden random year input -->
         <input type="hidden" id="randomYearInput" name="random_year" value="{{ '1' if random_year else '0' }}">
@@ -538,12 +523,9 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="bucket_id" value="{{ bucket['bucket_id'] }}">
             <input type="hidden" name="quantity" id="buyQuantityInput">
-            <input type="hidden" name="third_party_grading" id="buyTPG" value="0">
-            <input type="hidden" name="grading_preference" id="buyGradingPref" value="NONE">
-            <!-- grading_preference synced by syncQuantityAndTPG -->
             <!-- Random Year mode -->
             <input type="hidden" name="random_year" id="buyRandomYear" value="{{ '1' if random_year else '0' }}">
-            <button type="submit" class="btn buy-btn" onclick="syncQuantityAndTPG('buyQuantityInput', 'buyTPG')">Buy Item</button>
+            <button type="submit" class="btn buy-btn" onclick="syncQuantity('buyQuantityInput')">Buy Item</button>
           </form>
 
           <!-- NEW: Opens unified bid modal for creating bid -->
@@ -555,8 +537,6 @@
           <form method="POST" action="{{ url_for('buy.auto_fill_bucket_purchase', bucket_id=bucket['bucket_id']) }}" class="action-buttons">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
-            <input type="hidden" name="third_party_grading" id="cartTPG" value="0">
-            <input type="hidden" name="grading_preference" id="cartGradingPref" value="NONE">
             <input type="hidden" name="random_year" value="{{ '1' if random_year else '0' }}">
             <button type="submit" class="btn add-cart-btn" onclick="syncQuantityAndTPG('cartQuantityInput', 'cartTPG')">Add to Cart</button>
           </form>

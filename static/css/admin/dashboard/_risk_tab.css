@@ -1,0 +1,220 @@
+/* ============================================
+   ADMIN USER RISK TAB (Phase 4)
+   ============================================ */
+
+/* Risk flag badges */
+.risk-flag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.risk-flag-none {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.risk-flag-watch {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.risk-flag-restricted {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.risk-flag-suspended {
+  background: #7f1d1d;
+  color: #ffffff;
+}
+
+/* Risk score bar */
+.risk-score-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.risk-score-bar-track {
+  flex: 1;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  max-width: 80px;
+}
+
+.risk-score-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.risk-score-bar-fill.score-low    { background: #22c55e; }
+.risk-score-bar-fill.score-medium { background: #f59e0b; }
+.risk-score-bar-fill.score-high   { background: #ef4444; }
+
+.risk-score-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a2e;
+  min-width: 28px;
+  text-align: right;
+}
+
+/* Risk detail sections */
+.risk-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.risk-detail-card {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.risk-detail-card h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+}
+
+.risk-stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+
+.risk-stat-row:last-child {
+  border-bottom: none;
+}
+
+.risk-stat-label {
+  color: #6b7280;
+}
+
+.risk-stat-value {
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+/* Risk events timeline */
+.risk-events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.risk-event-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.risk-event-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.risk-event-icon.type-score_updated { background: #dbeafe; color: #3b82f6; }
+.risk-event-icon.type-auto_flagged  { background: #fef3c7; color: #d97706; }
+.risk-event-icon.type-manual_flagged{ background: #fee2e2; color: #dc2626; }
+.risk-event-icon.type-flag_cleared  { background: #dcfce7; color: #16a34a; }
+
+.risk-event-content {
+  flex: 1;
+}
+
+.risk-event-type {
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 2px;
+}
+
+.risk-event-note {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.risk-event-meta {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 3px;
+}
+
+/* Admin controls section */
+.risk-admin-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Notes section */
+.risk-notes-section {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 16px;
+}
+
+.risk-notes-section h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
+}
+
+.risk-notes-section p {
+  font-size: 13px;
+  color: #78350f;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* stat icon colors */
+.stat-icon-yellow {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+/* Repeat Offenders button */
+.admin-action-btn--warning {
+  background: #fef3c7;
+  color: #d97706;
+  border-color: #fde68a;
+}
+
+.admin-action-btn--warning:hover {
+  background: #fde68a;
+}

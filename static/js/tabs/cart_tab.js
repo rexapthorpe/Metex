@@ -131,11 +131,12 @@ function handleQuantityChange(e) {
 
     if (summaryQtyEl)    summaryQtyEl.textContent    = data.quantity;
     if (summaryAvgEl)    summaryAvgEl.textContent     = formatPrice(data.avg_price);
-    if (summaryGradFeeEl) summaryGradFeeEl.textContent = formatPrice(data.grading_fee || 0);
+    // Phase 0A: grading fee always 0 — grading display elements are removed from template
+    if (summaryGradFeeEl) summaryGradFeeEl.textContent = formatPrice(0);
     if (summaryGradLblEl) summaryGradLblEl.textContent = `3rd Party Grading (×${data.quantity})`;
 
-    // Bucket subtotal = merchandise + grading (both from backend, no client math)
-    const bucketSubtotal = data.total_price + (data.grading_fee || 0);
+    // Bucket subtotal = merchandise total only (no grading fee)
+    const bucketSubtotal = data.total_price;
     if (summarySubEl) {
       summarySubEl.textContent = formatPrice(bucketSubtotal);
       cartTabBucketTotals[bucketId] = bucketSubtotal;

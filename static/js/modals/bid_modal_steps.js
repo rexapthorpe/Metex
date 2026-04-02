@@ -253,12 +253,10 @@
 
     const itemTotal  = price * qty;
 
-    // 3rd party grading fee: $70/item when grading is requested
-    const reqEl  = document.getElementById('requires_grading');
-    const hasGrading = reqEl && reqEl.value === 'yes';
-    const gradingFee = hasGrading ? 70.00 * qty : 0;
+    // Phase 0A: grading deactivated — no grading fee
+    const gradingFee = 0;
 
-    const subtotal = itemTotal + gradingFee;
+    const subtotal = itemTotal;
     const tax      = subtotal * 0.0825;
 
     // Processing fee: free for ACH, 2.99% for card/debit
@@ -282,17 +280,9 @@
       feeEl.classList.toggle('bm-review-fee--free', isACH);
     }
 
-    // Grading fee row (lives in the top/inputs section)
+    // Phase 0A: grading row always hidden
     const gradingRow = document.getElementById('rv-grading-row');
-    if (gradingRow) {
-      if (hasGrading) {
-        setText('rv-grading-label', `3rd Party Grading ×${qty}`);
-        setText('rv-grading', fmt(gradingFee));
-        gradingRow.style.display = '';
-      } else {
-        gradingRow.style.display = 'none';
-      }
-    }
+    if (gradingRow) gradingRow.style.display = 'none';
 
     setText('rv-total', fmt(total));
 

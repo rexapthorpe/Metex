@@ -13,7 +13,8 @@
 
   {# ── Hidden inputs (managed by JS) ── #}
   {% if bid %}<input type="hidden" name="bid_id" value="{{ bid.id }}">{% endif %}
-  <input type="hidden" name="requires_grading" id="requires_grading" value="{{ 'yes' if bid and bid.requires_grading else 'no' }}">
+  {# Phase 0A: grading deactivated — always send 'no' #}
+  <input type="hidden" name="requires_grading" id="requires_grading" value="no">
   <input type="hidden" name="payment_method" id="payment_method" value="credit_card">
   <input type="hidden" name="selected_payment_method_id" id="selected-pm-id"
          value="{{ saved_cards[0].id if saved_cards else '' }}">
@@ -191,16 +192,6 @@
       </div>
       {% endif %}
 
-      <div class="bm-toggle-row">
-        <div class="bm-toggle-left">
-          <div class="bm-toggle-title">Require 3rd-party grading</div>
-          <div class="bm-toggle-desc">Only match listings that are professionally graded (+$70/item)</div>
-        </div>
-        <label class="bm-switch">
-          <input type="checkbox" id="require_tpg_bid" {% if bid and bid.requires_grading %}checked{% endif %}>
-          <span class="bm-slider"></span>
-        </label>
-      </div>
     </div>
 
     {# ══════════════════════════════════════════
@@ -351,10 +342,6 @@
         <div class="bm-review-line">
           <span>Quantity</span>
           <span id="rv-qty">×1</span>
-        </div>
-        <div class="bm-review-line" id="rv-grading-row" style="display:none;">
-          <span id="rv-grading-label">3rd Party Grading</span>
-          <span id="rv-grading">$0.00</span>
         </div>
         <div class="bm-review-sep"></div>
         <div class="bm-review-line">

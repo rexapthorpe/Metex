@@ -29,15 +29,11 @@ function requireAuthForBid(bucketId, bidId) {
   openBidModal(bucketId, bidId);
 }
 
-// Sync quantity and TPG to form hidden inputs
+// Sync quantity to form hidden input (Phase 0A: TPG removed)
 function syncQuantityAndTPG(quantityTargetId, tpgTargetId) {
   const quantityValue = document.getElementById('buyQtyValue').textContent;
-  // Read directly from the checkbox to avoid relying on the change event having fired
-  const tpgToggle = document.getElementById('tpgToggle');
-  const tpgValue = (tpgToggle && tpgToggle.checked) ? '1' : '0';
-
   document.getElementById(quantityTargetId).value = quantityValue;
-  document.getElementById(tpgTargetId).value = tpgValue;
+  // tpgTargetId no longer used — grading deactivated
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -70,16 +66,6 @@ document.addEventListener('DOMContentLoaded', function() {
           this.style.borderColor = '#1976d2';
         }
       });
-    });
-  }
-
-  // ========== TPG TOGGLE HANDLER ==========
-  const tpgToggle = document.getElementById('tpgToggle');
-  const tpgInput = document.getElementById('tpgInput');
-
-  if (tpgToggle && tpgInput) {
-    tpgToggle.addEventListener('change', function() {
-      tpgInput.value = this.checked ? '1' : '0';
     });
   }
 

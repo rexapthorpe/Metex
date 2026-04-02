@@ -88,9 +88,6 @@
               {% else %}
                 <span class="sold-type-badge sold-type-badge--standard"><i class="fa-solid fa-circle-dot"></i> Standard</span>
               {% endif %}
-              {% if sale.third_party_grading_requested %}
-                <span class="sold-type-badge sold-type-badge--tpg"><i class="fa-solid fa-certificate"></i> TPG Required</span>
-              {% endif %}
             </div>
             <!-- Total Sale (right) -->
             <div class="sold-card-total">
@@ -380,28 +377,61 @@
                 data-order-date="{{ sale.order_date }}">
                 <i class="fa-solid fa-receipt"></i> Transaction
               </button>
-              {% if sale.third_party_grading_requested %}
-                {% set item_desc = [sale.weight, sale.year, sale.metal, sale.product_line, sale.product_type] | select | join(' ') %}
-                {% set grading_service = sale.grading_service_requested or 'PCGS' %}
-                {% set service_addr = grading_service_addresses.get(grading_service, grading_service_addresses['PCGS']) %}
-                <button
-                  class="order-quick-action"
-                  onclick="openGradingInstructionsModal(this)"
-                  data-order-id="{{ sale.order_id }}"
-                  data-item-description="{{ item_desc }}"
-                  data-quantity="{{ sale.quantity }}"
-                  data-grading-service="{{ grading_service }}"
-                  data-service-name="{{ service_addr.name }}"
-                  data-service-line1="{{ service_addr.line1 }}"
-                  data-service-line2="{{ service_addr.line2 }}"
-                  data-service-city="{{ service_addr.city }}"
-                  data-service-state="{{ service_addr.state }}"
-                  data-service-zip="{{ service_addr.zip }}"
-                  data-buyer-name="{{ sale.shipping_name if sale.shipping_name else '—' }}"
-                  data-buyer-address="{{ sale.delivery_address if sale.delivery_address else '' }}"
-                >
-                  <i class="fas fa-certificate"></i> Grading
+              {# ── Dispute controls (seller view) ───────────────────── #}
+              {% set ds = sale.dispute_status %}
+              {% if ds in ('open', 'evidence_requested') %}
+                <div class="order-actions-divider"></div>
+                <div class="order-dispute-bar order-dispute-bar--seller">
+                  <i class="fa-solid fa-shield-halved"></i>
+                  <div>
+                    <div class="order-dispute-bar-title">Dispute: {{ ds | replace('_', ' ') | title }}</div>
+                    <div class="order-dispute-bar-sub">Buyer has opened a dispute — please respond</div>
+                  </div>
+                </div>
+                <button class="order-quick-action order-quick-action--dispute"
+                        onclick="openSellerRespondModal({{ sale.order_id }}, {{ sale.dispute_id }})">
+                  <i class="fa-solid fa-reply"></i> Respond to Dispute
                 </button>
+              {% elif ds == 'under_review' %}
+                <div class="order-actions-divider"></div>
+                <div class="order-dispute-bar order-dispute-bar--review">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <div>
+                    <div class="order-dispute-bar-title">Dispute Under Review</div>
+                    <div class="order-dispute-bar-sub">Your response has been received</div>
+                  </div>
+                </div>
+                <button class="order-quick-action"
+                        onclick="openSellerEvidenceModal({{ sale.order_id }}, {{ sale.dispute_id }})">
+                  <i class="fa-solid fa-file-arrow-up"></i> Add Evidence
+                </button>
+              {% elif ds in ('escalated',) %}
+                <div class="order-actions-divider"></div>
+                <div class="order-dispute-bar order-dispute-bar--escalated">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <div>
+                    <div class="order-dispute-bar-title">Dispute Escalated</div>
+                    <div class="order-dispute-bar-sub">Under admin review</div>
+                  </div>
+                </div>
+              {% elif ds and ds.startswith('resolved') %}
+                <div class="order-actions-divider"></div>
+                <div class="order-dispute-bar order-dispute-bar--resolved">
+                  <i class="fa-solid fa-circle-check"></i>
+                  <div>
+                    <div class="order-dispute-bar-title">Dispute Resolved</div>
+                    <div class="order-dispute-bar-sub">{{ ds | replace('_', ' ') | title }}</div>
+                  </div>
+                </div>
+              {% elif ds == 'closed' %}
+                <div class="order-actions-divider"></div>
+                <div class="order-dispute-bar order-dispute-bar--resolved">
+                  <i class="fa-solid fa-circle-xmark"></i>
+                  <div>
+                    <div class="order-dispute-bar-title">Dispute Closed</div>
+                    <div class="order-dispute-bar-sub">Closed by admin</div>
+                  </div>
+                </div>
               {% endif %}
               <div class="order-actions-divider"></div>
               <button class="order-action-report" onclick="openReportUserModalForSale({{ sale.order_id }})">
@@ -480,62 +510,6 @@
         Order #<span id="txnOrderId"></span>
       </div>
       <div class="txn-payout-badge" id="txnPayoutBadge"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Third-Party Grading Instructions Modal (preserved from original) -->
-<div id="gradingInstructionsModal" class="buy-modal-overlay" style="display: none;" onclick="closeGradingInstructionsModalOnOverlayClick(event)">
-  <div class="buy-modal-dialog" style="max-width: 700px;">
-    <button type="button" class="modal-close" onclick="closeGradingInstructionsModal()" aria-label="Close">&times;</button>
-    <div class="modal-header">
-      <h2>Third-Party Grading Instructions</h2>
-      <p style="margin: 8px 0 0 0; font-size: 14px; color: #6b7280;">Order #<span id="grading-order-id">—</span></p>
-    </div>
-    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-      <div style="margin-bottom: 24px;">
-        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Order Summary</h3>
-        <p style="margin-bottom: 12px; font-size: 14px; color: #4b5563; line-height: 1.6;">This order includes a third-party grading service requested by the buyer. You must ship the coin directly to the grading service.</p>
-        <div style="background: #f9fafb; padding: 12px; border-radius: 6px; font-size: 13px;">
-          <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 4px;">
-            <span style="font-weight: 600; color: #374151;">Item:</span>
-            <span id="grading-item-description" style="color: #6b7280;">—</span>
-          </div>
-          <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px;">
-            <span style="font-weight: 600; color: #374151;">Quantity:</span>
-            <span id="grading-quantity" style="color: #6b7280;">—</span>
-          </div>
-        </div>
-      </div>
-      <div style="margin-bottom: 24px;">
-        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Ship To (Grading Service)</h3>
-        <div style="background: #fffbeb; border: 2px solid #fbbf24; border-radius: 8px; padding: 16px;">
-          <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #92400e;">Ship your item to this address:</p>
-          <div id="grading-service-address" style="font-size: 14px; color: #1f2937; line-height: 1.8;">
-            <div id="grading-service-name" style="font-weight: 700;">—</div>
-            <div id="grading-service-line1">—</div>
-            <div id="grading-service-line2"></div>
-            <div><span id="grading-service-city">—</span>, <span id="grading-service-state">—</span> <span id="grading-service-zip">—</span></div>
-          </div>
-        </div>
-      </div>
-      <div style="margin-bottom: 24px;">
-        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Final Recipient (After Grading)</h3>
-        <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; font-size: 14px; color: #1f2937; line-height: 1.8;">
-          <div id="buyer-name" style="font-weight: 700; margin-bottom: 8px;">—</div>
-          <div id="buyer-address-line1">—</div>
-          <div id="buyer-address-line2"></div>
-          <div><span id="buyer-city">—</span>, <span id="buyer-state">—</span> <span id="buyer-zip">—</span></div>
-        </div>
-      </div>
-      <div id="grading-submission-ref-section" style="display: none; margin-bottom: 16px;">
-        <div style="background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; padding: 12px;">
-          <p style="margin: 0; font-size: 13px; color: #1e40af;"><strong>Metex Grading Submission ID:</strong> <span id="grading-submission-ref" style="font-family: monospace; font-weight: 600;">—</span></p>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding: 16px 20px; background: #f9fafb;">
-      <button type="button" class="btn btn-secondary" onclick="closeGradingInstructionsModal()">Close</button>
     </div>
   </div>
 </div>
@@ -664,4 +638,154 @@ function closeTxnModalOnOverlay(e) {
 
 window.openTransactionDetailsModal  = openTransactionDetailsModal;
 window.closeTransactionDetailsModal = closeTransactionDetailsModal;
+
+/* ── Seller Dispute Response Modal ───────────────────────────────── */
+function openSellerRespondModal(orderId, disputeId) {
+  var modal = document.getElementById('sellerRespondModal');
+  if (!modal) return;
+  modal.querySelector('#respondDisputeId').value = disputeId;
+  modal.querySelector('#respondNote').value = '';
+  modal.querySelector('#respondFile').value = '';
+  modal.querySelector('#respondErrorMsg').textContent = '';
+  modal.style.display = 'flex';
+}
+window.openSellerRespondModal = openSellerRespondModal;
+
+function closeSellerRespondModal() {
+  var modal = document.getElementById('sellerRespondModal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeSellerRespondModal = closeSellerRespondModal;
+
+function submitSellerResponse() {
+  var modal = document.getElementById('sellerRespondModal');
+  var disputeId = modal.querySelector('#respondDisputeId').value;
+  var note = modal.querySelector('#respondNote').value;
+  var fileInput = modal.querySelector('#respondFile');
+  var errEl = modal.querySelector('#respondErrorMsg');
+  errEl.textContent = '';
+  if (!note || note.trim().length < 5) { errEl.textContent = 'Please enter a response of at least 5 characters.'; return; }
+
+  var formData = new FormData();
+  formData.append('note', note.trim());
+  if (fileInput.files && fileInput.files.length) {
+    formData.append('evidence_file', fileInput.files[0]);
+  }
+  fetch('/disputes/' + disputeId + '/respond', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) { closeSellerRespondModal(); location.reload(); }
+      else { errEl.textContent = data.error || 'Something went wrong.'; }
+    })
+    .catch(function() { errEl.textContent = 'Network error. Please try again.'; });
+}
+window.submitSellerResponse = submitSellerResponse;
+
+/* ── Seller Add Evidence Modal ───────────────────────────────────── */
+function openSellerEvidenceModal(orderId, disputeId) {
+  var modal = document.getElementById('sellerEvidenceModal');
+  if (!modal) return;
+  modal.querySelector('#sellerEvidenceDisputeId').value = disputeId;
+  modal.querySelector('#sellerEvidenceType').value = 'photo';
+  modal.querySelector('#sellerEvidenceNote').value = '';
+  modal.querySelector('#sellerEvidenceFile').value = '';
+  modal.querySelector('#sellerEvidenceErrorMsg').textContent = '';
+  modal.style.display = 'flex';
+}
+window.openSellerEvidenceModal = openSellerEvidenceModal;
+
+function closeSellerEvidenceModal() {
+  var modal = document.getElementById('sellerEvidenceModal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeSellerEvidenceModal = closeSellerEvidenceModal;
+
+function submitSellerEvidence() {
+  var modal = document.getElementById('sellerEvidenceModal');
+  var disputeId = modal.querySelector('#sellerEvidenceDisputeId').value;
+  var note = modal.querySelector('#sellerEvidenceNote').value;
+  var evidenceType = modal.querySelector('#sellerEvidenceType').value;
+  var fileInput = modal.querySelector('#sellerEvidenceFile');
+  var errEl = modal.querySelector('#sellerEvidenceErrorMsg');
+  errEl.textContent = '';
+  if (!note.trim() && (!fileInput.files || !fileInput.files.length)) {
+    errEl.textContent = 'Please add a note or attach a file.'; return;
+  }
+  var formData = new FormData();
+  formData.append('evidence_type', evidenceType);
+  formData.append('note', note.trim());
+  if (fileInput.files && fileInput.files.length) {
+    formData.append('evidence_file', fileInput.files[0]);
+  }
+  fetch('/disputes/' + disputeId + '/evidence', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) { closeSellerEvidenceModal(); alert('Evidence submitted.'); }
+      else { errEl.textContent = data.error || 'Something went wrong.'; }
+    })
+    .catch(function() { errEl.textContent = 'Network error. Please try again.'; });
+}
+window.submitSellerEvidence = submitSellerEvidence;
 </script>
+
+<!-- ── Seller Respond to Dispute Modal ───────────────────────────────── -->
+<div id="sellerRespondModal" class="dispute-modal-overlay" style="display:none;" onclick="if(event.target===this)closeSellerRespondModal()">
+  <div class="dispute-modal">
+    <div class="dispute-modal-header">
+      <h3><i class="fa-solid fa-reply"></i> Respond to Dispute</h3>
+      <button class="dispute-modal-close" onclick="closeSellerRespondModal()">&times;</button>
+    </div>
+    <div class="dispute-modal-body">
+      <p class="dispute-modal-intro">Provide your response to the buyer's dispute. Your response will move the case to "Under Review".</p>
+      <input type="hidden" id="respondDisputeId">
+      <div class="dispute-field">
+        <label for="respondNote">Your Response</label>
+        <textarea id="respondNote" rows="4" placeholder="Explain your side of the situation (min. 5 characters)…"></textarea>
+      </div>
+      <div class="dispute-field">
+        <label for="respondFile">Attach Evidence (optional)</label>
+        <input type="file" id="respondFile" accept="image/png,image/jpeg,image/webp,image/heic">
+      </div>
+      <p id="respondErrorMsg" class="dispute-error"></p>
+    </div>
+    <div class="dispute-modal-footer">
+      <button class="dispute-btn dispute-btn--cancel" onclick="closeSellerRespondModal()">Cancel</button>
+      <button class="dispute-btn dispute-btn--submit" onclick="submitSellerResponse()">Submit Response</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Seller Add Evidence Modal ─────────────────────────────────────── -->
+<div id="sellerEvidenceModal" class="dispute-modal-overlay" style="display:none;" onclick="if(event.target===this)closeSellerEvidenceModal()">
+  <div class="dispute-modal">
+    <div class="dispute-modal-header">
+      <h3><i class="fa-solid fa-file-arrow-up"></i> Add Evidence</h3>
+      <button class="dispute-modal-close" onclick="closeSellerEvidenceModal()">&times;</button>
+    </div>
+    <div class="dispute-modal-body">
+      <input type="hidden" id="sellerEvidenceDisputeId">
+      <div class="dispute-field">
+        <label for="sellerEvidenceType">Evidence Type</label>
+        <select id="sellerEvidenceType">
+          <option value="photo">Photo</option>
+          <option value="tracking_info">Tracking Info</option>
+          <option value="message_screenshot">Message Screenshot</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="dispute-field">
+        <label for="sellerEvidenceFile">Attach File (optional)</label>
+        <input type="file" id="sellerEvidenceFile" accept="image/png,image/jpeg,image/webp,image/heic">
+      </div>
+      <div class="dispute-field">
+        <label for="sellerEvidenceNote">Note</label>
+        <textarea id="sellerEvidenceNote" rows="3" placeholder="Add context or explanation…"></textarea>
+      </div>
+      <p id="sellerEvidenceErrorMsg" class="dispute-error"></p>
+    </div>
+    <div class="dispute-modal-footer">
+      <button class="dispute-btn dispute-btn--cancel" onclick="closeSellerEvidenceModal()">Cancel</button>
+      <button class="dispute-btn dispute-btn--submit" onclick="submitSellerEvidence()">Submit Evidence</button>
+    </div>
+  </div>
+</div>

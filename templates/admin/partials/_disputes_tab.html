@@ -1,3 +1,4 @@
+      <!-- Stats Row -->
       <div class="stats-grid stats-grid-3">
         <div class="stat-card">
           <div class="stat-card-header">
@@ -6,7 +7,16 @@
               <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
           </div>
-          <div class="stat-value" id="disputeStatsOpen">0</div>
+          <div class="stat-value" id="disputeStatsOpen">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <span class="stat-label">Under Review</span>
+            <div class="stat-icon stat-icon-blue">
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+          </div>
+          <div class="stat-value" id="disputeStatsUnderReview">—</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-header">
@@ -15,98 +25,148 @@
               <i class="fa-solid fa-circle-check"></i>
             </div>
           </div>
-          <div class="stat-value" id="disputeStatsResolvedToday">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header">
-            <span class="stat-label">Avg. Resolution Time</span>
-            <div class="stat-icon stat-icon-blue">
-              <i class="fa-solid fa-clock"></i>
-            </div>
-          </div>
-          <div class="stat-value">2.4 days</div>
+          <div class="stat-value" id="disputeStatsResolvedToday">—</div>
         </div>
       </div>
 
-      <div class="section-header">
-        <h3>Active Disputes</h3>
+      <!-- Filter Bar -->
+      <div class="section-header" style="margin-top: 20px;">
+        <h3>Disputes</h3>
+      </div>
+      <div class="filter-bar" id="disputeFilterBar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+        <select id="disputeFilterStatus" class="form-select" style="min-width:140px;">
+          <option value="">All Statuses</option>
+          <option value="open">Open</option>
+          <option value="evidence_requested">Evidence Requested</option>
+          <option value="under_review">Under Review</option>
+          <option value="escalated">Escalated</option>
+          <option value="resolved_refund">Resolved — Refund</option>
+          <option value="resolved_denied">Resolved — Denied</option>
+          <option value="closed">Closed</option>
+        </select>
+        <select id="disputeFilterType" class="form-select" style="min-width:160px;">
+          <option value="">All Types</option>
+          <option value="not_received">Item Not Received</option>
+          <option value="not_as_described">Not as Described</option>
+          <option value="counterfeit">Counterfeit</option>
+          <option value="wrong_item">Wrong Item</option>
+        </select>
+        <input id="disputeFilterBuyer" type="text" placeholder="Buyer username" class="form-input" style="min-width:130px;">
+        <input id="disputeFilterSeller" type="text" placeholder="Seller username" class="form-input" style="min-width:130px;">
+        <button class="admin-action-btn" onclick="loadAdminDisputes()">
+          <i class="fa-solid fa-magnifying-glass"></i> Filter
+        </button>
       </div>
 
-      <div class="dispute-list" id="disputesList">
+      <!-- Disputes Table -->
+      <div id="adminDisputesList" style="overflow-x:auto;">
         <div class="dispute-loading">
           <i class="fa-solid fa-spinner fa-spin"></i>
           <span>Loading disputes...</span>
         </div>
       </div>
 
-      <!-- Empty state -->
-      <div class="dispute-empty" id="disputeEmpty" style="display: none;">
-        <div class="empty-state-icon">
-          <i class="fa-solid fa-circle-check"></i>
-        </div>
-        <h3>No Open Disputes</h3>
-        <p>There are no active disputes to review at this time.</p>
+      <!-- Empty State -->
+      <div class="dispute-empty" id="adminDisputesEmpty" style="display:none;">
+        <div class="empty-state-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>No Disputes Found</h3>
+        <p>No disputes match the current filters.</p>
       </div>
-    </div>
 
-    <!-- Report Details Modal -->
-    <div id="adminReportDetailsModal" class="admin-modal">
-      <div class="admin-modal-content admin-modal-lg">
-        <div class="admin-modal-header">
-          <h3>Report Details</h3>
-          <button class="admin-modal-close" onclick="closeAdminReportModal()">&times;</button>
-        </div>
-        <div class="admin-modal-body" id="adminReportDetailsBody">
-          <!-- Content populated by JS -->
-        </div>
-        <div class="admin-modal-footer" id="adminReportDetailsFooter">
-          <!-- Actions populated by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- User Stats Modal -->
-    <div id="adminUserStatsModal" class="admin-modal">
-      <div class="admin-modal-content">
-        <div class="admin-modal-header">
-          <h3>User Statistics</h3>
-          <button class="admin-modal-close" onclick="closeUserStatsModal()">&times;</button>
-        </div>
-        <div class="admin-modal-body" id="adminUserStatsBody">
-          <!-- Content populated by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Resolve Report Modal -->
-    <div id="adminResolveReportModal" class="admin-modal">
-      <div class="admin-modal-content">
-        <div class="admin-modal-header">
-          <h3>Resolve Report</h3>
-          <button class="admin-modal-close" onclick="closeResolveReportModal()">&times;</button>
-        </div>
-        <div class="admin-modal-body">
-          <div class="form-group">
-            <label>Resolution Status</label>
-            <select id="resolveReportStatus" class="form-select">
-              <option value="resolved">Resolved</option>
-              <option value="dismissed">Dismissed</option>
-            </select>
+      <!-- ═══════════ DISPUTE DETAIL MODAL ═══════════ -->
+      <div id="adminDisputeDetailModal" class="admin-modal" style="display:none;">
+        <div class="admin-modal-content admin-modal-xl">
+          <div class="admin-modal-header">
+            <h3 id="adminDisputeDetailTitle">Dispute #—</h3>
+            <button class="admin-modal-close" onclick="closeAdminDisputeDetail()">&times;</button>
           </div>
-          <div class="form-group">
-            <label>Resolution Note (visible to user)</label>
-            <textarea id="resolveReportNote" rows="3" placeholder="Explain the resolution..."></textarea>
+          <div class="admin-modal-body" id="adminDisputeDetailBody" style="max-height:70vh;overflow-y:auto;">
+            <!-- Populated by JS -->
           </div>
-          <div class="form-group">
-            <label>Admin Notes (internal only)</label>
-            <textarea id="resolveReportAdminNotes" rows="2" placeholder="Internal notes..."></textarea>
+          <div class="admin-modal-footer" id="adminDisputeDetailFooter">
+            <button class="btn-outline" onclick="closeAdminDisputeDetail()">Close</button>
           </div>
         </div>
-        <div class="admin-modal-footer">
-          <button class="btn-outline" onclick="closeResolveReportModal()">Cancel</button>
-          <button class="btn-primary" onclick="submitResolveReport()">
-            <i class="fa-solid fa-check"></i> Confirm Resolution
-          </button>
+      </div>
+
+      <!-- ═══════════ ACTION MODAL (status change + resolve) ═══════════ -->
+      <div id="adminDisputeActionModal" class="admin-modal" style="display:none;">
+        <div class="admin-modal-content">
+          <div class="admin-modal-header">
+            <h3 id="adminDisputeActionTitle">Dispute Action</h3>
+            <button class="admin-modal-close" onclick="closeAdminDisputeAction()">&times;</button>
+          </div>
+          <div class="admin-modal-body">
+            <input type="hidden" id="actionDisputeId">
+            <input type="hidden" id="actionMode"> <!-- 'status' or 'resolve' -->
+            <div class="form-group" id="actionStatusGroup" style="display:none;">
+              <label>New Status</label>
+              <select id="actionNewStatus" class="form-select">
+                <option value="evidence_requested">Request Evidence</option>
+                <option value="under_review">Mark Under Review</option>
+                <option value="escalated">Escalate</option>
+                <option value="open">Re-open (move back to Open)</option>
+              </select>
+            </div>
+            <div class="form-group" id="actionResolutionGroup" style="display:none;">
+              <label>Resolution</label>
+              <select id="actionResolution" class="form-select">
+                <option value="resolved_refund">Resolve — Issue Refund to Buyer</option>
+                <option value="resolved_denied">Resolve — Deny Claim</option>
+                <option value="closed">Close (administrative)</option>
+              </select>
+              <p style="margin-top:6px;font-size:12px;color:#6b7280;">
+                <strong>Note:</strong> "Issue Refund" triggers a full Stripe refund against the order's PaymentIntent. Partial refunds are not yet supported.
+              </p>
+            </div>
+            <div class="form-group">
+              <label id="actionNoteLabel">Note</label>
+              <textarea id="actionNote" rows="3" class="form-textarea" placeholder="Add a note for the timeline..."></textarea>
+              <p id="actionNoteHint" style="font-size:12px;color:#6b7280;margin-top:4px;"></p>
+            </div>
+            <p id="adminDisputeActionError" style="color:#ef4444;font-size:13px;margin-top:6px;"></p>
+          </div>
+          <div class="admin-modal-footer">
+            <button class="btn-outline" onclick="closeAdminDisputeAction()">Cancel</button>
+            <button class="btn-primary" id="adminDisputeActionSubmitBtn" onclick="submitDisputeAction()">
+              Confirm
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      <!-- ═══════════ NOTE MODAL ═══════════ -->
+      <div id="adminDisputeNoteModal" class="admin-modal" style="display:none;">
+        <div class="admin-modal-content">
+          <div class="admin-modal-header">
+            <h3>Add Internal Note</h3>
+            <button class="admin-modal-close" onclick="closeAdminDisputeNoteModal()">&times;</button>
+          </div>
+          <div class="admin-modal-body">
+            <input type="hidden" id="noteDisputeId">
+            <p style="font-size:13px;color:#6b7280;margin-bottom:12px;">This note is internal only — not visible to buyers or sellers.</p>
+            <div class="form-group">
+              <label>Note</label>
+              <textarea id="noteText" rows="4" class="form-textarea" placeholder="Internal admin note..."></textarea>
+            </div>
+            <p id="adminDisputeNoteError" style="color:#ef4444;font-size:13px;margin-top:6px;"></p>
+          </div>
+          <div class="admin-modal-footer">
+            <button class="btn-outline" onclick="closeAdminDisputeNoteModal()">Cancel</button>
+            <button class="btn-primary" onclick="submitDisputeNote()">Save Note</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ USER STATS MODAL (reused from original) ═══════════ -->
+      <div id="adminUserStatsModal" class="admin-modal" style="display:none;">
+        <div class="admin-modal-content">
+          <div class="admin-modal-header">
+            <h3>User Statistics</h3>
+            <button class="admin-modal-close" onclick="closeUserStatsModal()">&times;</button>
+          </div>
+          <div class="admin-modal-body" id="adminUserStatsBody">
+            <!-- Content populated by JS -->
+          </div>
+        </div>
+      </div>

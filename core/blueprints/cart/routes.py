@@ -388,7 +388,6 @@ def update_bucket_quantity(category_id):
     # Uses DB snapshots only; no external API calls.
     from services.pricing_service import get_effective_price
     from services.reference_price_service import get_current_spots_from_snapshots
-    from config import GRADING_FEE_PER_UNIT
     spot_prices = get_current_spots_from_snapshots(conn)
 
     # 1) Get current cart items for this category+grading bucket only.
@@ -419,7 +418,7 @@ def update_bucket_quantity(category_id):
     if target_qty == current_qty:
         existing_price = sum(item['quantity'] * item['effective_price'] for item in current_items)
         existing_avg = existing_price / current_qty if current_qty > 0 else 0.0
-        grading_fee = round(GRADING_FEE_PER_UNIT * current_qty, 2) if requires_grading else 0.0
+        grading_fee = 0.0  # Phase 0A: grading deactivated
         conn.close()
         return jsonify({
             'success': True,
@@ -541,7 +540,7 @@ def update_bucket_quantity(category_id):
         new_total_price += qty * effective_price
 
     new_avg_price = new_total_price / new_total_qty if new_total_qty > 0 else 0.0
-    grading_fee = round(GRADING_FEE_PER_UNIT * new_total_qty, 2) if requires_grading else 0.0
+    grading_fee = 0.0  # Phase 0A: grading deactivated
 
     conn.close()
 

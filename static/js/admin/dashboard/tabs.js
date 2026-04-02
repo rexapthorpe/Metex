@@ -64,5 +64,6 @@ function switchTab(tabId) {
     loadBucketStats();
     loadBuckets();
   }
+
 }
 

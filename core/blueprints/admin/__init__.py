@@ -36,6 +36,9 @@ from . import reports
 from . import orders
 from . import metrics
 from . import system
+from . import disputes  # Phase 3 — admin dispute adjudication
+from . import risk      # Phase 4 — user risk profiles
+from . import refunds   # Phase 5 — refunds tab + overview metrics
 
 # Re-export for compatibility
 __all__ = ['admin_bp']
