@@ -82,6 +82,7 @@ def test_db(tmp_path):
             payment_method TEXT,
             gross_amount REAL NOT NULL,
             platform_fee_amount REAL NOT NULL DEFAULT 0,
+            spread_capture_amount REAL NOT NULL DEFAULT 0.0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -99,6 +100,8 @@ def test_db(tmp_path):
             fee_value REAL NOT NULL DEFAULT 0,
             fee_amount REAL NOT NULL DEFAULT 0,
             seller_net_amount REAL NOT NULL,
+            buyer_unit_price REAL DEFAULT NULL,
+            spread_per_unit REAL NOT NULL DEFAULT 0.0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -111,6 +114,7 @@ def test_db(tmp_path):
             seller_gross_amount REAL NOT NULL,
             fee_amount REAL NOT NULL DEFAULT 0,
             seller_net_amount REAL NOT NULL,
+            spread_capture_amount REAL NOT NULL DEFAULT 0.0,
             scheduled_for TIMESTAMP,
             provider_transfer_id TEXT,
             provider_payout_id TEXT,

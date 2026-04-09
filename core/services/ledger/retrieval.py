@@ -127,6 +127,28 @@ def get_orders_ledger_list(
                 LEFT JOIN orders o ON o.id = ol.order_id
                 WHERE 1=1
             '''
+            # Try to also include tax columns (added by migration 031)
+            try:
+                conn.execute('SELECT tax_amount, buyer_card_fee FROM orders LIMIT 0')
+                query = '''
+                    SELECT ol.*, u.username as buyer_username,
+                           o.payment_method_type,
+                           o.payment_status,
+                           o.payout_status,
+                           o.refund_status,
+                           o.requires_payment_clearance,
+                           o.requires_payout_recovery,
+                           COALESCE(o.tax_amount, 0) AS tax_amount,
+                           COALESCE(o.buyer_card_fee, 0) AS buyer_card_fee,
+                           (SELECT COUNT(*) FROM order_items_ledger WHERE order_ledger_id = ol.id) as item_count,
+                           (SELECT COUNT(DISTINCT seller_id) FROM order_items_ledger WHERE order_ledger_id = ol.id) as seller_count
+                    FROM orders_ledger ol
+                    JOIN users u ON ol.buyer_id = u.id
+                    LEFT JOIN orders o ON o.id = ol.order_id
+                    WHERE 1=1
+                '''
+            except Exception:
+                pass  # pre-migration — no tax columns; keep extended query without them
         except Exception:
             pass  # Fall back to base query without extended columns
         params = []

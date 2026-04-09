@@ -44,6 +44,26 @@ def handle_sell_post():
             options = get_dropdown_options()
             return _render_sell_template(options)
 
+        # Enforce Stripe seller onboarding before allowing listing creation
+        _stripe_check_conn = get_db_connection()
+        _stripe_user = _stripe_check_conn.execute(
+            'SELECT stripe_charges_enabled, stripe_payouts_enabled FROM users WHERE id = ?',
+            (session['user_id'],)
+        ).fetchone()
+        _stripe_check_conn.close()
+        _stripe_ready = (
+            _stripe_user is not None and
+            bool(_stripe_user['stripe_charges_enabled']) and
+            bool(_stripe_user['stripe_payouts_enabled'])
+        )
+        if not _stripe_ready:
+            error_msg = 'You must complete seller payment setup before listing items.'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify(success=False, message=error_msg, error_code='stripe_not_ready'), 403
+            flash(error_msg, 'error')
+            options = get_dropdown_options()
+            return _render_sell_template(options)
+
         print(">>> /sell POST content_length:", request.content_length)
         print(">>> Content-Type:", request.headers.get("Content-Type"))
         print(">>> files keys:", list(request.files.keys()))

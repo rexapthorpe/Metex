@@ -159,6 +159,9 @@
             <div class="stripe-payout-status stripe-payout-status--active">
               <i class="fa-solid fa-circle-check"></i> Payouts enabled
             </div>
+            <div id="payoutBankList" class="pm-list" style="margin-top:12px;">
+              <div class="pm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
+            </div>
           {% elif user.stripe_account_id %}
             <p class="stripe-payout-sub">Your payout account setup is incomplete.</p>
             <a href="{{ url_for('stripe_connect.create_account_link') }}" class="btn-stripe">
@@ -364,6 +367,35 @@
         document.addEventListener('detailsSectionShown', function(e) {
           if (e.detail === 'payment') pmLoad();
         });
+
+        // ── Payout bank account (Stripe Connect) ──────────────────────────
+        var _payoutBankEl = document.getElementById('payoutBankList');
+        if (_payoutBankEl) {
+          fetch('/account/api/payout-bank-account')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (!data.success || !data.bank_account) {
+                _payoutBankEl.innerHTML = '';
+                return;
+              }
+              var b = data.bank_account;
+              var bankName = b.bank_name || 'Bank';
+              _payoutBankEl.innerHTML = [
+                '<div class="pm-card">',
+                '  <div class="pm-card-left">',
+                '    <i class="fa-solid fa-building-columns pm-brand-icon"></i>',
+                '    <div class="pm-card-info">',
+                '      <span class="pm-card-number">' + bankName + ' ••••' + b.last4 + '</span>',
+                b.routing_number
+                  ? '<span class="pm-card-exp">Routing ' + b.routing_number + '</span>'
+                  : '',
+                '    </div>',
+                '  </div>',
+                '</div>',
+              ].join('\n');
+            })
+            .catch(function() { _payoutBankEl.innerHTML = ''; });
+        }
       })();
       </script>
 

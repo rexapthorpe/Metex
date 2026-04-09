@@ -111,6 +111,8 @@
 .btn-action-green:hover { background: #a7f3d0; }
 .btn-action-nudge      { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
 .btn-action-nudge:hover { background: #dbeafe; }
+.btn-action-red        { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.btn-action-red:hover  { background: #fecaca; }
 
 /* XL Modal for Ledger Details */
 .admin-modal-xl {

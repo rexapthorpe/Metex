@@ -228,9 +228,20 @@
       const form      = document.getElementById('bid-form');
       const metalEl   = document.getElementById('bid-pricing-metal');
       const metal     = (metalEl ? metalEl.value : (form ? form.dataset.bucketMetal : '')) || '';
-      const weightStr = (form ? form.dataset.bucketWeight : '1') || '1';
-      const weightMatch = weightStr.toString().match(/[\d.]+/);
-      const weight    = weightMatch ? parseFloat(weightMatch[0]) : 1.0;
+      const weightStr = (form ? form.dataset.bucketWeight : '1 oz') || '1 oz';
+      // Parse weight to troy ounces — handles "1/10 oz", "5 g", "1 kilo", etc.
+      const weight = (() => {
+        const s = weightStr.trim();
+        const kiloM = s.match(/^(\d+(?:\.\d+)?)\s*kilo/i);
+        if (kiloM) return parseFloat(kiloM[1]) * (1000 / 31.1035);
+        const gramM = s.match(/^(\d+(?:\.\d+)?)\s*g\b/i);
+        if (gramM) return parseFloat(gramM[1]) / 31.1035;
+        const fracM = s.match(/^(\d+)\s*\/\s*(\d+)\s*oz/i);
+        if (fracM) return parseInt(fracM[1]) / parseInt(fracM[2]);
+        const ozM = s.match(/^(\d+(?:\.\d+)?)\s*oz/i);
+        if (ozM) return parseFloat(ozM[1]);
+        return 1;
+      })();
 
       // Fetch live spot price and calculate effective price = min(spot*weight + premium, ceiling)
       try {
@@ -256,14 +267,17 @@
     // Phase 0A: grading deactivated — no grading fee
     const gradingFee = 0;
 
-    const subtotal = itemTotal;
-    const tax      = subtotal * 0.0825;
+    const subtotal     = itemTotal;
+    // Tax is applied to subtotal first (8.25%)
+    const tax          = Math.round(subtotal * 0.0825 * 100) / 100;
+    const taxedSubtotal = subtotal + tax;
 
-    // Processing fee: free for ACH, 2.99% for card/debit
+    // Card processing fee is applied to the taxed subtotal (2.99% + $0.30).
+    // ACH bank transfers have no processing fee.
     const isACH = selectedPmType === 'bank_account';
-    const fee   = isACH ? 0 : subtotal * 0.0299;
+    const fee   = isACH ? 0 : Math.round((taxedSubtotal * 0.0299 + 0.30) * 100) / 100;
 
-    const total = subtotal + tax + fee;
+    const total = taxedSubtotal + fee;
 
     setText('rv-price-label', priceLabel);
     setText('rv-price-val',   fmt(price));

@@ -1,9 +1,14 @@
 // Make functions globally available
 window.switchTab = switchTab;
+window.openAdminSidebar = openAdminSidebar;
+window.closeAdminSidebar = closeAdminSidebar;
 window.exportData = exportData;
 window.refreshDashboard = refreshDashboard;
 window.openSettings = openSettings;
 window.openEmailTemplates = openEmailTemplates;
+window.emailTemplatePrev = emailTemplatePrev;
+window.emailTemplateNext = emailTemplateNext;
+window.closeEmailTemplatesModal = closeEmailTemplatesModal;
 window.openSecuritySettings = openSecuritySettings;
 window.openFeeConfig = openFeeConfig;
 window.closeFeeConfigModal = closeFeeConfigModal;

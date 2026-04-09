@@ -391,6 +391,22 @@ function initBidForm() {
     validateAll();
   }
 
+  // Parse a weight string (e.g. "1/10 oz", "5 g", "1 kilo") to troy ounces.
+  // Returns 1.0 as a safe fallback if absent or unparseable.
+  function parseWeightOz(str) {
+    if (!str) return 1;
+    str = str.trim();
+    const kiloM = str.match(/^(\d+(?:\.\d+)?)\s*kilo/i);
+    if (kiloM) return parseFloat(kiloM[1]) * (1000 / 31.1035);
+    const gramM = str.match(/^(\d+(?:\.\d+)?)\s*g\b/i);
+    if (gramM) return parseFloat(gramM[1]) / 31.1035;
+    const fracM = str.match(/^(\d+)\s*\/\s*(\d+)\s*oz/i);
+    if (fracM) return parseInt(fracM[1]) / parseInt(fracM[2]);
+    const ozM = str.match(/^(\d+(?:\.\d+)?)\s*oz/i);
+    if (ozM) return parseFloat(ozM[1]);
+    return 1;
+  }
+
   // Function to update effective bid price display
   function updateEffectiveBidPrice() {
     const premInput = document.getElementById('bid-spot-premium');
@@ -400,7 +416,13 @@ function initBidForm() {
     const premium = Number(premInput.value) || 0;
     const spotPriceText = currentSpotPriceElem.textContent.replace(/[^0-9.]/g, '');
     const spotPrice = Number(spotPriceText) || 0;
-    const rawEffective = spotPrice + premium;
+
+    const bidForm = document.getElementById('bid-form');
+    const weightStr = (bidForm && bidForm.dataset.bucketWeight) || '';
+    const weightOz = parseWeightOz(weightStr);
+    const weightLabel = weightStr || '1 oz';
+
+    const rawEffective = spotPrice * weightOz + premium;
 
     const ceilingInput = document.getElementById('bid-ceiling-price');
     const ceiling = ceilingInput ? Number(ceilingInput.value) : 0;
@@ -409,12 +431,12 @@ function initBidForm() {
 
     if (ceilingActive) {
       calcLine.innerHTML =
-        'Your bid: <span style="color:#d97706;font-weight:600;" title="Spot + premium ($' + formatWithCommas(rawEffective, 2) + ') exceeds your max — ceiling price applies">' +
+        'Your bid: <span style="color:#d97706;font-weight:600;" title="(Spot × ' + weightLabel + ') + premium ($' + formatWithCommas(rawEffective, 2) + ') exceeds your max — ceiling price applies">' +
         '<i class="fa-solid fa-circle-exclamation" style="font-size:11px;margin-right:3px;"></i>Capped at max price</span>' +
         ' = $<span id="effective-bid-price">' + formatWithCommas(effective, 2) + '</span>';
     } else {
       calcLine.innerHTML =
-        'Your bid: Spot + $<span id="premium-display">' + formatWithCommas(premium, 2) + '</span>' +
+        'Your bid: (Spot × ' + weightLabel + ') + $<span id="premium-display">' + formatWithCommas(premium, 2) + '</span>' +
         ' = $<span id="effective-bid-price">' + formatWithCommas(effective, 2) + '</span>';
     }
   }
@@ -627,6 +649,7 @@ function initBidForm() {
 
   /* ----- Initial validation ----- */
   validateAll();
+  updateEffectiveBidPrice();
 
   /* ----- Submit (AJAX) - intercepted for confirmation modal ----- */
   form.addEventListener('submit', (e) => {

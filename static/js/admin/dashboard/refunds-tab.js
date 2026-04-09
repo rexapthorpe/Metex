@@ -5,6 +5,13 @@
  * Read-only: refunds are created only by the dispute resolution flow.
  */
 
+// ── Column info icon — matches the existing col-help-btn / showColInfo(key) pattern ──
+function _refundColIcon(key) {
+  return '<button class="col-help-btn" type="button" title="What does this mean?" ' +
+    'onclick="if(typeof showColInfo===\'function\')showColInfo(\'' + key + '\')">' +
+    '<i class="fa-regular fa-circle-question"></i></button>';
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let refundsData = [];
 
@@ -155,15 +162,15 @@ function renderRefundsList(refunds) {
     <table class="data-table">
       <thead>
         <tr>
-          <th>Refund ID</th>
-          <th>Dispute</th>
-          <th>Order</th>
-          <th>Buyer</th>
-          <th>Seller</th>
-          <th>Amount</th>
-          <th>Provider Refund ID</th>
-          <th>Issued By</th>
-          <th>Issued At</th>
+          <th>Refund ID ${_refundColIcon('refund_id')}</th>
+          <th>Dispute ${_refundColIcon('refund_dispute')}</th>
+          <th>Order ${_refundColIcon('refund_order')}</th>
+          <th>Buyer ${_refundColIcon('refund_buyer')}</th>
+          <th>Seller ${_refundColIcon('refund_seller')}</th>
+          <th>Amount ${_refundColIcon('refund_amount')}</th>
+          <th>Provider Refund ID ${_refundColIcon('refund_provider_id')}</th>
+          <th>Issued By ${_refundColIcon('refund_issued_by')}</th>
+          <th>Issued At ${_refundColIcon('refund_issued_at')}</th>
           <th></th>
         </tr>
       </thead>
@@ -196,36 +203,144 @@ function viewRefundDetail(refundId) {
 }
 
 function renderRefundDetail(r) {
-  const rows = [
-    ['Refund ID',          `#${r.id}`],
-    ['Dispute ID',         r.dispute_id ? `#${r.dispute_id}` : '—'],
-    ['Order ID',           r.order_id   ? `#${r.order_id}`   : '—'],
-    ['Buyer',              r.buyer_username  || '—'],
-    ['Seller',             r.seller_username || '—'],
-    ['Amount',             `<strong style="color:#dc2626">${_fmtAmount(r.amount)}</strong>`],
-    ['Provider Refund ID', r.provider_refund_id ? `<code style="font-size:12px;">${escapeHtml(r.provider_refund_id)}</code>` : '—'],
-    ['Stripe PI ID',       r.stripe_payment_intent_id ? `<code style="font-size:12px;">${escapeHtml(r.stripe_payment_intent_id)}</code>` : '—'],
-    ['Issued By Admin',    r.issued_by_admin_username || String(r.issued_by_admin_id || '—')],
-    ['Issued At',          _fmtDateTime(r.issued_at)],
-    ['Note',               r.note ? escapeHtml(r.note) : '<em style="color:#6b7280">No note</em>'],
-  ];
+  // ── Status banner ──────────────────────────────────────────────────────────
+  const rs = r.refund_status || (r.amount ? 'refunded' : 'not_refunded');
+  const statusLabel = rs === 'refunded' ? 'Fully Refunded'
+                    : rs === 'partially_refunded' ? 'Partially Refunded'
+                    : 'Refunded';
+  const refundedAt = r.refunded_at ? r.refunded_at.slice(0, 16).replace('T', ' ') : _fmtDateTime(r.issued_at);
+  const statusBanner = `
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;
+                padding:12px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <i class="fa-solid fa-rotate-left" style="color:#dc2626;"></i>
+      <div>
+        <strong style="color:#dc2626;">${statusLabel}</strong>
+        <span style="font-size:12px;color:#9ca3af;margin-left:8px;">${refundedAt}</span>
+      </div>
+    </div>`;
 
-  const metaHtml = rows.map(([label, val]) => `
-    <div class="user-info-row">
-      <span class="user-info-label">${label}</span>
-      <span class="user-info-value">${val}</span>
-    </div>`).join('');
+  // ── Method & Recovery ──────────────────────────────────────────────────────
+  const stripeRefundId = r.stripe_refund_id || r.provider_refund_id || null;
+  const buyerRow = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f3f4f6;">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#374151;">A. Buyer Refund</div>
+        ${stripeRefundId ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;">Stripe: <code>${escapeHtml(stripeRefundId)}</code></div>` : ''}
+        ${r.refund_reason || r.note ? `<div style="font-size:12px;color:#6b7280;margin-top:1px;">Reason: ${escapeHtml(r.refund_reason || r.note)}</div>` : ''}
+      </div>
+      <span style="background:#dcfce7;color:#16a34a;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap;">
+        <i class="fa-solid fa-circle-check"></i> Succeeded
+      </span>
+    </div>`;
 
-  // Dispute context (if available)
-  const disputeHtml = r.dispute_id ? `
-    <div class="user-detail-section" style="margin-top:20px;">
+  // Per-seller recovery rows
+  const payouts = r.payouts || [];
+  const recoveryRows = payouts.map(p => {
+    const recStatus = p.payout_recovery_status || 'not_needed';
+    let badge = '';
+    if (recStatus === 'recovered') {
+      badge = `<span style="background:#dcfce7;color:#16a34a;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap;"><i class="fa-solid fa-circle-check"></i> Recovered</span>`;
+    } else if (recStatus === 'pending') {
+      badge = `<span style="background:#fef3c7;color:#d97706;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap;"><i class="fa-solid fa-clock"></i> Pending</span>`;
+    } else if (recStatus === 'manual_review') {
+      badge = `<span style="background:#fef2f2;color:#dc2626;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap;"><i class="fa-solid fa-triangle-exclamation"></i> Manual Review</span>`;
+    } else {
+      badge = `<span style="background:#f3f4f6;color:#6b7280;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap;">— Not Needed</span>`;
+    }
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f3f4f6;">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#374151;">B. Seller Recovery</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px;">
+            @${escapeHtml(p.seller_username || String(p.seller_id))}:
+            <span style="color:${recStatus === 'recovered' ? '#16a34a' : '#6b7280'}">${recStatus.replace(/_/g,' ')}</span>
+            ${p.provider_reversal_id ? `<code style="margin-left:4px;">${escapeHtml(p.provider_reversal_id)}</code>` : ''}
+          </div>
+          ${p.recovery_failure_reason ? `<div style="font-size:12px;color:#dc2626;margin-top:1px;">${escapeHtml(p.recovery_failure_reason)}</div>` : ''}
+        </div>
+        ${badge}
+      </div>`;
+  }).join('');
+
+  const platformCovered = parseFloat(r.platform_covered_amount || 0);
+  const platformRow = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
+      <div style="font-size:13px;font-weight:600;color:#374151;">C. Platform Coverage</div>
+      ${platformCovered > 0
+        ? `<span style="background:#ede9fe;color:#7c3aed;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">
+             <i class="fa-solid fa-shield-halved"></i> ${_fmtAmount(platformCovered)}
+           </span>`
+        : `<span style="background:#f3f4f6;color:#6b7280;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">— Not Used</span>`
+      }
+    </div>`;
+
+  const methodSection = `
+    <div style="background:#f9fafb;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:8px;">Refund Method &amp; Recovery Status</div>
+      ${buyerRow}
+      ${recoveryRows}
+      ${platformRow}
+    </div>`;
+
+  // ── Refund Breakdown ───────────────────────────────────────────────────────
+  const sub    = parseFloat(r.refund_subtotal || 0);
+  const tax    = parseFloat(r.refund_tax_amount || 0);
+  const fee    = parseFloat(r.refund_processing_fee || 0);
+  const total  = parseFloat(r.amount || 0);
+  const recovered = payouts.reduce((sum, p) =>
+    p.payout_recovery_status === 'recovered' ? sum + parseFloat(p.seller_net_amount || 0) : sum, 0);
+
+  function _bkRow(label, val, opts = {}) {
+    const color = opts.color || '#1a1a2e';
+    const bold  = opts.bold ? 'font-weight:700;' : '';
+    return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;">
+      <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">${label}</span>
+      <span style="font-family:monospace;font-size:13px;${bold}color:${color};">${val}</span>
+    </div>`;
+  }
+
+  const breakdownSection = `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:8px;">Refund Breakdown</div>
+      ${_bkRow('Subtotal Refunded', _fmtAmount(sub))}
+      ${tax > 0 ? _bkRow('Tax Refunded', _fmtAmount(tax)) : ''}
+      ${fee > 0 ? _bkRow('Processing Fee Refunded', _fmtAmount(fee)) : ''}
+      ${_bkRow('Total Refunded', _fmtAmount(total), {bold: true})}
+      ${recovered > 0 ? _bkRow('Recovered from Seller', _fmtAmount(recovered), {color: '#16a34a'}) : ''}
+    </div>`;
+
+  // ── Meta rows (IDs, parties, admin) ───────────────────────────────────────
+  const metaRows = [
+    ['Refund ID',        `#${r.id}`],
+    ['Order ID',         r.order_id ? `#${r.order_id}` : '—'],
+    r.dispute_id ? ['Dispute ID', `#${r.dispute_id}`] : null,
+    ['Buyer',            r.buyer_username  || '—'],
+    ['Seller',           r.seller_username || '—'],
+    ['Issued By',        r.issued_by_admin_username || String(r.issued_by_admin_id || '—')],
+    ['Issued At',        _fmtDateTime(r.issued_at)],
+    r.stripe_payment_intent_id ? ['Stripe PI', `<code style="font-size:12px;">${escapeHtml(r.stripe_payment_intent_id)}</code>`] : null,
+  ].filter(Boolean);
+
+  const metaSection = `
+    <div class="user-detail-section">
+      <h4>Reference</h4>
+      ${metaRows.map(([label, val]) => `
+        <div class="user-info-row">
+          <span class="user-info-label">${label}</span>
+          <span class="user-info-value">${val}</span>
+        </div>`).join('')}
+    </div>`;
+
+  // ── Dispute context ────────────────────────────────────────────────────────
+  const disputeSection = r.dispute_id ? `
+    <div class="user-detail-section" style="margin-top:16px;">
       <h4>Linked Dispute</h4>
       <div class="user-info-row">
-        <span class="user-info-label">Dispute Type</span>
+        <span class="user-info-label">Type</span>
         <span class="user-info-value">${escapeHtml((r.dispute_type || '').replace(/_/g,' '))}</span>
       </div>
       <div class="user-info-row">
-        <span class="user-info-label">Dispute Status</span>
+        <span class="user-info-label">Status</span>
         <span class="user-info-value">${escapeHtml(r.dispute_status || '—')}</span>
       </div>
       ${r.dispute_description ? `
@@ -235,26 +350,7 @@ function renderRefundDetail(r) {
       </div>` : ''}
     </div>` : '';
 
-  const orderHtml = r.order_id ? `
-    <div class="user-detail-section" style="margin-top:20px;">
-      <h4>Linked Order</h4>
-      <div class="user-info-row">
-        <span class="user-info-label">Order Total</span>
-        <span class="user-info-value">${_fmtAmount(r.order_total)}</span>
-      </div>
-      <div class="user-info-row">
-        <span class="user-info-label">Order Status</span>
-        <span class="user-info-value">${escapeHtml(r.order_status || '—')}</span>
-      </div>
-    </div>` : '';
-
-  return `
-    <div class="user-detail-section">
-      <h4>Refund Details</h4>
-      ${metaHtml}
-    </div>
-    ${disputeHtml}
-    ${orderHtml}`;
+  return statusBanner + methodSection + breakdownSection + metaSection + disputeSection;
 }
 
 function closeRefundDetailModal() {

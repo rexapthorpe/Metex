@@ -94,6 +94,7 @@ def create_app(test_config=None):
     app.config['STRIPE_PUBLISHABLE_KEY'] = app_config.STRIPE_PUBLISHABLE_KEY or ''
     # Stripe webhook signing secret — server-side only, never sent to the browser
     app.config['STRIPE_WEBHOOK_SECRET'] = app_config.STRIPE_WEBHOOK_SECRET or ''
+    app.config['SITE_URL'] = app_config.SITE_URL
 
     # Apply test config if provided
     if test_config:

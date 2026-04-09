@@ -1,0 +1,147 @@
+<!-- Financial Reconciliation Tab -->
+<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+  <button class="col-help-btn" onclick="showColInfo('tab-reconciliation')" title="About this tab" style="font-size:16px;padding:4px 6px;display:flex;align-items:center;gap:5px;">
+    <i class="fa-regular fa-circle-question"></i>
+  </button>
+</div>
+
+<div class="stats-grid stats-grid-4" style="margin-bottom:20px;">
+  <div class="stat-card stat-card-colored stat-card-green">
+    <div class="stat-card-header">
+      <span class="stat-label">Matched</span>
+      <div class="stat-icon-inline"><i class="fa-solid fa-circle-check"></i></div>
+    </div>
+    <div class="stat-value" id="recon-stat-matched">—</div>
+    <div class="stat-sub" id="recon-stat-matched-sub">payout rows fully reconciled</div>
+  </div>
+  <div class="stat-card stat-card-colored stat-card-red">
+    <div class="stat-card-header">
+      <span class="stat-label">Problems</span>
+      <div class="stat-icon-inline"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    </div>
+    <div class="stat-value" id="recon-stat-problems">—</div>
+    <div class="stat-sub" id="recon-stat-problems-sub">rows need attention</div>
+  </div>
+  <div class="stat-card stat-card-colored stat-card-blue">
+    <div class="stat-card-header">
+      <span class="stat-label">Awaiting Transfer</span>
+      <div class="stat-icon-inline"><i class="fa-solid fa-hourglass-half"></i></div>
+    </div>
+    <div class="stat-value" id="recon-stat-awaiting">—</div>
+    <div class="stat-sub">payout ready / scheduled</div>
+  </div>
+  <div class="stat-card stat-card-colored stat-card-purple">
+    <div class="stat-card-header">
+      <span class="stat-label">Total Volume</span>
+      <div class="stat-icon-inline"><i class="fa-solid fa-coins"></i></div>
+    </div>
+    <div class="stat-value" id="recon-stat-volume">—</div>
+    <div class="stat-sub">gross across paid orders</div>
+  </div>
+</div>
+
+<!-- Toolbar / Filters -->
+<div class="panel-toolbar">
+  <div class="search-filter-group" style="flex-wrap:wrap;gap:6px;">
+    <input type="text"   id="reconOrderId"       class="filter-input"  placeholder="Order ID" style="width:90px;">
+    <input type="text"   id="reconStripeRef"      class="filter-input"  placeholder="Stripe / Transfer ID" style="width:180px;">
+    <input type="text"   id="reconBuyer"          class="filter-input"  placeholder="Buyer" style="width:110px;">
+    <input type="text"   id="reconSeller"         class="filter-input"  placeholder="Seller" style="width:110px;">
+    <select id="reconPaymentStatus"  class="filter-select">
+      <option value="">All Payment</option>
+      <option value="paid">Paid</option>
+      <option value="unpaid">Unpaid</option>
+    </select>
+    <select id="reconPayoutStatus"   class="filter-select">
+      <option value="">All Payout</option>
+      <option value="PAYOUT_NOT_READY">Not Ready</option>
+      <option value="PAYOUT_READY">Ready</option>
+      <option value="PAYOUT_SCHEDULED">Scheduled</option>
+      <option value="PAYOUT_IN_PROGRESS">In Progress</option>
+      <option value="PAID_OUT">Paid Out</option>
+      <option value="PAYOUT_ON_HOLD">On Hold</option>
+      <option value="PAYOUT_CANCELLED">Cancelled</option>
+    </select>
+    <select id="reconPaymentMethod"  class="filter-select">
+      <option value="">All Methods</option>
+      <option value="card">Card</option>
+      <option value="ach">ACH</option>
+    </select>
+    <select id="reconReconStatus"    class="filter-select">
+      <option value="">All Recon Status</option>
+      <option value="MATCHED">Matched</option>
+      <option value="MATCHED_SPREAD">Matched (Spread)</option>
+      <option value="AWAITING_TRANSFER">Awaiting Transfer</option>
+      <option value="MISSING_TRANSFER">Missing Transfer</option>
+      <option value="MISSING_STRIPE_REF">Missing Stripe Ref</option>
+      <option value="AMOUNT_MISMATCH">Amount Mismatch</option>
+      <option value="MISSING_CARD_FEE">Missing Card Fee</option>
+      <option value="PENDING_PAYOUT">Pending Payout</option>
+      <option value="UNPAID">Unpaid</option>
+    </select>
+    <input type="date"   id="reconStartDate"      class="filter-input">
+    <input type="date"   id="reconEndDate"         class="filter-input">
+  </div>
+  <div class="toolbar-actions">
+    <button class="toolbar-btn toolbar-btn-primary" onclick="applyReconFilters()">Apply</button>
+    <button class="toolbar-btn" onclick="clearReconFilters()">Clear</button>
+    <button class="toolbar-btn" onclick="reconShowProblems()" style="color:#dc2626;border-color:#dc2626;">
+      <i class="fa-solid fa-triangle-exclamation"></i> Problems Only
+    </button>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="data-table-container" style="overflow-x:auto;">
+  <table class="data-table" style="font-size:12px;min-width:1200px;">
+    <thead>
+      <tr>
+        <th>Order</th>
+        <th>Buyer</th>
+        <th>Seller</th>
+        <th>Method</th>
+        <th>Seller Gross</th>
+        <th>Spread</th>
+        <th>Tax</th>
+        <th>Card Fee</th>
+        <th>Total Charged</th>
+        <th>Platform Fee</th>
+        <th>Seller Net</th>
+        <th>Stripe PI</th>
+        <th>Transfer ID</th>
+        <th>Payout Status</th>
+        <th>Recon Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="reconTableBody">
+      <tr><td colspan="16" style="text-align:center;color:#6b7280;padding:40px;">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading…
+      </td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+<div class="pagination-controls" style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+  <button class="toolbar-btn" id="reconPrevBtn" onclick="reconPrevPage()" disabled>&#8592; Prev</button>
+  <span id="reconPageInfo" style="font-size:13px;color:#6b7280;">Page 1</span>
+  <button class="toolbar-btn" id="reconNextBtn" onclick="reconNextPage()">Next &#8594;</button>
+</div>
+
+<!-- Detail Modal -->
+<div id="reconDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;max-width:800px;width:95%;max-height:90vh;overflow-y:auto;padding:28px;position:relative;">
+    <button onclick="closeReconModal()"
+            style="position:absolute;top:14px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280;">&#x2715;</button>
+    <h3 style="margin:0 0 20px;font-size:16px;">
+      <i class="fa-solid fa-scale-balanced" style="color:#3b82f6;margin-right:8px;"></i>
+      Reconciliation Detail — Order <span id="reconDetailOrderId"></span>
+    </h3>
+    <div id="reconDetailContent">
+      <div style="text-align:center;padding:40px;color:#6b7280;">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading…
+      </div>
+    </div>
+  </div>
+</div>

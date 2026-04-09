@@ -1,3 +1,9 @@
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <button class="col-help-btn" onclick="showColInfo('tab-transactions')" title="About this tab" style="font-size:16px;padding:4px 6px;display:flex;align-items:center;gap:5px;">
+          <i class="fa-regular fa-circle-question"></i>
+        </button>
+      </div>
+
       <div class="stats-grid stats-grid-4">
         <div class="stat-card stat-card-colored stat-card-blue">
           <div class="stat-card-header">
@@ -69,7 +75,25 @@
                 {{ tx.item_count }} item{{ 's' if tx.item_count != 1 else '' }}
               </td>
 
-              <td style="font-family:monospace;font-weight:600;">{{ tx.amount }}</td>
+              <td style="font-family:monospace;font-weight:600;">
+                {{ tx.amount }}
+                {% if tx.spread_capture_amount and tx.spread_capture_amount > 0 %}
+                <div style="font-size:10px;color:#7c3aed;font-family:sans-serif;font-weight:400;margin-top:2px;"
+                     title="Buyer bid above seller ask — spread retained as platform revenue">
+                  incl. ${{ '%.2f' | format(tx.spread_capture_amount) }} spread
+                </div>
+                {% endif %}
+                {% if tx.tax_amount and tx.tax_amount > 0 %}
+                <div style="font-size:10px;color:#0369a1;font-family:sans-serif;font-weight:400;margin-top:2px;">
+                  incl. ${{ '%.2f' | format(tx.tax_amount) }} tax
+                </div>
+                {% endif %}
+                {% if tx.buyer_card_fee and tx.buyer_card_fee > 0 %}
+                <div style="font-size:10px;color:#6b7280;font-family:sans-serif;font-weight:400;margin-top:1px;">
+                  incl. ${{ '%.2f' | format(tx.buyer_card_fee) }} card fee
+                </div>
+                {% endif %}
+              </td>
 
               {# --- Order State: derived from payment_status + order_status + payout_status --- #}
               <td>
@@ -172,7 +196,6 @@
           </tbody>
         </table>
       </div>
-    </div>
 
 <script>
 function adminMarkAchCleared(orderId, btn) {
@@ -233,17 +256,6 @@ function adminNudgeSeller(orderId, btn) {
 }
 </script>
 
-{# ── Column-info modal (shared by both Transactions and Ledger tabs) ── #}
-<div id="col-info-modal" style="display:none;" aria-modal="true" role="dialog">
-  <div class="col-info-backdrop" onclick="hideColInfo()"></div>
-  <div class="col-info-box">
-    <div class="col-info-header">
-      <h4 id="col-info-title"></h4>
-      <button class="col-info-close" onclick="hideColInfo()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div id="col-info-body" class="col-info-body"></div>
-  </div>
-</div>
 
 <style>
 /* ── Column help button ── */
@@ -413,6 +425,14 @@ const COL_INFO = {
       { badge: 'Cancelled',     cls: 'ci-gray',   desc: 'Payout was voided (e.g. the order was refunded or cancelled after payout was released).' },
     ]
   },
+  'tax-ledger': {
+    title: 'Tax Collected',
+    intro: 'Sales tax collected from the buyer for this order. Tax is a buyer-collected liability — it is NOT platform revenue and NOT seller revenue. The platform holds collected tax until it is remitted to the appropriate tax authority.',
+    rows: [
+      { badge: '> $0',    cls: 'ci-blue',  desc: 'Tax was charged via Stripe Tax at the time of purchase. The stored tax_amount is the authoritative value.' },
+      { badge: '—',       cls: 'ci-gray',  desc: 'No tax was collected (e.g. buyer address is tax-exempt, or pre-tax order before Stripe Tax was enabled).' },
+    ]
+  },
   'gross': {
     title: 'Gross Amount',
     intro: 'The total amount the buyer paid for this order.',
@@ -459,6 +479,183 @@ const COL_INFO = {
       { badge: 'Recovery pending',      cls: 'ci-red',   desc: 'A previously released payout needs to be reversed because a refund was issued afterward.' },
       { badge: '—',                     cls: 'ci-gray',  desc: 'No block — payout is eligible for release.' },
     ]
+  },
+
+  // ── User Risk tab ────────────────────────────────────────────────────────────
+  'risk_score': {
+    title: 'Risk Score',
+    intro: 'A number from 0\u2013100 reflecting a user\'s overall risk level based on their dispute and refund history. Higher = riskier. Recomputed live from the database each time.'
+      + '<br><br><strong>Formula:</strong>'
+      + '<pre style="background:#f3f4f6;border-radius:6px;padding:10px 12px;font-size:11.5px;margin:8px 0;line-height:1.65;white-space:pre;">'
+      + 'score =\n'
+      + '  (buyer disputes opened)         \u00d7 4\n'
+      + '+ (buyer disputes won / refunded)  \u00d7 10\n'
+      + '+ (buyer disputes denied)          \u00d7 1\n'
+      + '+ (seller disputes opened)         \u00d7 3\n'
+      + '+ (disputes upheld vs seller)      \u00d7 12\n'
+      + '+ (refunds received \u2014 count)       \u00d7 8\n'
+      + '+ min(refund amount \u00d7 0.02, 20)\n\n'
+      + 'Capped at 100.'
+      + '</pre>'
+      + '<strong>Auto-flag (180-day window):</strong> \u22653 buyer disputes, or \u22652 upheld-vs-seller, or \u2265$500 in refunds \u2192 sets flag to <em>Watch</em> automatically.',
+    rows: [
+      { badge: '0 \u2013 19',   cls: 'ci-green',  desc: 'Low risk. No immediate action required.' },
+      { badge: '20 \u2013 39',  cls: 'ci-amber',  desc: 'Moderate risk. Consider monitoring or reviewing the profile.' },
+      { badge: '40 \u2013 100', cls: 'ci-red',    desc: 'High risk. Review for a manual flag.' },
+    ]
+  },
+  'risk_flag': {
+    title: 'Manual Risk Flag',
+    intro: 'An admin-set status for users requiring closer attention or restrictions. The system can auto-set <em>Watch</em>; higher levels must be set manually.',
+    rows: [
+      { badge: 'None',       cls: 'ci-gray',   desc: 'Normal account. No restrictions.' },
+      { badge: 'Watch',      cls: 'ci-amber',  desc: 'Elevated concern \u2014 monitor closely. Can be set automatically when risk thresholds are met.' },
+      { badge: 'Restricted', cls: 'ci-red',    desc: 'Admin-imposed limitation (e.g. selling suspended). Set manually only.' },
+      { badge: 'Suspended',  cls: 'ci-red',    desc: 'Account fully suspended pending review. Set manually only.' },
+    ]
+  },
+  'risk_buyer_disputes': {
+    title: 'Buyer Disputes',
+    intro: 'Total disputes this user has opened as a buyer \u2014 complaints about orders they purchased. Counted regardless of outcome.',
+    rows: [
+      { badge: 'Opened \u00d7 4',  cls: 'ci-amber', desc: 'Each dispute opened adds 4 points to the risk score.' },
+      { badge: 'Won \u00d7 10',    cls: 'ci-red',   desc: 'Each dispute resolved in the buyer\'s favor (refund granted) adds 10 points.' },
+      { badge: 'Denied \u00d7 1',  cls: 'ci-gray',  desc: 'Each dispute denied adds 1 point.' },
+    ]
+  },
+  'risk_seller_disputes': {
+    title: 'Seller Disputes',
+    intro: 'Total disputes opened against this user as a seller. Disputes upheld against the seller carry the highest weight in the risk formula.',
+    rows: [
+      { badge: 'Opened \u00d7 3',            cls: 'ci-amber', desc: 'Each dispute opened against the seller adds 3 points.' },
+      { badge: 'Upheld vs seller \u00d7 12', cls: 'ci-red',   desc: 'Each dispute resolved in the buyer\'s favor (seller lost) adds 12 points \u2014 the highest single weight in the formula.' },
+    ]
+  },
+  'risk_refunds': {
+    title: 'Refunds',
+    intro: 'Refunds this user received as a buyer. Both the count and the total USD amount contribute to the risk score.',
+    rows: [
+      { badge: 'Count \u00d7 8',      cls: 'ci-red',   desc: 'Each refund received adds 8 points to the risk score.' },
+      { badge: 'Amount \u00d7 0.02',  cls: 'ci-amber', desc: 'Total refund dollars \u00d7 0.02, contributing up to 20 extra points (effectively capped at $1,000 in total refunds).' },
+    ]
+  },
+  'risk_role': {
+    title: 'Role',
+    intro: 'Derived from the user\'s completed order history \u2014 whether they have bought, sold, or both.',
+    rows: [
+      { badge: 'Buyer',          cls: 'ci-blue',   desc: 'Has at least one completed purchase.' },
+      { badge: 'Seller',         cls: 'ci-purple', desc: 'Has at least one completed sale.' },
+      { badge: 'Buyer + Seller', cls: 'ci-teal',   desc: 'Active on both sides of the marketplace.' },
+      { badge: '\u2014',         cls: 'ci-gray',   desc: 'No completed orders yet.' },
+    ]
+  },
+  'risk_joined': {
+    title: 'Joined',
+    intro: 'The date this user\'s account was created. Open the detail view (\u2009<i class="fa-solid fa-eye" style="font-size:11px;"></i>\u2009) to also see the user\'s most recent login time and IP address.',
+    rows: []
+  },
+
+  // ── Tab-level overview modals ────────────────────────────────────────────────
+  'tab-transactions': {
+    title: 'Transactions Tab — How It Works',
+    intro: 'A complete list of every order placed on the platform, regardless of state. Use this tab to monitor real-time order health, payment capture, ACH clearance, and payout readiness.',
+    rows: [
+      { badge: 'What counts as a row?',       cls: 'ci-blue',   desc: 'One row per order (orders table). Checkout-initiated and abandoned orders appear alongside paid and completed ones.' },
+      { badge: 'Amount column',               cls: 'ci-blue',   desc: 'orders.total_price — includes the item subtotal, sales tax, and any buyer card fee baked in at checkout.' },
+      { badge: 'Order State',                 cls: 'ci-teal',   desc: 'A derived composite: combines payment_status + order_status + payout_status into a single human-readable label. Click the ? next to the column header for the full legend.' },
+      { badge: 'Payment column',              cls: 'ci-teal',   desc: 'payment_status from Stripe (paid / unpaid) plus the payment method type (card or ACH). ACH orders require manual clearance before payouts can release.' },
+      { badge: 'Clearance column',            cls: 'ci-amber',  desc: 'Only relevant for ACH orders. Admin must click "Mark Cleared" once the bank funds have settled. Card payments show N/A.' },
+      { badge: 'Payout column',               cls: 'ci-purple', desc: 'Aggregated payout_status across all seller payouts on this order. PAYOUT_READY means all conditions are met — open the order detail to release.' },
+    ]
+  },
+  'tab-ledger': {
+    title: 'Ledger Tab — How It Works',
+    intro: 'The financial ledger is the authoritative record of platform revenue and seller payouts. Every order has one ledger row; this view shows the money flow from buyer payment through fee deduction to seller payout.',
+    rows: [
+      { badge: 'What counts as a row?',       cls: 'ci-blue',   desc: 'One row per order. All orders are included — filter by status, payout state, date range, or amount using the toolbar. There is no minimum payment state to appear here.' },
+      { badge: 'Subtotal (Gross)',            cls: 'ci-blue',   desc: 'The taxable item subtotal the buyer paid — i.e. total_price minus tax and card fee. This is the base from which the platform fee is calculated.' },
+      { badge: 'Tax column',                  cls: 'ci-teal',   desc: 'orders.tax_amount — stored at checkout from Stripe Tax. This is a liability, not platform revenue. It must be remitted to the tax authority.' },
+      { badge: 'Fee column',                  cls: 'ci-red',    desc: 'Platform commission deducted from the seller\'s proceeds. Fee = Gross × fee_rate. The seller receives Gross − Fee (net).' },
+      { badge: 'Payout State',                cls: 'ci-purple', desc: 'Lifecycle stage of the seller payout: NOT_READY → READY → PAID_OUT. Open the order detail to release a READY payout or diagnose a block.' },
+      { badge: 'Block Reason',                cls: 'ci-amber',  desc: 'Computed live: explains why a payout cannot yet release — missing tracking, hold window, ACH not cleared, no Stripe account, active refund, etc.' },
+    ]
+  },
+  'tab-reconciliation': {
+    title: 'Reconciliation Tab — How It Works',
+    intro: 'Cross-checks every seller payout against the actual Stripe transfer record. The goal is to surface discrepancies — missing transfers, amount mismatches, or unrecorded Stripe references — before they become accounting problems.',
+    rows: [
+      { badge: 'What counts as a row?',       cls: 'ci-blue',   desc: 'One row per seller-payout pair (order × seller). A multi-seller order produces multiple rows. Only paid orders are reconciled; unpaid orders show status UNPAID.' },
+      { badge: 'MATCHED',                     cls: 'ci-green',  desc: 'A Stripe transfer was found for this payout, and the amount matches the expected seller net. No action needed.' },
+      { badge: 'AWAITING_TRANSFER',           cls: 'ci-teal',   desc: 'Payout status is PAYOUT_READY but no Stripe transfer has been sent yet. Go to the order detail to release it.' },
+      { badge: 'MISSING_TRANSFER',            cls: 'ci-red',    desc: 'The platform recorded the payout as PAID_OUT but no Stripe transfer ID is on file. Verify manually in the Stripe Dashboard.' },
+      { badge: 'MISSING_STRIPE_REF',          cls: 'ci-red',    desc: 'Payment was captured but no Stripe PaymentIntent ID was stored in the database. Investigate at the order level.' },
+      { badge: 'AMOUNT_MISMATCH',             cls: 'ci-red',    desc: 'The transfer found in Stripe differs from the expected seller net in our records. Review for rounding errors or manual overrides.' },
+      { badge: 'PENDING_PAYOUT',              cls: 'ci-amber',  desc: 'Payout not yet ready — hold period active, tracking missing, ACH not cleared, or no Stripe account connected.' },
+      { badge: 'UNPAID',                      cls: 'ci-gray',   desc: 'Order payment has not been captured. There is nothing to reconcile until the buyer completes payment.' },
+    ]
+  },
+  'tab-tax': {
+    title: 'Sales Tax Tab — How It Works',
+    intro: 'Tracks sales tax collected from buyers at checkout via Stripe Tax. Tax is a platform liability — it is collected on behalf of tax authorities and must be remitted. It is never platform revenue or seller revenue.',
+    rows: [
+      { badge: 'Order-level table criteria',  cls: 'ci-blue',   desc: 'Only orders where tax_amount > 0 appear. Orders with no tax collected (exempt buyers, pre-Stripe-Tax orders, or zero-rate jurisdictions) are excluded.' },
+      { badge: 'Tax Collected',               cls: 'ci-teal',   desc: 'orders.tax_amount — the authoritative value stored at checkout from Stripe Tax. This is what the buyer was charged for tax.' },
+      { badge: 'Tax Refunded',                cls: 'ci-red',    desc: 'Tax returned to the buyer when their order was fully refunded. Currently computed only for full refunds — partial-refund tax attribution is not yet supported.' },
+      { badge: 'Net Tax Liability',           cls: 'ci-purple', desc: 'Tax Collected − Tax Refunded. This is what the platform owes to each tax jurisdiction for the filtered period.' },
+      { badge: 'Jurisdiction Summary',        cls: 'ci-teal',   desc: 'Aggregates net tax by state/country for the filtered date range. Use this table for filing identification and to provide to your accountant.' },
+      { badge: 'Export CSV',                  cls: 'ci-blue',   desc: 'Downloads a filing-ready CSV of the order-level tax records for the current filter. Share with your tax preparer or upload to your filing software.' },
+    ]
+  },
+
+  // ── Refunds tab ──────────────────────────────────────────────────────────────
+  'refund_id': {
+    title: 'Refund ID',
+    intro: 'Internal auto-assigned identifier for this refund record. Use this when referencing a specific refund in support conversations or audit logs.',
+    rows: []
+  },
+  'refund_dispute': {
+    title: 'Dispute',
+    intro: 'The dispute this refund was issued for. All refunds are linked to a dispute \u2014 there is no standalone manual refund flow. Click the ID to navigate to the Disputes tab.',
+    rows: []
+  },
+  'refund_order': {
+    title: 'Order',
+    intro: 'The original purchase that was disputed and refunded. Open the detail view to see the full order total alongside the refund amount.',
+    rows: []
+  },
+  'refund_buyer': {
+    title: 'Buyer',
+    intro: 'The user who received this refund \u2014 the buyer who opened the dispute that was resolved in their favor.',
+    rows: []
+  },
+  'refund_seller': {
+    title: 'Seller',
+    intro: 'The seller whose sale was refunded \u2014 the user against whom the dispute was resolved. Their payout is withheld or reversed accordingly.',
+    rows: []
+  },
+  'refund_amount': {
+    title: 'Amount',
+    intro: 'Refund amount in USD. Currently all refunds are full-order refunds \u2014 the entire order total is returned to the buyer\'s original payment method. Partial refunds are not yet supported.',
+    rows: [
+      { badge: 'Full refund', cls: 'ci-red', desc: 'The refunded amount equals the original order total. The buyer\'s card is credited; the seller\'s payout is withheld or reversed.' },
+    ]
+  },
+  'refund_provider_id': {
+    title: 'Provider Refund ID',
+    intro: 'The refund reference ID assigned by Stripe (e.g.\u00a0<code>re_3Pxyz\u2026</code>). Look this up in the Stripe Dashboard to verify processing status or resolve a payment dispute.'
+      + '<br><br>If blank, Stripe was unavailable when the refund was triggered \u2014 verify manually in the Stripe Dashboard.',
+    rows: []
+  },
+  'refund_issued_by': {
+    title: 'Issued By',
+    intro: 'The admin who resolved the dispute and triggered this refund. Refunds are only created when an admin marks a dispute as \u201cResolved \u2014 Refund\u201d in the Disputes tab. Provides an audit trail for accountability.',
+    rows: []
+  },
+  'refund_issued_at': {
+    title: 'Issued At',
+    intro: 'When this refund record was created \u2014 i.e. when the admin resolved the dispute.'
+      + '<br><br>Note: Stripe processes refunds asynchronously. The actual return of funds to the buyer\'s card may take 5\u201310 business days after this timestamp.',
+    rows: []
   },
 };
 

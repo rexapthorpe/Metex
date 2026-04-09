@@ -360,12 +360,12 @@
         <span class="summary-label">Insurance</span>
         <span class="summary-value summary-value-free">Free</span>
       </div>
-      <div class="summary-row">
+      <div class="summary-row" id="tax-row">
         <span class="summary-label">Tax</span>
-        <span class="summary-value">$0.00</span>
+        <span class="summary-value" id="summary-tax">${{ '{:,.2f}'.format(tax_amount) }}</span>
       </div>
       <div class="summary-row" id="processing-fee-row">
-        <span class="summary-label">Processing fee</span>
+        <span class="summary-label">Processing fee <span style="font-size:11px;color:#9ca3af;">(on taxed total)</span></span>
         <span class="summary-value" id="summary-processing-fee">$0.00</span>
       </div>
 
@@ -517,6 +517,8 @@
 <script>
   window.checkoutSubtotal       = {{ subtotal }};
   window.checkoutGradingFee     = {{ grading_fee }};
+  window.checkoutTaxAmount      = {{ tax_amount }};
+  window.checkoutTaxedSubtotal  = {{ subtotal + grading_fee + tax_amount }};
   window.checkoutNonce          = {{ checkout_nonce | tojson }};
   window.stripePublishableKey   = {{ stripe_publishable_key | tojson }};
 </script>

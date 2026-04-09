@@ -109,17 +109,32 @@ def create_order_ledger_from_cart(
         # Calculate totals
         total_gross = 0.0
         total_platform_fee = 0.0
+        total_spread = 0.0
         items_to_insert = []
-        seller_totals: Dict[int, Dict[str, float]] = {}  # seller_id -> {gross, fee, net}
+        seller_totals: Dict[int, Dict[str, float]] = {}  # seller_id -> {gross, fee, net, spread}
 
         for item in cart_snapshot:
             seller_id = item['seller_id']
             listing_id = item['listing_id']
             quantity = item['quantity']
+            # unit_price is the SELLER-SIDE price (merchandise value).
+            # For direct-checkout orders this equals the buyer price.
+            # For bid-fill orders with spread, this is the seller's listing price.
             unit_price = float(item['unit_price'])
 
-            # Calculate gross for this item
+            # buyer_unit_price is what the buyer actually paid per unit.
+            # When absent (normal checkout, no spread) it defaults to unit_price.
+            buyer_unit_price = float(item.get('buyer_unit_price', unit_price))
+            # Spread per unit: amount the platform retains as spread revenue (not fee).
+            spread_per_unit = round(buyer_unit_price - unit_price, 4)
+
+            # Calculate SELLER-SIDE gross for this item.
+            # Fee and seller_net are computed on the seller-side gross so the seller
+            # does not receive credit for the buyer premium above their ask.
             item_gross = round(quantity * unit_price, 2)
+
+            # Total spread captured for this item line
+            item_spread = round(quantity * spread_per_unit, 2)
 
             # Get fee config for this item
             # Priority: explicit override > bucket-level > global default
@@ -150,26 +165,30 @@ def create_order_ledger_from_cart(
                     # Fallback to global default (legacy behavior)
                     fee_type, fee_value = get_fee_config()
 
-            # Calculate fee
+            # Calculate fee on SELLER-SIDE gross (not buyer gross)
             fee_amount = calculate_fee(item_gross, fee_type, fee_value)
             seller_net = round(item_gross - fee_amount, 2)
 
             # Track totals
             total_gross += item_gross
             total_platform_fee += fee_amount
+            total_spread += item_spread
 
             # Track per-seller totals
             if seller_id not in seller_totals:
-                seller_totals[seller_id] = {'gross': 0, 'fee': 0, 'net': 0}
+                seller_totals[seller_id] = {'gross': 0, 'fee': 0, 'net': 0, 'spread': 0}
             seller_totals[seller_id]['gross'] += item_gross
             seller_totals[seller_id]['fee'] += fee_amount
             seller_totals[seller_id]['net'] += seller_net
+            seller_totals[seller_id]['spread'] += item_spread
 
             items_to_insert.append({
                 'seller_id': seller_id,
                 'listing_id': listing_id,
                 'quantity': quantity,
                 'unit_price': unit_price,
+                'buyer_unit_price': buyer_unit_price,
+                'spread_per_unit': spread_per_unit,
                 'gross_amount': item_gross,
                 'fee_type': fee_type,
                 'fee_value': fee_value,
@@ -180,6 +199,7 @@ def create_order_ledger_from_cart(
         # Round totals
         total_gross = round(total_gross, 2)
         total_platform_fee = round(total_platform_fee, 2)
+        total_spread = round(total_spread, 2)
 
         # If no order_id provided, we need one from the orders table
         # In integration, this will be passed from the checkout flow
@@ -195,11 +215,11 @@ def create_order_ledger_from_cart(
         cursor = conn.execute('''
             INSERT INTO orders_ledger (
                 order_id, buyer_id, order_status, payment_method,
-                gross_amount, platform_fee_amount
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                gross_amount, platform_fee_amount, spread_capture_amount
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             order_id, buyer_id, OrderStatus.CHECKOUT_INITIATED.value,
-            payment_method, total_gross, total_platform_fee
+            payment_method, total_gross, total_platform_fee, total_spread
         ))
         order_ledger_id = cursor.lastrowid
 
@@ -209,13 +229,15 @@ def create_order_ledger_from_cart(
                 INSERT INTO order_items_ledger (
                     order_ledger_id, order_id, seller_id, listing_id,
                     quantity, unit_price, gross_amount,
-                    fee_type, fee_value, fee_amount, seller_net_amount
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    fee_type, fee_value, fee_amount, seller_net_amount,
+                    buyer_unit_price, spread_per_unit
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 order_ledger_id, order_id, item['seller_id'], item['listing_id'],
                 item['quantity'], item['unit_price'], item['gross_amount'],
                 item['fee_type'], item['fee_value'], item['fee_amount'],
-                item['seller_net_amount']
+                item['seller_net_amount'],
+                item['buyer_unit_price'], item['spread_per_unit']
             ))
 
         # 3. Create order_payout rows (one per seller)
@@ -223,14 +245,16 @@ def create_order_ledger_from_cart(
             conn.execute('''
                 INSERT INTO order_payouts (
                     order_ledger_id, order_id, seller_id, payout_status,
-                    seller_gross_amount, fee_amount, seller_net_amount
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    seller_gross_amount, fee_amount, seller_net_amount,
+                    spread_capture_amount
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 order_ledger_id, order_id, seller_id,
                 PayoutStatus.PAYOUT_NOT_READY.value,
                 round(totals['gross'], 2),
                 round(totals['fee'], 2),
-                round(totals['net'], 2)
+                round(totals['net'], 2),
+                round(totals['spread'], 2)
             ))
 
         # 4. Create order events
@@ -247,7 +271,8 @@ def create_order_ledger_from_cart(
                 'item_count': len(items_to_insert),
                 'seller_count': len(seller_totals),
                 'total_gross': total_gross,
-                'total_platform_fee': total_platform_fee
+                'total_platform_fee': total_platform_fee,
+                'total_spread': total_spread,
             }
         )
 

@@ -255,3 +255,48 @@ def get_payments_pause_reason() -> str:
 def set_payments_pause_reason(reason: str) -> str:
     set_setting(PAYMENTS_PAUSE_REASON_KEY, reason.strip())
     return reason.strip()
+
+
+# ---------------------------------------------------------------------------
+# Payout delivery delay
+# ---------------------------------------------------------------------------
+
+PAYOUT_DELIVERY_DELAY_KEY = "auto_payout_delay_after_delivery_minutes"
+PAYOUT_DELIVERY_DELAY_DEFAULT = 24 * 60   # 1440 minutes (24 hours)
+PAYOUT_DELIVERY_DELAY_MIN = 1             # 1 minute (useful for QA)
+PAYOUT_DELIVERY_DELAY_MAX = 30 * 24 * 60  # 43200 minutes (30 days)
+
+
+def get_auto_payout_delay_minutes() -> int:
+    """
+    Return the total minutes to wait after delivery confirmation before a
+    payout becomes eligible. Defaults to 1440 (24 hours). Clamped to [MIN, MAX].
+
+    Returns the default if the setting table doesn't exist (e.g. test environments
+    that haven't run db_init).
+    """
+    try:
+        raw = get_setting(PAYOUT_DELIVERY_DELAY_KEY)
+    except Exception:
+        return PAYOUT_DELIVERY_DELAY_DEFAULT
+    if raw is None:
+        return PAYOUT_DELIVERY_DELAY_DEFAULT
+    try:
+        val = int(raw)
+    except (ValueError, TypeError):
+        return PAYOUT_DELIVERY_DELAY_DEFAULT
+    return max(PAYOUT_DELIVERY_DELAY_MIN, min(PAYOUT_DELIVERY_DELAY_MAX, val))
+
+
+def set_auto_payout_delay_minutes(minutes) -> int:
+    """
+    Set the payout delivery delay in total minutes, clamped to [MIN, MAX].
+    Returns the saved value.
+    """
+    try:
+        val = int(minutes)
+    except (ValueError, TypeError):
+        val = PAYOUT_DELIVERY_DELAY_DEFAULT
+    clamped = max(PAYOUT_DELIVERY_DELAY_MIN, min(PAYOUT_DELIVERY_DELAY_MAX, val))
+    set_setting(PAYOUT_DELIVERY_DELAY_KEY, str(clamped))
+    return clamped

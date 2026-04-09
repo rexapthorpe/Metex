@@ -14,6 +14,7 @@ from services.notification_service import notify_bid_filled
 from services.notification_types import notify_bid_payment_failed
 from services.pricing_service import get_effective_price, get_effective_bid_price
 from services.order_service import write_order_item_snapshot
+from core.services.ledger.order_creation import create_order_ledger_from_cart
 
 from . import bid_bp
 
@@ -21,6 +22,73 @@ _log = logging.getLogger(__name__)
 
 # Must match place_bid.py — buyers reaching this threshold are blocked from placing new bids
 _BID_STRIKE_THRESHOLD = 3
+
+# ── Charge components ────────────────────────────────────────────────────────
+# These must stay in sync with core/blueprints/checkout/routes.py.
+# Bid payments are always card payments (the buyer's saved card on file).
+_CARD_RATE = 0.0299   # 2.99%
+_CARD_FLAT = 0.30     # $0.30 fixed per transaction
+
+# Must match the fallback rate in core/blueprints/checkout/routes.py
+# and the preview rate in static/js/modals/bid_modal_steps.js.
+# Applied when Stripe Tax is unavailable but a postal code is present.
+FALLBACK_TAX_RATE = 0.0825  # 8.25%
+
+
+def _parse_address_for_tax(delivery_address: str):
+    """
+    Extract (postal_code, state) from a bullet-separated delivery_address string.
+    Format: "Line1 [• Line2] • City, STATE ZIP"
+    Returns ('', '') if parsing fails.
+    """
+    import re
+    if not delivery_address:
+        return '', ''
+    parts = [p.strip() for p in delivery_address.split('•')]
+    last = parts[-1] if parts else ''
+    m = re.search(r'\b([A-Z]{2})\s+(\d{5}(?:-\d{4})?)\s*$', last)
+    if m:
+        return m.group(2), m.group(1)  # (postal_code, state)
+    return '', ''
+
+
+def _get_stripe_tax_for_bid(subtotal_cents: int, postal_code: str, state: str = '') -> int:
+    """
+    Look up sales tax via Stripe Tax for a bid-acceptance charge.
+    Returns tax in cents.
+
+    - No postal code or zero subtotal → 0 (no address, cannot tax)
+    - Stripe Tax succeeds → exact Stripe-computed cents
+    - Stripe Tax fails with postal code present → FALLBACK_TAX_RATE * subtotal
+      (keeps the charge consistent with what the bid modal preview shows)
+    """
+    if not postal_code or subtotal_cents <= 0:
+        return 0
+    try:
+        calc = stripe.tax.Calculation.create(
+            currency='usd',
+            line_items=[{'amount': subtotal_cents, 'reference': 'bid_subtotal'}],
+            customer_details={
+                'address': {
+                    'postal_code': str(postal_code).strip(),
+                    'state': str(state).strip() if state else '',
+                    'country': 'US',
+                },
+                'address_source': 'shipping',
+            },
+        )
+        _log.info('[BID TAX] Stripe calc=%s subtotal_cents=%d tax_cents=%d',
+                  calc.id, subtotal_cents, calc.tax_amount_exclusive)
+        return int(calc.tax_amount_exclusive)
+    except Exception as exc:
+        # Stripe Tax unavailable (not activated, network error, etc.).
+        # Apply fallback rate so the buyer is charged what the modal showed.
+        fallback = round(subtotal_cents * FALLBACK_TAX_RATE)
+        _log.warning(
+            '[BID TAX] Stripe Tax unavailable — using fallback %.2f%% (%d cents): %s',
+            FALLBACK_TAX_RATE * 100, fallback, exc,
+        )
+        return fallback
 
 
 def _charge_bid_payment(bid_id: int, order_id: int, buyer_id: int,
@@ -145,6 +213,9 @@ def accept_bid(bucket_id):
     # Collect payment failures to report to the seller
     payment_failures = []
 
+    # Collect data for ledger creation (runs after main commit)
+    ledger_queue = []
+
     # Collect buyer notification data for payment failures (sent after commit)
     failed_payment_notifications = []
 
@@ -252,7 +323,7 @@ def accept_bid(bucket_id):
 
             # Only match if listing's current effective price is at or below bid's effective price
             if listing_effective_price <= effective_bid_price:
-                listing_dict['effective_price'] = listing_effective_price
+                listing_dict['effective_price'] = listing_effective_price  # seller ask price
                 matched_listings.append(listing_dict)
 
         # Sort by effective price (cheapest first)
@@ -280,7 +351,8 @@ def accept_bid(bucket_id):
             order_items_to_create.append({
                 'listing_id': listing['id'],
                 'quantity': fill_qty,
-                'price_each': effective_bid_price
+                'price_each': effective_bid_price,           # buyer's bid price
+                'seller_price_each': listing['effective_price'],  # seller's actual ask
             })
 
             filled += fill_qty
@@ -296,8 +368,60 @@ def accept_bid(bucket_id):
 
         # Only create order if something will be filled
         if filled > 0 and (order_items_to_create or need_committed):
-            # All items are priced at effective_bid_price
-            total_price = filled * effective_bid_price
+            # ── Compute full charge: subtotal → tax → card fee → total ──────
+            # All items are priced at effective_bid_price (subtotal only here).
+            _subtotal        = round(filled * effective_bid_price, 2)
+            _subtotal_cents  = int(round(_subtotal * 100))
+
+            # Parse buyer's delivery address to get postal code for Stripe Tax.
+            _postal, _state  = _parse_address_for_tax(delivery_address)
+            _tax_cents       = _get_stripe_tax_for_bid(_subtotal_cents, _postal, _state)
+            _tax_amount      = round(_tax_cents / 100, 2)
+            _taxed_subtotal  = _subtotal + _tax_amount
+
+            # Bid payments are always card payments (off-session saved card).
+            _bid_card_fee    = round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
+
+            # Final charge: subtotal + tax + card fee
+            total_price      = round(_taxed_subtotal + _bid_card_fee, 2)
+            _charged_cents   = int(round(total_price * 100))
+
+            _fee_cents = int(round(_bid_card_fee * 100))
+            _expected_cents = _subtotal_cents + _tax_cents + _fee_cents
+
+            _log.info(
+                '[BID ACCEPT] bid=%s subtotal=%.2f tax=%.2f card_fee=%.2f '
+                'total=%.2f pi_cents=%d address_postal=%r',
+                bid_id, _subtotal, _tax_amount, _bid_card_fee,
+                total_price, _charged_cents, _postal,
+            )
+
+            # Hard assertion: charged amount must equal subtotal + tax + fee.
+            # If this fails, abort loudly rather than undercharging the buyer.
+            if _charged_cents != _expected_cents:
+                _log.error(
+                    '[BID ACCEPT] ASSERTION FAILED: charged_cents=%d != '
+                    'subtotal_cents=%d + tax_cents=%d + fee_cents=%d (=%d) for bid %s',
+                    _charged_cents, _subtotal_cents, _tax_cents, _fee_cents,
+                    _expected_cents, bid_id,
+                )
+                payment_failures.append({
+                    'bid_id': bid_id,
+                    'buyer_id': buyer_id,
+                    'reason': 'Internal error computing charge amount.',
+                })
+                continue
+
+            # Sanity guard: charged amount must never be less than the subtotal alone.
+            if _charged_cents < _subtotal_cents:
+                _log.error('[BID ACCEPT] BUG: charged_cents %d < subtotal_cents %d for bid %s',
+                           _charged_cents, _subtotal_cents, bid_id)
+                payment_failures.append({
+                    'bid_id': bid_id,
+                    'buyer_id': buyer_id,
+                    'reason': 'Internal error computing charge amount.',
+                })
+                continue
 
             # Use a savepoint so we can roll back ALL DB changes (inventory decrements,
             # committed-listing creation, order, order_items) if payment fails.
@@ -322,16 +446,21 @@ def accept_bid(bucket_id):
                 order_items_to_create.append({
                     'listing_id': committed_listing_id,
                     'quantity': unfilled_qty,
-                    'price_each': effective_bid_price
+                    'price_each': effective_bid_price,
+                    'seller_price_each': effective_bid_price,  # seller commits to bid price: no spread
                 })
 
-            # Create the order record (unpaid until payment succeeds)
+            # Create the order record (unpaid until payment succeeds).
+            # total_price = subtotal + tax + card_fee (full charge amount).
+            _effective_tax_rate = round(_tax_amount / _subtotal, 6) if _subtotal else 0.0
             cursor.execute('''
-                INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at,
+                INSERT INTO orders (buyer_id, total_price, buyer_card_fee, tax_amount, tax_rate,
+                                   shipping_address, status, created_at,
                                    recipient_first_name, recipient_last_name, payment_status,
                                    source_bid_id)
-                VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, 'unpaid', ?)
-            ''', (buyer_id, total_price, delivery_address, recipient_first_name, recipient_last_name,
+                VALUES (?, ?, ?, ?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, 'unpaid', ?)
+            ''', (buyer_id, total_price, _bid_card_fee, _tax_amount, _effective_tax_rate,
+                  delivery_address, recipient_first_name, recipient_last_name,
                   int(bid_id)))
 
             order_id = cursor.lastrowid
@@ -340,9 +469,11 @@ def accept_bid(bucket_id):
             order_item_ids = []
             for item in order_items_to_create:
                 cursor.execute('''
-                    INSERT INTO order_items (order_id, listing_id, quantity, price_each)
-                    VALUES (?, ?, ?, ?)
-                ''', (order_id, item['listing_id'], item['quantity'], item['price_each']))
+                    INSERT INTO order_items (order_id, listing_id, quantity, price_each,
+                                            seller_price_each)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (order_id, item['listing_id'], item['quantity'], item['price_each'],
+                      item.get('seller_price_each', item['price_each'])))
                 order_item_ids.append(cursor.lastrowid)
 
             # ── Attempt payment ──────────────────────────────────────────
@@ -448,6 +579,25 @@ def accept_bid(bucket_id):
             cursor.execute(f'RELEASE SAVEPOINT {sp_name}')
             # ─────────────────────────────────────────────────────────────
 
+            # Queue ledger creation — runs after main commit so rows are visible.
+            # unit_price = seller's ask price (merchandise value for fee/payout calculation).
+            # buyer_unit_price = buyer's bid price (what was actually charged).
+            # The difference (spread) is platform revenue beyond the percentage fee.
+            ledger_queue.append({
+                'order_id': order_id,
+                'buyer_id': buyer_id,
+                'cart_snapshot': [
+                    {
+                        'seller_id': seller_id,
+                        'listing_id': item['listing_id'],
+                        'quantity': item['quantity'],
+                        'unit_price': item.get('seller_price_each', item['price_each']),
+                        'buyer_unit_price': item['price_each'],
+                    }
+                    for item in order_items_to_create
+                ],
+            })
+
             # Capture order details for THIS accepted bid (for AJAX response to show in modal)
             buyer_info = cursor.execute('SELECT username, first_name, last_name FROM users WHERE id = ?', (buyer_id,)).fetchone()
             all_order_details.append({
@@ -475,7 +625,9 @@ def accept_bid(bucket_id):
                     item_desc_parts.append(str(category['year']))
             item_description = ' '.join(item_desc_parts) if item_desc_parts else 'Item'
 
-            avg_price_per_unit = total_price / filled if filled > 0 else effective_bid_price
+            # Use subtotal (not total_price) for per-unit display — price_per_unit
+            # should reflect the coin price, not the charge including tax/fees.
+            avg_price_per_unit = _subtotal / filled if filled > 0 else effective_bid_price
             notifications_to_send.append({
                 'buyer_id': buyer_id,
                 'order_id': order_id,
@@ -517,6 +669,33 @@ def accept_bid(bucket_id):
 
     conn.commit()
     conn.close()
+
+    # Create ledger entries for all successfully paid bid orders.
+    # Must run after conn.commit() so order/order_items rows are visible to the ledger service.
+    for _lq in ledger_queue:
+        try:
+            create_order_ledger_from_cart(
+                buyer_id=_lq['buyer_id'],
+                cart_snapshot=_lq['cart_snapshot'],
+                payment_method='card',
+                order_id=_lq['order_id'],
+            )
+            # Bid payments succeed synchronously — advance ledger status to PAID_IN_ESCROW
+            # immediately (same logic as the Stripe webhook does for cart checkouts).
+            _upd_conn = get_db_connection()
+            try:
+                _upd_conn.execute(
+                    "UPDATE orders_ledger SET order_status = 'PAID_IN_ESCROW', "
+                    "updated_at = CURRENT_TIMESTAMP "
+                    "WHERE order_id = ? AND order_status IN ('CHECKOUT_INITIATED', 'PAYMENT_PENDING')",
+                    (_lq['order_id'],)
+                )
+                _upd_conn.commit()
+            finally:
+                _upd_conn.close()
+        except Exception as _ledger_err:
+            _log.error('[BID ACCEPT] Ledger creation failed for order %s: %s',
+                       _lq['order_id'], _ledger_err)
 
     # Send payment failure notifications to buyers AFTER commit
     for fail_notif in failed_payment_notifications:

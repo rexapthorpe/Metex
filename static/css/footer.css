@@ -337,6 +337,52 @@
     background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
 }
 
+/* Feedback type pill selector */
+.feedback-type-group {
+    margin-bottom: 14px;
+}
+.feedback-type-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+.feedback-type-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.feedback-type-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 20px;
+    background: #f9fafb;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.feedback-type-pill:hover {
+    border-color: #f59e0b;
+    background: #fffbeb;
+    color: #92400e;
+}
+.feedback-type-pill.active {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #78350f;
+    font-weight: 600;
+}
+.feedback-type-pill.active[data-type="issue"]       { border-color: #ef4444; background: linear-gradient(135deg, #fee2e2, #fecaca); color: #7f1d1d; }
+.feedback-type-pill.active[data-type="improvement"] { border-color: #3b82f6; background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e3a8a; }
+.feedback-type-pill.active[data-type="praise"]      { border-color: #22c55e; background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #14532d; }
+.feedback-type-pill.active[data-type="other"]       { border-color: #8b5cf6; background: linear-gradient(135deg, #ede9fe, #ddd6fe); color: #3b0764; }
+
 /* Mobile adjustments */
 @media (max-width: 480px) {
     .contact-modal { border-radius: 14px; }

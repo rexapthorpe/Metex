@@ -62,11 +62,11 @@ def dashboard():
         # Platform revenue (placeholder)
         stats['platform_revenue'] = f"{volume * 0.025:,.0f}"
 
-        # Count active disputes (open reports)
+        # Count active disputes
         try:
             active_disputes = conn.execute("""
-                SELECT COUNT(*) as count FROM reports
-                WHERE status IN ('open', 'under_investigation', 'pending_review')
+                SELECT COUNT(*) as count FROM disputes
+                WHERE status IN ('open', 'evidence_requested', 'under_review', 'escalated')
             """).fetchone()['count']
             stats['active_disputes'] = str(active_disputes)
         except Exception:
@@ -94,14 +94,14 @@ def dashboard():
                 o.status,
                 o.created_at,
                 buyer.username as buyer_username,
-                seller.username as seller_username,
+                MIN(seller.username) as seller_username,
                 COUNT(oi.id) as item_count
             FROM orders o
             JOIN users buyer ON o.buyer_id = buyer.id
-            JOIN order_items oi ON o.id = oi.order_id
-            JOIN listings l ON oi.listing_id = l.id
-            JOIN users seller ON l.seller_id = seller.id
-            GROUP BY o.id
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN listings l ON oi.listing_id = l.id
+            LEFT JOIN users seller ON l.seller_id = seller.id
+            GROUP BY o.id, o.buyer_id, o.total_price, o.status, o.created_at, buyer.username
             ORDER BY o.created_at DESC
             LIMIT 10
         ''').fetchall()
@@ -115,8 +115,8 @@ def dashboard():
                 'buyer': tx['buyer_username'],
                 'buyer_initial': (tx['buyer_username'] or 'U')[0].upper(),
                 'seller': tx['seller_username'],
-                'items': tx['item_count'],
-                'amount': f"{tx['total_price']:,.2f}",
+                'item_count': tx['item_count'],
+                'amount': f"{tx['total_price']:,.2f}" if tx['total_price'] is not None else '$0.00',
                 'status': tx['status'] or 'pending',
                 'time_ago': time_ago
             })
@@ -443,6 +443,10 @@ def dashboard():
                 o.id,
                 o.buyer_id,
                 o.total_price,
+                COALESCE(o.buyer_card_fee, 0) AS buyer_card_fee,
+                COALESCE(o.tax_amount, 0) AS tax_amount,
+                COALESCE((SELECT spread_capture_amount FROM orders_ledger
+                           WHERE order_id = o.id LIMIT 1), 0) AS spread_capture_amount,
                 o.status,
                 o.payment_status,
                 o.payment_method_type,
@@ -450,9 +454,10 @@ def dashboard():
                 o.requires_payment_clearance,
                 o.payment_cleared_at,
                 o.stripe_payment_intent_id,
+                COALESCE(o.refund_status, 'not_refunded') AS refund_status,
                 o.created_at,
                 buyer.username as buyer_username,
-                seller.username as seller_username,
+                MIN(seller.username) as seller_username,
                 COUNT(oi.id) as item_count,
                 op.agg_status as op_payout_status
             FROM orders o
@@ -478,7 +483,11 @@ def dashboard():
                 FROM order_payouts
                 GROUP BY order_id
             ) op ON o.id = op.order_id
-            GROUP BY o.id
+            GROUP BY o.id, o.buyer_id, o.total_price, o.buyer_card_fee, o.tax_amount,
+                     o.status, o.payment_status, o.payment_method_type, o.paid_at,
+                     o.requires_payment_clearance, o.payment_cleared_at,
+                     o.stripe_payment_intent_id, o.refund_status, o.created_at,
+                     buyer.username, op.agg_status
             ORDER BY o.created_at DESC
             LIMIT 100
         ''').fetchall()
@@ -531,6 +540,9 @@ def dashboard():
                 'seller': tx['seller_username'] or 'Unknown',
                 'item_count': item_count,  # renamed from 'items' to avoid Jinja2 dict-method collision
                 'amount': f"${tx['total_price']:,.2f}" if tx['total_price'] else '$0.00',
+                'buyer_card_fee': float(tx['buyer_card_fee'] or 0),
+                'tax_amount': float(tx['tax_amount'] or 0),
+                'spread_capture_amount': float(tx['spread_capture_amount'] or 0),
                 'status': display_status,
                 'date': time_ago,
                 # Derived order state
@@ -546,6 +558,7 @@ def dashboard():
                 'payment_cleared_at': tx['payment_cleared_at'] or '',
                 'payout_status': real_payout_status,
                 'stripe_payment_intent_id': tx['stripe_payment_intent_id'] or '',
+                'refund_status': tx['refund_status'] or 'not_refunded',
             })
 
     except Exception as e:

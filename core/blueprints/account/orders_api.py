@@ -519,6 +519,113 @@ def order_items(order_id):
     return jsonify(result)
 
 
+@account_bp.route('/orders/api/<int:order_id>/transaction')
+def order_transaction(order_id):
+    """
+    Return financial breakdown for Transaction Details modal.
+    Items with per-line subtotals + order-level tax, processing fee, and total.
+
+    SECURITY: Only buyer or seller can access.
+    """
+    if 'user_id' not in session:
+        return jsonify(error="Authentication required"), 401
+
+    user_id = session['user_id']
+
+    access_check = _verify_order_access(order_id, user_id)
+    if not access_check:
+        if AUDIT_ENABLED:
+            log_unauthorized_access('order', order_id, 'view_transaction')
+        return jsonify(error="You do not have access to this order"), 403
+
+    conn = get_db_connection()
+
+    # Order-level financial fields
+    order_row = conn.execute(
+        """SELECT
+             o.total_price,
+             COALESCE(o.tax_amount, 0.0)     AS tax_amount,
+             COALESCE(o.buyer_card_fee, 0.0) AS buyer_card_fee,
+             SUM(oi.quantity * oi.price_each) AS merchandise_subtotal,
+             SUM(oi.grading_fee_charged)      AS grading_fee_total
+           FROM orders o
+           JOIN order_items oi ON oi.order_id = o.id
+           WHERE o.id = ?
+           GROUP BY o.id""",
+        (order_id,)
+    ).fetchone()
+
+    if not order_row:
+        conn.close()
+        return jsonify(error="Order not found"), 404
+
+    # Item-level rows
+    item_rows = conn.execute(
+        """SELECT
+             oi.quantity,
+             oi.price_each,
+             oi.grading_fee_charged,
+             c.metal, c.weight, c.year, c.product_line, c.product_type,
+             l.is_isolated, l.isolated_type,
+             u.username AS seller_username
+           FROM order_items oi
+           JOIN listings   l ON oi.listing_id = l.id
+           JOIN categories c ON l.category_id = c.id
+           JOIN users      u ON l.seller_id = u.id
+           WHERE oi.order_id = ?
+           ORDER BY oi.price_each DESC, oi.id""",
+        (order_id,)
+    ).fetchall()
+
+    conn.close()
+
+    def _item_label(row):
+        parts = [
+            row['weight'] or '',
+            str(row['year']) if row['year'] else '',
+            row['metal'] or '',
+            row['product_line'] or '',
+            row['product_type'] or '',
+        ]
+        label = ' '.join(p for p in parts if p).strip()
+        if row['is_isolated'] and row['isolated_type']:
+            label = row['isolated_type'] + ((' — ' + label) if label else '')
+        return label or 'Order Item'
+
+    items = []
+    for r in item_rows:
+        qty = int(r['quantity'] or 0)
+        price_each = float(r['price_each'] or 0)
+        grading = float(r['grading_fee_charged'] or 0)
+        items.append({
+            'label': _item_label(r),
+            'seller_username': r['seller_username'],
+            'quantity': qty,
+            'price_each': price_each,
+            'line_total': round(qty * price_each, 2),
+            'grading_fee': grading,
+        })
+
+    merchandise_subtotal = float(order_row['merchandise_subtotal'] or 0)
+    grading_fee_total    = float(order_row['grading_fee_total'] or 0)
+    tax_amount           = float(order_row['tax_amount'])
+    buyer_card_fee       = float(order_row['buyer_card_fee'])
+    total_price          = float(order_row['total_price'] or 0)
+
+    # Derive total from stored value; fall back to sum if missing
+    if total_price == 0:
+        total_price = round(merchandise_subtotal + grading_fee_total + tax_amount + buyer_card_fee, 2)
+
+    return jsonify({
+        'items': items,
+        'merchandise_subtotal': round(merchandise_subtotal, 2),
+        'grading_fee_total': round(grading_fee_total, 2),
+        'tax_amount': round(tax_amount, 2),
+        'buyer_card_fee': round(buyer_card_fee, 2),
+        'total_price': round(total_price, 2),
+    })
+
+
 @account_bp.route('/orders/api/<int:order_id>/buyer_info')
 def order_buyer_info(order_id):
     """

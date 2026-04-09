@@ -1,0 +1,244 @@
+<style>
+/* ── Feedback Tab ──────────────────────────────────────────────── */
+.feedback-stat-cards { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:20px; }
+@media(max-width:1100px){ .feedback-stat-cards { grid-template-columns:repeat(3,1fr); } }
+@media(max-width:640px){  .feedback-stat-cards { grid-template-columns:repeat(2,1fr); } }
+
+.fb-stat {
+  background:#fff; border:1px solid #e5e7eb; border-radius:10px;
+  padding:16px 18px; display:flex; flex-direction:column; gap:4px;
+}
+.fb-stat-label { font-size:11px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; }
+.fb-stat-value { font-size:26px; font-weight:700; color:#111827; line-height:1.1; }
+.fb-stat-sub   { font-size:11px; color:#9ca3af; }
+.fb-stat-trend { font-size:11px; font-weight:600; }
+.fb-stat-trend.up   { color:#22c55e; }
+.fb-stat-trend.down { color:#ef4444; }
+.fb-stat-trend.flat { color:#9ca3af; }
+.fb-stat.accent-issue        { border-left:3px solid #ef4444; }
+.fb-stat.accent-improvement  { border-left:3px solid #3b82f6; }
+.fb-stat.accent-praise       { border-left:3px solid #22c55e; }
+.fb-stat.accent-other        { border-left:3px solid #8b5cf6; }
+.fb-stat.accent-total        { border-left:3px solid #f59e0b; }
+.fb-stat.accent-recent       { border-left:3px solid #06b6d4; }
+
+.feedback-charts-row { display:grid; grid-template-columns:280px 1fr; gap:16px; margin-bottom:20px; }
+@media(max-width:900px){ .feedback-charts-row { grid-template-columns:1fr; } }
+
+.feedback-chart-card {
+  background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:20px;
+}
+.feedback-chart-card h4 { margin:0 0 14px; font-size:13px; font-weight:600; color:#374151; }
+.feedback-donut-wrap { position:relative; width:180px; height:180px; margin:0 auto 12px; }
+.feedback-donut-wrap canvas { width:100%!important; height:100%!important; }
+.feedback-donut-legend { display:flex; flex-direction:column; gap:6px; margin-top:4px; }
+.feedback-donut-legend-item { display:flex; align-items:center; gap:8px; font-size:12px; color:#374151; }
+.feedback-donut-legend-swatch { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+.feedback-donut-legend-count { margin-left:auto; font-weight:600; color:#111827; }
+
+.feedback-bar-wrap { height:200px; position:relative; }
+
+.feedback-filter-bar {
+  display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
+  background:#fff; border:1px solid #e5e7eb; border-radius:10px;
+  padding:14px 16px; margin-bottom:14px;
+}
+.feedback-filter-group { display:flex; flex-direction:column; gap:4px; }
+.feedback-filter-group label { font-size:11px; font-weight:600; color:#6b7280; text-transform:uppercase; }
+.feedback-filter-group input,
+.feedback-filter-group select {
+  border:1px solid #d1d5db; border-radius:6px; padding:6px 10px;
+  font-size:13px; color:#111827; background:#f9fafb; outline:none; height:32px;
+}
+.feedback-filter-group input:focus,
+.feedback-filter-group select:focus { border-color:#f59e0b; background:#fff; }
+
+.feedback-type-filter-pills { display:flex; gap:6px; flex-wrap:wrap; }
+.fb-filter-pill {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 12px; border:1.5px solid #d1d5db; border-radius:14px;
+  background:#f9fafb; color:#374151; font-size:12px; font-weight:500; cursor:pointer;
+  transition:border-color .12s, background .12s, color .12s;
+}
+.fb-filter-pill:hover   { border-color:#f59e0b; background:#fffbeb; }
+.fb-filter-pill.active  { border-color:#f59e0b; background:#fef3c7; color:#78350f; font-weight:600; }
+.fb-filter-pill.active.ft-issue        { border-color:#ef4444; background:#fee2e2; color:#7f1d1d; }
+.fb-filter-pill.active.ft-improvement  { border-color:#3b82f6; background:#dbeafe; color:#1e3a8a; }
+.fb-filter-pill.active.ft-praise       { border-color:#22c55e; background:#dcfce7; color:#14532d; }
+.fb-filter-pill.active.ft-other        { border-color:#8b5cf6; background:#ede9fe; color:#3b0764; }
+
+.feedback-filter-actions { display:flex; gap:8px; align-items:flex-end; margin-left:auto; }
+
+.feedback-table-wrap { background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
+.feedback-table-wrap table { width:100%; border-collapse:collapse; }
+.feedback-table-wrap th {
+  background:#f9fafb; padding:10px 14px; text-align:left;
+  font-size:11px; font-weight:600; color:#6b7280; text-transform:uppercase;
+  border-bottom:1px solid #e5e7eb; white-space:nowrap;
+}
+.feedback-table-wrap td {
+  padding:12px 14px; border-bottom:1px solid #f3f4f6;
+  font-size:13px; color:#374151; vertical-align:top;
+}
+.feedback-table-wrap tr:last-child td { border-bottom:none; }
+.feedback-table-wrap tr:hover td { background:#fafafa; }
+.feedback-content-preview {
+  max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#6b7280;
+}
+.feedback-type-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:2px 9px; border-radius:10px; font-size:11px; font-weight:600;
+}
+.fb-badge-issue        { background:#fee2e2; color:#b91c1c; }
+.fb-badge-improvement  { background:#dbeafe; color:#1d4ed8; }
+.fb-badge-praise       { background:#dcfce7; color:#15803d; }
+.fb-badge-other        { background:#ede9fe; color:#7c3aed; }
+.fb-badge-unset        { background:#f3f4f6; color:#6b7280; }
+
+.feedback-empty {
+  text-align:center; padding:48px 20px; color:#9ca3af;
+}
+.feedback-empty i { font-size:36px; margin-bottom:12px; display:block; }
+
+.feedback-pagination { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid #f3f4f6; }
+.fb-page-btn {
+  padding:5px 12px; border:1px solid #d1d5db; border-radius:6px;
+  background:#f9fafb; color:#374151; font-size:12px; cursor:pointer;
+}
+.fb-page-btn:disabled { opacity:.4; cursor:not-allowed; }
+.fb-page-info { font-size:12px; color:#6b7280; flex:1; text-align:center; }
+
+/* Detail modal */
+#feedbackDetailModal .admin-modal { max-width:560px; width:100%; }
+.feedback-detail-content { white-space:pre-wrap; font-size:14px; line-height:1.7; color:#374151;
+  background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:16px; margin-top:12px; }
+</style>
+
+<!-- ── Header ───────────────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+  <div>
+    <h2 style="margin:0;font-size:20px;font-weight:700;color:#111827;">
+      <i class="fa-solid fa-comment-dots" style="color:#f59e0b;"></i> User Feedback
+    </h2>
+    <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">All feedback submitted through the platform</p>
+  </div>
+  <button class="admin-action-btn" onclick="loadFeedbackStats(); loadFeedbackList();">
+    <i class="fa-solid fa-rotate"></i> Refresh
+  </button>
+</div>
+
+<!-- ── Stat Cards ────────────────────────────────────────────────── -->
+<div class="feedback-stat-cards">
+  <div class="fb-stat accent-total">
+    <span class="fb-stat-label">Total Feedback</span>
+    <span class="fb-stat-value" id="fbStatTotal">—</span>
+    <span class="fb-stat-sub">All time</span>
+  </div>
+  <div class="fb-stat accent-issue">
+    <span class="fb-stat-label"><i class="fa-solid fa-bug" style="color:#ef4444;"></i> Issues</span>
+    <span class="fb-stat-value" id="fbStatIssue">—</span>
+    <span class="fb-stat-sub" id="fbStatIssuePct"></span>
+  </div>
+  <div class="fb-stat accent-improvement">
+    <span class="fb-stat-label"><i class="fa-solid fa-lightbulb" style="color:#3b82f6;"></i> Improvements</span>
+    <span class="fb-stat-value" id="fbStatImprovement">—</span>
+    <span class="fb-stat-sub" id="fbStatImprovementPct"></span>
+  </div>
+  <div class="fb-stat accent-praise">
+    <span class="fb-stat-label"><i class="fa-solid fa-thumbs-up" style="color:#22c55e;"></i> Praise</span>
+    <span class="fb-stat-value" id="fbStatPraise">—</span>
+    <span class="fb-stat-sub" id="fbStatPraisePct"></span>
+  </div>
+  <div class="fb-stat accent-other">
+    <span class="fb-stat-label"><i class="fa-solid fa-ellipsis" style="color:#8b5cf6;"></i> Other</span>
+    <span class="fb-stat-value" id="fbStatOther">—</span>
+    <span class="fb-stat-sub" id="fbStatOtherPct"></span>
+  </div>
+  <div class="fb-stat accent-recent">
+    <span class="fb-stat-label"><i class="fa-solid fa-calendar" style="color:#06b6d4;"></i> Last 30 Days</span>
+    <span class="fb-stat-value" id="fbStat30d">—</span>
+    <span class="fb-stat-trend flat" id="fbStat30dTrend"></span>
+  </div>
+</div>
+
+<!-- ── Charts ────────────────────────────────────────────────────── -->
+<div class="feedback-charts-row">
+  <!-- Donut: by type -->
+  <div class="feedback-chart-card">
+    <h4><i class="fa-solid fa-chart-pie" style="color:#f59e0b;"></i> By Type</h4>
+    <div class="feedback-donut-wrap">
+      <canvas id="fbDonutChart"></canvas>
+    </div>
+    <div class="feedback-donut-legend" id="fbDonutLegend"></div>
+  </div>
+
+  <!-- Bar: over time -->
+  <div class="feedback-chart-card">
+    <h4><i class="fa-solid fa-chart-bar" style="color:#3b82f6;"></i> Submissions — Last 30 Days</h4>
+    <div class="feedback-bar-wrap">
+      <canvas id="fbBarChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Filters ───────────────────────────────────────────────────── -->
+<div class="feedback-filter-bar">
+  <div class="feedback-filter-group">
+    <label>Type</label>
+    <div class="feedback-type-filter-pills" id="fbTypePills">
+      <button class="fb-filter-pill active" data-type="">All</button>
+      <button class="fb-filter-pill ft-issue"        data-type="issue"><i class="fa-solid fa-bug"></i> Issue</button>
+      <button class="fb-filter-pill ft-improvement"  data-type="improvement"><i class="fa-solid fa-lightbulb"></i> Improvement</button>
+      <button class="fb-filter-pill ft-praise"       data-type="praise"><i class="fa-solid fa-thumbs-up"></i> Praise</button>
+      <button class="fb-filter-pill ft-other"        data-type="other"><i class="fa-solid fa-ellipsis"></i> Other</button>
+    </div>
+  </div>
+  <div class="feedback-filter-group">
+    <label>From</label>
+    <input type="date" id="fbFilterFrom">
+  </div>
+  <div class="feedback-filter-group">
+    <label>To</label>
+    <input type="date" id="fbFilterTo">
+  </div>
+  <div class="feedback-filter-group">
+    <label>User</label>
+    <input type="text" id="fbFilterUser" placeholder="Username…" style="width:140px;">
+  </div>
+  <div class="feedback-filter-actions">
+    <button class="admin-action-btn" onclick="loadFeedbackList(1)">Apply</button>
+    <button class="admin-action-btn" onclick="resetFeedbackFilters()">Reset</button>
+  </div>
+</div>
+
+<!-- ── Table ─────────────────────────────────────────────────────── -->
+<div class="feedback-table-wrap">
+  <div id="fbList">
+    <div class="feedback-empty">
+      <i class="fa-solid fa-spinner fa-spin"></i>
+      <span>Loading feedback…</span>
+    </div>
+  </div>
+  <div class="feedback-pagination" id="fbPagination" style="display:none;">
+    <button class="fb-page-btn" id="fbPagePrev" onclick="loadFeedbackList(_fbPage - 1)">
+      <i class="fa-solid fa-chevron-left"></i> Prev
+    </button>
+    <span class="fb-page-info" id="fbPageInfo"></span>
+    <button class="fb-page-btn" id="fbPageNext" onclick="loadFeedbackList(_fbPage + 1)">
+      Next <i class="fa-solid fa-chevron-right"></i>
+    </button>
+  </div>
+</div>
+
+<!-- ── Detail Modal ──────────────────────────────────────────────── -->
+<div class="admin-modal-overlay" id="feedbackDetailModal" style="display:none;">
+  <div class="admin-modal" style="max-width:560px;width:100%;max-height:85vh;overflow-y:auto;">
+    <div class="admin-modal-header">
+      <h2 id="fbDetailTitle"><i class="fa-solid fa-comment-dots"></i> Feedback</h2>
+      <button class="admin-modal-close" onclick="closeFeedbackDetailModal()">&times;</button>
+    </div>
+    <div class="admin-modal-body" id="fbDetailBody">
+      <div class="modal-loading"><i class="fa-solid fa-spinner fa-spin fa-lg"></i></div>
+    </div>
+  </div>
+</div>

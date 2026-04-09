@@ -45,6 +45,9 @@ if not _TESTING:
 
 stripe.api_key = STRIPE_SECRET_KEY or ''  # empty string safe in test mode
 
+# Site URL (used for Stripe Connect onboarding pre-fill)
+SITE_URL = os.getenv('SITE_URL', 'https://metex.com')
+
 # Pricing Configuration
 PRICE_LOCK_DURATION_SECONDS = int(os.getenv('PRICE_LOCK_DURATION_SECONDS', '10'))
 SPOT_PRICE_CACHE_TTL_MINUTES = int(os.getenv('SPOT_PRICE_CACHE_TTL_MINUTES', '5'))

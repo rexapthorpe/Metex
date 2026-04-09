@@ -829,6 +829,102 @@
 
 
 <!-- ═══════════════════════════════════════════════════════════════
+     PAYOUT DELIVERY DELAY
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="sys-section" id="sys-payout-delivery-delay">
+  <div class="sys-section-header">
+    <span class="sys-section-accent" style="background:#16a34a;"></span>
+    <h3><i class="fa-solid fa-truck-ramp-box" style="margin-right:6px; color:#16a34a;"></i> Payout Delivery Delay</h3>
+  </div>
+
+  <div class="settings-card" style="cursor:default; padding: 20px 24px;">
+    <div style="display:flex; align-items:flex-start; gap:14px; flex:1; flex-wrap:wrap;">
+      <div class="settings-icon" style="flex-shrink:0; background:#dcfce7; color:#16a34a;">
+        <i class="fa-solid fa-clock"></i>
+      </div>
+      <div class="settings-info" style="flex:1; min-width:200px;">
+        <h4 style="margin-bottom:4px;">Hours after delivery before payout is eligible</h4>
+        <p style="margin-bottom:14px;">
+          Once an admin marks a shipment as <strong>Delivered</strong>, the seller's
+          payout becomes eligible only after this hold period elapses. Payouts remain
+          blocked until both delivery is confirmed <em>and</em> the delay has passed.
+          Default: 24 hours.
+        </p>
+
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+          <div style="display:flex; flex-direction:column; gap:3px; align-items:center;">
+            <label style="font-size:11px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.05em;">Hours</label>
+            <input type="number" id="payoutDeliveryDelayHours" min="0" max="720" step="1" value="24"
+              style="width:80px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:15px; text-align:center;">
+          </div>
+          <span style="font-size:20px; color:#9ca3af; margin-top:16px;">:</span>
+          <div style="display:flex; flex-direction:column; gap:3px; align-items:center;">
+            <label style="font-size:11px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.05em;">Minutes</label>
+            <input type="number" id="payoutDeliveryDelayMinutes" min="0" max="59" step="1" value="0"
+              style="width:80px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:15px; text-align:center;">
+          </div>
+          <button class="btn-primary"
+            style="padding:6px 16px; font-size:13px; margin-top:16px;"
+            onclick="savePayoutDeliveryDelay()">Save</button>
+        </div>
+
+        <p id="payoutDeliveryDelayStatus" style="margin-top:6px; font-size:13px; color:#16a34a; display:none;"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  function loadPayoutDeliveryDelay() {
+    fetch('/admin/api/system-settings/payout-delivery-delay')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) return;
+        document.getElementById('payoutDeliveryDelayHours').value   = data.hours;
+        document.getElementById('payoutDeliveryDelayMinutes').value = data.minutes;
+      })
+      .catch(() => {});
+  }
+
+  window.savePayoutDeliveryDelay = function () {
+    var hours   = parseInt(document.getElementById('payoutDeliveryDelayHours').value,   10) || 0;
+    var minutes = parseInt(document.getElementById('payoutDeliveryDelayMinutes').value, 10) || 0;
+    var status  = document.getElementById('payoutDeliveryDelayStatus');
+
+    fetch('/admin/api/system-settings/payout-delivery-delay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hours: hours, minutes: minutes }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        status.style.display = 'block';
+        status.style.color   = data.success ? '#16a34a' : '#dc2626';
+        status.textContent   = data.message || (data.success ? 'Saved.' : 'Failed.');
+        if (data.success) {
+          document.getElementById('payoutDeliveryDelayHours').value   = data.hours;
+          document.getElementById('payoutDeliveryDelayMinutes').value = data.minutes;
+        }
+        setTimeout(() => { status.style.display = 'none'; }, 4000);
+      })
+      .catch(() => {
+        status.style.display = 'block';
+        status.style.color   = '#dc2626';
+        status.textContent   = 'Network error — please try again.';
+      });
+  };
+
+  if (document.getElementById('payoutDeliveryDelayHours')) {
+    loadPayoutDeliveryDelay();
+  } else {
+    document.addEventListener('DOMContentLoaded', loadPayoutDeliveryDelay);
+  }
+})();
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
      PLATFORM CONFIG
      ═══════════════════════════════════════════════════════════════ -->
 <div class="sys-section" id="sys-platform">

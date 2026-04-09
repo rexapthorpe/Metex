@@ -26,6 +26,97 @@ from config import STRIPE_PUBLISHABLE_KEY
 
 from . import checkout_bp
 
+# ---------------------------------------------------------------------------
+# Fee constants
+# ---------------------------------------------------------------------------
+#
+# CARD_RATE / CARD_FLAT are Stripe's pass-through card processing fee components.
+# The buyer card fee is applied to the TAXED subtotal (subtotal + tax), not the
+# raw subtotal, because that is the actual amount being processed by Stripe.
+#
+# Tax is no longer computed with a fixed rate. Sales tax is determined by
+# calling the Stripe Tax API (stripe.tax.Calculation) with the buyer's address
+# and the order subtotal. The resulting tax_amount is stored on the order and
+# used in all downstream calculations. This makes Stripe the single source of
+# truth for tax — no manual rates in Python or JavaScript.
+#
+CARD_RATE = 0.0299   # 2.99%
+CARD_FLAT = 0.30     # $0.30 fixed per transaction
+FALLBACK_TAX_RATE = 0.0825  # Used when Stripe Tax API is unavailable
+
+# Map common full country names → ISO 3166-1 alpha-2 codes accepted by Stripe Tax.
+_COUNTRY_NAME_TO_CODE = {
+    'united states': 'US',
+    'united states of america': 'US',
+    'canada': 'CA',
+    'united kingdom': 'GB',
+    'great britain': 'GB',
+    'australia': 'AU',
+    'germany': 'DE',
+    'france': 'FR',
+    'japan': 'JP',
+}
+
+
+def _normalize_country(country: str) -> str:
+    """Convert full country name to ISO code if needed, e.g. 'United States' → 'US'."""
+    if not country:
+        return 'US'
+    stripped = country.strip()
+    if len(stripped) == 2:
+        return stripped.upper()
+    return _COUNTRY_NAME_TO_CODE.get(stripped.lower(), stripped[:2].upper())
+
+
+def _get_stripe_tax(subtotal_cents: int, postal_code: str,
+                    state: str = '', country: str = 'US'):
+    """
+    Call the Stripe Tax Calculation API to determine sales tax.
+
+    Args:
+        subtotal_cents: Taxable amount in cents (item subtotal only, no fees).
+        postal_code:    Buyer's postal/ZIP code (required for tax lookup).
+        state:          Buyer's state abbreviation, e.g. 'CA'.
+        country:        Buyer's country code or full name (normalized internally).
+
+    Returns:
+        (tax_cents: int, calculation_id: str | None)
+        Returns (0, None) when address is incomplete.
+        Returns (fallback_cents, 'fallback_rate') when Stripe Tax is unavailable
+        but an address was provided — so the UI can show an estimate.
+    """
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+    if not postal_code or subtotal_cents <= 0:
+        return 0, None
+
+    country_code = _normalize_country(country)
+
+    try:
+        calc = stripe.tax.Calculation.create(
+            currency='usd',
+            line_items=[{
+                'amount': subtotal_cents,
+                'reference': 'order_subtotal',
+            }],
+            customer_details={
+                'address': {
+                    'postal_code': str(postal_code).strip(),
+                    'state': str(state).strip() if state else '',
+                    'country': country_code,
+                },
+                'address_source': 'shipping',
+            },
+        )
+        _log.info('[Tax] Stripe calc %s subtotal=%d tax=%d',
+                  calc.id, subtotal_cents, calc.tax_amount_exclusive)
+        return int(calc.tax_amount_exclusive), calc.id
+    except Exception as exc:
+        _log.warning('[Tax] Stripe Tax unavailable — using fallback rate %.2f%%: %s',
+                     FALLBACK_TAX_RATE * 100, exc)
+        fallback_cents = round(subtotal_cents * FALLBACK_TAX_RATE)
+        return fallback_cents, 'fallback_rate'
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -381,6 +472,8 @@ def checkout():
                     recipient_first = data.get('recipient_first', '')
                     recipient_last = data.get('recipient_last', '')
                     payment_intent_id = data.get('payment_intent_id', '')
+                    # 'card' is the default; frontend sends _stripeSelectedMethod
+                    payment_method_type = data.get('payment_method_type', 'card')
 
                     # ── Idempotency guard: validate one-time checkout nonce ─────
                     # Prevents duplicate orders from double-submit or simultaneous
@@ -499,16 +592,84 @@ def checkout():
                             'message': 'Your cart is empty or items are no longer available',
                         })
 
+                    # ── Tax (Stripe) → buyer card fee → total ──────────────────
+                    #
+                    # 1. Subtotal   = sum of item line totals (no fees).
+                    # 2. Tax        = stripe.tax.Calculation on subtotal with buyer address.
+                    #                 Stripe is the single source of truth for tax amount.
+                    # 3. Card fee   = round((subtotal + tax) × CARD_RATE + CARD_FLAT, 2)
+                    #                 Fee is on the taxed subtotal because that is the actual
+                    #                 amount Stripe will process.  ACH = $0.00.
+                    # 4. Total      = subtotal + tax + card_fee  (= Stripe charge amount)
+                    #
+                    # The PaymentIntent is updated with the final total so what Stripe
+                    # charges, what we store, and what the buyer sees all match exactly.
+                    _items_subtotal = round(
+                        sum(item['price_each'] * item['quantity'] for item in cart_data), 2
+                    )
+                    # ── Stripe Tax: look up address components from JSON body ──
+                    _tax_postal  = data.get('zip_code', '') or data.get('postal_code', '')
+                    _tax_state   = data.get('state', '')
+                    _tax_country = data.get('country', 'US') or 'US'
+                    _tax_cents, _tax_calc_id = _get_stripe_tax(
+                        int(round(_items_subtotal * 100)),
+                        _tax_postal, _tax_state, _tax_country,
+                    )
+                    _tax_amount = round(_tax_cents / 100, 2)
+                    _taxed_subtotal = _items_subtotal + _tax_amount
+
+                    if payment_method_type == 'us_bank_account':
+                        buyer_card_fee = 0.0
+                    else:
+                        buyer_card_fee = round(_taxed_subtotal * CARD_RATE + CARD_FLAT, 2)
+
+                    _charged_total = _taxed_subtotal + buyer_card_fee
+                    _charged_total_cents = int(round(_charged_total * 100))
+
+                    import logging as _co_logging
+                    _co_log = _co_logging.getLogger(__name__)
+                    _co_log.info(
+                        '[CHECKOUT] subtotal=%.2f tax=%.2f card_fee=%.2f total=%.2f '
+                        'pi_cents=%d pi_id=%s method=%s',
+                        _items_subtotal, _tax_amount, buyer_card_fee, _charged_total,
+                        _charged_total_cents, payment_intent_id or '(missing)',
+                        payment_method_type,
+                    )
+
+                    # Update the PaymentIntent amount to the final taxed+fee total so
+                    # what Stripe charges matches what we store.  Only called when a PI
+                    # ID is present (the frontend always provides one in production; it
+                    # may be absent in test environments where Stripe is mocked).
+                    if payment_intent_id:
+                        try:
+                            stripe.PaymentIntent.modify(
+                                payment_intent_id,
+                                amount=_charged_total_cents,
+                            )
+                            _co_log.info('[CHECKOUT] PI %s amount set to %d cents (%.2f)',
+                                         payment_intent_id, _charged_total_cents, _charged_total)
+                        except stripe.error.StripeError as _pi_err:
+                            conn.close()
+                            return jsonify({
+                                'success': False,
+                                'message': f'Payment setup error: {str(_pi_err)}',
+                            }), 500
+
                     # ── Consume nonce immediately before order creation ──────────
                     # All validation has passed; remove the nonce so any duplicate
                     # request that reaches this point is rejected as "already submitted".
                     session.pop('checkout_nonce', None)
 
                     # ── Create order ────────────────────────────────────────────
+                    # Effective tax rate stored for display; Stripe is authoritative source.
+                    _effective_tax_rate = round(_tax_amount / _items_subtotal, 6) if _items_subtotal else 0.0
                     order_id = create_order(
                         user_id, cart_data, shipping_address, recipient_first, recipient_last,
                         placed_from_ip=request.remote_addr,
                         payment_intent_id=payment_intent_id or None,
+                        buyer_card_fee=buyer_card_fee,
+                        tax_amount=_tax_amount,
+                        tax_rate=_effective_tax_rate,
                     )
                     _create_ledger_for_order(user_id, order_id, cart_data, conn)
 
@@ -612,7 +773,7 @@ def checkout():
                             item_description=buyer_item_description,
                             quantity_purchased=total_items,
                             price_per_unit=order_total / total_items if total_items > 0 else 0,
-                            total_amount=order_total,
+                            total_amount=round(order_total + _tax_amount + buyer_card_fee, 2),
                         )
                     except Exception as e:
                         print(f"[CHECKOUT] Failed to send buyer notification: {e}")
@@ -621,7 +782,7 @@ def checkout():
                         'success': True,
                         'order_id': order_id,
                         'total_items': total_items,
-                        'order_total': round(order_total, 2),
+                        'order_total': round(order_total + _tax_amount + buyer_card_fee, 2),
                     })
 
                 except Exception as e:
@@ -966,18 +1127,65 @@ def checkout():
         checkout_nonce = secrets.token_hex(16)
         session['checkout_nonce'] = checkout_nonce
 
+        _subtotal_rounded = round(subtotal, 2)
+        # Tax is fetched from Stripe when the buyer provides their address.
+        # Initial render shows $0.00; the frontend JS calls /checkout/api/tax-estimate
+        # once the address fields are populated to display the correct tax amount.
+        _tax_display = 0.0
+
         return render_template(
             'checkout_page.html',
             cart_items=cart_items,
             item_count=item_count,
-            subtotal=round(subtotal, 2),
+            subtotal=_subtotal_rounded,
             grading_fee=0.0,
             grading_fee_per_unit=0.0,
             cart_total=cart_total,
+            tax_amount=_tax_display,
             user_info=dict(user_info) if user_info else {},
             checkout_nonce=checkout_nonce,
             stripe_publishable_key=STRIPE_PUBLISHABLE_KEY or '',
         )
+
+
+@checkout_bp.route('/checkout/api/tax-estimate', methods=['POST'])
+@frozen_check
+def tax_estimate():
+    """
+    Return a Stripe Tax estimate for the given subtotal and address.
+
+    Called by the frontend when the buyer's address (ZIP / state) is available,
+    so the order summary can display the correct tax amount before final submission.
+
+    Request JSON:
+      { subtotal: float, postal_code: str, state: str, country: str }
+
+    Response JSON (200):
+      { tax_amount: float, taxed_subtotal: float }
+    Response JSON (400):
+      { error: str }
+    """
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    body = request.get_json(silent=True) or {}
+    subtotal     = float(body.get('subtotal') or 0)
+    postal_code  = str(body.get('postal_code') or body.get('zip_code') or '').strip()
+    state        = str(body.get('state') or '').strip()
+    country      = str(body.get('country') or 'US').strip() or 'US'
+
+    if subtotal <= 0:
+        return jsonify({'error': 'subtotal must be positive'}), 400
+
+    tax_cents, calc_id = _get_stripe_tax(int(round(subtotal * 100)), postal_code, state, country)
+    tax_amount = round(tax_cents / 100, 2)
+    # tax_calculated=True only when Stripe actually returned a result (calc_id present).
+    # When no postal code or Stripe fails, calc_id is None and we report uncalculated.
+    return jsonify({
+        'tax_amount':     tax_amount,
+        'taxed_subtotal': round(subtotal + tax_amount, 2),
+        'tax_calculated': calc_id is not None,
+    })
 
 
 @checkout_bp.route('/checkout/api/recalculate-spot', methods=['POST'])
@@ -1204,11 +1412,33 @@ def create_payment_intent():
     finally:
         conn.close()  # always close — success and failure alike
 
-    # --- Call Stripe (no DB connection held) ---------------------------------
-    cart_total = round(subtotal + grading_fee, 2)
-    amount_cents = int(cart_total * 100)
-    _log.info('[PI] creating PaymentIntent amount_cents=%d user=%s customer=%s',
-              amount_cents, user_id, customer_id)
+    # --- Compute tax + card fee using address sent by the client -------------
+    # The JS sends zip_code/state/country when it transitions to the payment
+    # step, so we can compute the full charge amount right here instead of
+    # relying on the modify() call later.
+    req_json    = request.get_json(silent=True) or {}
+    _pi_postal  = req_json.get('zip_code', '') or ''
+    _pi_state   = req_json.get('state', '') or ''
+    _pi_country = req_json.get('country', 'US') or 'US'
+
+    _subtotal_cents = int(round((subtotal + grading_fee) * 100))
+    _tax_cents, _tax_calc_id = _get_stripe_tax(
+        _subtotal_cents, _pi_postal, _pi_state, _pi_country,
+    )
+    _tax_amount  = round(_tax_cents / 100, 2)
+    _taxed_sub   = round((subtotal + grading_fee) + _tax_amount, 2)
+    # Default to card fee (ACH path: fee is 0; determined at confirm time).
+    # We default to card here so the PI amount is never *less* than needed.
+    _card_fee    = round(_taxed_sub * CARD_RATE + CARD_FLAT, 2)
+    _full_total  = round(_taxed_sub + _card_fee, 2)
+    amount_cents = int(round(_full_total * 100))
+
+    _log.info(
+        '[PI] creating PaymentIntent subtotal=%.2f tax=%.2f card_fee=%.2f '
+        'total=%.2f amount_cents=%d user=%s customer=%s',
+        subtotal + grading_fee, _tax_amount, _card_fee,
+        _full_total, amount_cents, user_id, customer_id,
+    )
 
     if amount_cents <= 0:
         _log.warning('[PI] amount_cents=%d — cart may be empty, user=%s', amount_cents, user_id)

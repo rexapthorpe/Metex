@@ -111,6 +111,7 @@ def create_account():
             business_type='individual',
             business_profile={
                 'product_description': 'Selling coins and precious metals via Metex marketplace',
+                'url': current_app.config.get('SITE_URL', 'https://metex.com'),
             },
             capabilities={
                 'transfers': {'requested': True},
@@ -160,6 +161,16 @@ def create_account_link():
 
         if not user or not user['stripe_account_id']:
             return redirect(url_for('stripe_connect.create_account'))
+
+        # Pre-fill the website field on the onboarding form.
+        site_url = current_app.config.get('SITE_URL', 'https://metex.com')
+        try:
+            stripe.Account.modify(
+                user['stripe_account_id'],
+                business_profile={'url': site_url},
+            )
+        except stripe.error.StripeError as e:
+            logger.warning("[Stripe] Could not pre-fill business_profile.url: %s", e)
 
         account_link = stripe.AccountLink.create(
             account=user['stripe_account_id'],
@@ -407,6 +418,17 @@ def _handle_payment_intent_succeeded(payment_intent):
                       requires_payment_clearance = ?
                 WHERE id = ?""",
             (pi_id, paid_at, payment_method_type, requires_clearance, order_id),
+        )
+        # Sync ledger order status so payout eligibility checks pass.
+        # Transitions CHECKOUT_INITIATED or PAYMENT_PENDING → PAID_IN_ESCROW.
+        # Does not overwrite UNDER_REVIEW, AWAITING_SHIPMENT, or later states.
+        conn.execute(
+            """UPDATE orders_ledger
+                  SET order_status = 'PAID_IN_ESCROW',
+                      updated_at   = CURRENT_TIMESTAMP
+                WHERE order_id = ?
+                  AND order_status IN ('CHECKOUT_INITIATED', 'PAYMENT_PENDING')""",
+            (order_id,),
         )
         conn.commit()
         logger.info(

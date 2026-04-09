@@ -10,174 +10,146 @@
 {% block content %}
 
 <!-- ═══════════════════════════════════════════════════════════
-     Dark Band: Hero + Ticker + How It Works
+     Hero Section
      ═══════════════════════════════════════════════════════════ -->
-<div class="lp-dark-band">
+<div class="lp-hero-band">
 
-  <!-- ── SECTION 1: HERO ─────────────────────────────────── -->
-  <section class="lp-hero">
-    <div class="lp-hero-inner">
+  <!-- Main Hero Content -->
+  <div class="lp-hero-inner">
 
-      <!-- Left: Value Proposition -->
-      <div class="lp-hero-left">
-        <div class="lp-eyebrow">
-          <span class="lp-eyebrow-dot"></span>
-          Precious Metals Exchange
+    <!-- Left: Value Proposition -->
+    <div class="lp-hero-left">
+
+      <div class="lp-eyebrow-pill">
+        <i class="fa-solid fa-bolt"></i> The People's Marketplace
+      </div>
+
+      <h1 class="lp-headline">
+        No More Dealer<br>
+        <span class="lp-headline-accent">Price&#8209;Gouging.</span>
+      </h1>
+      <h2 class="lp-subheadline">
+        Trade for <span class="lp-subheadline-green">Real Market Value.</span>
+      </h2>
+
+      <p class="lp-description">
+        Cut out the middlemen. Buy and sell precious metals directly &mdash;
+        peer-to-peer, at spot-linked prices. <strong>You keep more. Period.</strong>
+      </p>
+
+      <div class="lp-trust-pills">
+        <span class="lp-trust-pill"><i class="fa-solid fa-circle-check"></i> Zero hidden markups</span>
+        <span class="lp-trust-pill"><i class="fa-solid fa-circle-check"></i> Transparent fees</span>
+        <span class="lp-trust-pill"><i class="fa-solid fa-circle-check"></i> Verified sellers only</span>
+      </div>
+
+      <div class="lp-cta-row">
+        <a href="#listings" class="lp-cta-btn lp-cta-btn--primary">
+          <i class="fa-solid fa-chart-line"></i> View Markets
+        </a>
+        <a href="{{ url_for('sell.sell') }}" class="lp-cta-btn lp-cta-btn--outline">
+          <i class="fa-solid fa-tag"></i> List an Item
+        </a>
+      </div>
+
+    </div><!-- /lp-hero-left -->
+
+    <!-- Right: Feature Cards + Spot Prices -->
+    <div class="lp-hero-right">
+
+      <div class="lp-feat-card">
+        <div class="lp-feat-card-icon lp-feat-icon--red">
+          <i class="fa-solid fa-ban"></i>
         </div>
-
-        <h1 class="lp-headline">Trade Physical Metals<br>at Market Prices</h1>
-
-        <p class="lp-subhead">
-          Buy and sell bullion directly with other traders.
-          Competitive listings replace traditional dealer spreads —
-          prices set by the market, not a markup.
-        </p>
-
-        <div class="lp-props">
-          <div class="lp-prop">
-            <span class="lp-prop-icon">◆</span>
-            Competitive buyer and seller markets
-          </div>
-          <div class="lp-prop">
-            <span class="lp-prop-icon">◆</span>
-            Listings and bids visible before trading
-          </div>
-          <div class="lp-prop">
-            <span class="lp-prop-icon">◆</span>
-            Prices anchored to real metal markets
-          </div>
-          <div class="lp-prop">
-            <span class="lp-prop-icon">◆</span>
-            Transparent transaction history
-          </div>
-        </div>
-
-        <div class="lp-actions">
-          <a href="#listings" class="lp-btn lp-btn--primary">
-            <i class="fa-solid fa-chart-line"></i> Browse Markets
-          </a>
-          <a href="{{ url_for('sell.sell') }}" class="lp-btn lp-btn--ghost">
-            Start Selling
-          </a>
+        <div>
+          <div class="lp-feat-card-title">No Dealer Markups</div>
+          <div class="lp-feat-card-text">Buy at real spot-linked prices &mdash; not inflated dealer spreads.</div>
         </div>
       </div>
 
-      <!-- Right: Live Market Preview Panel -->
-      <div class="lp-hero-right">
-        <div class="lp-market-panel">
-
-          <!-- Panel header: live indicator + spot chips -->
-          <div class="lp-panel-header">
-            <div class="lp-panel-title">
-              <span class="lp-live-dot"></span>
-              Live Markets
-            </div>
-            <div class="lp-spot-chips">
-              <span class="lp-spot-chip" id="lp-spot-gold">XAU —</span>
-              <span class="lp-spot-chip" id="lp-spot-silver">XAG —</span>
-            </div>
-          </div>
-
-          <!-- Column labels -->
-          <div class="lp-panel-cols">
-            <span>Market</span>
-            <span>Best Ask</span>
-            <span>Listings</span>
-          </div>
-
-          <!-- Market rows — real data from standard_buckets -->
-          <div class="lp-panel-rows">
-            {% if hero_buckets %}
-              {% for bucket in hero_buckets %}
-                <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}"
-                   class="lp-panel-row">
-                  <div class="lp-row-name">
-                    <span class="lp-metal-badge lp-metal-badge--{{ (bucket.metal or 'gold')|lower }}">
-                      {{ (bucket.metal or '')[:2]|upper }}
-                    </span>
-                    <span>{{ bucket.get('listing_title') if bucket.get('listing_title') else
-                              ((bucket.mint or '') ~ ' ' ~ (bucket.product_line or bucket.coin_series or bucket.product_type or '')) }}</span>
-                  </div>
-                  <span class="lp-row-price">${{ bucket.lowest_price|commas }}</span>
-                  <span class="lp-row-count">{{ bucket.listing_count }}</span>
-                </a>
-              {% endfor %}
-            {% else %}
-              <div class="lp-panel-empty">No active listings at this time</div>
-            {% endif %}
-          </div>
-
-          <div class="lp-panel-footer">
-            <a href="#listings" class="lp-panel-link">View all markets →</a>
-          </div>
-
+      <div class="lp-feat-card">
+        <div class="lp-feat-card-icon lp-feat-icon--amber">
+          <i class="fa-solid fa-arrow-right-arrow-left"></i>
+        </div>
+        <div>
+          <div class="lp-feat-card-title">Peer-to-Peer Trading</div>
+          <div class="lp-feat-card-text">Trade directly with verified buyers and sellers. No middlemen.</div>
         </div>
       </div>
-      <!-- /hero right -->
 
-    </div>
-  </section>
-  <!-- /hero -->
+      <div class="lp-feat-card">
+        <div class="lp-feat-card-icon lp-feat-icon--slate">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <div class="lp-feat-card-title">Escrow-Protected</div>
+          <div class="lp-feat-card-text">Every transaction is secured. Your money, your metal, guaranteed.</div>
+        </div>
+      </div>
 
-  <!-- ── TRADES TICKER ────────────────────────────────────── -->
-  {# Only render ticker markup if we have real trade data #}
-  {% if recent_trades %}
-  <div class="lp-ticker-wrap" id="lp-ticker-wrap">
-    <span class="lp-ticker-label">Recent Trades</span>
-    <div class="lp-ticker-track" id="lp-ticker-track">
-      <!-- Populated by landing.js -->
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- ── SECTION 3: HOW METEX WORKS ──────────────────────── -->
-  <section class="lp-features">
-    <div class="lp-features-inner">
-      <div class="lp-features-label">How It Works</div>
-      <h2 class="lp-features-heading">A marketplace built for metal traders</h2>
-
-      <div class="lp-features-grid">
-
-        <div class="lp-feature-card">
-          <div class="lp-feature-icon">
-            <i class="fa-solid fa-arrow-right-arrow-left"></i>
+      <!-- Live Spot Prices -->
+      <div class="lp-spot-card">
+        <div class="lp-spot-card-header">
+          <i class="fa-solid fa-arrow-trend-up" style="color:#16a34a;"></i> Live Spot Prices
+        </div>
+        <div class="lp-spot-grid">
+          <div class="lp-spot-col">
+            <div class="lp-spot-metal-name">Gold</div>
+            <div class="lp-spot-metal-price" id="lp-spot-gold">—</div>
+            <div class="lp-spot-metal-change" id="lp-spot-gold-change"></div>
           </div>
-          <div class="lp-feature-title">Direct Marketplace</div>
-          <div class="lp-feature-body">
-            Buy and sell physical metals directly with other users through
-            competitive listings and bids. No dealer spread — just market prices.
+          <div class="lp-spot-col">
+            <div class="lp-spot-metal-name">Silver</div>
+            <div class="lp-spot-metal-price" id="lp-spot-silver">—</div>
+            <div class="lp-spot-metal-change" id="lp-spot-silver-change"></div>
+          </div>
+          <div class="lp-spot-col">
+            <div class="lp-spot-metal-name">Platinum</div>
+            <div class="lp-spot-metal-price" id="lp-spot-platinum">—</div>
+            <div class="lp-spot-metal-change" id="lp-spot-platinum-change"></div>
           </div>
         </div>
+      </div>
 
-        <div class="lp-feature-card">
-          <div class="lp-feature-icon">
-            <i class="fa-solid fa-chart-line"></i>
-          </div>
-          <div class="lp-feature-title">Market-Driven Pricing</div>
-          <div class="lp-feature-body">
-            Prices emerge from real buyer and seller activity anchored to live
-            spot rates. See the best ask before you buy.
-          </div>
+    </div><!-- /lp-hero-right -->
+
+  </div><!-- /lp-hero-inner -->
+
+  <!-- Trust Strip -->
+  <div class="lp-trust-strip">
+    <div class="lp-trust-strip-inner">
+      <div class="lp-trust-item">
+        <div class="lp-trust-item-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <div class="lp-trust-item-title">Verified Sellers</div>
+          <div class="lp-trust-item-sub">Every seller is vetted</div>
         </div>
-
-        <div class="lp-feature-card">
-          <div class="lp-feature-icon">
-            <i class="fa-solid fa-book-open"></i>
-          </div>
-          <div class="lp-feature-title">Transparent Order Books</div>
-          <div class="lp-feature-body">
-            View active listings, open bids, and transaction history for every
-            metal before committing to a trade.
-          </div>
+      </div>
+      <div class="lp-trust-item">
+        <div class="lp-trust-item-icon"><i class="fa-solid fa-lock"></i></div>
+        <div>
+          <div class="lp-trust-item-title">Secure Payments</div>
+          <div class="lp-trust-item-sub">Escrow-protected</div>
         </div>
-
+      </div>
+      <div class="lp-trust-item">
+        <div class="lp-trust-item-icon"><i class="fa-solid fa-truck"></i></div>
+        <div>
+          <div class="lp-trust-item-title">Insured Shipping</div>
+          <div class="lp-trust-item-sub">Full coverage included</div>
+        </div>
+      </div>
+      <div class="lp-trust-item">
+        <div class="lp-trust-item-icon"><i class="fa-solid fa-rotate-left"></i></div>
+        <div>
+          <div class="lp-trust-item-title">Easy Returns</div>
+          <div class="lp-trust-item-sub">Hassle-free process</div>
+        </div>
       </div>
     </div>
-  </section>
-  <!-- /features -->
+  </div><!-- /lp-trust-strip -->
 
-</div>
-<!-- /lp-dark-band -->
+</div><!-- /lp-hero-band -->
 
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -285,9 +257,6 @@
   {% if standard_buckets %}
     <div class="lp-markets-header">
       <h2 class="lp-markets-title">Explore Active Markets</h2>
-      <span class="lp-markets-sub">
-        {{ standard_buckets|selectattr('lowest_price')|list|length }} with listings
-      </span>
     </div>
     <div class="grid">
       {% for bucket in standard_buckets %}

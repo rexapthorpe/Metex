@@ -275,43 +275,177 @@ def admin_mark_ach_cleared(order_id):
         return jsonify({'success': False, 'error': 'Internal error. Check server logs.'}), 500
 
 
+@admin_bp.route('/api/orders/<int:order_id>/refund-preview', methods=['GET'])
+@admin_required
+def admin_refund_preview(order_id):
+    """
+    Return all data needed to populate the refund confirmation modal.
+
+    GET /admin/api/orders/<order_id>/refund-preview
+
+    Returns:
+      can_refund: bool
+      block_reason: str | null
+      order: { id, buyer_username, total_price, tax_amount, buyer_card_fee,
+               subtotal, payment_status, refund_status, refund_amount,
+               refund_subtotal, refund_tax_amount, refund_processing_fee,
+               stripe_payment_intent_id, refund_reason, stripe_refund_id, refunded_at }
+      payouts: [{ id, seller_id, seller_username, seller_net_amount,
+                  payout_status, provider_transfer_id, payout_recovery_status }]
+      refundable_amount: float
+      already_refunded: float
+      requires_recovery: bool
+      paid_out_payout_count: int
+    """
+    import database as _db_module
+
+    conn = _db_module.get_db_connection()
+    try:
+        order = conn.execute('''
+            SELECT o.id, o.total_price, o.tax_amount, o.buyer_card_fee,
+                   o.payment_status, o.refund_status, o.refund_amount,
+                   o.refund_subtotal, o.refund_tax_amount, o.refund_processing_fee,
+                   o.platform_covered_amount,
+                   o.stripe_payment_intent_id, o.refund_reason, o.stripe_refund_id, o.refunded_at,
+                   u.username AS buyer_username
+            FROM orders o
+            JOIN users u ON o.buyer_id = u.id
+            WHERE o.id = ?
+        ''', (order_id,)).fetchone()
+
+        if not order:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        order_dict = dict(order)
+        total_price = float(order['total_price'] or 0)
+        tax_amount  = float(order['tax_amount'] or 0)
+        card_fee    = float(order['buyer_card_fee'] or 0)
+        # subtotal = items only (gross_amount from ledger is canonical, but can derive)
+        order_dict['subtotal'] = round(total_price - tax_amount - card_fee, 2)
+
+        # Eligibility check
+        if order['payment_status'] != 'paid':
+            return jsonify({
+                'success': True,
+                'can_refund': False,
+                'block_reason': f"Payment status is '{order['payment_status']}' — must be 'paid'",
+                'order': order_dict,
+                'payouts': [],
+                'refundable_amount': 0.0,
+                'already_refunded': 0.0,
+                'requires_recovery': False,
+                'paid_out_payout_count': 0,
+            })
+
+        refund_status = order['refund_status'] or 'not_refunded'
+        if refund_status == 'refunded':
+            return jsonify({
+                'success': True,
+                'can_refund': False,
+                'block_reason': 'Order is already fully refunded',
+                'order': order_dict,
+                'payouts': [],
+                'refundable_amount': 0.0,
+                'already_refunded': round(order['refund_amount'] or 0, 2),
+                'requires_recovery': False,
+                'paid_out_payout_count': 0,
+            })
+
+        # Payout rows
+        payout_rows = conn.execute('''
+            SELECT op.id, op.seller_id, op.seller_net_amount, op.payout_status,
+                   op.provider_transfer_id, op.payout_recovery_status,
+                   u.username AS seller_username
+            FROM order_payouts op
+            JOIN users u ON op.seller_id = u.id
+            WHERE op.order_id = ?
+            ORDER BY op.id
+        ''', (order_id,)).fetchall()
+
+        payouts = [dict(p) for p in payout_rows]
+        paid_out_payouts = [p for p in payouts if p['payout_status'] == 'PAID_OUT']
+        requires_recovery = len(paid_out_payouts) > 0
+
+        already_refunded = round(order['refund_amount'] or 0, 2)
+        refundable_amount = round(total_price - already_refunded, 2)
+
+        return jsonify({
+            'success': True,
+            'can_refund': True,
+            'block_reason': None,
+            'order': order_dict,
+            'payouts': payouts,
+            'refundable_amount': refundable_amount,
+            'already_refunded': already_refunded,
+            'requires_recovery': requires_recovery,
+            'paid_out_payout_count': len(paid_out_payouts),
+        })
+
+    except Exception as exc:
+        logger.exception('[RefundPreview] error  order_id=%s', order_id)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+    finally:
+        conn.close()
+
+
 @admin_bp.route('/api/orders/<int:order_id>/refund-stripe', methods=['POST'])
 @admin_required
 def admin_refund_buyer_stripe(order_id):
     """
-    Admin action: Create a full Stripe refund for the buyer's payment.
+    Admin action: Create a full or partial Stripe refund for the buyer's payment.
 
     POST /admin/api/orders/<order_id>/refund-stripe
-    Body: { "reason": "string (optional)" }
+    Body: {
+        "reason": "string (optional)",
+        "amount": float (optional — omit for full refund, provide for partial)
+    }
 
     Effects:
     - Creates stripe.Refund against the stored PaymentIntent
-    - Marks orders.refund_status = 'refunded'
-    - Cancels unreleased payouts; flags released payouts for recovery
+    - Marks orders.refund_status = 'refunded' or 'partially_refunded'
+    - Tracks refund breakdown: refund_subtotal, refund_tax_amount, refund_processing_fee
+    - Reverses platform fee / spread on orders_ledger
+    - Cancels unreleased payouts; attempts auto-recovery for released payouts
     - Updates orders_ledger.order_status = REFUNDED
     """
     from services.ledger_service import LedgerService, EscrowControlError
 
     data = request.get_json() or {}
     reason = data.get('reason', '').strip() or 'Admin refund'
+    amount = data.get('amount')  # None = full refund
+    if amount is not None:
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'amount must be a number'}), 400
+
     admin_id = session.get('user_id')
 
-    logger.info("[Refund] Admin %s initiating refund for order %s", admin_id, order_id)
+    logger.info(
+        "[Refund] Admin %s initiating refund for order %s  amount=%s",
+        admin_id, order_id, amount,
+    )
 
     try:
-        result = LedgerService.refund_buyer_stripe(order_id, admin_id, reason)
+        result = LedgerService.refund_buyer_stripe(order_id, admin_id, reason, amount=amount)
         logger.info(
-            "[Refund] Success  order_id=%s  refund_id=%s  requires_recovery=%s",
-            order_id, result['refund_id'], result['requires_payout_recovery'],
+            "[Refund] Success  order_id=%s  refund_id=%s  is_partial=%s  requires_recovery=%s",
+            order_id, result['refund_id'], result['is_partial'], result['requires_payout_recovery'],
         )
         return jsonify({
             'success': True,
             'message': f"Stripe refund created: {result['refund_id']}",
             'refund_id': result['refund_id'],
             'amount': result['amount'],
+            'refund_subtotal': result['refund_subtotal'],
+            'refund_tax_amount': result['refund_tax_amount'],
+            'refund_processing_fee': result['refund_processing_fee'],
+            'is_partial': result['is_partial'],
             'requires_payout_recovery': result['requires_payout_recovery'],
+            'recovery_outcomes': result['recovery_outcomes'],
             'recovery_pending_payout_ids': result['recovery_pending_payout_ids'],
             'cancelled_payout_ids': result['cancelled_payout_ids'],
+            'platform_covered_amount': result['platform_covered_amount'],
         })
 
     except ValueError as e:
@@ -371,6 +505,168 @@ def admin_release_stripe_transfer(payout_id):
     except Exception as e:
         logger.exception("Unexpected error releasing Stripe transfer for payout %s", payout_id)
         return jsonify({'success': False, 'error': 'Internal error. Check server logs.'}), 500
+
+
+@admin_bp.route('/api/orders/<int:order_id>/mark-delivered', methods=['POST'])
+@admin_required
+def admin_mark_delivered(order_id):
+    """
+    Admin action: Mark a seller's shipment as delivered for a given order.
+
+    POST /admin/api/orders/<order_id>/mark-delivered
+    Body: { "seller_id": int (required) }
+
+    Idempotent: if delivered_at is already set, returns success without overwriting.
+    Sets seller_order_tracking.delivered_at = now.
+    """
+    import database as _db_module
+    from datetime import datetime
+
+    data = request.get_json(silent=True) or {}
+    seller_id = data.get('seller_id')
+    if not seller_id:
+        return jsonify({'success': False, 'error': 'seller_id is required'}), 400
+
+    try:
+        seller_id = int(seller_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'seller_id must be an integer'}), 400
+
+    admin_id = session.get('user_id')
+    conn = _db_module.get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT id, delivered_at FROM seller_order_tracking WHERE order_id = ? AND seller_id = ?',
+            (order_id, seller_id),
+        ).fetchone()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'No tracking record found for this order/seller'}), 404
+
+        if row['delivered_at']:
+            return jsonify({
+                'success': True,
+                'already_delivered': True,
+                'delivered_at': str(row['delivered_at']),
+                'message': f'Order {order_id} already marked delivered',
+            })
+
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute(
+            'UPDATE seller_order_tracking SET delivered_at = ? WHERE order_id = ? AND seller_id = ?',
+            (now_str, order_id, seller_id),
+        )
+        conn.commit()
+
+        logger.info(
+            "[MarkDelivered] admin=%s  order_id=%s  seller_id=%s  delivered_at=%s",
+            admin_id, order_id, seller_id, now_str,
+        )
+
+        return jsonify({
+            'success': True,
+            'already_delivered': False,
+            'delivered_at': now_str,
+            'message': f'Order {order_id} marked as delivered',
+        })
+
+    except Exception:
+        logger.exception("[MarkDelivered] Unexpected error  order_id=%s  seller_id=%s", order_id, seller_id)
+        return jsonify({'success': False, 'error': 'Internal error. Check server logs.'}), 500
+    finally:
+        conn.close()
+
+
+@admin_bp.route('/api/orders/<int:order_id>/confirm-payment', methods=['POST'])
+@admin_required
+def admin_confirm_payment(order_id):
+    """
+    Admin action: Manually confirm an order's payment and sync ledger status.
+
+    Use when a Stripe webhook failed to deliver, or during local dev testing
+    without a webhook forwarding CLI.  Idempotent: no-op if already paid.
+
+    POST /admin/api/orders/<order_id>/confirm-payment
+    Body (optional): {
+        "payment_intent_id": "pi_xxx",   // stored on order if provided
+        "payment_method_type": "card"    // defaults to "card"
+    }
+    """
+    import database as _db_module
+    from datetime import datetime
+
+    data = request.get_json(silent=True) or {}
+    payment_method_type = (data.get('payment_method_type') or 'card').lower()
+    pi_id = (data.get('payment_intent_id') or '').strip()
+
+    admin_id = session.get('user_id')
+    conn = _db_module.get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT id, payment_status, stripe_payment_intent_id FROM orders WHERE id = ?',
+            (order_id,),
+        ).fetchone()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        if row['payment_status'] == 'paid':
+            # Payment already recorded but the ledger may still be stuck in
+            # CHECKOUT_INITIATED (common when webhook didn't fire in local dev).
+            # Always attempt the ledger sync — it's a no-op if already correct.
+            conn.execute(
+                """UPDATE orders_ledger
+                      SET order_status = 'PAID_IN_ESCROW',
+                          updated_at   = CURRENT_TIMESTAMP
+                    WHERE order_id = ?
+                      AND order_status IN ('CHECKOUT_INITIATED', 'PAYMENT_PENDING')""",
+                (order_id,),
+            )
+            conn.commit()
+            logger.info(
+                "[AdminConfirmPayment] ledger sync (already paid)  order_id=%s", order_id
+            )
+            return jsonify({'success': True, 'already_paid': True,
+                            'message': f'Order {order_id} is already marked paid (ledger synced)'})
+
+        now_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        requires_clearance = 1 if payment_method_type == 'us_bank_account' else 0
+        effective_pi = pi_id or row['stripe_payment_intent_id'] or ''
+
+        conn.execute(
+            """UPDATE orders
+                  SET status                     = 'paid',
+                      payment_status             = 'paid',
+                      paid_at                    = ?,
+                      payment_method_type        = ?,
+                      requires_payment_clearance = ?,
+                      stripe_payment_intent_id   = COALESCE(NULLIF(?, ''), stripe_payment_intent_id)
+                WHERE id = ?""",
+            (now_str, payment_method_type, requires_clearance, effective_pi, order_id),
+        )
+        # Sync ledger: CHECKOUT_INITIATED / PAYMENT_PENDING → PAID_IN_ESCROW
+        conn.execute(
+            """UPDATE orders_ledger
+                  SET order_status = 'PAID_IN_ESCROW',
+                      updated_at   = CURRENT_TIMESTAMP
+                WHERE order_id = ?
+                  AND order_status IN ('CHECKOUT_INITIATED', 'PAYMENT_PENDING')""",
+            (order_id,),
+        )
+        conn.commit()
+
+        logger.info(
+            "[AdminConfirmPayment] admin=%s  order_id=%s  method=%s",
+            admin_id, order_id, payment_method_type,
+        )
+        return jsonify({'success': True, 'already_paid': False,
+                        'message': f'Order {order_id} marked as paid'})
+
+    except Exception:
+        logger.exception("[AdminConfirmPayment] Unexpected error  order_id=%s", order_id)
+        return jsonify({'success': False, 'error': 'Internal error. Check server logs.'}), 500
+    finally:
+        conn.close()
 
 
 @admin_bp.route('/api/payouts/<int:payout_id>/attempt-recovery', methods=['POST'])

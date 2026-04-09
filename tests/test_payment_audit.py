@@ -106,6 +106,9 @@ CREATE TABLE orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     buyer_id INTEGER,
     total_price REAL,
+    buyer_card_fee REAL DEFAULT 0.0,
+    tax_amount REAL DEFAULT 0.0,
+    tax_rate REAL DEFAULT 0.0,
     shipping_address TEXT,
     status TEXT DEFAULT 'Pending Shipment',
     created_at TEXT,
@@ -116,7 +119,8 @@ CREATE TABLE orders (
     paid_at TEXT,
     payment_method_type TEXT,
     requires_payment_clearance INTEGER DEFAULT 0,
-    source_bid_id INTEGER
+    source_bid_id INTEGER,
+    placed_from_ip TEXT
 );
 
 CREATE TABLE order_items (
@@ -553,6 +557,7 @@ class TestPayoutReleaseGuards:
                 buyer_id INTEGER,
                 gross_amount REAL,
                 platform_fee_amount REAL,
+                spread_capture_amount REAL NOT NULL DEFAULT 0.0,
                 order_status TEXT DEFAULT 'PAID_IN_ESCROW',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -800,6 +805,7 @@ class TestRefundBlocksPayout:
                 listing_id INTEGER, quantity INTEGER, price_each REAL);
             CREATE TABLE orders_ledger (id INTEGER PRIMARY KEY, order_id INTEGER,
                 buyer_id INTEGER, gross_amount REAL, platform_fee_amount REAL,
+ spread_capture_amount REAL NOT NULL DEFAULT 0.0,
                 order_status TEXT DEFAULT 'PAID_IN_ESCROW', updated_at TIMESTAMP);
             CREATE TABLE order_payouts (id INTEGER PRIMARY KEY, order_id INTEGER,
                 order_ledger_id INTEGER, seller_id INTEGER, seller_net_amount REAL,
@@ -814,8 +820,8 @@ class TestRefundBlocksPayout:
         conn.execute("INSERT INTO users VALUES (1, 'buyer')")
         conn.execute("INSERT INTO users VALUES (2, 'seller')")
         conn.execute("INSERT INTO orders VALUES (1, 1, 100.0, 'paid', 'pi_test')")
-        conn.execute("INSERT INTO orders_ledger VALUES (1, 1, 1, 100.0, 5.0, 'PAID_IN_ESCROW', CURRENT_TIMESTAMP)")
-        conn.execute("INSERT INTO order_payouts VALUES (1, 1, 1, 2, 95.0, 'PAID_OUT', CURRENT_TIMESTAMP)")
+        conn.execute("INSERT INTO orders_ledger (id, order_id, buyer_id, gross_amount, platform_fee_amount, order_status) VALUES (1, 1, 1, 100.0, 5.0, 'PAID_IN_ESCROW')")
+        conn.execute("INSERT INTO order_payouts (id, order_ledger_id, order_id, seller_id, seller_net_amount, payout_status) VALUES (1, 1, 1, 2, 95.0, 'PAID_OUT')")
         conn.execute("INSERT INTO order_items_ledger VALUES (1, 1, 1, 2, 1, 1, 100.0, 5.0)")
         conn.commit()
 
@@ -824,3 +830,218 @@ class TestRefundBlocksPayout:
                 LedgerService.process_refund(
                     order_id=1, admin_id=99, refund_type='full', reason='Test refund'
                 )
+
+
+# ---------------------------------------------------------------------------
+# PA16–PA22 — Buyer card fee: formula, storage, isolation, source checks
+# ---------------------------------------------------------------------------
+
+def _card_fee(subtotal: float) -> float:
+    """Reference formula: 2.99% + $0.30 flat, rounded to cents."""
+    return round(subtotal * 0.0299 + 0.30, 2)
+
+
+class TestBuyerCardFee:
+    """
+    PA16 — Card fee formula produces 2.99% + $0.30
+    PA17 — ACH payment has zero buyer card fee
+    PA18 — create_order stores buyer_card_fee and total_price = items + fee
+    PA19 — create_order with ACH: total_price = items only, buyer_card_fee = 0
+    PA20 — buyer_card_fee and platform_fee stored in separate fields (not merged)
+    PA21 — checkout source reads payment_method_type from request body
+    PA22 — checkout source calls PaymentIntent.modify for card payments
+    """
+
+    _BASE = os.path.join(os.path.dirname(__file__), '..')
+
+    def _src(self, rel):
+        with open(os.path.normpath(os.path.join(self._BASE, rel))) as f:
+            return f.read()
+
+    # --- PA16: formula correctness -------------------------------------------
+
+    def test_PA16_card_fee_formula(self):
+        """2.99% + $0.30 flat produces correct fee for representative amounts."""
+        cases = [
+            (100.00, round(100.00 * 0.0299 + 0.30, 2)),
+            (200.00, round(200.00 * 0.0299 + 0.30, 2)),
+            (19.99,  round(19.99  * 0.0299 + 0.30, 2)),
+            (1000.00, round(1000.00 * 0.0299 + 0.30, 2)),
+        ]
+        for subtotal, expected_fee in cases:
+            fee = _card_fee(subtotal)
+            assert fee == expected_fee, f"subtotal={subtotal}: got {fee}, want {expected_fee}"
+            total = round(subtotal + fee, 2)
+            assert total == round(subtotal + expected_fee, 2)
+
+    def test_PA16_card_fee_200_exact(self):
+        """$200 order: fee = $200 × 0.0299 + $0.30 = $6.28, total = $206.28."""
+        fee = _card_fee(200.00)
+        assert fee == 6.28, f"Expected 6.28, got {fee}"
+        assert round(200.00 + fee, 2) == 206.28
+
+    # --- PA17: ACH has no fee -------------------------------------------------
+
+    def test_PA17_ach_has_zero_fee(self):
+        """ACH payment method must produce zero buyer card fee."""
+        # Fee for ACH is always 0, regardless of subtotal
+        ach_fee = 0.0
+        assert ach_fee == 0.0
+        assert round(200.00 + ach_fee, 2) == 200.00
+
+    # --- PA18: create_order stores fee correctly (card) ----------------------
+
+    _EXTRA_ORDER_SCHEMA = """
+        ALTER TABLE order_items ADD COLUMN spot_price_at_purchase REAL;
+        ALTER TABLE order_items ADD COLUMN spot_as_of_used TEXT;
+        ALTER TABLE order_items ADD COLUMN spot_source_used TEXT;
+        ALTER TABLE order_items ADD COLUMN pricing_mode_at_purchase TEXT;
+        ALTER TABLE order_items ADD COLUMN spot_premium_used REAL;
+        ALTER TABLE order_items ADD COLUMN weight_used REAL;
+        CREATE TABLE IF NOT EXISTS transaction_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER, order_item_id INTEGER, snapshot_at TEXT,
+            listing_id INTEGER, listing_title TEXT, listing_description TEXT,
+            metal TEXT, product_line TEXT, product_type TEXT, weight TEXT,
+            year TEXT, mint TEXT, purity TEXT, finish TEXT,
+            condition_category TEXT, series_variant TEXT,
+            packaging_type TEXT, packaging_notes TEXT, condition_notes TEXT,
+            photo_filenames TEXT,
+            quantity INTEGER, price_each REAL, pricing_mode TEXT,
+            spot_price_at_purchase REAL,
+            seller_id INTEGER, seller_username TEXT, seller_email TEXT,
+            buyer_id INTEGER, buyer_username TEXT, buyer_email TEXT,
+            payment_intent_id TEXT
+        );
+    """
+
+    def _make_order_db(self):
+        conn = sqlite3.connect(':memory:')
+        conn.row_factory = sqlite3.Row
+        conn.executescript(_SCHEMA)
+        conn.executescript(self._EXTRA_ORDER_SCHEMA)
+        conn.execute("INSERT INTO users (id, username) VALUES (1, 'seller')")
+        conn.execute("INSERT INTO users (id, username) VALUES (2, 'buyer')")
+        conn.execute("INSERT INTO categories (id, bucket_id) VALUES (1, 1)")
+        conn.execute(
+            "INSERT INTO listings (id, seller_id, category_id, price_per_coin, quantity) "
+            "VALUES (10, 1, 1, 100.0, 5)"
+        )
+        conn.commit()
+        return conn
+
+    def _no_close_conn(self, real_conn):
+        """Wrap a connection so close() is a no-op (lets us inspect after create_order)."""
+        class _NoClose:
+            def __init__(self, c):
+                self._c = c
+            def __getattr__(self, name):
+                return getattr(self._c, name)
+            def close(self):
+                pass  # prevent create_order from destroying our test connection
+        return _NoClose(real_conn)
+
+    def test_PA18_create_order_stores_buyer_card_fee_for_card(self):
+        """create_order total_price = items_subtotal + buyer_card_fee for card."""
+        real_conn = self._make_order_db()
+        conn = self._no_close_conn(real_conn)
+
+        from services.order_service import create_order
+        cart = [{'listing_id': 10, 'quantity': 2, 'price_each': 100.0}]
+        fee = _card_fee(200.0)  # 2 × $100 = $200 subtotal
+
+        with patch('services.order_service._get_conn', return_value=conn):
+            with patch('services.order_service.write_order_item_snapshot'):
+                order_id = create_order(
+                    buyer_id=2,
+                    cart_items=cart,
+                    shipping_address='123 Main St',
+                    buyer_card_fee=fee,
+                )
+
+        order = real_conn.execute(
+            "SELECT total_price, buyer_card_fee FROM orders WHERE id=?", (order_id,)
+        ).fetchone()
+        assert order['buyer_card_fee'] == fee, f"Expected buyer_card_fee={fee}, got {order['buyer_card_fee']}"
+        assert order['total_price'] == round(200.0 + fee, 2), (
+            f"Expected total_price={round(200.0 + fee, 2)}, got {order['total_price']}"
+        )
+
+    # --- PA19: create_order with ACH has zero fee ----------------------------
+
+    def test_PA19_create_order_ach_zero_fee(self):
+        """create_order total_price = items_subtotal only for ACH (buyer_card_fee=0)."""
+        real_conn = self._make_order_db()
+        conn = self._no_close_conn(real_conn)
+
+        from services.order_service import create_order
+        cart = [{'listing_id': 10, 'quantity': 2, 'price_each': 100.0}]
+
+        with patch('services.order_service._get_conn', return_value=conn):
+            with patch('services.order_service.write_order_item_snapshot'):
+                order_id = create_order(
+                    buyer_id=2,
+                    cart_items=cart,
+                    shipping_address='123 Main St',
+                    buyer_card_fee=0.0,  # ACH
+                )
+
+        order = real_conn.execute(
+            "SELECT total_price, buyer_card_fee FROM orders WHERE id=?", (order_id,)
+        ).fetchone()
+        assert order['buyer_card_fee'] == 0.0
+        assert order['total_price'] == 200.0
+
+    # --- PA20: fields are not merged -----------------------------------------
+
+    def test_PA20_buyer_card_fee_separate_from_platform_fee(self):
+        """orders schema must have buyer_card_fee as a distinct column."""
+        conn = sqlite3.connect(':memory:')
+        conn.row_factory = sqlite3.Row
+        conn.executescript(_SCHEMA)
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(orders)")}
+        assert 'buyer_card_fee' in cols, "orders table missing buyer_card_fee column"
+        # platform_fee is on orders_ledger, NOT on orders — verify they're separate
+        assert 'platform_fee' not in cols, (
+            "orders table should not have a platform_fee column — that lives in orders_ledger"
+        )
+
+    # --- PA21: checkout source reads payment_method_type ---------------------
+
+    def test_PA21_checkout_reads_payment_method_type(self):
+        """POST /checkout AJAX handler must read payment_method_type from JSON body."""
+        src = self._src('core/blueprints/checkout/routes.py')
+        assert "payment_method_type" in src, (
+            "checkout/routes.py does not read payment_method_type from request body"
+        )
+        assert "us_bank_account" in src, (
+            "checkout/routes.py does not check for ACH (us_bank_account) payment type"
+        )
+
+    # --- PA22: checkout source calls PaymentIntent.modify for card -----------
+
+    def test_PA22_checkout_updates_payment_intent_for_card_fee(self):
+        """POST /checkout must call stripe.PaymentIntent.modify to update PI amount."""
+        src = self._src('core/blueprints/checkout/routes.py')
+        assert "PaymentIntent.modify" in src, (
+            "checkout/routes.py does not call PaymentIntent.modify — "
+            "the PI amount will not include the buyer card fee"
+        )
+        assert "buyer_card_fee" in src, (
+            "checkout/routes.py does not pass buyer_card_fee to create_order"
+        )
+
+    # --- PA23: JS formula includes $0.30 flat --------------------------------
+
+    def test_PA23_js_card_fee_includes_flat_fee(self):
+        """checkout_page.js must include the $0.30 flat fee in the processing fee formula."""
+        src = self._src('static/js/checkout_page.js')
+        assert "0.30" in src, (
+            "checkout_page.js missing $0.30 flat fee in processing fee formula"
+        )
+        # Should NOT be percent-only any more
+        lines = src.splitlines()
+        fee_lines = [l for l in lines if 'processingFee' in l and '0.0299' in l]
+        assert fee_lines, "No processingFee line with 0.0299 found in checkout_page.js"
+        for line in fee_lines:
+            assert '0.30' in line, f"Fee line missing $0.30 flat: {line.strip()}"

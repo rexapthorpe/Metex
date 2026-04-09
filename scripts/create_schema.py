@@ -394,6 +394,17 @@ class SchemaManager:
         self.add_column('orders', 'refund_reason', 'TEXT')
         self.add_column('orders', 'requires_payout_recovery', 'INTEGER DEFAULT 0')
         self.add_column('orders', 'placed_from_ip', 'TEXT')
+        # Buyer card processing fee (migration 030) — zero for ACH
+        self.add_column('orders', 'buyer_card_fee', 'REAL NOT NULL DEFAULT 0.0')
+        # Tax stored at checkout time (migration 031) — locked so historical orders are immutable
+        self.add_column('orders', 'tax_amount', 'REAL NOT NULL DEFAULT 0.0')
+        self.add_column('orders', 'tax_rate',   'REAL NOT NULL DEFAULT 0.0')
+        # Refund breakdown tracking (migration 032) — separate accounting for tax, fee, subtotal
+        self.add_column('orders', 'refund_subtotal',        'REAL NOT NULL DEFAULT 0.0')
+        self.add_column('orders', 'refund_tax_amount',      'REAL NOT NULL DEFAULT 0.0')
+        self.add_column('orders', 'refund_processing_fee',  'REAL NOT NULL DEFAULT 0.0')
+        # Platform coverage tracking (migration 033) — amount Metex absorbs when seller recovery fails
+        self.add_column('orders', 'platform_covered_amount', 'REAL NOT NULL DEFAULT 0.0')
 
     def create_order_items_table(self):
         """Create the order_items table"""
@@ -945,6 +956,7 @@ class SchemaManager:
             seller_id INTEGER NOT NULL,
             tracking_number TEXT,
             carrier TEXT,
+            delivered_at TIMESTAMP DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
@@ -958,6 +970,15 @@ class SchemaManager:
             self.log_change("Created seller_order_tracking table")
         else:
             self.log_skip("Table 'seller_order_tracking' already exists")
+            # Add delivered_at if missing (idempotent migration)
+            cols = get_table_columns(self.conn, 'seller_order_tracking')
+            if 'delivered_at' not in cols:
+                self.cursor.execute(
+                    "ALTER TABLE seller_order_tracking ADD COLUMN delivered_at TIMESTAMP DEFAULT NULL"
+                )
+                self.log_change("Added delivered_at to seller_order_tracking")
+            else:
+                self.log_skip("Column 'delivered_at' already exists in seller_order_tracking")
 
         # Create indexes
         self.create_index('idx_seller_order_tracking_order', 'seller_order_tracking', 'order_id')
@@ -1187,6 +1208,11 @@ class SchemaManager:
         self.create_index('idx_orders_ledger_buyer_id', 'orders_ledger', 'buyer_id')
         self.create_index('idx_orders_ledger_status', 'orders_ledger', 'order_status')
         self.create_index('idx_orders_ledger_created_at', 'orders_ledger', 'created_at')
+        # Spread capture column (migration 031)
+        self.add_column('orders_ledger', 'spread_capture_amount', 'REAL NOT NULL DEFAULT 0.0')
+        # Refund reversal tracking (migration 032)
+        self.add_column('orders_ledger', 'refunded_platform_fee_amount', 'REAL NOT NULL DEFAULT 0.0')
+        self.add_column('orders_ledger', 'refunded_spread_capture_amount', 'REAL NOT NULL DEFAULT 0.0')
 
     def create_order_items_ledger_table(self):
         """Create the order_items_ledger table (migration 021)"""
@@ -1224,6 +1250,9 @@ class SchemaManager:
         self.create_index('idx_order_items_ledger_order_id', 'order_items_ledger', 'order_id')
         self.create_index('idx_order_items_ledger_seller_id', 'order_items_ledger', 'seller_id')
         self.create_index('idx_order_items_ledger_listing_id', 'order_items_ledger', 'listing_id')
+        # Spread capture columns (migration 031)
+        self.add_column('order_items_ledger', 'buyer_unit_price', 'REAL DEFAULT NULL')
+        self.add_column('order_items_ledger', 'spread_per_unit', 'REAL NOT NULL DEFAULT 0.0')
 
     def create_order_payouts_table(self):
         """Create the order_payouts table (migration 021)"""
@@ -1273,6 +1302,8 @@ class SchemaManager:
         self.add_column('order_payouts', 'recovery_attempted_by_admin_id', 'INTEGER')
         self.add_column('order_payouts', 'recovery_failure_reason', 'TEXT')
         self.add_column('order_payouts', 'provider_reversal_id', 'TEXT')
+        # Spread capture column (migration 031)
+        self.add_column('order_payouts', 'spread_capture_amount', 'REAL NOT NULL DEFAULT 0.0')
 
     def create_order_events_table(self):
         """Create the order_events audit table (migration 021)"""
@@ -1520,7 +1551,7 @@ class SchemaManager:
         sql = """
         CREATE TABLE IF NOT EXISTS refunds (
             id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            dispute_id          INTEGER NOT NULL,
+            dispute_id          INTEGER,
             order_id            INTEGER NOT NULL,
             order_item_id       INTEGER,
             buyer_id            INTEGER NOT NULL,

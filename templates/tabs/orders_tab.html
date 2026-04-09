@@ -59,8 +59,9 @@
                 <span class="order-number">#ORD-{{ '%04d' % order.id }}</span>
               </div>
               <div class="order-card-price-block">
-                <div class="order-card-price">${{ order.price_each | commas }}</div>
-                {% if order.quantity %}<div class="order-card-qty">{{ order.quantity }} items</div>{% endif %}
+                <div class="order-card-price">${{ (order.total_price or order.merchandise_subtotal or order.price_each) | commas }}</div>
+                <div class="order-card-price-label">Total Paid</div>
+                {% if order.quantity %}<div class="order-card-qty">{{ order.quantity }} item{{ 's' if order.quantity != 1 }}</div>{% endif %}
               </div>
             </div>
 
@@ -147,6 +148,9 @@
             </button>
             <button class="order-quick-action" onclick="openOrderItemsPopup({{ order.id }})">
               <i class="fa-solid fa-list"></i> Items
+            </button>
+            <button class="order-quick-action" onclick="openTransactionModal({{ order.id }})">
+              <i class="fa-solid fa-receipt"></i> Transaction Details
             </button>
             {% set order_title = [order.weight or '', order.year or '', order.metal or '', order.product_line or '', order.product_type or ''] | select | join(' ') | trim %}
             {% set r_count = order.rating_count or 0 %}
@@ -335,7 +339,13 @@ window.openDisputeModal = openDisputeModal;
 
 function closeDisputeModal() {
   var modal = document.getElementById('disputeOpenModal');
-  if (modal) modal.style.display = 'none';
+  if (!modal) return;
+  modal.style.display = 'none';
+  // Reset back to form state for next open
+  var success = document.getElementById('disputeSuccessContent');
+  var form = modal.querySelector('.dispute-form-content');
+  if (success) success.style.display = 'none';
+  if (form) form.style.display = '';
 }
 window.closeDisputeModal = closeDisputeModal;
 
@@ -359,8 +369,15 @@ function submitDisputeForm() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
-        closeDisputeModal();
-        location.reload();
+        var success = document.getElementById('disputeSuccessContent');
+        var form = modal.querySelector('.dispute-form-content');
+        if (form) form.style.display = 'none';
+        if (success) success.style.display = 'flex';
+        // Reload page when user clicks Done
+        var doneBtn = success.querySelector('.dispute-success-btn');
+        if (doneBtn) {
+          doneBtn.onclick = function() { closeDisputeModal(); location.reload(); };
+        }
       } else {
         errEl.textContent = data.error || 'Something went wrong.';
       }
@@ -418,6 +435,107 @@ function submitEvidenceForm() {
 }
 window.submitEvidenceForm = submitEvidenceForm;
 
+/* ── Transaction Details Modal ─────────────────────────────────────── */
+function openTransactionModal(orderId) {
+  var modal = document.getElementById('transactionDetailModal');
+  if (!modal) return;
+  var body = document.getElementById('transactionModalBody');
+  body.innerHTML = '<div class="txn-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+  modal.style.display = 'flex';
+
+  fetch('/orders/api/' + orderId + '/transaction')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) { body.innerHTML = '<p class="txn-error">' + data.error + '</p>'; return; }
+      body.innerHTML = _buildTransactionHTML(data);
+    })
+    .catch(function() {
+      body.innerHTML = '<p class="txn-error">Failed to load transaction details. Please try again.</p>';
+    });
+}
+window.openTransactionModal = openTransactionModal;
+
+function closeTransactionModal() {
+  var modal = document.getElementById('transactionDetailModal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeTransactionModal = closeTransactionModal;
+
+function _fmt(n) {
+  return '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function _buildTransactionHTML(d) {
+  var rows = '';
+  d.items.forEach(function(item) {
+    rows += '<tr class="txn-item-row">'
+      + '<td class="txn-item-label">'
+      +   '<div class="txn-item-name">' + _escHtml(item.label) + '</div>'
+      +   '<div class="txn-item-seller">@' + _escHtml(item.seller_username || '—') + '</div>'
+      + '</td>'
+      + '<td class="txn-item-qty">' + item.quantity + '</td>'
+      + '<td class="txn-item-price">' + _fmt(item.price_each) + '</td>'
+      + '<td class="txn-item-total">' + _fmt(item.line_total) + '</td>'
+      + '</tr>';
+  });
+
+  var gradingRow = '';
+  if (d.grading_fee_total > 0) {
+    gradingRow = '<tr class="txn-summary-row txn-summary-minor">'
+      + '<td colspan="3">3rd Party Grading</td><td>' + _fmt(d.grading_fee_total) + '</td>'
+      + '</tr>';
+  }
+
+  var taxRow = '';
+  if (d.tax_amount > 0) {
+    taxRow = '<tr class="txn-summary-row txn-summary-minor">'
+      + '<td colspan="3">Sales Tax</td><td>' + _fmt(d.tax_amount) + '</td>'
+      + '</tr>';
+  } else {
+    taxRow = '<tr class="txn-summary-row txn-summary-minor txn-summary-zero">'
+      + '<td colspan="3">Sales Tax</td><td>$0.00</td>'
+      + '</tr>';
+  }
+
+  var feeRow = '';
+  if (d.buyer_card_fee > 0) {
+    feeRow = '<tr class="txn-summary-row txn-summary-minor">'
+      + '<td colspan="3">Processing Fee</td><td>' + _fmt(d.buyer_card_fee) + '</td>'
+      + '</tr>';
+  } else {
+    feeRow = '<tr class="txn-summary-row txn-summary-minor txn-summary-zero">'
+      + '<td colspan="3">Processing Fee</td><td>$0.00</td>'
+      + '</tr>';
+  }
+
+  return '<table class="txn-table">'
+    + '<thead><tr>'
+    +   '<th class="txn-th-item">Item</th>'
+    +   '<th class="txn-th-qty">Qty</th>'
+    +   '<th class="txn-th-price">Price Each</th>'
+    +   '<th class="txn-th-total">Subtotal</th>'
+    + '</tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '<tfoot>'
+    + '<tr class="txn-summary-row txn-subtotal-row">'
+    +   '<td colspan="3">Merchandise Subtotal</td><td>' + _fmt(d.merchandise_subtotal) + '</td>'
+    + '</tr>'
+    + gradingRow
+    + taxRow
+    + feeRow
+    + '<tr class="txn-summary-row txn-total-row">'
+    +   '<td colspan="3">Total Paid</td><td>' + _fmt(d.total_price) + '</td>'
+    + '</tr>'
+    + '</tfoot>'
+    + '</table>';
+}
+
+function _escHtml(str) {
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(str || ''));
+  return d.innerHTML;
+}
+
 function openReportUserModalForOrder(orderId) {
   fetch('/orders/api/' + orderId + '/message_sellers')
     .then(function(res) { return res.json(); })
@@ -442,32 +560,66 @@ window.openReportUserModalForOrder = openReportUserModalForOrder;
 <!-- ── Open Dispute Modal ─────────────────────────────────────────────── -->
 <div id="disputeOpenModal" class="dispute-modal-overlay" style="display:none;" onclick="if(event.target===this)closeDisputeModal()">
   <div class="dispute-modal">
-    <div class="dispute-modal-header">
-      <h3><i class="fa-solid fa-shield-halved"></i> Open a Dispute</h3>
-      <button class="dispute-modal-close" onclick="closeDisputeModal()">&times;</button>
-    </div>
-    <div class="dispute-modal-body">
-      <p class="dispute-modal-intro">Describe the issue with your order. Disputes must be opened within 30 days of placing the order.</p>
-      <input type="hidden" id="disputeOrderId">
-      <div class="dispute-field">
-        <label for="disputeType">Issue Type</label>
-        <select id="disputeType">
-          <option value="">— Select a type —</option>
-          <option value="not_received">Item Not Received</option>
-          <option value="not_as_described">Item Not as Described</option>
-          <option value="wrong_item">Wrong Item Received</option>
-          <option value="counterfeit">Counterfeit Item</option>
-        </select>
+    <!-- Success state -->
+    <div class="dispute-success-content" id="disputeSuccessContent" style="display:none;">
+      <div class="dispute-success-checkmark">
+        <svg class="dispute-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="dispute-checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="dispute-checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
       </div>
-      <div class="dispute-field">
-        <label for="disputeDescription">Description</label>
-        <textarea id="disputeDescription" rows="4" placeholder="Describe the problem in detail (min. 10 characters)…"></textarea>
-      </div>
-      <p id="disputeErrorMsg" class="dispute-error"></p>
+      <h3 class="dispute-success-title">Dispute Submitted</h3>
+      <p class="dispute-success-message">Our team will review your case and reach out within 2 business days.</p>
+      <button type="button" class="dispute-success-btn" onclick="closeDisputeModal()">Done</button>
     </div>
-    <div class="dispute-modal-footer">
-      <button class="dispute-btn dispute-btn--cancel" onclick="closeDisputeModal()">Cancel</button>
-      <button class="dispute-btn dispute-btn--submit" onclick="submitDisputeForm()">Submit Dispute</button>
+    <!-- Form state -->
+    <div class="dispute-form-content">
+      <div class="dispute-modal-header">
+        <h3><i class="fa-solid fa-shield-halved"></i> Open a Dispute</h3>
+        <button class="dispute-modal-close" onclick="closeDisputeModal()">&times;</button>
+      </div>
+      <div class="dispute-modal-body">
+        <p class="dispute-modal-intro">Describe the issue with your order. Disputes must be opened within 30 days of placing the order.</p>
+        <input type="hidden" id="disputeOrderId">
+        <div class="dispute-field">
+          <label for="disputeType">Issue Type</label>
+          <select id="disputeType">
+            <option value="">— Select a type —</option>
+            <option value="not_received">Item Not Received</option>
+            <option value="not_as_described">Item Not as Described</option>
+            <option value="wrong_item">Wrong Item Received</option>
+            <option value="counterfeit">Counterfeit Item</option>
+          </select>
+        </div>
+        <div class="dispute-field">
+          <label for="disputeDescription">Description</label>
+          <textarea id="disputeDescription" rows="4" placeholder="Describe the problem in detail (min. 10 characters)…"></textarea>
+        </div>
+        <p id="disputeErrorMsg" class="dispute-error"></p>
+      </div>
+      <div class="dispute-modal-footer">
+        <button class="dispute-btn dispute-btn--cancel" onclick="closeDisputeModal()">Cancel</button>
+        <button class="dispute-btn dispute-btn--submit" onclick="submitDisputeForm()">Submit Dispute</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Transaction Details Modal ──────────────────────────────────────── -->
+<div id="transactionDetailModal" class="txn-modal-overlay" style="display:none;" onclick="if(event.target===this)closeTransactionModal()">
+  <div class="txn-modal">
+    <div class="txn-modal-header">
+      <div class="txn-modal-header-left">
+        <i class="fa-solid fa-receipt"></i>
+        <h3>Transaction Details</h3>
+      </div>
+      <button class="txn-modal-close" onclick="closeTransactionModal()">&times;</button>
+    </div>
+    <div class="txn-modal-body" id="transactionModalBody">
+      <div class="txn-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
+    </div>
+    <div class="txn-modal-footer">
+      <button class="txn-close-btn" onclick="closeTransactionModal()">Close</button>
     </div>
   </div>
 </div>
@@ -492,7 +644,7 @@ window.openReportUserModalForOrder = openReportUserModalForOrder;
       </div>
       <div class="dispute-field">
         <label for="evidenceFile">Attach File (optional)</label>
-        <input type="file" id="evidenceFile" accept="image/png,image/jpeg,image/webp,image/heic">
+        <input type="file" id="evidenceFile" accept="image/png,image/jpeg,image/webp,image/heic,application/pdf,.pdf">
       </div>
       <div class="dispute-field">
         <label for="evidenceNote">Note</label>

@@ -38,6 +38,73 @@ if _web_concurrency > 1:
         _web_concurrency,
     )
 
+# ── Charge components ─────────────────────────────────────────────────────────
+# These MUST stay in sync with core/blueprints/bids/accept_bid.py and
+# core/blueprints/checkout/routes.py — all bid and checkout charge paths must
+# use the exact same formula so buyers are always charged the same total.
+_CARD_RATE = 0.0299   # 2.99%
+_CARD_FLAT = 0.30     # $0.30 fixed per transaction
+
+# Must match accept_bid.py and the preview rate in bid_modal_steps.js.
+# Applied when Stripe Tax is unavailable but a postal code is present.
+FALLBACK_TAX_RATE = 0.0825  # 8.25%
+
+
+def _parse_address_for_tax(delivery_address: str):
+    """
+    Extract (postal_code, state) from a bullet-separated delivery_address string.
+    Format: "Line1 [• Line2] • City, STATE ZIP"
+    Returns ('', '') if parsing fails.
+
+    NOTE: Duplicated from accept_bid.py — both copies must stay in sync.
+    """
+    import re
+    if not delivery_address:
+        return '', ''
+    parts = [p.strip() for p in delivery_address.split('•')]
+    last = parts[-1] if parts else ''
+    m = re.search(r'\b([A-Z]{2})\s+(\d{5}(?:-\d{4})?)\s*$', last)
+    if m:
+        return m.group(2), m.group(1)  # (postal_code, state)
+    return '', ''
+
+
+def _get_stripe_tax_for_bid(subtotal_cents: int, postal_code: str, state: str = '') -> int:
+    """
+    Look up sales tax via Stripe Tax for a bid-acceptance charge.
+    Returns tax in cents.  Falls back to 0 on any error or missing address.
+
+    NOTE: Duplicated from accept_bid.py — both copies must stay in sync.
+    """
+    if not postal_code or subtotal_cents <= 0:
+        return 0
+    try:
+        calc = stripe.tax.Calculation.create(
+            currency='usd',
+            line_items=[{'amount': subtotal_cents, 'reference': 'bid_subtotal'}],
+            customer_details={
+                'address': {
+                    'postal_code': str(postal_code).strip(),
+                    'state': str(state).strip() if state else '',
+                    'country': 'US',
+                },
+                'address_source': 'shipping',
+            },
+        )
+        logger.info('[auto_match TAX] calc=%s subtotal_cents=%d tax_cents=%d',
+                    calc.id, subtotal_cents, calc.tax_amount_exclusive)
+        return int(calc.tax_amount_exclusive)
+    except Exception as exc:
+        # Stripe Tax unavailable (not activated, network error, etc.).
+        # Apply fallback rate so the buyer is charged what the bid modal showed.
+        # MUST match the fallback in accept_bid.py and bid_modal_steps.js.
+        fallback = round(subtotal_cents * FALLBACK_TAX_RATE)
+        logger.warning(
+            '[auto_match TAX] Stripe Tax unavailable — using fallback %.2f%% (%d cents): %s',
+            FALLBACK_TAX_RATE * 100, fallback, exc,
+        )
+        return fallback
+
 
 def _get_spot_prices_from_cursor(cursor):
     """
@@ -329,15 +396,80 @@ def auto_match_bid_to_listings(bid_id, cursor):
             cursor.execute(f'RELEASE SAVEPOINT {sp}')
             continue
 
-        fill_total = sum(f['fill_qty'] * f['buyer_price_each'] for f in fills)
         fill_qty_total = sum(f['fill_qty'] for f in fills)
 
-        # Create order as unpaid initially
+        # ── Compute full charge: subtotal → tax → card fee → total ───────────
+        # All items are priced at buyer_price_each (bid effective price).
+        _subtotal       = round(sum(f['fill_qty'] * f['buyer_price_each'] for f in fills), 2)
+        _subtotal_cents = int(round(_subtotal * 100))
+
+        # Parse buyer's delivery address to get postal code for Stripe Tax.
+        _postal, _state = _parse_address_for_tax(delivery_address)
+        _tax_cents      = _get_stripe_tax_for_bid(_subtotal_cents, _postal, _state)
+        _tax_amount     = round(_tax_cents / 100, 2)
+        _taxed_subtotal = _subtotal + _tax_amount
+
+        # Autofill charges the buyer's saved card (always a card payment).
+        _bid_card_fee   = round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
+
+        # Final charge: subtotal + tax + card fee
+        fill_total      = round(_taxed_subtotal + _bid_card_fee, 2)
+        _charged_cents  = int(round(fill_total * 100))
+
+        logger.info(
+            '[auto_match] bid=%s seller=%s subtotal=%.2f tax=%.2f card_fee=%.2f '
+            'total=%.2f pi_cents=%d postal=%r',
+            bid_id, seller_id, _subtotal, _tax_amount, _bid_card_fee,
+            fill_total, _charged_cents, _postal,
+        )
+
+        # Hard assertion: charged amount must equal subtotal + tax + fee exactly.
+        # If this fails, abort loudly rather than silently undercharging.
+        _fee_cents      = int(round(_bid_card_fee * 100))
+        _expected_cents = _subtotal_cents + _tax_cents + _fee_cents
+        if _charged_cents != _expected_cents:
+            logger.error(
+                '[auto_match] ASSERTION FAILED: charged_cents=%d != '
+                'subtotal_cents=%d + tax_cents=%d + fee_cents=%d (=%d) for bid %s',
+                _charged_cents, _subtotal_cents, _tax_cents, _fee_cents,
+                _expected_cents, bid_id,
+            )
+            cursor.execute(f'ROLLBACK TO SAVEPOINT {sp}')
+            cursor.execute(f'RELEASE SAVEPOINT {sp}')
+            payment_failed = True
+            payment_failure_notifs.append({
+                'buyer_id': buyer_id,
+                'bid_id': bid_id,
+                'failure_message': 'Internal error computing charge amount.',
+            })
+            break
+
+        # Sanity guard: charged amount must never be less than the subtotal alone.
+        if _charged_cents < _subtotal_cents:
+            logger.error(
+                '[auto_match] BUG: charged_cents %d < subtotal_cents %d for bid %s',
+                _charged_cents, _subtotal_cents, bid_id,
+            )
+            cursor.execute(f'ROLLBACK TO SAVEPOINT {sp}')
+            cursor.execute(f'RELEASE SAVEPOINT {sp}')
+            payment_failed = True
+            payment_failure_notifs.append({
+                'buyer_id': buyer_id,
+                'bid_id': bid_id,
+                'failure_message': 'Internal error computing charge amount.',
+            })
+            break
+
+        _effective_tax_rate = round(_tax_amount / _subtotal, 6) if _subtotal else 0.0
+
+        # Create order as unpaid initially (total = subtotal + tax + card_fee)
         cursor.execute('''
-            INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at,
+            INSERT INTO orders (buyer_id, total_price, buyer_card_fee, tax_amount, tax_rate,
+                               shipping_address, status, created_at,
                                recipient_first_name, recipient_last_name, payment_status, source_bid_id)
-            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, 'unpaid', ?)
-        ''', (buyer_id, fill_total, delivery_address, recipient_first_name, recipient_last_name, bid_id))
+            VALUES (?, ?, ?, ?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, 'unpaid', ?)
+        ''', (buyer_id, fill_total, _bid_card_fee, _tax_amount, _effective_tax_rate,
+              delivery_address, recipient_first_name, recipient_last_name, bid_id))
         order_id = cursor.lastrowid
 
         for fill in fills:
@@ -410,7 +542,9 @@ def auto_match_bid_to_listings(bid_id, cursor):
         orders_created += 1
         total_filled += fill_qty_total
 
-        avg_price = fill_total / fill_qty_total if fill_qty_total > 0 else effective_bid_price
+        # Use subtotal (not fill_total) for per-unit display — price_per_unit
+        # should reflect the coin price, not the charge including tax/fees.
+        avg_price = _subtotal / fill_qty_total if fill_qty_total > 0 else effective_bid_price
         notifications_to_send.append({
             'buyer_id': buyer_id,
             'order_id': order_id,
@@ -432,6 +566,7 @@ def auto_match_bid_to_listings(bid_id, cursor):
                     'listing_id': fill['listing']['id'],
                     'quantity': fill['fill_qty'],
                     'unit_price': fill['seller_price_each'],
+                    'buyer_unit_price': fill['buyer_price_each'],
                 }
                 for fill in fills
             ],
@@ -595,6 +730,7 @@ def auto_match_listing_to_bids(listing_id, cursor):
     remaining_inventory = quantity_available
     notifications_to_send = []
     ledger_orders = []  # Collected for ledger creation after caller commits
+    payment_failure_notifs = []
 
     for bid in matched_bids:
         if remaining_inventory <= 0:
@@ -606,6 +742,7 @@ def auto_match_listing_to_bids(listing_id, cursor):
         delivery_address = bid['delivery_address']
         recipient_first_name = bid.get('recipient_first_name', '')
         recipient_last_name = bid.get('recipient_last_name', '')
+        bid_pm_id = bid.get('bid_payment_method_id')
 
         # Determine fill quantity
         fill_qty = min(remaining_inventory, bid_remaining)
@@ -613,23 +750,132 @@ def auto_match_listing_to_bids(listing_id, cursor):
         # Calculate prices using spread model
         buyer_price_each = bid['bid_effective_price']
         seller_price_each = bid['listing_effective_price']
-        total_price = buyer_price_each * fill_qty
 
-        # Create order
+        # ── Compute full charge: subtotal → tax → card fee → total ──────────
+        _subtotal       = round(fill_qty * buyer_price_each, 2)
+        _subtotal_cents = int(round(_subtotal * 100))
+        _postal, _state = _parse_address_for_tax(delivery_address)
+        _tax_cents      = _get_stripe_tax_for_bid(_subtotal_cents, _postal, _state)
+        _tax_amount     = round(_tax_cents / 100, 2)
+        _taxed_subtotal = _subtotal + _tax_amount
+        _bid_card_fee   = round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
+        total_price     = round(_taxed_subtotal + _bid_card_fee, 2)
+        _effective_tax_rate = round(_tax_amount / _subtotal, 6) if _subtotal else 0.0
+
+        logger.info(
+            '[auto_match L2B] bid=%s listing=%s subtotal=%.2f tax=%.2f card_fee=%.2f total=%.2f postal=%r',
+            bid_id, listing_id, _subtotal, _tax_amount, _bid_card_fee, total_price, _postal,
+        )
+
+        # Load buyer's Stripe customer ID for off-session charge
+        try:
+            buyer_row = cursor.execute(
+                'SELECT stripe_customer_id FROM users WHERE id = ?', (buyer_id,)
+            ).fetchone()
+            buyer_customer_id = buyer_row['stripe_customer_id'] if buyer_row else None
+        except Exception:
+            buyer_customer_id = None
+
+        # SAVEPOINT: all DB mutations for this bid are atomic with the payment.
+        sp_name = f'sp_l2b_{bid_id}'
+        cursor.execute(f'SAVEPOINT {sp_name}')
+
+        # Decrement listing inventory inside the savepoint so a payment failure
+        # rolls back the inventory change atomically.
+        new_listing_qty = remaining_inventory - fill_qty
+        if new_listing_qty <= 0:
+            cursor.execute(
+                'UPDATE listings SET quantity = 0, active = 0 WHERE id = ?', (listing_id,)
+            )
+        else:
+            cursor.execute(
+                'UPDATE listings SET quantity = ? WHERE id = ?', (new_listing_qty, listing_id)
+            )
+
+        # Create order with full financial breakdown
         cursor.execute('''
-            INSERT INTO orders (buyer_id, total_price, shipping_address, status, created_at,
-                               recipient_first_name, recipient_last_name, source_bid_id)
-            VALUES (?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, ?)
-        ''', (buyer_id, total_price, delivery_address, recipient_first_name, recipient_last_name, bid_id))
+            INSERT INTO orders (buyer_id, total_price, buyer_card_fee, tax_amount, tax_rate,
+                               shipping_address, status, created_at,
+                               recipient_first_name, recipient_last_name, payment_status,
+                               source_bid_id)
+            VALUES (?, ?, ?, ?, ?, ?, 'Pending Shipment', datetime('now'), ?, ?, 'unpaid', ?)
+        ''', (buyer_id, total_price, _bid_card_fee, _tax_amount, _effective_tax_rate,
+              delivery_address, recipient_first_name, recipient_last_name, bid_id))
 
         order_id = cursor.lastrowid
-        orders_created += 1
 
         # Create order item with both prices
         cursor.execute('''
             INSERT INTO order_items (order_id, listing_id, quantity, price_each, seller_price_each)
             VALUES (?, ?, ?, ?, ?)
         ''', (order_id, listing_id, fill_qty, buyer_price_each, seller_price_each))
+
+        # ── Attempt payment ─────────────────────────────────────────────────
+        if bid_pm_id and buyer_customer_id:
+            pay_result = _charge_bid_payment(
+                bid_id=bid_id, order_id=order_id, buyer_id=buyer_id,
+                pm_id=bid_pm_id, customer_id=buyer_customer_id,
+                amount_dollars=total_price,
+            )
+
+            if not pay_result['success']:
+                # Roll back all DB work for this bid (restores inventory + removes order/items)
+                cursor.execute(f'ROLLBACK TO SAVEPOINT {sp_name}')
+                cursor.execute(f'RELEASE SAVEPOINT {sp_name}')
+
+                cursor.execute('''
+                    UPDATE bids
+                       SET bid_payment_status = 'failed',
+                           bid_payment_failure_code = ?,
+                           bid_payment_failure_message = ?,
+                           bid_payment_attempted_at = datetime('now'),
+                           active = 0,
+                           status = 'Payment Failed'
+                     WHERE id = ?
+                ''', (pay_result.get('code'), pay_result.get('message'), bid_id))
+
+                if pay_result.get('is_card_decline'):
+                    cursor.execute('''
+                        UPDATE users
+                           SET bid_payment_strikes = COALESCE(bid_payment_strikes, 0) + 1
+                         WHERE id = ?
+                    ''', (buyer_id,))
+
+                payment_failure_notifs.append({
+                    'buyer_id': buyer_id,
+                    'bid_id': bid_id,
+                    'failure_message': pay_result.get('message', 'Payment declined.'),
+                })
+                continue  # Skip to next bid; don't decrement remaining_inventory
+
+            # Payment succeeded — stamp order with payment info
+            cursor.execute('''
+                UPDATE orders
+                   SET stripe_payment_intent_id = ?,
+                       payment_status = 'paid',
+                       status = 'paid',
+                       paid_at = datetime('now'),
+                       payment_method_type = 'card'
+                 WHERE id = ?
+            ''', (pay_result['pi_id'], order_id))
+
+            cursor.execute('''
+                UPDATE bids
+                   SET bid_payment_status = 'charged',
+                       bid_payment_intent_id = ?,
+                       bid_payment_attempted_at = datetime('now')
+                 WHERE id = ?
+            ''', (pay_result['pi_id'], bid_id))
+        else:
+            logger.warning(
+                '[auto_match L2B] bid=%s has no payment method — order %s created as unpaid',
+                bid_id, order_id,
+            )
+
+        cursor.execute(f'RELEASE SAVEPOINT {sp_name}')
+        orders_created += 1
+        remaining_inventory -= fill_qty
+        total_filled += fill_qty
 
         # Update bid remaining quantity
         new_bid_remaining = bid_remaining - fill_qty
@@ -642,14 +888,15 @@ def auto_match_listing_to_bids(listing_id, cursor):
                 UPDATE bids SET remaining_quantity = ?, status = 'Partially Filled' WHERE id = ?
             ''', (new_bid_remaining, bid_id))
 
-        # Collect notification data for buyer
+        # Use subtotal (not total_price) for per-unit display in notifications.
+        avg_price_per_unit = _subtotal / fill_qty if fill_qty > 0 else buyer_price_each
         notifications_to_send.append({
             'buyer_id': buyer_id,
             'order_id': order_id,
             'bid_id': bid_id,
             'item_description': item_description,
             'quantity_filled': fill_qty,
-            'price_per_unit': buyer_price_each,
+            'price_per_unit': avg_price_per_unit,
             'total_amount': total_price,
             'is_partial': new_bid_remaining > 0,
             'remaining_quantity': new_bid_remaining if new_bid_remaining > 0 else 0
@@ -664,17 +911,9 @@ def auto_match_listing_to_bids(listing_id, cursor):
                 'listing_id': listing_id,
                 'quantity': fill_qty,
                 'unit_price': seller_price_each,
+                'buyer_unit_price': buyer_price_each,
             }],
         })
-
-        remaining_inventory -= fill_qty
-        total_filled += fill_qty
-
-    # Update listing quantity
-    if remaining_inventory <= 0:
-        cursor.execute('UPDATE listings SET quantity = 0, active = 0 WHERE id = ?', (listing_id,))
-    else:
-        cursor.execute('UPDATE listings SET quantity = ? WHERE id = ?', (remaining_inventory, listing_id))
 
     message = f'Listing auto-filled! Matched {total_filled} items to {orders_created} bid(s).'
     if remaining_inventory > 0:
@@ -686,6 +925,7 @@ def auto_match_listing_to_bids(listing_id, cursor):
         'message': message,
         'notifications': notifications_to_send,
         'ledger_orders': ledger_orders,
+        'payment_failure_notifs': payment_failure_notifs,
     }
 
 

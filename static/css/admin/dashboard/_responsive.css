@@ -4,16 +4,64 @@
    ============================================ */
 
 @media (max-width: 768px) {
-  /* Dashboard container */
-  .admin-dashboard {
-    padding: 16px 12px; /* Top padding handled by base.css .container */
+  /* Layout: single column on mobile */
+  .admin-layout {
+    flex-direction: column;
+    padding-top: 100px; /* 2-row mobile header */
+  }
+
+  .admin-layout::before {
+    display: none; /* Hide vertical divider */
+  }
+
+  /* Show mobile header bar */
+  .admin-mobile-header {
+    display: flex;
+  }
+
+  /* Show sidebar overlay */
+  .admin-sidebar-overlay {
+    display: block;
+  }
+
+  /* Sidebar slides in from right as drawer */
+  .admin-sidebar {
+    position: fixed;
+    right: -300px;
+    top: 100px;
+    height: calc(100vh - 100px);
+    width: 260px;
+    max-width: 85vw;
+    z-index: 998;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+    transition: right 0.3s ease;
+    overflow-y: auto;
+  }
+
+  .admin-sidebar-inner {
+    position: static;
+    height: auto;
+    max-height: none;
+    overflow-y: visible;
+    padding-top: 16px;
+  }
+
+  .admin-sidebar.mobile-open {
+    right: 0;
+  }
+
+  /* Content takes full width */
+  .admin-main {
+    width: 100%;
+    min-width: 0;
   }
 
   /* Header - compact mobile layout */
   .admin-header {
     flex-direction: column;
     gap: 16px;
-    margin-bottom: 20px;
+    padding: 20px 16px 0;
+    margin-bottom: 16px;
   }
 
   .admin-header-left {
@@ -32,7 +80,7 @@
 
   .admin-subtitle {
     font-size: 13px;
-    display: none; /* Hide subtitle on mobile for cleaner look */
+    display: none;
   }
 
   .admin-header-actions {
@@ -46,34 +94,8 @@
     font-size: 13px;
   }
 
-  /* Tab Navigation - horizontal scroll with compact tabs */
-  .admin-tabs {
-    gap: 4px;
-    margin-bottom: 20px;
-    padding-bottom: 0;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .admin-tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .admin-tab {
-    padding: 10px 14px;
-    font-size: 13px;
-    gap: 6px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .admin-tab i {
-    font-size: 14px;
-  }
-
-  /* Hide tab text on small screens, show only icons */
-  .admin-tab span {
-    display: none;
+  .admin-content {
+    padding: 0 16px 40px;
   }
 
   /* Stats Grid - stack on mobile */

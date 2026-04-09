@@ -266,6 +266,10 @@ def account():
              o.id AS id,
              SUM(oi.quantity) AS quantity,
              SUM(oi.quantity*oi.price_each)*1.0/SUM(oi.quantity) AS price_each,
+             SUM(oi.quantity*oi.price_each) AS merchandise_subtotal,
+             o.total_price,
+             COALESCE(o.tax_amount, 0.0) AS tax_amount,
+             COALESCE(o.buyer_card_fee, 0.0) AS buyer_card_fee,
              o.status, o.created_at AS order_date,
              COALESCE(o.delivery_address, o.shipping_address) AS delivery_address,
              MIN(c.metal)       AS metal,
@@ -340,6 +344,10 @@ def account():
              o.id AS id,
              SUM(oi.quantity) AS quantity,
              SUM(oi.quantity*oi.price_each)*1.0/SUM(oi.quantity) AS price_each,
+             SUM(oi.quantity*oi.price_each) AS merchandise_subtotal,
+             o.total_price,
+             COALESCE(o.tax_amount, 0.0) AS tax_amount,
+             COALESCE(o.buyer_card_fee, 0.0) AS buyer_card_fee,
              o.status, o.created_at AS order_date,
              COALESCE(o.delivery_address, o.shipping_address) AS delivery_address,
              MIN(c.metal)       AS metal,
@@ -558,6 +566,9 @@ def account():
                   (SELECT sot2.updated_at FROM seller_order_tracking sot2
                      WHERE sot2.order_id = o.id AND sot2.seller_id = l.seller_id
                      LIMIT 1) AS tracking_uploaded_at,
+                  (SELECT sot2.delivered_at FROM seller_order_tracking sot2
+                     WHERE sot2.order_id = o.id AND sot2.seller_id = l.seller_id
+                     LIMIT 1) AS delivered_at,
                   o.payment_method_type,
                   oi.id AS order_item_id,
                   oi.third_party_grading_requested,
@@ -736,14 +747,15 @@ def account():
 
         # ── Payout delay window (seller-facing display) ──────────────────────
         from datetime import timedelta
-        from services.ledger_constants import PAYOUT_DELAY_DAYS_CARD, PAYOUT_DELAY_DAYS_ACH
+        from services.system_settings_service import get_auto_payout_delay_minutes
         _payout_status = sale.get('payout_status')
         _tracking_uploaded_at = sale.get('tracking_uploaded_at')
-        _order_payment_method = (sale.get('payment_method_type') or '').lower()
-        _delay_days = PAYOUT_DELAY_DAYS_ACH if 'ach' in _order_payment_method else PAYOUT_DELAY_DAYS_CARD
+        _delivered_at_raw = sale.get('delivered_at')
         sale['payout_delay_days_remaining'] = None
         sale['payout_eligible_at_str'] = None
         sale['payout_tracking_uploaded_str'] = None
+        sale['payout_delivered_str'] = None
+        sale['payout_awaiting_delivery'] = False
         if _tracking_uploaded_at and _payout_status not in ('PAID_OUT', 'PAYOUT_CANCELLED'):
             try:
                 _ts = str(_tracking_uploaded_at)
@@ -751,13 +763,25 @@ def account():
                     _tracking_at = datetime.fromisoformat(_ts.replace('Z', '+00:00')).replace(tzinfo=None)
                 else:
                     _tracking_at = datetime.strptime(_ts[:19], '%Y-%m-%d %H:%M:%S')
-                _eligible_at = _tracking_at + timedelta(days=_delay_days)
-                _now = datetime.now()
                 sale['payout_tracking_uploaded_str'] = _tracking_at.strftime('%b %-d')
-                sale['payout_eligible_at_str'] = _eligible_at.strftime('%b %-d')
-                if _now < _eligible_at:
-                    _delta = _eligible_at - _now
-                    sale['payout_delay_days_remaining'] = _delta.days + (1 if _delta.seconds > 0 else 0)
+                if _delivered_at_raw:
+                    # Delivery confirmed — countdown from delivered_at
+                    _dts = str(_delivered_at_raw)
+                    if 'T' in _dts:
+                        _delivered_at = datetime.fromisoformat(_dts.replace('Z', '+00:00')).replace(tzinfo=None)
+                    else:
+                        _delivered_at = datetime.strptime(_dts[:19], '%Y-%m-%d %H:%M:%S')
+                    _delay_minutes = get_auto_payout_delay_minutes()
+                    _eligible_at = _delivered_at + timedelta(minutes=_delay_minutes)
+                    _now = datetime.now()
+                    sale['payout_delivered_str'] = _delivered_at.strftime('%b %-d')
+                    sale['payout_eligible_at_str'] = _eligible_at.strftime('%b %-d')
+                    if _now < _eligible_at:
+                        _delta = _eligible_at - _now
+                        sale['payout_delay_days_remaining'] = _delta.days + (1 if _delta.seconds > 0 else 0)
+                else:
+                    # Tracking uploaded but not yet delivered
+                    sale['payout_awaiting_delivery'] = True
             except Exception:
                 pass
 
@@ -786,6 +810,9 @@ def account():
         elif not _has_tracking:
             sale['payout_user_label'] = 'Waiting for shipment'
             sale['payout_user_state'] = 'waiting'
+        elif sale.get('payout_awaiting_delivery'):
+            sale['payout_user_label'] = 'Payout available 1 day after delivery'
+            sale['payout_user_state'] = 'awaiting-delivery'
         elif _days_remaining and _days_remaining > 0:
             sale['payout_user_label'] = f'Payout available in {_days_remaining} day{"s" if _days_remaining != 1 else ""}'
             sale['payout_user_state'] = 'delayed'
@@ -1126,6 +1153,103 @@ def _verify_order_participant(conn, order_id, user_id):
         LIMIT 1
     """, (order_id, user_id, user_id)).fetchone()
     return row is not None
+
+
+@account_bp.route('/orders/api/<int:order_id>/transaction')
+def order_transaction(order_id):
+    """Financial breakdown for Transaction Details modal."""
+    if 'user_id' not in session:
+        return jsonify(error="Authentication required"), 401
+
+    # Use late-binding so tests can patch database.get_db_connection
+    import database as _db_mod
+    conn = _db_mod.get_db_connection()
+    user_id = session['user_id']
+    if not _verify_order_participant(conn, order_id, user_id):
+        conn.close()
+        return jsonify(error="Access denied"), 403
+
+    order_row = conn.execute(
+        """SELECT
+             o.total_price,
+             COALESCE(o.tax_amount, 0.0)     AS tax_amount,
+             COALESCE(o.buyer_card_fee, 0.0) AS buyer_card_fee,
+             SUM(oi.quantity * oi.price_each) AS merchandise_subtotal,
+             COALESCE(SUM(oi.grading_fee_charged), 0.0) AS grading_fee_total
+           FROM orders o
+           JOIN order_items oi ON oi.order_id = o.id
+           WHERE o.id = ?
+           GROUP BY o.id""",
+        (order_id,)
+    ).fetchone()
+
+    if not order_row:
+        conn.close()
+        return jsonify(error="Order not found"), 404
+
+    item_rows = conn.execute(
+        """SELECT
+             oi.quantity,
+             oi.price_each,
+             COALESCE(oi.grading_fee_charged, 0.0) AS grading_fee_charged,
+             c.metal, c.weight, c.year, c.product_line, c.product_type,
+             l.is_isolated, l.isolated_type,
+             u.username AS seller_username
+           FROM order_items oi
+           JOIN listings   l ON oi.listing_id = l.id
+           JOIN categories c ON l.category_id = c.id
+           JOIN users      u ON l.seller_id = u.id
+           WHERE oi.order_id = ?
+           ORDER BY oi.price_each DESC, oi.id""",
+        (order_id,)
+    ).fetchall()
+
+    conn.close()
+
+    def _item_label(row):
+        parts = [
+            row['weight'] or '',
+            str(row['year']) if row['year'] else '',
+            row['metal'] or '',
+            row['product_line'] or '',
+            row['product_type'] or '',
+        ]
+        label = ' '.join(p for p in parts if p).strip()
+        if row['is_isolated'] and row['isolated_type']:
+            label = row['isolated_type'] + ((' — ' + label) if label else '')
+        return label or 'Order Item'
+
+    items = []
+    for r in item_rows:
+        qty = int(r['quantity'] or 0)
+        price_each = float(r['price_each'] or 0)
+        grading = float(r['grading_fee_charged'] or 0)
+        items.append({
+            'label': _item_label(r),
+            'seller_username': r['seller_username'],
+            'quantity': qty,
+            'price_each': price_each,
+            'line_total': round(qty * price_each, 2),
+            'grading_fee': grading,
+        })
+
+    merchandise_subtotal = float(order_row['merchandise_subtotal'] or 0)
+    grading_fee_total    = float(order_row['grading_fee_total'] or 0)
+    tax_amount           = float(order_row['tax_amount'])
+    buyer_card_fee       = float(order_row['buyer_card_fee'])
+    total_price          = float(order_row['total_price'] or 0)
+
+    if total_price == 0:
+        total_price = round(merchandise_subtotal + grading_fee_total + tax_amount + buyer_card_fee, 2)
+
+    return jsonify({
+        'items': items,
+        'merchandise_subtotal': round(merchandise_subtotal, 2),
+        'grading_fee_total': round(grading_fee_total, 2),
+        'tax_amount': round(tax_amount, 2),
+        'buyer_card_fee': round(buyer_card_fee, 2),
+        'total_price': round(total_price, 2),
+    })
 
 
 @account_bp.route('/orders/api/<int:order_id>/order_sellers')
@@ -2149,6 +2273,151 @@ def set_default_payment_method(pm_id):
         return jsonify({'success': False, 'error': str(exc)}), 500
 
     return jsonify({'success': True, 'message': 'Default payment method updated'})
+
+
+@account_bp.route('/account/api/payout-bank-account', methods=['GET'])
+def get_payout_bank_account():
+    """Return the seller's connected bank account details from Stripe Connect."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    import stripe
+    user_id = session['user_id']
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled FROM users WHERE id = ?',
+            (user_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row or not row['stripe_account_id']:
+        return jsonify({'success': True, 'bank_account': None})
+
+    if not row['stripe_charges_enabled'] or not row['stripe_payouts_enabled']:
+        return jsonify({'success': True, 'bank_account': None})
+
+    try:
+        account = stripe.Account.retrieve(row['stripe_account_id'], expand=['external_accounts'])
+        ext_accounts = account.get('external_accounts', {}).get('data', [])
+        bank = next((ea for ea in ext_accounts if ea.get('object') == 'bank_account'), None)
+        if not bank:
+            return jsonify({'success': True, 'bank_account': None})
+        return jsonify({
+            'success': True,
+            'bank_account': {
+                'bank_name': bank.get('bank_name') or 'Bank',
+                'last4': bank.get('last4', '----'),
+                'routing_number': bank.get('routing_number', ''),
+                'currency': (bank.get('currency') or 'usd').upper(),
+            },
+        })
+    except stripe.error.StripeError as exc:
+        _pm_log.error('[PM] payout-bank-account failed for user %s: %s', user_id, exc)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+# API: Sold Analytics — time-series data for seller dashboard tiles
+@account_bp.route('/account/api/sold-analytics')
+def sold_analytics():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+
+    user_id = session['user_id']
+    metric = request.args.get('metric', 'gross')   # gross | net | pending | completed
+    period = request.args.get('period', '30d')     # 7d | 30d | 90d | all
+
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    if period == '7d':
+        cutoff = (now - timedelta(days=7)).strftime('%Y-%m-%d')
+    elif period == '30d':
+        cutoff = (now - timedelta(days=30)).strftime('%Y-%m-%d')
+    elif period == '90d':
+        cutoff = (now - timedelta(days=90)).strftime('%Y-%m-%d')
+    else:
+        cutoff = '2000-01-01'
+
+    conn = get_db_connection()
+    try:
+        base_join = """
+            FROM order_items oi
+            JOIN orders o   ON oi.order_id   = o.id
+            JOIN listings l ON oi.listing_id = l.id
+            LEFT JOIN order_items_ledger oil
+                   ON oil.order_id  = o.id AND oil.listing_id = l.id
+        """
+        payout_join = """
+            LEFT JOIN order_payouts op ON op.order_id = o.id AND op.seller_id = l.seller_id
+        """
+        gross_expr = "COALESCE(oil.gross_amount,      oi.price_each * oi.quantity)"
+        net_expr   = "COALESCE(oil.seller_net_amount, oi.price_each * oi.quantity * 0.95)"
+
+        if metric == 'gross':
+            sql = f"""
+                SELECT DATE(o.created_at) AS day, COALESCE(SUM({gross_expr}), 0) AS value
+                {base_join}
+                WHERE l.seller_id = ? AND DATE(o.created_at) >= ?
+                  AND o.status NOT IN ('cancelled','forfeited')
+                GROUP BY DATE(o.created_at) ORDER BY day
+            """
+            rows = conn.execute(sql, (user_id, cutoff)).fetchall()
+
+        elif metric == 'net':
+            sql = f"""
+                SELECT DATE(o.created_at) AS day, COALESCE(SUM({net_expr}), 0) AS value
+                {base_join}
+                WHERE l.seller_id = ? AND DATE(o.created_at) >= ?
+                  AND o.status NOT IN ('cancelled','forfeited')
+                GROUP BY DATE(o.created_at) ORDER BY day
+            """
+            rows = conn.execute(sql, (user_id, cutoff)).fetchall()
+
+        elif metric == 'pending':
+            sql = f"""
+                SELECT DATE(o.created_at) AS day, COALESCE(SUM({net_expr}), 0) AS value
+                {base_join}
+                {payout_join}
+                WHERE l.seller_id = ? AND DATE(o.created_at) >= ?
+                  AND o.status NOT IN ('cancelled','forfeited')
+                  AND (op.payout_status IS NULL
+                       OR op.payout_status NOT IN ('PAID_OUT','PAYOUT_CANCELLED'))
+                GROUP BY DATE(o.created_at) ORDER BY day
+            """
+            rows = conn.execute(sql, (user_id, cutoff)).fetchall()
+
+        elif metric == 'completed':
+            sql = f"""
+                SELECT DATE(o.created_at) AS day, COALESCE(SUM({net_expr}), 0) AS value
+                {base_join}
+                {payout_join}
+                WHERE l.seller_id = ? AND DATE(o.created_at) >= ?
+                  AND op.payout_status = 'PAID_OUT'
+                GROUP BY DATE(o.created_at) ORDER BY day
+            """
+            rows = conn.execute(sql, (user_id, cutoff)).fetchall()
+
+        else:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid metric'}), 400
+
+        points = [{'date': row['day'], 'value': float(row['value'])} for row in rows]
+        total  = sum(p['value'] for p in points)
+        avg    = total / len(points) if points else 0
+        best   = max(points, key=lambda p: p['value']) if points else None
+        conn.close()
+        return jsonify({
+            'success': True,
+            'points': points,
+            'total': total,
+            'avg': avg,
+            'best_day': best['date'] if best else None,
+            'best_day_value': best['value'] if best else 0,
+            'active_days': len(points),
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # API: Update order delivery address

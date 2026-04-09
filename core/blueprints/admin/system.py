@@ -445,6 +445,116 @@ def set_payment_controls():
     })
 
 
+@admin_bp.route("/api/system-settings/payout-delivery-delay", methods=["GET"])
+@admin_required
+def get_payout_delivery_delay():
+    """Return the current payout delivery delay decomposed into hours and minutes."""
+    from services.system_settings_service import (
+        get_auto_payout_delay_minutes,
+        PAYOUT_DELIVERY_DELAY_MIN,
+        PAYOUT_DELIVERY_DELAY_MAX,
+        PAYOUT_DELIVERY_DELAY_DEFAULT,
+    )
+    total = get_auto_payout_delay_minutes()
+    return jsonify({
+        "success": True,
+        "total_minutes": total,
+        "hours": total // 60,
+        "minutes": total % 60,
+        "min_minutes": PAYOUT_DELIVERY_DELAY_MIN,
+        "max_minutes": PAYOUT_DELIVERY_DELAY_MAX,
+        "default_minutes": PAYOUT_DELIVERY_DELAY_DEFAULT,
+    })
+
+
+@admin_bp.route("/api/system-settings/payout-delivery-delay", methods=["POST"])
+@admin_required
+def set_payout_delivery_delay():
+    """Update the payout delivery delay from hours and minutes."""
+    from services.system_settings_service import (
+        set_auto_payout_delay_minutes,
+        PAYOUT_DELIVERY_DELAY_MIN,
+        PAYOUT_DELIVERY_DELAY_MAX,
+    )
+    data = request.get_json(silent=True) or {}
+    try:
+        hours   = int(data.get("hours", 0))
+        minutes = int(data.get("minutes", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "message": "hours and minutes must be integers"}), 400
+
+    total = hours * 60 + minutes
+    saved = set_auto_payout_delay_minutes(total)
+
+    s_hours   = saved // 60
+    s_minutes = saved % 60
+    parts = []
+    if s_hours:   parts.append(f"{s_hours}h")
+    if s_minutes: parts.append(f"{s_minutes}m")
+    label = " ".join(parts) if parts else f"{saved}m"
+
+    return jsonify({
+        "success": True,
+        "total_minutes": saved,
+        "hours": s_hours,
+        "minutes": s_minutes,
+        "min_minutes": PAYOUT_DELIVERY_DELAY_MIN,
+        "max_minutes": PAYOUT_DELIVERY_DELAY_MAX,
+        "message": f"Payout delivery delay updated to {label}.",
+    })
+
+
+@admin_bp.route("/api/email-templates", methods=["GET"])
+@admin_required
+def get_email_templates():
+    """Return all email templates rendered with sample data for preview."""
+    from flask import render_template
+
+    templates = [
+        {
+            "key": "bid_filled",
+            "label": "Bid Filled",
+            "template": "emails/bid_filled.html",
+            "vars": {
+                "username": "john_doe",
+                "item_description": "1 oz American Gold Eagle (2023)",
+                "quantity": 5,
+                "price_per_unit": 2150.00,
+                "total_amount": 10750.00,
+                "partial": False,
+                "remaining_quantity": 0,
+                "orders_url": "#",
+            },
+        },
+        {
+            "key": "listing_sold",
+            "label": "Listing Sold",
+            "template": "emails/listing_sold.html",
+            "vars": {
+                "username": "jane_seller",
+                "item_description": "1 oz American Silver Eagle (2024)",
+                "quantity": 10,
+                "price_per_unit": 35.00,
+                "total_amount": 350.00,
+                "partial": False,
+                "remaining_quantity": 0,
+                "shipping_address": "123 Main Street\nApt 4B\nNew York, NY 10001",
+                "sold_tab_url": "#",
+            },
+        },
+    ]
+
+    result = []
+    for t in templates:
+        try:
+            html = render_template(t["template"], **t["vars"])
+        except Exception as exc:
+            html = f"<p style='color:red;padding:20px'>Error rendering template: {exc}</p>"
+        result.append({"key": t["key"], "label": t["label"], "html": html})
+
+    return jsonify({"success": True, "templates": result})
+
+
 def _trigger_immediate_snapshot_async():
     """
     Fire-and-forget: run one snapshot in a background thread immediately

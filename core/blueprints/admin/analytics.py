@@ -516,7 +516,21 @@ def clear_marketplace_data():
     # Define which tables to clear for each option
     option_tables = {
         'listings': ['listings', 'listing_photos', 'listing_set_items', 'listing_set_item_photos'],
-        'orders': ['orders', 'order_items'],
+        'orders': [
+            # Core order tables
+            'orders', 'order_items',
+            # Ledger / financial records
+            'orders_ledger', 'order_items_ledger', 'order_payouts',
+            # Event log & transaction snapshots
+            'order_events', 'transaction_snapshots',
+            # Fulfilment
+            'seller_order_tracking', 'tracking',
+            # Disputes, refunds, cancellations
+            'disputes', 'dispute_evidence', 'dispute_timeline', 'refunds',
+            'cancellation_requests', 'cancellation_seller_responses',
+            # Fees & price locks
+            'bucket_fee_events', 'price_locks',
+        ],
         'bids': ['bids', 'bid_fills'],
         'cart': ['cart_items', 'cart_buckets'],
         'ratings': ['ratings'],

@@ -1,562 +1,365 @@
 /* ================================================================
-   landing.css — Financial-grade landing page for Metex buy.html
-   Color system:
-     --bg-hero    #0e2a47   (hero — bright navy)
-     --bg-dark    #081a33   (panel headers / ticker / deep accents)
-     --bg-card    #0d2040   (panel / card surfaces)
-     --blue       #3b82f6   (primary UI accent)
-     --blue-dark  #2563eb   (button gradient start)
-     --gold       #d4af37   (secondary brand accent — subtle)
-     --gold-hi    #E8C547   (bright gold — spot price chips)
-     --text       #e8eaf0   (primary text)
-     --muted      #6b7280   (secondary text)
-     --dim        #374151   (dimmed / col headers)
-     --green      #22c55e   (positive / up)
-     --border     rgba(255,255,255,0.07)
-     --border-b   rgba(59,130,246,0.22)  (blue border)
+   landing.css — Metex buy.html landing section
+   Light/neutral design with grid background
 ================================================================ */
 
 /* ── Allow hero breakout from .container ──────────────────── */
-main.container:has(.lp-dark-band) {
+main.container:has(.lp-hero-band) {
   overflow-x: visible;
 }
 
-/* ── Full-width dark band (hero + ticker + features) ───────── */
-/* The background itself carries the full dark→light transition.
-   No overlay pseudo-element — eliminates the "fog band" artifact
-   caused by blending an opaque color on top of a dark background. */
-.lp-dark-band {
+/* ════════════════════════════════════════════════════════════
+   HERO BAND — full-width light background with grid
+════════════════════════════════════════════════════════════ */
+.lp-hero-band {
   width: 100vw;
   margin-left: calc((100% - 100vw) / 2);
-  margin-top: -90px;          /* flush under fixed header */
-  padding-top: 90px;          /* restore header clearance */
-  background: linear-gradient(
-    to bottom,
-    #0e2a47  0%,
-    #0e2a47 36%,
-    #112d4c 46%,
-    #163657 55%,
-    #1d4168 63%,
-    #274e78 69%,
-    #325e88 74%,
-    #426f99 79%,
-    #5a83aa 83%,
-    #7799bb 87%,
-    #97b4cc 90%,
-    #bccedd 93%,
-    #dce8f0 95%,
-    #eff5f8 97%,
-    #f8fbfc 99%,
-    #ffffff 100%
-  );
+  margin-top: -90px;
+  padding-top: 90px;
+  background-color: #f7f6f2;
+  background-image:
+    linear-gradient(rgba(0,0,0,0.042) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.042) 1px, transparent 1px);
+  background-size: 44px 44px;
   margin-bottom: 52px;
   position: relative;
 }
 
-/* subtle grid-dot overlay on the entire band */
-.lp-dark-band::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: radial-gradient(rgba(59,130,246,0.05) 1px, transparent 1px);
-  background-size: 32px 32px;
-  z-index: 0;
-}
-
-
-/* ════════════════════════════════════════════════════════════
-   HERO
-════════════════════════════════════════════════════════════ */
-.lp-hero {
-  padding: 52px 0 44px;
-}
-
+/* ── Hero Inner ──────────────────────────────────────────── */
 .lp-hero-inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 5vw;
+  padding: 72px 5vw 60px;
   display: flex;
-  gap: 56px;
+  gap: 64px;
   align-items: flex-start;
-  position: relative;
-  z-index: 1;
 }
 
-/* ── Left: Text ─────────────────────────────────────────── */
+/* ── Left Column ─────────────────────────────────────────── */
 .lp-hero-left {
   flex: 1;
   min-width: 0;
 }
 
-.lp-eyebrow {
+/* Eyebrow Pill */
+.lp-eyebrow-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 10px;
+  gap: 7px;
+  padding: 7px 18px;
+  border: 1.5px solid #C9A97E;
+  border-radius: 100px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.18em;
-  color: #C9A227;
+  letter-spacing: 0.1em;
+  color: #A07040;
   text-transform: uppercase;
-  margin-bottom: 18px;
+  margin-bottom: 26px;
 }
 
-.lp-eyebrow-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  animation: lp-pulse 1.6s ease-in-out infinite;
-}
-
+/* Headline */
 .lp-headline {
-  font-size: clamp(2rem, 3.5vw, 3rem);
+  font-size: clamp(2.5rem, 4.2vw, 3.5rem);
   font-weight: 800;
-  line-height: 1.1;
-  color: #f0f2f5;
-  margin: 0 0 20px;
+  line-height: 1.06;
+  color: #0d0d0d;
+  margin: 0 0 4px;
+  letter-spacing: -0.03em;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+}
+
+.lp-headline-accent {
+  color: #D4870A;
+  text-decoration: underline;
+  text-decoration-color: #D4870A;
+  text-underline-offset: 5px;
+  text-decoration-thickness: 3px;
+}
+
+/* Subheadline: "Trade for Real Market Value." */
+.lp-subheadline {
+  font-size: clamp(1.6rem, 2.6vw, 2.1rem);
+  font-weight: 800;
+  line-height: 1.15;
+  color: #0d0d0d;
+  margin: 0 0 22px;
   letter-spacing: -0.025em;
-  font-family: Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 
-.lp-subhead {
+.lp-subheadline-green {
+  color: #2A8C4A;
+}
+
+/* Description */
+.lp-description {
   font-size: 1rem;
-  line-height: 1.75;
-  color: #8892a4;
-  margin: 0 0 32px;
-  max-width: 480px;
+  line-height: 1.72;
+  color: #4b5563;
+  margin: 0 0 28px;
+  max-width: 540px;
 }
 
-.lp-props {
+/* Trust Pills */
+.lp-trust-pills {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 36px;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
 }
 
-.lp-prop {
-  display: flex;
+.lp-trust-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: 0.875rem;
-  color: #c9d0db;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 100px;
+  font-size: 13px;
+  color: #374151;
+  background: rgba(255,255,255,0.7);
+  white-space: nowrap;
 }
 
-.lp-prop-icon {
-  color: #3b82f6;
-  font-size: 0.55rem;
-  flex-shrink: 0;
+.lp-trust-pill i {
+  color: #16a34a;
+  font-size: 12px;
 }
 
-.lp-actions {
+/* CTA Buttons */
+.lp-cta-row {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  margin-top: 17px;
+  margin-bottom: 36px;
 }
 
-.lp-btn {
+.lp-cta-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 13px 26px;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.02em;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.12s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
-}
-
-.lp-btn:hover {
-  transform: translateY(-2px);
-}
-
-.lp-btn--primary {
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-  color: #ffffff;
-  font-size: 0.95rem;
-  padding: 14px 30px;
-  box-shadow: 0 4px 22px rgba(59,130,246,0.40), inset 0 1px 0 rgba(255,255,255,0.15);
-}
-
-.lp-btn--primary:hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
-  box-shadow: 0 8px 32px rgba(59,130,246,0.60), inset 0 1px 0 rgba(255,255,255,0.18);
-  transform: translateY(-2px);
-}
-
-.lp-btn--ghost {
-  background: transparent;
-  border: 1.5px solid rgba(255,255,255,0.15);
-  color: #c9d0db;
-}
-
-.lp-btn--ghost:hover {
-  border-color: rgba(59,130,246,0.55);
-  color: #e8eaf0;
-}
-
-/* ── Right: Market Preview Panel ────────────────────────── */
-.lp-hero-right {
-  width: 340px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-}
-
-.lp-market-panel {
-  background: #0d2040;
-  border: 1px solid rgba(59,130,246,0.22);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04);
-}
-
-/* Panel header bar */
-.lp-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  background: #081a33;
-}
-
-.lp-panel-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: #8892a4;
-  text-transform: uppercase;
-}
-
-.lp-live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #22c55e;
-  flex-shrink: 0;
-  animation: lp-pulse 1.6s ease-in-out infinite;
-  box-shadow: 0 0 6px rgba(34,197,94,0.6);
-}
-
-/* Mini spot prices in panel header */
-.lp-spot-chips {
-  display: flex;
-  gap: 6px;
-}
-
-.lp-spot-chip {
-  font-size: 10px;
-  font-weight: 600;
-  color: #6b7280;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 4px;
-  padding: 3px 7px;
-  font-family: 'Courier New', monospace;
-  letter-spacing: 0.03em;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
   white-space: nowrap;
-  transition: color 0.3s;
 }
 
-.lp-spot-chip.loaded {
-  color: #E8C547;
+.lp-cta-btn:hover {
+  transform: translateY(-1px);
 }
 
-/* Column labels */
-.lp-panel-cols {
-  display: grid;
-  grid-template-columns: 1fr 90px 52px;
-  padding: 8px 18px 6px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.lp-cta-btn--primary {
+  background: #D4870A;
+  color: #ffffff;
+  border: 2px solid #D4870A;
+}
+
+.lp-cta-btn--primary:hover {
+  background: #b8720a;
+  border-color: #b8720a;
+}
+
+.lp-cta-btn--outline {
+  background: transparent;
   color: #374151;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border: 2px solid #d1d5db;
 }
 
-.lp-panel-cols span:last-child {
-  text-align: right;
+.lp-cta-btn--outline:hover {
+  border-color: #9ca3af;
+  color: #111827;
 }
 
-.lp-panel-cols span:nth-child(2) {
-  text-align: right;
+/* Stats Row */
+.lp-stats-row {
+  display: flex;
+  gap: 40px;
 }
 
-/* Individual rows */
-.lp-panel-rows {
+.lp-stat-num {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0d0d0d;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.lp-stat-lbl {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+
+/* ── Right Column ────────────────────────────────────────── */
+.lp-hero-right {
+  width: 400px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  gap: 14px;
 }
 
-.lp-panel-row {
-  display: grid;
-  grid-template-columns: 1fr 90px 52px;
-  align-items: center;
-  padding: 10px 18px;
-  text-decoration: none;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  transition: background 0.12s;
-  gap: 6px;
-}
-
-.lp-panel-row:last-child {
-  border-bottom: none;
-}
-
-.lp-panel-row:hover {
-  background: rgba(59,130,246,0.09);
-}
-
-.lp-row-name {
+/* Feature Cards */
+.lp-feat-card {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-  color: #c9d0db;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  align-items: flex-start;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
 }
 
-/* Metal pill badge */
-.lp-metal-badge {
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  padding: 2px 6px;
-  border-radius: 3px;
-  flex-shrink: 0;
-  text-transform: uppercase;
-}
-
-.lp-metal-badge--gold     { background: rgba(201,162,39,0.2);  color: #E8C547; }
-.lp-metal-badge--silver   { background: rgba(156,163,175,0.2); color: #d1d5db; }
-.lp-metal-badge--platinum { background: rgba(96,165,250,0.2);  color: #93c5fd; }
-.lp-metal-badge--palladium{ background: rgba(167,139,250,0.2); color: #c4b5fd; }
-.lp-metal-badge--copper   { background: rgba(234,88,12,0.2);   color: #fb923c; }
-
-.lp-row-price {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #22c55e;
-  font-family: 'Courier New', 'Lucida Console', monospace;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.lp-row-count {
-  font-size: 0.78rem;
-  color: #6b7280;
-  text-align: right;
-}
-
-.lp-panel-empty {
-  padding: 24px 18px;
-  font-size: 0.8rem;
-  color: #374151;
-  text-align: center;
-}
-
-/* Panel footer */
-.lp-panel-footer {
-  padding: 11px 18px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  background: #081a33;
-  text-align: right;
-}
-
-.lp-panel-link {
-  font-size: 0.78rem;
-  color: #3b82f6;
-  text-decoration: none;
-  letter-spacing: 0.02em;
-  transition: color 0.12s;
-}
-
-.lp-panel-link:hover {
-  color: #60a5fa;
-}
-
-
-/* ════════════════════════════════════════════════════════════
-   TRADES TICKER
-════════════════════════════════════════════════════════════ */
-.lp-ticker-wrap {
-  border-top: 1px solid rgba(255,255,255,0.06);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: #081a33;
-  overflow: hidden;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  position: relative;
-  z-index: 1;
-}
-
-/* Fade edges */
-.lp-ticker-wrap::before,
-.lp-ticker-wrap::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 60px;
-  z-index: 2;
-  pointer-events: none;
-}
-.lp-ticker-wrap::before {
-  left: 0;
-  background: linear-gradient(to right, #081a33, transparent);
-}
-.lp-ticker-wrap::after {
-  right: 0;
-  background: linear-gradient(to left, #081a33, transparent);
-}
-
-.lp-ticker-label {
-  position: absolute;
-  left: 14px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: #374151;
-  text-transform: uppercase;
-  z-index: 3;
-  white-space: nowrap;
-}
-
-.lp-ticker-track {
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  padding-left: 80px;
-  animation: lp-ticker-scroll 30s linear infinite;
-  gap: 0;
-}
-
-.lp-ticker-item {
-  font-size: 11px;
-  color: #8892a4;
-  padding: 0 18px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.lp-ticker-item-name {
-  color: #c9d0db;
-}
-
-.lp-ticker-item-price {
-  color: #E8C547;
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-}
-
-.lp-ticker-sep {
-  color: #1f2937;
-  padding: 0 6px;
-  font-size: 9px;
-}
-
-@keyframes lp-ticker-scroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-
-/* ════════════════════════════════════════════════════════════
-   FEATURES — HOW METEX WORKS
-════════════════════════════════════════════════════════════ */
-.lp-features {
-  padding: 52px 0 56px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  position: relative;
-  z-index: 1;
-}
-
-.lp-features-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 5vw;
-}
-
-.lp-features-label {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: #C9A227;
-  text-transform: uppercase;
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.lp-features-heading {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #f0f2f5;
-  text-align: center;
-  margin: 0 0 36px;
-  letter-spacing: -0.01em;
-}
-
-.lp-features-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.lp-feature-card {
-  background: #111827;
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 10px;
-  padding: 28px 26px;
-  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
-}
-
-.lp-feature-card:hover {
-  border-color: rgba(59,130,246,0.38);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-}
-
-.lp-feature-icon {
+.lp-feat-card-icon {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(59,130,246,0.12);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 18px;
-  color: #3b82f6;
-  font-size: 1rem;
+  flex-shrink: 0;
+  font-size: 17px;
 }
 
-.lp-feature-title {
+.lp-feat-icon--red   { background: #fee2e2; color: #dc2626; }
+.lp-feat-icon--amber { background: #fef3c7; color: #d97706; }
+.lp-feat-icon--slate { background: #f1f5f9; color: #475569; }
+
+.lp-feat-card-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #e8eaf0;
-  margin-bottom: 10px;
+  color: #111827;
+  margin-bottom: 5px;
 }
 
-.lp-feature-body {
-  font-size: 0.84rem;
-  line-height: 1.65;
+.lp-feat-card-text {
+  font-size: 0.85rem;
+  line-height: 1.55;
   color: #6b7280;
+}
+
+/* Live Spot Prices Card */
+.lp-spot-card {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+}
+
+.lp-spot-card-header {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #374151;
+  text-transform: uppercase;
+  padding: 12px 18px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.lp-spot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 14px 18px 16px;
+}
+
+.lp-spot-col {
+  text-align: center;
+}
+
+.lp-spot-col:not(:last-child) {
+  border-right: 1px solid #f3f4f6;
+}
+
+.lp-spot-metal-name {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.lp-spot-metal-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0d0d0d;
+  margin-bottom: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-spot-metal-change {
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 16px;
+}
+
+.lp-spot-metal-change.positive { color: #16a34a; }
+.lp-spot-metal-change.negative { color: #dc2626; }
+
+
+/* ════════════════════════════════════════════════════════════
+   TRUST STRIP
+════════════════════════════════════════════════════════════ */
+.lp-trust-strip {
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 22px 0;
+}
+
+.lp-trust-strip-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 5vw;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.lp-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 24px;
+}
+
+.lp-trust-item:not(:last-child) {
+  border-right: 1px solid #f3f4f6;
+}
+
+.lp-trust-item-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+  color: #6b7280;
+}
+
+.lp-trust-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 2px;
+}
+
+.lp-trust-item-sub {
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 
 /* ════════════════════════════════════════════════════════════
-   MARKETS SECTION HEADER
+   MARKETS SECTION HEADER (below hero, listings grid)
 ════════════════════════════════════════════════════════════ */
 .lp-markets-header {
   display: flex;
@@ -587,157 +390,84 @@ main.container:has(.lp-dark-band) {
 
 
 /* ════════════════════════════════════════════════════════════
-   PULSE ANIMATION
-════════════════════════════════════════════════════════════ */
-@keyframes lp-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.25; }
-}
-
-
-/* ════════════════════════════════════════════════════════════
    RESPONSIVE
 ════════════════════════════════════════════════════════════ */
 @media (max-width: 960px) {
   .lp-hero-inner {
     flex-direction: column;
-    gap: 36px;
+    gap: 40px;
   }
 
   .lp-hero-right {
     width: 100%;
-    max-width: 520px;
+    max-width: 560px;
   }
 
-  .lp-features-grid {
-    grid-template-columns: 1fr;
-    gap: 14px;
+  .lp-trust-strip-inner {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 16px;
+  }
+
+  .lp-trust-item:nth-child(2) {
+    border-right: none;
+  }
+
+  .lp-trust-item:nth-child(3) {
+    border-right: 1px solid #f3f4f6;
+    padding-top: 0;
   }
 }
 
-/* Mobile header is ~120px tall */
 @media (max-width: 768px) {
-  .lp-dark-band {
+  .lp-hero-band {
     margin-top: -120px;
     padding-top: 120px;
   }
 
-  .lp-hero {
-    padding: 36px 0 32px;
-  }
-
-  .lp-features-grid {
-    grid-template-columns: 1fr;
+  .lp-hero-inner {
+    padding: 48px 5vw 44px;
   }
 }
 
 @media (max-width: 640px) {
-  .lp-subhead {
-    font-size: 0.9rem;
+  .lp-stats-row {
+    gap: 24px;
   }
 
-  .lp-hero-right {
-    max-width: 100%;
+  .lp-trust-pills {
+    gap: 6px;
   }
 
-  .lp-panel-cols,
-  .lp-panel-row {
-    grid-template-columns: 1fr 80px 44px;
+  .lp-trust-pill {
+    font-size: 12px;
+    padding: 5px 11px;
+  }
+
+  .lp-trust-strip-inner {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
-/* 480px matches main padding-top: 115px in base.css */
 @media (max-width: 480px) {
-  .lp-dark-band {
+  .lp-hero-band {
     margin-top: -115px;
     padding-top: 115px;
   }
-}
 
+  .lp-hero-inner {
+    padding: 36px 4vw 36px;
+  }
 
-/* ════════════════════════════════════════════════════════════
-   TRANSPARENT HEADER — only applies on buy page (landing.css
-   is only loaded here). JS toggles .header--over-hero.
-════════════════════════════════════════════════════════════ */
+  .lp-trust-strip-inner {
+    grid-template-columns: 1fr;
+    row-gap: 12px;
+  }
 
-/* Smooth transition on all relevant properties */
-.header-bar {
-  transition: background-color 0.28s ease, border-color 0.28s ease,
-              box-shadow 0.28s ease;
-}
+  .lp-trust-item {
+    border-right: none !important;
+  }
 
-.header-bar.header--over-hero {
-  background-color: transparent;
-  border-bottom-color: transparent;
-  box-shadow: none;
-}
-
-/* Logo — gold on dark hero */
-.header-bar.header--over-hero .logo {
-  color: #E8C547;
-  transition: color 0.28s ease;
-}
-
-/* Search input — frosted dark style */
-.header-bar.header--over-hero .header-search-input {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #e8eaf0;
-  transition: background 0.28s, border-color 0.28s, color 0.28s;
-}
-
-.header-bar.header--over-hero .header-search-input::placeholder {
-  color: rgba(255, 255, 255, 0.38);
-}
-
-.header-bar.header--over-hero .header-search-icon {
-  color: rgba(255, 255, 255, 0.42);
-}
-
-.header-bar.header--over-hero .header-search-clear {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-/* Nav buttons — ghost style on dark background */
-.header-bar.header--over-hero .btn-pill {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.82);
-  transition: background-color 0.28s, color 0.28s;
-}
-
-.header-bar.header--over-hero .btn-pill:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-  transform: scale(1.03);
-}
-
-/* Sign Up — keep gold accent on dark background */
-.header-bar.header--over-hero .btn-pill.signup-btn {
-  background-color: #C9A227;
-  color: #06090f;
-}
-
-.header-bar.header--over-hero .btn-pill.signup-btn:hover {
-  background-color: #E8C547;
-}
-
-/* Cart icon */
-.header-bar.header--over-hero .cart-pill {
-  background-color: transparent;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.header-bar.header--over-hero .cart-pill:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
-/* Mobile hamburger */
-.header-bar.header--over-hero .mobile-nav-toggle {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.header-bar.header--over-hero .mobile-nav-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  .lp-search-row {
+    max-width: 100%;
+  }
 }

@@ -21,7 +21,7 @@ from services.dispute_service import (
 )
 from . import disputes_bp
 
-_ALLOWED_EVIDENCE_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/heic']
+_ALLOWED_EVIDENCE_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'application/pdf']
 _EVIDENCE_UPLOAD_DIR = 'uploads/dispute_evidence'
 
 

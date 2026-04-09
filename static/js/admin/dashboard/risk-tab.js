@@ -13,6 +13,13 @@
 let riskProfilesData = [];
 let currentRiskUserId = null;
 
+// ── Column info icon — matches the existing col-help-btn / showColInfo(key) pattern ──
+function _riskColIcon(key) {
+  return '<button class="col-help-btn" type="button" title="What does this mean?" ' +
+    'onclick="if(typeof showColInfo===\'function\')showColInfo(\'' + key + '\')">' +
+    '<i class="fa-regular fa-circle-question"></i></button>';
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const RISK_FLAG_LABELS = {
@@ -158,13 +165,13 @@ function renderRiskList(profiles) {
         <tr>
           <th>ID</th>
           <th>Username</th>
-          <th>Role</th>
-          <th>Risk Score</th>
-          <th>Flag</th>
-          <th>Buyer Disputes</th>
-          <th>Seller Disputes</th>
-          <th>Refunds</th>
-          <th>Joined</th>
+          <th>Role ${_riskColIcon('risk_role')}</th>
+          <th>Risk Score ${_riskColIcon('risk_score')}</th>
+          <th>Flag ${_riskColIcon('risk_flag')}</th>
+          <th>Buyer Disputes ${_riskColIcon('risk_buyer_disputes')}</th>
+          <th>Seller Disputes ${_riskColIcon('risk_seller_disputes')}</th>
+          <th>Refunds ${_riskColIcon('risk_refunds')}</th>
+          <th>Joined ${_riskColIcon('risk_joined')}</th>
           <th></th>
         </tr>
       </thead>

@@ -26,11 +26,17 @@
   </div>
 
   {# ── Financial Summary Strip ──────────────────────────────────── #}
+  {%- set _card_fee = refund_info.get('buyer_card_fee') | float -%}
+  {%- set _buyer_paid = order.gross_amount + _card_fee -%}
   <div class="order-summary-strip">
     <div class="summary-metric">
-      <span class="summary-metric-label">Order Total</span>
-      <span class="summary-metric-value">${{ '{:,.2f}'.format(order.gross_amount) }}</span>
-      <span class="summary-metric-sub">Amount buyer paid</span>
+      <span class="summary-metric-label">Buyer Paid</span>
+      <span class="summary-metric-value">${{ '{:,.2f}'.format(_buyer_paid) }}</span>
+      {% if _card_fee > 0 %}
+      <span class="summary-metric-sub">Items ${{ '{:,.2f}'.format(order.gross_amount) }} + ${{ '{:,.2f}'.format(_card_fee) }} card fee</span>
+      {% else %}
+      <span class="summary-metric-sub">Total charged to buyer</span>
+      {% endif %}
     </div>
     <div class="summary-metric summary-metric-fee">
       <span class="summary-metric-label">Platform Fee</span>
@@ -86,6 +92,16 @@
           {%- endif -%}
         </dd>
 
+        <dt>Card Processing Fee</dt>
+        <dd>
+          {% if _card_fee > 0 %}
+            <span style="font-family:monospace;">${{ '{:,.2f}'.format(_card_fee) }}</span>
+            <span class="muted-text" style="font-size:12px;"> (2.99% + $0.30 — charged to buyer)</span>
+          {% else %}
+            <span class="muted-text">$0.00 — ACH / no fee</span>
+          {% endif %}
+        </dd>
+
         <dt>Payment Status</dt>
         <dd>
           {% if refund_info.get('payment_status') == 'paid' %}
@@ -100,36 +116,168 @@
       </dl>
     </div>
 
-    <div class="section-card">
-      <h2>Refund Status</h2>
-      {% set rs = refund_info.get('refund_status', 'not_refunded') %}
-      {% if rs == 'refunded' %}
-        <div class="status-alert status-alert-red" style="margin-bottom:12px;">
-          <i class="fa-solid fa-rotate-left"></i> <strong>Refund Issued</strong>
+    <div class="section-card" id="refund-recovery-card">
+      <h2>Refund &amp; Recovery</h2>
+      {%- set rs               = refund_info.get('refund_status', 'not_refunded') -%}
+      {%- set refund_amt       = (refund_info.get('refund_amount') or 0) | float -%}
+      {%- set refund_sub       = (refund_info.get('refund_subtotal') or 0) | float -%}
+      {%- set refund_tax       = (refund_info.get('refund_tax_amount') or 0) | float -%}
+      {%- set refund_fee       = (refund_info.get('refund_processing_fee') or 0) | float -%}
+      {%- set platform_cov     = (refund_info.get('platform_covered_amount') or 0) | float -%}
+
+      {%- if rs in ('refunded', 'partially_refunded') -%}
+
+        {# ── Top status banner ── #}
+        {%- if rs == 'refunded' -%}
+        <div class="status-alert status-alert-red" style="margin-bottom:10px;">
+          <i class="fa-solid fa-rotate-left"></i>
+          <div><strong>Fully Refunded</strong>
+            {%- if refund_info.get('refunded_at') %} <span class="muted-text" style="font-size:12px;">{{ refund_info.refunded_at[:16] }}</span>{% endif -%}
+          </div>
         </div>
+        {%- else -%}
+        <div class="status-alert status-alert-amber" style="margin-bottom:10px;">
+          <i class="fa-solid fa-rotate-left"></i>
+          <div><strong>Partially Refunded</strong>
+            {%- if refund_info.get('refunded_at') %} <span class="muted-text" style="font-size:12px;">{{ refund_info.refunded_at[:16] }}</span>{% endif -%}
+          </div>
+        </div>
+        {%- endif -%}
+
+        {# ── Compute seller recovery summary ── #}
+        {%- set ns = namespace(any_rec=False, all_ok=True, has_manual=False, has_failed=False, recovered_amt=0.0) -%}
+        {%- for p in payouts -%}
+          {%- if p.payout_recovery_status not in ('not_needed', None, '') -%}
+            {%- set ns.any_rec = True -%}
+            {%- if p.payout_recovery_status == 'recovered' -%}
+              {%- set ns.recovered_amt = ns.recovered_amt + (p.seller_net_amount | float) -%}
+            {%- else -%}
+              {%- set ns.all_ok = False -%}
+            {%- endif -%}
+            {%- if p.payout_recovery_status == 'manual_review' -%}{%- set ns.has_manual = True -%}{%- endif -%}
+            {%- if p.payout_recovery_status == 'failed' -%}{%- set ns.has_failed = True -%}{%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+
+        {# ── Three-way status panel ── #}
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#374151;margin-bottom:8px;">
+            Refund Method &amp; Recovery Status
+          </div>
+
+          {# A. Buyer Refund #}
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #e5e7eb;">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#374151;">A. Buyer Refund</div>
+              {%- if refund_info.get('stripe_refund_id') %}
+              <div style="font-size:11px;color:#6b7280;margin-top:2px;">
+                Stripe: <code>{{ refund_info.stripe_refund_id }}</code>
+              </div>
+              {%- endif %}
+              {%- if refund_info.get('refund_reason') %}
+              <div style="font-size:11px;color:#6b7280;margin-top:1px;">Reason: {{ refund_info.refund_reason }}</div>
+              {%- endif %}
+            </div>
+            <span class="inline-badge badge-green" style="flex-shrink:0;margin-left:8px;">
+              <i class="fa-solid fa-circle-check"></i> Succeeded
+            </span>
+          </div>
+
+          {# B. Seller Recovery #}
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #e5e7eb;">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#374151;">B. Seller Recovery</div>
+              {%- if ns.any_rec %}
+              <div style="font-size:11px;color:#6b7280;margin-top:3px;">
+                {%- for p in payouts -%}
+                {%- if p.payout_recovery_status not in ('not_needed', None, '') %}
+                @{{ p.seller_username }}:
+                {%- if p.payout_recovery_status == 'recovered' %}
+                  <span style="color:#16a34a;">recovered</span>{% if p.provider_reversal_id %} <code style="font-size:10px;">{{ p.provider_reversal_id }}</code>{% endif %}
+                {%- elif p.payout_recovery_status == 'manual_review' %}
+                  <span style="color:#d97706;">manual review</span>
+                {%- else %}
+                  <span style="color:#dc2626;">{{ p.payout_recovery_status }}</span>
+                {%- endif %}<br>
+                {%- endif %}
+                {%- endfor %}
+              </div>
+              {%- endif %}
+            </div>
+            {%- if not ns.any_rec %}
+            <span class="inline-badge badge-gray" style="flex-shrink:0;margin-left:8px;"><i class="fa-solid fa-minus"></i> Not Required</span>
+            {%- elif ns.all_ok %}
+            <span class="inline-badge badge-green" style="flex-shrink:0;margin-left:8px;"><i class="fa-solid fa-circle-check"></i> Recovered</span>
+            {%- elif ns.has_manual %}
+            <span class="inline-badge badge-yellow" style="flex-shrink:0;margin-left:8px;"><i class="fa-solid fa-triangle-exclamation"></i> Manual Review</span>
+            {%- else %}
+            <span style="flex-shrink:0;margin-left:8px;background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #fecaca;">
+              <i class="fa-solid fa-xmark"></i> Failed
+            </span>
+            {%- endif %}
+          </div>
+
+          {# C. Platform Coverage #}
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#374151;">C. Platform Coverage</div>
+              {%- if platform_cov > 0 %}
+              <div style="font-size:11px;color:#7c3aed;margin-top:2px;">
+                Metex covered ${{ '{:,.2f}'.format(platform_cov) }} — seller recovery not completed
+              </div>
+              {%- endif %}
+            </div>
+            {%- if platform_cov <= 0 %}
+            <span class="inline-badge badge-gray" style="flex-shrink:0;margin-left:8px;"><i class="fa-solid fa-minus"></i> Not Used</span>
+            {%- else %}
+            <span style="flex-shrink:0;margin-left:8px;background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #ddd6fe;">
+              <i class="fa-solid fa-building-columns"></i> ${{ '{:,.2f}'.format(platform_cov) }} covered
+            </span>
+            {%- endif %}
+          </div>
+        </div>
+
+        {# ── Platform coverage alert ── #}
+        {%- if platform_cov > 0 %}
+        <div id="platform-covered-alert" style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:12px;display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">
+          <i class="fa-solid fa-building-columns" style="color:#7c3aed;font-size:16px;margin-top:2px;flex-shrink:0;"></i>
+          <div>
+            <strong style="color:#5b21b6;">Platform-Covered Refund</strong><br>
+            <span style="font-size:13px;color:#6b21a8;">
+              Seller funds could not be recovered. This refund of
+              <strong>${{ '{:,.2f}'.format(platform_cov) }}</strong> was covered by Metex.
+            </span>
+          </div>
+        </div>
+        {%- endif %}
+
+        {# ── Financial breakdown ── #}
         <dl class="detail-dl">
-          <dt>Refund Amount</dt>
-          <dd>${{ '{:,.2f}'.format(refund_info.get('refund_amount') or 0) }}</dd>
-          {% if refund_info.get('stripe_refund_id') %}
-          <dt>Stripe Refund ID</dt>
-          <dd class="mono-text muted-text" style="font-size:12px;">{{ refund_info.stripe_refund_id }}</dd>
-          {% endif %}
-          {% if refund_info.get('refunded_at') %}
-          <dt>Refunded At</dt>
-          <dd class="muted-text">{{ refund_info.refunded_at[:16] }}</dd>
-          {% endif %}
-          {% if refund_info.get('refund_reason') %}
-          <dt>Reason</dt>
-          <dd>{{ refund_info.refund_reason }}</dd>
-          {% endif %}
+          <dt style="font-size:11px;font-weight:700;text-transform:uppercase;color:#6b7280;letter-spacing:.04em;padding-top:4px;">Refund Breakdown</dt>
+          <dd></dd>
+          <dt>Subtotal refunded</dt>
+          <dd class="mono-text">${{ '{:,.2f}'.format(refund_sub) }}</dd>
+          {%- if refund_tax > 0 %}
+          <dt>Tax refunded</dt>
+          <dd class="mono-text">${{ '{:,.2f}'.format(refund_tax) }}</dd>
+          {%- endif %}
+          {%- if refund_fee > 0 %}
+          <dt>Processing fee refunded</dt>
+          <dd class="mono-text">${{ '{:,.2f}'.format(refund_fee) }}</dd>
+          {%- endif %}
+          <dt style="font-weight:700;">Total refunded</dt>
+          <dd class="mono-text" style="font-weight:700;">${{ '{:,.2f}'.format(refund_amt) }}</dd>
+          {%- if ns.any_rec %}
+          <dt>Recovered from seller</dt>
+          <dd class="mono-text" style="color:#16a34a;">${{ '{:,.2f}'.format(ns.recovered_amt) }}</dd>
+          {%- if platform_cov > 0 %}
+          <dt style="color:#7c3aed;">Covered by platform</dt>
+          <dd class="mono-text" style="color:#7c3aed;">${{ '{:,.2f}'.format(platform_cov) }}</dd>
+          {%- endif %}
+          {%- endif %}
         </dl>
-        {% if refund_info.get('requires_payout_recovery') %}
-        <div class="status-alert status-alert-amber" style="margin-top:12px;">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          <strong>Payout Recovery Needed</strong> — one or more seller payouts were already released before this refund was issued.
-        </div>
-        {% endif %}
-      {% elif refund_info.get('payment_status') == 'paid' and rs == 'not_refunded' %}
+
+      {%- elif refund_info.get('payment_status') == 'paid' and rs == 'not_refunded' -%}
         <div style="display:flex;flex-direction:column;gap:10px;">
           <span class="inline-badge badge-gray" style="align-self:flex-start;">
             <i class="fa-solid fa-ban"></i> No Refund Issued
@@ -138,15 +286,15 @@
             id="btn-refund-buyer"
             data-order-id="{{ order.order_id }}"
             class="btn-danger-sm">
-            <i class="fa-solid fa-rotate-left"></i> Issue Full Refund
+            <i class="fa-solid fa-rotate-left"></i> Issue Refund
           </button>
           <p class="muted-text" style="font-size:12px;margin:0;">
-            This issues an immediate Stripe refund and cannot be undone.
+            Opens a confirmation modal with amount and breakdown.
           </p>
         </div>
-      {% else %}
+      {%- else -%}
         <p class="muted-text">No refund applicable — payment not captured or order is not refundable.</p>
-      {% endif %}
+      {%- endif -%}
     </div>
   </div>
 
@@ -282,8 +430,15 @@
               {% if di.days_remaining %}
               <div class="delay-remaining">
                 <i class="fa-solid fa-hourglass-half"></i>
-                {{ di.days_remaining }} day{{ 's' if di.days_remaining != 1 else '' }} remaining
-                <span class="muted-text">({{ di.payment_method_type }} — {{ di.delay_days }}-day hold)</span>
+                {% set _mins = di.days_remaining %}
+                {% if _mins >= 1440 %}
+                  {{ (_mins // 1440) }}d {{ ((_mins % 1440) // 60) }}h remaining
+                {% elif _mins >= 60 %}
+                  {{ (_mins // 60) }}h {{ (_mins % 60) }}m remaining
+                {% else %}
+                  {{ _mins }}m remaining
+                {% endif %}
+                <span class="muted-text">({{ di.payment_method_type }} — {{ di.delay_label }} hold)</span>
               </div>
               {% else %}
               <div class="delay-window-passed">
@@ -294,6 +449,22 @@
             {% else %}
               <div class="delay-no-tracking">
                 <i class="fa-solid fa-xmark"></i> No tracking uploaded yet
+              </div>
+            {% endif %}
+
+            {# Mark Delivered button — show only when tracking uploaded + not yet delivered #}
+            {% if di and di.tracking_uploaded_at and not di.delivered_at and payout.payout_status not in ('PAID_OUT', 'PAYOUT_CANCELLED') %}
+              <button class="btn-mark-delivered btn-sm-ghost"
+                      style="margin-top:8px;"
+                      data-order-id="{{ order.order_id }}"
+                      data-seller-id="{{ payout.seller_id }}"
+                      data-seller="{{ payout.seller_username }}">
+                <i class="fa-solid fa-box-open"></i> Mark Delivered
+              </button>
+            {% elif di and di.delivered_at %}
+              <div class="delay-row" style="margin-top:6px;color:#059669;">
+                <i class="fa-solid fa-circle-check" style="font-size:11px;"></i>
+                Delivered at: <strong>{{ di.delivered_at }}</strong>
               </div>
             {% endif %}
           </div>
@@ -308,17 +479,35 @@
             {% elif payout.payout_status == 'PAYOUT_CANCELLED' %}
               <span class="muted-text">Cancelled</span>
             {% else %}
-              {% set _paid       = refund_info.get('payment_status') == 'paid' %}
-              {% set _no_refund  = refund_info.get('refund_status') == 'not_refunded' %}
-              {% set _no_rec     = not refund_info.get('requires_payout_recovery') %}
-              {% set _ach_ok     = not refund_info.get('requires_payment_clearance') %}
-              {% set _stripe_ok  = di.get('seller_has_stripe') %}
-              {% set _payouts_ok = di.get('seller_payouts_enabled') %}
-              {% set _track_ok   = di.get('tracking_uploaded_at') is not none %}
-              {% set _window_ok  = not di.get('days_remaining') %}
+              {% set _paid         = refund_info.get('payment_status') == 'paid' %}
+              {% set _no_refund    = refund_info.get('refund_status') == 'not_refunded' %}
+              {% set _no_rec       = not refund_info.get('requires_payout_recovery') %}
+              {% set _ach_ok       = not refund_info.get('requires_payment_clearance') %}
+              {% set _stripe_ok    = di.get('seller_has_stripe') %}
+              {% set _payouts_ok   = di.get('seller_payouts_enabled') %}
+              {% set _track_ok     = di.get('tracking_uploaded_at') is not none %}
+              {% set _delivered_ok = di.get('delivered_at') is not none %}
+              {% set _window_ok    = _delivered_ok and not di.get('days_remaining') %}
 
+              {% set _ledger_stuck = order.order_status in ('CHECKOUT_INITIATED', 'PAYMENT_PENDING') %}
               <ul class="readiness-list">
-                <li class="{{ 'check' if _paid else 'cross' }}">Payment received</li>
+                <li class="{{ 'check' if _paid else 'cross' }}">
+                  Payment received
+                  {% if not _paid %}
+                  <button class="btn-confirm-payment btn-sm-ghost"
+                          style="margin-left:6px;padding:2px 8px;font-size:11px;"
+                          data-order-id="{{ order.order_id }}">
+                    <i class="fa-solid fa-bolt"></i> Confirm
+                  </button>
+                  {% elif _ledger_stuck %}
+                  <button class="btn-confirm-payment btn-sm-ghost"
+                          style="margin-left:6px;padding:2px 8px;font-size:11px;border-color:#d97706;color:#d97706;"
+                          data-order-id="{{ order.order_id }}"
+                          title="Payment is recorded but the ledger status is stuck at {{ order.order_status }}. Click to sync it to PAID_IN_ESCROW.">
+                    <i class="fa-solid fa-rotate"></i> Sync Ledger
+                  </button>
+                  {% endif %}
+                </li>
                 <li class="{{ 'check' if _no_refund else 'cross' }}">No active refund</li>
                 {% if not _no_rec %}
                 <li class="cross">Payout recovery pending</li>
@@ -329,8 +518,15 @@
                 <li class="{{ 'check' if _stripe_ok else 'cross' }}">Stripe account connected</li>
                 <li class="{{ 'check' if _payouts_ok else 'cross' }}">Stripe payouts enabled</li>
                 <li class="{{ 'check' if _track_ok else 'cross' }}">Tracking uploaded</li>
+                <li class="{{ 'check' if _delivered_ok else 'pending' }}">Delivery confirmed</li>
                 <li class="{{ 'check' if _window_ok else 'pending' }}">
-                  Hold period complete{% if not _window_ok and di.days_remaining %} ({{ di.days_remaining }}d left){% endif %}
+                  Hold period complete{% if _delivered_ok and not _window_ok and di.days_remaining %}
+                    {% set _mins = di.days_remaining %}
+                    {% if _mins >= 1440 %} ({{ (_mins // 1440) }}d left)
+                    {% elif _mins >= 60 %} ({{ (_mins // 60) }}h left)
+                    {% else %} ({{ _mins }}m left)
+                    {% endif %}
+                  {% endif %}
                 </li>
               </ul>
 
@@ -738,40 +934,420 @@
   </script>
 
   <script>
+  // ── Refund Modal ────────────────────────────────────────────────
   (function() {
       var refundBtn = document.getElementById('btn-refund-buyer');
       if (!refundBtn) return;
       refundBtn.addEventListener('click', function() {
-          var orderId = refundBtn.dataset.orderId;
-          var reason = prompt('Optional refund reason (or leave blank):') || 'Admin refund';
-          if (!confirm('Issue a FULL Stripe refund for order #' + orderId + '?\n\nThis is irreversible.')) return;
+          openRefundModal(refundBtn.dataset.orderId);
+      });
+  })();
 
-          refundBtn.disabled = true;
-          refundBtn.textContent = 'Processing…';
+  function _esc(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _fmtAmt(n) {
+      if (n == null || n === '') return '—';
+      return '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function _bkRow(label, val, bold, color) {
+      var style = 'display:flex;justify-content:space-between;padding:2px 0;';
+      var lStyle = 'color:#6b7280;';
+      var vStyle = 'font-family:monospace;';
+      if (bold) { lStyle += 'font-weight:700;color:#111827;'; vStyle += 'font-weight:700;'; }
+      if (color) { lStyle += 'color:' + color + ';'; vStyle += 'color:' + color + ';'; }
+      return '<div style="' + style + '"><span style="' + lStyle + '">' + label + '</span><span style="' + vStyle + '">' + _fmtAmt(val) + '</span></div>';
+  }
 
-          fetch('/admin/api/orders/' + orderId + '/refund-stripe', {
+  function openRefundModal(orderId) {
+      var modal = document.getElementById('refundConfirmModal');
+      var body  = document.getElementById('refundModalBody');
+      if (!modal || !body) { alert('Refund modal not found.'); return; }
+      body.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fa-solid fa-spinner fa-spin fa-lg"></i> Loading refund details…</div>';
+      modal.style.display = 'flex';
+
+      fetch('/admin/api/orders/' + orderId + '/refund-preview')
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              if (!data.success) {
+                  body.innerHTML = '<p style="color:#ef4444;">Error: ' + _esc(data.error) + '</p>';
+                  return;
+              }
+              renderRefundModal(data, orderId);
+          })
+          .catch(function(err) {
+              body.innerHTML = '<p style="color:#ef4444;">Network error: ' + _esc(String(err)) + '</p>';
+          });
+  }
+
+  var _refundPreviewData = null;
+
+  function renderRefundModal(data, orderId) {
+      _refundPreviewData = data;
+      var body = document.getElementById('refundModalBody');
+      var o = data.order || {};
+
+      if (!data.can_refund) {
+          body.innerHTML = '<div class="status-alert status-alert-red"><i class="fa-solid fa-ban"></i>'
+              + ' <strong>Cannot Refund:</strong> ' + _esc(data.block_reason) + '</div>';
+          return;
+      }
+
+      // Payout rows table
+      var payoutRows = '';
+      (data.payouts || []).forEach(function(p) {
+          var isPaidOut = p.payout_status === 'PAID_OUT';
+          payoutRows += '<tr>'
+              + '<td>@' + _esc(p.seller_username) + '</td>'
+              + '<td>' + _fmtAmt(p.seller_net_amount) + '</td>'
+              + '<td>'
+              + (isPaidOut
+                  ? '<span style="color:#d97706;font-weight:600;">⚠ Already Transferred</span>'
+                    + (p.provider_transfer_id ? '<br><code style="font-size:10px;">' + _esc(p.provider_transfer_id) + '</code>' : '')
+                  : '<span style="color:#6b7280;">' + _esc(p.payout_status.replace(/_/g,' ')) + '</span>')
+              + '</td>'
+              + '</tr>';
+      });
+      if (!payoutRows) {
+          payoutRows = '<tr><td colspan="3" style="color:#6b7280;font-style:italic;">No payout records</td></tr>';
+      }
+
+      var recoveryHtml = '';
+      if (data.requires_recovery) {
+          recoveryHtml = '<div class="status-alert status-alert-amber" style="margin:12px 0;">'
+              + '<i class="fa-solid fa-triangle-exclamation"></i>'
+              + '<div><strong>Seller Recovery Required</strong> — '
+              + data.paid_out_payout_count + ' payout(s) already transferred.<br>'
+              + 'Stripe will auto-attempt reversal on confirmation. '
+              + 'If the seller has already withdrawn to their bank, recovery may require manual follow-up.'
+              + '</div></div>';
+      } else {
+          recoveryHtml = '<div class="status-alert status-alert-green" style="margin:12px 0;">'
+              + '<i class="fa-solid fa-circle-check"></i>'
+              + ' No seller recovery needed — no payouts have been released yet.</div>';
+      }
+
+      var subtotal    = o.subtotal != null ? o.subtotal : (o.total_price - o.tax_amount - o.buyer_card_fee);
+      var maxRefund   = data.refundable_amount;
+      var alreadyRef  = data.already_refunded || 0;
+      var isPartial   = alreadyRef > 0;
+      var partialNote = isPartial
+          ? '<div style="font-size:11px;color:#d97706;margin-top:2px;">Already refunded: ' + _fmtAmt(alreadyRef) + '</div>'
+          : '';
+
+      body.innerHTML = '<div style="display:flex;flex-direction:column;gap:14px;">'
+
+          // Header grid
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+          + '<div><div style="font-size:11px;color:#6b7280;margin-bottom:2px;">ORDER</div><div style="font-weight:600;">#' + _esc(orderId) + '</div></div>'
+          + '<div><div style="font-size:11px;color:#6b7280;margin-bottom:2px;">BUYER</div><div style="font-weight:600;">@' + _esc(o.buyer_username) + '</div></div>'
+          + '</div>'
+
+          // Financial breakdown
+          + '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">'
+          + '<div style="font-size:12px;font-weight:600;margin-bottom:8px;">Charge Breakdown</div>'
+          + '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+          + '<tr><td style="color:#6b7280;padding:2px 0;">Subtotal (items)</td><td style="text-align:right;font-family:monospace;">' + _fmtAmt(subtotal) + '</td></tr>'
+          + (o.tax_amount > 0 ? '<tr><td style="color:#6b7280;padding:2px 0;">Sales Tax</td><td style="text-align:right;font-family:monospace;">' + _fmtAmt(o.tax_amount) + '</td></tr>' : '')
+          + (o.buyer_card_fee > 0 ? '<tr><td style="color:#6b7280;padding:2px 0;">Card Processing Fee</td><td style="text-align:right;font-family:monospace;">' + _fmtAmt(o.buyer_card_fee) + '</td></tr>' : '')
+          + '<tr style="border-top:1px solid #e5e7eb;font-weight:600;"><td style="padding:4px 0 2px;">Total Charged</td><td style="text-align:right;font-family:monospace;">' + _fmtAmt(o.total_price) + '</td></tr>'
+          + (alreadyRef > 0 ? '<tr><td style="color:#d97706;padding:2px 0;">Already Refunded</td><td style="text-align:right;font-family:monospace;color:#d97706;">-' + _fmtAmt(alreadyRef) + '</td></tr>' : '')
+          + '<tr style="font-weight:600;color:#dc2626;"><td style="padding:2px 0;">Refundable Remaining</td><td style="text-align:right;font-family:monospace;">' + _fmtAmt(maxRefund) + '</td></tr>'
+          + '</table>'
+          + '</div>'
+
+          // Refund amount input
+          + '<div>'
+          + '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Refund Amount <span style="color:#6b7280;font-weight:400;">(max ' + _fmtAmt(maxRefund) + ')</span></label>'
+          + '<div style="display:flex;align-items:center;gap:8px;">'
+          + '<span style="font-size:14px;color:#374151;">$</span>'
+          + '<input id="refundAmountInput" type="number" min="0.01" max="' + maxRefund + '" step="0.01" value="' + maxRefund.toFixed(2) + '" '
+          + 'style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:monospace;" '
+          + 'oninput="updateRefundBreakdown(this.value, ' + JSON.stringify({total: o.total_price, tax: o.tax_amount, fee: o.buyer_card_fee, maxRefund: maxRefund}) + ')">'
+          + '</div>'
+          + '<div id="refundBreakdownPreview" style="font-size:11px;color:#6b7280;margin-top:4px;"></div>'
+          + partialNote
+          + '</div>'
+
+          // Seller payouts
+          + '<div>'
+          + '<div style="font-size:12px;font-weight:600;margin-bottom:6px;">Seller Payouts</div>'
+          + '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+          + '<thead><tr style="border-bottom:1px solid #e5e7eb;">'
+          + '<th style="text-align:left;padding:4px 0;">Seller</th>'
+          + '<th style="text-align:left;padding:4px 8px;">Net Amount</th>'
+          + '<th style="text-align:left;padding:4px 0;">Transfer Status</th>'
+          + '</tr></thead><tbody>' + payoutRows + '</tbody></table>'
+          + '</div>'
+
+          + recoveryHtml
+
+          // Reason
+          + '<div>'
+          + '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;" for="refundReasonInput">Refund Reason (optional)</label>'
+          + '<textarea id="refundReasonInput" rows="2" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;resize:vertical;" placeholder="e.g. Item not received, buyer requested…"></textarea>'
+          + '</div>'
+
+          // Warning
+          + '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;font-size:12px;color:#b91c1c;">'
+          + '<i class="fa-solid fa-triangle-exclamation"></i> <strong>This action is irreversible.</strong> '
+          + 'The Stripe refund will be issued immediately against the original PaymentIntent. '
+          + 'Seller payouts not yet released will be cancelled. Released payouts will auto-attempt reversal.'
+          + '</div>'
+
+          // Actions
+          + '<div style="display:flex;gap:10px;justify-content:flex-end;">'
+          + '<button class="admin-action-btn" style="background:#6b7280;" onclick="closeRefundModal()">Cancel</button>'
+          + '<button id="refundConfirmBtn" class="admin-action-btn" style="background:#dc2626;" onclick="executeRefund(\'' + _esc(orderId) + '\')">'
+          + '<i class="fa-solid fa-rotate-left"></i> Confirm Refund'
+          + '</button>'
+          + '</div>'
+          + '</div>';
+
+      // Initialize breakdown preview
+      updateRefundBreakdown(maxRefund, {total: o.total_price, tax: o.tax_amount, fee: o.buyer_card_fee, maxRefund: maxRefund});
+  }
+
+  function updateRefundBreakdown(val, meta) {
+      var preview = document.getElementById('refundBreakdownPreview');
+      if (!preview) return;
+      var amt = parseFloat(val) || 0;
+      var total = meta.total || 1;
+      if (amt <= 0 || amt > meta.maxRefund + 0.01) { preview.textContent = ''; return; }
+      var ratio = amt / total;
+      var taxR = (meta.tax * ratio).toFixed(2);
+      var feeR = (meta.fee * ratio).toFixed(2);
+      var subR = (amt - parseFloat(taxR) - parseFloat(feeR)).toFixed(2);
+      var parts = ['Subtotal: $' + subR];
+      if (meta.tax > 0) parts.push('Tax: $' + taxR);
+      if (meta.fee > 0) parts.push('Fee: $' + feeR);
+      preview.textContent = 'Breakdown → ' + parts.join(' | ');
+  }
+  window.updateRefundBreakdown = updateRefundBreakdown;
+
+  function closeRefundModal() {
+      var modal = document.getElementById('refundConfirmModal');
+      if (modal) modal.style.display = 'none';
+  }
+  window.closeRefundModal = closeRefundModal;
+
+  function executeRefund(orderId) {
+      var btn    = document.getElementById('refundConfirmBtn');
+      var reason = (document.getElementById('refundReasonInput') || {}).value || '';
+      var amtEl  = document.getElementById('refundAmountInput');
+      var amount = amtEl ? parseFloat(amtEl.value) : null;
+
+      // Duplicate-submission guard
+      if (btn && btn.disabled) return;
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing…'; }
+
+      var payload = {reason: reason || 'Admin refund'};
+      if (amount && amount > 0) payload.amount = amount;
+
+      fetch('/admin/api/orders/' + orderId + '/refund-stripe', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+          credentials: 'same-origin',
+          body: JSON.stringify(payload),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+          var body = document.getElementById('refundModalBody');
+          if (data.success) {
+              // ── A. Buyer Refund Status ──────────────────────────────────
+              var buyerRow =
+                  '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #e5e7eb;">'
+                + '<div>'
+                + '<div style="font-size:12px;font-weight:600;color:#374151;">A. Buyer Refund</div>'
+                + '<div style="font-size:11px;color:#6b7280;margin-top:2px;">Stripe: <code>' + _esc(data.refund_id) + '</code></div>'
+                + '</div>'
+                + '<span style="flex-shrink:0;margin-left:8px;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #bbf7d0;">'
+                + '<i class="fa-solid fa-circle-check"></i> Succeeded</span>'
+                + '</div>';
+
+              // ── B. Seller Recovery Status ───────────────────────────────
+              var outcomes = data.recovery_outcomes || [];
+              var sellerBadge, sellerDetail = '';
+              if (outcomes.length === 0) {
+                  sellerBadge = '<span style="flex-shrink:0;margin-left:8px;background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #e5e7eb;">'
+                      + '<i class="fa-solid fa-minus"></i> Not Required</span>';
+              } else {
+                  var allOk = outcomes.every(function(r) { return r.outcome === 'recovered'; });
+                  var hasManual = outcomes.some(function(r) { return r.outcome === 'manual_review'; });
+                  if (allOk) {
+                      sellerBadge = '<span style="flex-shrink:0;margin-left:8px;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #bbf7d0;">'
+                          + '<i class="fa-solid fa-circle-check"></i> Recovered</span>';
+                  } else if (hasManual) {
+                      sellerBadge = '<span style="flex-shrink:0;margin-left:8px;background:#fffbeb;color:#d97706;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #fde68a;">'
+                          + '<i class="fa-solid fa-triangle-exclamation"></i> Manual Review</span>';
+                  } else {
+                      sellerBadge = '<span style="flex-shrink:0;margin-left:8px;background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #fecaca;">'
+                          + '<i class="fa-solid fa-xmark"></i> Failed</span>';
+                  }
+                  outcomes.forEach(function(r) {
+                      var icon = r.outcome === 'recovered' ? '<span style="color:#16a34a;">✓</span>'
+                          : (r.outcome === 'manual_review' ? '<span style="color:#d97706;">⚠</span>'
+                          : '<span style="color:#dc2626;">✗</span>');
+                      sellerDetail += icon + ' Payout #' + r.payout_id + ': ' + _esc(r.outcome)
+                          + (r.reversal_id ? ' <code style="font-size:10px;">' + _esc(r.reversal_id) + '</code>' : '')
+                          + '<br>';
+                  });
+              }
+              var sellerRow =
+                  '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #e5e7eb;">'
+                + '<div>'
+                + '<div style="font-size:12px;font-weight:600;color:#374151;">B. Seller Recovery</div>'
+                + (sellerDetail ? '<div style="font-size:11px;color:#6b7280;margin-top:3px;">' + sellerDetail + '</div>' : '')
+                + '</div>'
+                + sellerBadge
+                + '</div>';
+
+              // ── C. Platform Coverage ────────────────────────────────────
+              var platformCovered = data.platform_covered_amount || 0;
+              var platformBadge, platformDetail = '';
+              if (platformCovered <= 0) {
+                  platformBadge = '<span style="flex-shrink:0;margin-left:8px;background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #e5e7eb;">'
+                      + '<i class="fa-solid fa-minus"></i> Not Used</span>';
+              } else {
+                  platformBadge = '<span style="flex-shrink:0;margin-left:8px;background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid #ddd6fe;">'
+                      + '<i class="fa-solid fa-building-columns"></i> ' + _fmtAmt(platformCovered) + ' covered</span>';
+              }
+              var platformRow =
+                  '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;">'
+                + '<div>'
+                + '<div style="font-size:12px;font-weight:600;color:#374151;">C. Platform Coverage</div>'
+                + (platformCovered > 0 ? '<div style="font-size:11px;color:#7c3aed;margin-top:2px;">Metex covered ' + _fmtAmt(platformCovered) + '</div>' : '')
+                + '</div>'
+                + platformBadge
+                + '</div>';
+
+              var statusPanel =
+                  '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin:12px 0;">'
+                + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#374151;margin-bottom:8px;">Refund Method &amp; Recovery Status</div>'
+                + buyerRow + sellerRow + platformRow
+                + '</div>';
+
+              // Platform coverage alert
+              var platformAlert = '';
+              if (platformCovered > 0) {
+                  platformAlert = '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:12px;display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">'
+                      + '<i class="fa-solid fa-building-columns" style="color:#7c3aed;font-size:15px;margin-top:2px;flex-shrink:0;"></i>'
+                      + '<div><strong style="color:#5b21b6;">Platform-Covered Refund</strong><br>'
+                      + '<span style="font-size:13px;color:#6b21a8;">Seller funds could not be recovered. This refund of <strong>' + _fmtAmt(platformCovered) + '</strong> was covered by Metex.</span>'
+                      + '</div></div>';
+              }
+
+              // ── Financial breakdown ─────────────────────────────────────
+              var recoveredFromSeller = 0;
+              outcomes.forEach(function(r) {
+                  if (r.outcome === 'recovered') recoveredFromSeller += (r.seller_net_amount || 0);
+              });
+              var breakdown =
+                  '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin:10px 0;font-size:12px;">'
+                + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;margin-bottom:6px;">Refund Breakdown</div>'
+                + _bkRow('Subtotal refunded', data.refund_subtotal)
+                + (data.refund_tax_amount > 0 ? _bkRow('Tax refunded', data.refund_tax_amount) : '')
+                + (data.refund_processing_fee > 0 ? _bkRow('Processing fee refunded', data.refund_processing_fee) : '')
+                + _bkRow('Total refunded', data.amount, true)
+                + (outcomes.length > 0 ? _bkRow('Recovered from seller', recoveredFromSeller, false, '#16a34a') : '')
+                + (platformCovered > 0 ? _bkRow('Covered by platform', platformCovered, false, '#7c3aed') : '')
+                + '</div>';
+
+              body.innerHTML = '<div style="padding:16px;">'
+                  + '<div style="text-align:center;margin-bottom:14px;">'
+                  + '<div style="font-size:36px;color:#16a34a;margin-bottom:8px;"><i class="fa-solid fa-circle-check"></i></div>'
+                  + '<h3 style="margin:0 0 4px;">' + (data.is_partial ? 'Partial ' : '') + 'Refund Issued</h3>'
+                  + '<div style="font-size:13px;font-weight:600;color:#dc2626;">' + _fmtAmt(data.amount) + '</div>'
+                  + '</div>'
+                  + statusPanel
+                  + platformAlert
+                  + breakdown
+                  + '<div style="text-align:center;margin-top:12px;">'
+                  + '<button class="admin-action-btn" onclick="location.reload()">Reload Page</button>'
+                  + '</div>'
+                  + '</div>';
+          } else {
+              if (body) body.innerHTML += '<div class="status-alert status-alert-red" style="margin-top:12px;">'
+                  + '<i class="fa-solid fa-xmark"></i> Refund failed: ' + _esc(data.error) + '</div>';
+              if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Confirm Refund'; }
+          }
+      })
+      .catch(function(err) {
+          var body = document.getElementById('refundModalBody');
+          if (body) body.innerHTML += '<div class="status-alert status-alert-red" style="margin-top:12px;">'
+              + 'Network error: ' + _esc(String(err)) + '</div>';
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Confirm Refund'; }
+      });
+  }
+  window.executeRefund = executeRefund;
+
+  // Confirm Payment / Sync Ledger (admin override when webhook didn't fire)
+  document.querySelectorAll('.btn-confirm-payment').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+          var orderId = btn.dataset.orderId;
+          var isSyncOnly = btn.textContent.indexOf('Sync') !== -1;
+          var msg = isSyncOnly
+              ? 'Sync ledger status for order #' + orderId + ' to PAID_IN_ESCROW?\n\nPayment is already recorded — this only fixes the ledger status that was not updated because the Stripe webhook did not fire.'
+              : 'Manually mark order #' + orderId + ' as paid?\n\nUse this only when the Stripe webhook failed to deliver (e.g. local dev).';
+          if (!confirm(msg)) return;
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+          fetch('/admin/api/orders/' + orderId + '/confirm-payment', {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
               credentials: 'same-origin',
-              body: JSON.stringify({reason: reason}),
+              body: JSON.stringify({}),
           })
           .then(function(r) { return r.json(); })
           .then(function(data) {
               if (data.success) {
                   location.reload();
               } else {
-                  alert('Refund failed: ' + data.error);
-                  refundBtn.disabled = false;
-                  refundBtn.textContent = 'Issue Full Refund';
+                  alert('Error: ' + (data.error || 'Unknown error'));
+                  btn.disabled = false;
+                  btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Confirm';
               }
           })
           .catch(function(err) {
               alert('Network error: ' + err);
-              refundBtn.disabled = false;
-              refundBtn.textContent = 'Issue Full Refund';
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Confirm';
           });
       });
-  })();
+  });
+
+  // Mark Delivered
+  document.querySelectorAll('.btn-mark-delivered').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+          var orderId = btn.dataset.orderId;
+          var sellerId = btn.dataset.sellerId;
+          var seller = btn.dataset.seller;
+          if (!confirm('Mark order #' + orderId + ' as delivered for @' + seller + '?')) return;
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Marking…';
+          fetch('/admin/api/orders/' + orderId + '/mark-delivered', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+              credentials: 'same-origin',
+              body: JSON.stringify({seller_id: parseInt(sellerId, 10)}),
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              if (data.success) {
+                  location.reload();
+              } else {
+                  alert('Error: ' + (data.error || 'Unknown error'));
+                  btn.disabled = false;
+                  btn.innerHTML = '<i class="fa-solid fa-box-open"></i> Mark Delivered';
+              }
+          })
+          .catch(function(err) {
+              alert('Network error: ' + err);
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fa-solid fa-box-open"></i> Mark Delivered';
+          });
+      });
+  });
   </script>
 
   {# ── Order History / Event Timeline ──────────────────────────── #}
@@ -805,6 +1381,22 @@
     {% else %}
     <p class="muted-text">No events recorded for this order.</p>
     {% endif %}
+  </div>
+
+  {# ── Refund Confirmation Modal ─────────────────────────────────── #}
+  <div id="refundConfirmModal" class="admin-modal-overlay" style="display:none;"
+       onclick="if(event.target===this)closeRefundModal()">
+    <div class="admin-modal admin-modal-lg">
+      <div class="admin-modal-header">
+        <h2><i class="fa-solid fa-rotate-left"></i> Issue Refund</h2>
+        <button class="modal-close-btn" onclick="closeRefundModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="admin-modal-body" id="refundModalBody">
+        <!-- populated by JS -->
+      </div>
+    </div>
   </div>
 
 </div>

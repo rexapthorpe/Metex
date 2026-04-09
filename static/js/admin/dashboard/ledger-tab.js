@@ -29,13 +29,19 @@ function loadLedgerStats() {
       const paidCt = document.getElementById('ledger-stat-paid-out-count');
       if (paidEl) paidEl.textContent = fmt(s.paid_out_total);
       if (paidCt) paidCt.textContent = (s.paid_out_count||0) + ' payouts';
+
+      const taxEl = document.getElementById('ledger-stat-tax-collected');
+      if (taxEl) taxEl.textContent = fmt(s.total_tax_collected || 0);
+
+      const spreadEl = document.getElementById('ledger-stat-spread-revenue');
+      if (spreadEl) spreadEl.textContent = fmt(s.total_spread_revenue || 0);
     })
     .catch(error => console.error('Error loading ledger stats:', error));
 }
 
 function loadLedgerOrders() {
   const tbody = document.getElementById('ledgerTableBody');
-  tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #6b7280; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading ledger...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; color: #6b7280; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading ledger...</td></tr>';
 
   const params = new URLSearchParams();
   params.append('limit', ledgerPageSize);
@@ -67,12 +73,12 @@ function loadLedgerOrders() {
         ledgerTotalLoaded = data.count;
         updateLedgerPagination();
       } else {
-        tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #ef4444; padding: 40px;">Error loading ledger</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; color: #ef4444; padding: 40px;">Error loading ledger</td></tr>';
       }
     })
     .catch(error => {
       console.error('Error loading ledger orders:', error);
-      tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #ef4444; padding: 40px;">Error loading ledger</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; color: #ef4444; padding: 40px;">Error loading ledger</td></tr>';
     });
 }
 
@@ -80,7 +86,7 @@ function renderLedgerOrders(orders) {
   const tbody = document.getElementById('ledgerTableBody');
 
   if (orders.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: #6b7280; padding: 40px;">No ledger records found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; color: #6b7280; padding: 40px;">No ledger records found</td></tr>';
     return;
   }
 
@@ -106,7 +112,18 @@ function renderLedgerOrders(orders) {
         </td>
         <td style="font-size:12px;color:#6b7280;">${order.item_count} item${order.item_count !== 1 ? 's' : ''}</td>
         <td style="font-size:12px;color:#6b7280;">${order.seller_count}</td>
-        <td style="font-family: monospace;">${formatPrice(order.gross_amount)}</td>
+        <td style="font-family: monospace;">
+          ${formatPrice(order.gross_amount)}
+          ${(order.spread_capture_amount > 0)
+            ? `<div style="font-size:10px;color:#7c3aed;font-family:sans-serif;margin-top:2px;"
+                    title="Buyer bid above seller ask — spread retained as platform revenue">
+                 +${formatPrice(order.spread_capture_amount)} spread
+               </div>`
+            : ''}
+        </td>
+        <td style="font-family: monospace; color: #0369a1;">
+          ${order.tax_amount > 0 ? formatPrice(order.tax_amount) : '<span style="color:#d1d5db;">—</span>'}
+        </td>
         <td style="font-family: monospace; color: #dc2626;">${formatPrice(order.platform_fee_amount)}</td>
         <td>${pmtMethod}</td>
         <td>${payoutBadge}</td>
@@ -427,6 +444,286 @@ function closeLedgerOrderModal() {
   document.getElementById('ledgerOrderModal').style.display = 'none';
 }
 
+// ============================================================
+// Inline Refund Modal (used from the Ledger tab order list)
+// ============================================================
+
+var _inlineRefundOrderId = null;
+
+function refundBuyer(orderId) {
+  _inlineRefundOrderId = orderId;
+  var overlay = document.getElementById('inlineRefundModal');
+  var body    = document.getElementById('inlineRefundModalBody');
+  if (!overlay || !body) { alert('Refund modal not available.'); return; }
+  body.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fa-solid fa-spinner fa-spin fa-lg"></i> Loading refund details…</div>';
+  overlay.style.display = 'flex';
+
+  fetch('/admin/api/orders/' + orderId + '/refund-preview')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) {
+        body.innerHTML = '<p style="color:#ef4444;padding:20px;">Error: ' + _escInline(data.error || 'Unknown error') + '</p>';
+        return;
+      }
+      _renderInlineRefundModal(data, orderId);
+    })
+    .catch(function(err) {
+      body.innerHTML = '<p style="color:#ef4444;padding:20px;">Network error: ' + _escInline(String(err)) + '</p>';
+    });
+}
+
+function _escInline(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function _fmtAmtInline(n) {
+  if (n == null || n === '') return '—';
+  return '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function _renderInlineRefundModal(data, orderId) {
+  var body = document.getElementById('inlineRefundModalBody');
+  var o = data.order || {};
+
+  if (!data.can_refund) {
+    body.innerHTML = '<div style="padding:20px;color:#b91c1c;background:#fef2f2;border-radius:8px;">'
+      + '<i class="fa-solid fa-ban"></i> <strong>Cannot Refund:</strong> ' + _escInline(data.block_reason) + '</div>';
+    return;
+  }
+
+  var subtotal   = o.subtotal != null ? o.subtotal : (o.total_price - o.tax_amount - o.buyer_card_fee);
+  var maxRefund  = data.refundable_amount;
+  var alreadyRef = data.already_refunded || 0;
+
+  var recoveryNote = data.requires_recovery
+    ? '<div style="margin:8px 0;padding:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:12px;">'
+      + '<i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i>'
+      + ' <strong>Recovery Required</strong> — ' + data.paid_out_payout_count + ' payout(s) already transferred. Auto-reversal will be attempted.'
+      + '</div>'
+    : '<div style="margin:8px 0;padding:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:12px;">'
+      + '<i class="fa-solid fa-circle-check" style="color:#16a34a;"></i> No seller recovery needed.</div>';
+
+  body.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px;">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">'
+    + '<div><span style="color:#6b7280;font-size:11px;">ORDER</span><br><strong>#' + _escInline(orderId) + '</strong></div>'
+    + '<div><span style="color:#6b7280;font-size:11px;">BUYER</span><br><strong>@' + _escInline(o.buyer_username) + '</strong></div>'
+    + '</div>'
+
+    // Breakdown
+    + '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px;font-size:12px;">'
+    + '<div style="font-weight:600;margin-bottom:6px;">Charge Breakdown</div>'
+    + '<div style="display:flex;justify-content:space-between;"><span style="color:#6b7280;">Subtotal</span><span style="font-family:monospace;">' + _fmtAmtInline(subtotal) + '</span></div>'
+    + (o.tax_amount > 0 ? '<div style="display:flex;justify-content:space-between;"><span style="color:#6b7280;">Tax</span><span style="font-family:monospace;">' + _fmtAmtInline(o.tax_amount) + '</span></div>' : '')
+    + (o.buyer_card_fee > 0 ? '<div style="display:flex;justify-content:space-between;"><span style="color:#6b7280;">Card Fee</span><span style="font-family:monospace;">' + _fmtAmtInline(o.buyer_card_fee) + '</span></div>' : '')
+    + '<div style="display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;margin-top:4px;padding-top:4px;font-weight:600;"><span>Total Charged</span><span style="font-family:monospace;">' + _fmtAmtInline(o.total_price) + '</span></div>'
+    + (alreadyRef > 0 ? '<div style="display:flex;justify-content:space-between;color:#d97706;"><span>Already Refunded</span><span style="font-family:monospace;">-' + _fmtAmtInline(alreadyRef) + '</span></div>' : '')
+    + '<div style="display:flex;justify-content:space-between;font-weight:600;color:#dc2626;"><span>Refundable Remaining</span><span style="font-family:monospace;">' + _fmtAmtInline(maxRefund) + '</span></div>'
+    + '</div>'
+
+    + recoveryNote
+
+    // Amount input
+    + '<div>'
+    + '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Refund Amount</label>'
+    + '<div style="display:flex;align-items:center;gap:6px;">'
+    + '<span>$</span>'
+    + '<input id="inlineRefundAmountInput" type="number" min="0.01" max="' + maxRefund + '" step="0.01" value="' + maxRefund.toFixed(2) + '" '
+    + 'style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:monospace;">'
+    + '</div>'
+    + '</div>'
+
+    + '<div>'
+    + '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Reason (optional)</label>'
+    + '<textarea id="inlineRefundReasonInput" rows="2" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;resize:vertical;" placeholder="Reason for refund…"></textarea>'
+    + '</div>'
+
+    + '<div style="font-size:11px;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px;">'
+    + '<i class="fa-solid fa-triangle-exclamation"></i> <strong>Irreversible.</strong> Stripe refund issued immediately.'
+    + '</div>'
+
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    + '<button onclick="closeInlineRefundModal()" style="padding:8px 14px;background:#6b7280;color:#fff;border:none;border-radius:6px;cursor:pointer;">Cancel</button>'
+    + '<button id="inlineRefundConfirmBtn" onclick="executeInlineRefund()" style="padding:8px 14px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;">'
+    + '<i class="fa-solid fa-rotate-left"></i> Confirm Refund</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function closeInlineRefundModal() {
+  var overlay = document.getElementById('inlineRefundModal');
+  if (overlay) overlay.style.display = 'none';
+  _inlineRefundOrderId = null;
+}
+
+function executeInlineRefund() {
+  var btn    = document.getElementById('inlineRefundConfirmBtn');
+  var reason = (document.getElementById('inlineRefundReasonInput') || {}).value || '';
+  var amtEl  = document.getElementById('inlineRefundAmountInput');
+  var amount = amtEl ? parseFloat(amtEl.value) : null;
+  var orderId = _inlineRefundOrderId;
+
+  if (!orderId) return;
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing…'; }
+
+  var payload = {reason: reason || 'Admin refund'};
+  if (amount && amount > 0) payload.amount = amount;
+
+  // CSRF token — try window.getCsrfToken if defined, else read meta tag
+  var csrfToken = (typeof getCsrfToken === 'function') ? getCsrfToken()
+    : (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+  fetch('/admin/api/orders/' + orderId + '/refund-stripe', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+    credentials: 'same-origin',
+    body: JSON.stringify(payload),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var body = document.getElementById('inlineRefundModalBody');
+    if (data.success) {
+      // ── Buyer Refund Status ──────────────────────────────────────────────
+      var buyerStatusHtml =
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">'
+        + '<span style="color:#6b7280;font-size:12px;">Buyer Refund</span>'
+        + '<span style="font-size:12px;font-weight:600;color:#16a34a;"><i class="fa-solid fa-circle-check"></i> Succeeded</span>'
+        + '</div>'
+        + '<div style="font-size:11px;color:#6b7280;padding-bottom:6px;">Stripe ID: <code>' + _escInline(data.refund_id) + '</code></div>';
+
+      // ── Seller Recovery Status ───────────────────────────────────────────
+      var recoveryOutcomes = data.recovery_outcomes || [];
+      var sellerStatusHtml;
+      if (recoveryOutcomes.length === 0) {
+        // No paid-out payouts — no recovery needed
+        sellerStatusHtml =
+          '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">'
+          + '<span style="color:#6b7280;font-size:12px;">Seller Recovery</span>'
+          + '<span style="font-size:12px;color:#6b7280;"><i class="fa-solid fa-minus"></i> Not Required</span>'
+          + '</div>';
+      } else {
+        var allRecovered = recoveryOutcomes.every(function(r) { return r.outcome === 'recovered'; });
+        var anyManual    = recoveryOutcomes.some(function(r)  { return r.outcome === 'manual_review'; });
+        var anyFailed    = recoveryOutcomes.some(function(r)  { return r.outcome === 'failed'; });
+        var recoveryLabel, recoveryColor, recoveryIcon;
+        if (allRecovered) {
+          recoveryLabel = 'Succeeded'; recoveryColor = '#16a34a'; recoveryIcon = 'fa-circle-check';
+        } else if (anyManual) {
+          recoveryLabel = 'Manual Review Required'; recoveryColor = '#d97706'; recoveryIcon = 'fa-triangle-exclamation';
+        } else {
+          recoveryLabel = 'Failed'; recoveryColor = '#dc2626'; recoveryIcon = 'fa-xmark-circle';
+        }
+        sellerStatusHtml =
+          '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">'
+          + '<span style="color:#6b7280;font-size:12px;">Seller Recovery</span>'
+          + '<span style="font-size:12px;font-weight:600;color:' + recoveryColor + ';">'
+          + '<i class="fa-solid ' + recoveryIcon + '"></i> ' + _escInline(recoveryLabel) + '</span>'
+          + '</div>';
+        // Per-payout detail
+        sellerStatusHtml += '<div style="font-size:11px;color:#6b7280;padding-bottom:6px;">';
+        recoveryOutcomes.forEach(function(r) {
+          var icon = r.outcome === 'recovered' ? '✅' : (r.outcome === 'manual_review' ? '⚠️' : '❌');
+          sellerStatusHtml += icon + ' Payout #' + r.payout_id + ' — ' + _escInline(r.outcome)
+            + (r.reversal_id ? ' (<code>' + _escInline(r.reversal_id) + '</code>)' : '')
+            + '<br>';
+        });
+        sellerStatusHtml += '</div>';
+      }
+
+      // ── Platform Coverage Status ─────────────────────────────────────────
+      var platformCovered = data.platform_covered_amount || 0;
+      var platformStatusHtml;
+      if (platformCovered <= 0) {
+        platformStatusHtml =
+          '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">'
+          + '<span style="color:#6b7280;font-size:12px;">Platform Coverage</span>'
+          + '<span style="font-size:12px;color:#6b7280;"><i class="fa-solid fa-minus"></i> Not Used</span>'
+          + '</div>';
+      } else {
+        platformStatusHtml =
+          '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">'
+          + '<span style="color:#6b7280;font-size:12px;">Platform Coverage</span>'
+          + '<span style="font-size:12px;font-weight:600;color:#7c3aed;">'
+          + '<i class="fa-solid fa-building-columns"></i> ' + _fmtAmtInline(platformCovered) + ' covered by Metex</span>'
+          + '</div>'
+          + '<div style="font-size:11px;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:7px;margin-bottom:6px;">'
+          + '<i class="fa-solid fa-circle-info"></i> Seller funds could not be recovered. This refund was covered by Metex.'
+          + '</div>';
+      }
+
+      // ── Financial Breakdown ────────────────────────────────────────────
+      var recoveredFromSeller = 0;
+      recoveryOutcomes.forEach(function(r) {
+        if (r.outcome === 'recovered') recoveredFromSeller += (r.seller_net_amount || 0);
+      });
+      function _ilBkRow(label, val, bold, color) {
+        var lStyle = 'color:' + (color || '#6b7280') + ';' + (bold ? 'font-weight:700;color:' + (color || '#111827') + ';' : '');
+        var vStyle = 'font-family:monospace;' + (bold ? 'font-weight:700;' : '') + (color ? 'color:' + color + ';' : '');
+        return '<div style="display:flex;justify-content:space-between;padding:2px 0;">'
+          + '<span style="font-size:12px;' + lStyle + '">' + label + '</span>'
+          + '<span style="font-size:12px;' + vStyle + '">' + _fmtAmtInline(val) + '</span>'
+          + '</div>';
+      }
+      var breakdownHtml =
+        '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-top:10px;">'
+        + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;margin-bottom:6px;">Refund Breakdown</div>'
+        + _ilBkRow('Subtotal refunded', data.refund_subtotal)
+        + (data.refund_tax_amount > 0 ? _ilBkRow('Tax refunded', data.refund_tax_amount) : '')
+        + (data.refund_processing_fee > 0 ? _ilBkRow('Processing fee refunded', data.refund_processing_fee) : '')
+        + _ilBkRow('Total refunded', data.amount, true)
+        + (recoveryOutcomes.length > 0 ? _ilBkRow('Recovered from seller', recoveredFromSeller, false, '#16a34a') : '')
+        + (platformCovered > 0 ? _ilBkRow('Covered by platform', platformCovered, false, '#7c3aed') : '')
+        + '</div>';
+
+      body.innerHTML =
+        '<div style="padding:16px;">'
+        // Success header
+        + '<div style="text-align:center;margin-bottom:14px;">'
+        + '<div style="font-size:32px;color:#16a34a;margin-bottom:6px;"><i class="fa-solid fa-circle-check"></i></div>'
+        + '<h3 style="margin:0 0 2px;">' + (data.is_partial ? 'Partial ' : '') + 'Refund Issued</h3>'
+        + '<div style="font-size:13px;font-weight:600;color:#dc2626;">' + _fmtAmtInline(data.amount) + '</div>'
+        + '</div>'
+
+        // Three-way status section
+        + '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-bottom:10px;">'
+        + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#374151;margin-bottom:4px;">Refund Method &amp; Recovery Status</div>'
+        + buyerStatusHtml
+        + '<div style="border-top:1px solid #e5e7eb;"></div>'
+        + sellerStatusHtml
+        + '<div style="border-top:1px solid #e5e7eb;"></div>'
+        + platformStatusHtml
+        + '</div>'
+
+        // Platform coverage alert
+        + (platformCovered > 0
+          ? '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;">'
+            + '<i class="fa-solid fa-building-columns" style="color:#7c3aed;font-size:14px;margin-top:2px;flex-shrink:0;"></i>'
+            + '<div><strong style="color:#5b21b6;font-size:12px;">Platform-Covered Refund</strong><br>'
+            + '<span style="font-size:12px;color:#6b21a8;">Seller funds could not be recovered. This refund of <strong>' + _fmtAmtInline(platformCovered) + '</strong> was covered by Metex.</span>'
+            + '</div></div>'
+          : '')
+
+        // Financial breakdown
+        + breakdownHtml
+
+        + '<div style="text-align:center;margin-top:14px;">'
+        + '<button onclick="closeInlineRefundModal();if(typeof loadLedgerOrders===\'function\')loadLedgerOrders();" '
+        + 'style="padding:8px 20px;background:#374151;color:#fff;border:none;border-radius:6px;cursor:pointer;">Done</button>'
+        + '</div>'
+        + '</div>';
+    } else {
+      if (body) body.innerHTML += '<div style="margin-top:8px;padding:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;font-size:12px;color:#b91c1c;">'
+        + '<i class="fa-solid fa-xmark"></i> Error: ' + _escInline(data.error) + '</div>';
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Confirm Refund'; }
+    }
+  })
+  .catch(function(err) {
+    var body = document.getElementById('inlineRefundModalBody');
+    if (body) body.innerHTML += '<div style="margin-top:8px;padding:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;font-size:12px;color:#b91c1c;">'
+      + 'Network error: ' + _escInline(String(err)) + '</div>';
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Confirm Refund'; }
+  });
+}
+
 // Export ledger functions
 window.loadLedgerStats = loadLedgerStats;
 window.loadLedgerOrders = loadLedgerOrders;
@@ -449,6 +746,8 @@ window.submitResolveReport = submitResolveReport;
 window.quickResolve = quickResolve;
 window.haltFunds = haltFunds;
 window.refundBuyer = refundBuyer;
+window.closeInlineRefundModal = closeInlineRefundModal;
+window.executeInlineRefund = executeInlineRefund;
 
 
 // ========== BUCKET MANAGEMENT ==========

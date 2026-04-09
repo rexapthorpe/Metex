@@ -13,6 +13,7 @@ let _clientSecret = null;           // stored for saved-card confirmation
 let _selectedSavedPmId = null;      // null = new card; 'pm_xxx' = saved card selected
 let _savedCardInfo = {};            // pm_id → {brand, last4, exp_month, exp_year}
 let _paymentElementMounted = false; // guard against double-mount
+let _taxKnown = false;              // true once a Stripe Tax estimate has been fetched
 
 function _showPaymentLoading(visible) {
   const el = document.getElementById('payment-loading-message');
@@ -52,7 +53,16 @@ async function initStripeElements() {
   _showPaymentLoading(true);
 
   try {
-    const res = await fetch('/create-payment-intent', { method: 'POST' });
+    // Send the buyer's address so the server can compute tax+fee and create
+    // the PI with the full charge amount right away.
+    const postalCode = (document.getElementById('zipCode') || {}).value || '';
+    const state      = (document.getElementById('state')   || {}).value || '';
+    const countryRaw = (document.getElementById('country') || {}).value || 'US';
+    const res = await fetch('/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zip_code: postalCode, state: state, country: countryRaw }),
+    });
     console.log('[Stripe] create-payment-intent status:', res.status);
 
     if (!res.ok) {
@@ -149,8 +159,20 @@ document.addEventListener('DOMContentLoaded', function() {
   initCardFormatting();
   loadUserInfo();
   loadSavedPaymentMethods();
-  updateOrderSummary();
   _restoreCheckoutDraft();
+  // Fetch Stripe Tax estimate if address fields are already populated
+  // (e.g. after spot-price reload restores the draft). Falls back to
+  // updateOrderSummary() with the server-rendered tax_amount if no address.
+  fetchAndUpdateTax();
+
+  // Re-fetch tax when the buyer changes their ZIP code, state, or country
+  ['zipCode', 'state', 'country'].forEach(function(fieldId) {
+    const el = document.getElementById(fieldId);
+    if (el) {
+      el.addEventListener('blur', function() { fetchAndUpdateTax(); });
+      el.addEventListener('change', function() { fetchAndUpdateTax(); });
+    }
+  });
   // Do NOT call initStripeElements() here — #payment-element is inside a
   // display:none step at this point.  It is called lazily from goToStep(2).
 });
@@ -397,6 +419,9 @@ function selectAddress(addr) {
 
   // Close dropdown
   document.getElementById('savedAddressesMenu').classList.remove('show');
+
+  // Trigger tax estimation with the newly-applied address
+  fetchAndUpdateTax();
 }
 window.selectAddress = selectAddress;
 
@@ -424,20 +449,46 @@ function loadUserInfo() {
 
 /**
  * Update the order summary sidebar based on selected payment method.
- * Processing fee: 2.99% for card, Free for ACH.
- * Grading fee: injected from server via window.checkoutGradingFee.
+ *
+ * Tax is fetched from the backend (Stripe Tax API) and stored in
+ * window.checkoutTaxAmount / window.checkoutTaxedSubtotal — this function
+ * never computes tax itself. It only computes the payment processing fee
+ * (which depends on card vs ACH) and derives the final total.
+ *
+ * Pricing order:
+ *   1. taxedSubtotal = window.checkoutTaxedSubtotal  (set by fetchAndUpdateTax)
+ *   2. processingFee = isACH ? 0 : round(taxedSubtotal × 2.99% + $0.30)
+ *   3. total         = taxedSubtotal + processingFee
  */
 function updateOrderSummary() {
   const checkedRadio = document.querySelector('input[name="payment_method"]:checked');
   const method = checkedRadio ? checkedRadio.value : 'card';
-  // Also treat Stripe Element's ACH tab as ACH
   const isACH = method === 'ach' || _stripeSelectedMethod === 'us_bank_account';
 
-  const subtotal    = window.checkoutSubtotal   || 0;
-  const gradingFee  = window.checkoutGradingFee || 0;
-  const processingFee = isACH ? 0 : (subtotal + gradingFee) * 0.0299;
+  const tax        = window.checkoutTaxAmount || 0;
+  const taxedTotal = window.checkoutTaxedSubtotal || ((window.checkoutSubtotal || 0) + (window.checkoutGradingFee || 0));
 
-  const total = subtotal + gradingFee + processingFee;
+  // Processing fee applied to taxed total (card only)
+  const processingFee = isACH ? 0 : Math.round((taxedTotal * 0.0299 + 0.30) * 100) / 100;
+
+  // Final total charged
+  const total = Math.round((taxedTotal + processingFee) * 100) / 100;
+
+  // Update tax line — show placeholder when address not yet entered
+  const taxEl = document.getElementById('summary-tax');
+  if (taxEl) {
+    if (!_taxKnown) {
+      taxEl.textContent = 'Enter address to calculate';
+      taxEl.style.fontStyle = 'italic';
+      taxEl.style.color = '#9ca3af';
+      taxEl.style.fontSize = '13px';
+    } else {
+      taxEl.textContent = '$' + tax.toFixed(2);
+      taxEl.style.fontStyle = '';
+      taxEl.style.color = '';
+      taxEl.style.fontSize = '';
+    }
+  }
 
   const feeEl = document.getElementById('summary-processing-fee');
   if (feeEl) {
@@ -452,6 +503,53 @@ function updateOrderSummary() {
   if (placeOrderTotal) placeOrderTotal.textContent = '$' + total.toFixed(2);
 }
 window.updateOrderSummary = updateOrderSummary;
+
+/**
+ * Fetch a tax estimate from the backend (Stripe Tax API) for the current
+ * subtotal and the address fields currently in the form.
+ *
+ * Updates window.checkoutTaxAmount and window.checkoutTaxedSubtotal, then
+ * calls updateOrderSummary() so the sidebar reflects the new tax.
+ *
+ * @param {number} [subtotalOverride] - Optional subtotal override (e.g. after
+ *   a spot-price recalculate). Uses window.checkoutSubtotal if omitted.
+ */
+async function fetchAndUpdateTax(subtotalOverride) {
+  const subtotal   = subtotalOverride !== undefined ? subtotalOverride
+                     : ((window.checkoutSubtotal || 0) + (window.checkoutGradingFee || 0));
+  const postalCode = (document.getElementById('zipCode') || {}).value || '';
+  const state      = (document.getElementById('state') || {}).value || '';
+  const country    = (document.getElementById('country') || {}).value || 'US';
+
+  // Address incomplete — mark tax as unknown and show placeholder
+  if (!postalCode) {
+    _taxKnown = false;
+    updateOrderSummary();
+    return;
+  }
+
+  try {
+    const resp = await fetch('/checkout/api/tax-estimate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subtotal, postal_code: postalCode, state, country }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.tax_calculated) {
+        window.checkoutTaxAmount     = data.tax_amount     || 0;
+        window.checkoutTaxedSubtotal = data.taxed_subtotal || subtotal;
+        _taxKnown = true;
+      }
+      // If tax_calculated is false (Stripe unreachable / no postal code),
+      // leave _taxKnown=false so the placeholder remains visible.
+    }
+  } catch (_) {
+    // Non-fatal: keep existing values and known state
+  }
+  updateOrderSummary();
+}
+window.fetchAndUpdateTax = fetchAndUpdateTax;
 
 /**
  * Initialize payment method selection
@@ -801,6 +899,8 @@ function _gatherShippingInfo() {
  */
 async function placeOrder() {
   const btn = document.getElementById('placeOrderBtn');
+  // Capture total text before overwriting button innerHTML (span will be gone after).
+  const _savedTotal = (document.getElementById('place-order-total') || {}).textContent || '';
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
 
@@ -817,7 +917,7 @@ async function placeOrder() {
   const _resetBtn = () => {
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-lock"></i> Place Order • <span id="place-order-total">' +
-      document.getElementById('place-order-total').textContent + '</span>';
+      _savedTotal + '</span>';
   };
 
   _clearError();
@@ -840,6 +940,11 @@ async function placeOrder() {
 
   try {
     const { shippingAddress, firstName, lastName } = _gatherShippingInfo();
+    // Gather address components for Stripe Tax on the server side
+    const _city    = (document.getElementById('city') || {}).value || '';
+    const _state   = (document.getElementById('state') || {}).value || '';
+    const _zipCode = (document.getElementById('zipCode') || {}).value || '';
+    const _country = (document.getElementById('country') || {}).value || 'US';
 
     // Phase 1: Create the order record in our DB.
     // We include the payment_intent_id so the server stores it on the order immediately —
@@ -852,7 +957,12 @@ async function placeOrder() {
       },
       body: JSON.stringify({
         shipping_address: shippingAddress,
+        city:             _city,
+        state:            _state,
+        zip_code:         _zipCode,
+        country:          _country,
         payment_method: 'card',
+        payment_method_type: _stripeSelectedMethod || 'card',
         recipient_first: firstName,
         recipient_last: lastName,
         checkout_nonce: window.checkoutNonce,

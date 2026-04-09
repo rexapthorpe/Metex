@@ -675,6 +675,172 @@
 
 </div><!-- /sell-page-wrapper -->
 
+<!-- ============ Seller Payout Setup Required Modal ============ -->
+<div id="sellerOnboardingModal" class="seller-onboarding-modal" aria-hidden="true">
+  <div class="seller-onboarding-modal-content">
+    <div class="seller-onboarding-icon">
+      <i class="fa-solid fa-building-columns"></i>
+    </div>
+    <h2 class="seller-onboarding-title">Payout Setup Required</h2>
+    <p class="seller-onboarding-desc">
+      Before you can list items for sale, you need to complete your seller payout setup.
+      This lets us send you payment when your items sell.
+    </p>
+    <div class="seller-onboarding-steps">
+      <div class="seller-onboarding-step">
+        <div class="seller-onboarding-step-num">1</div>
+        <span>Go to <strong>Account → Account Details</strong></span>
+      </div>
+      <div class="seller-onboarding-step">
+        <div class="seller-onboarding-step-num">2</div>
+        <span>Find <strong>Seller Payout Account</strong> and click <strong>Set up payouts</strong></span>
+      </div>
+      <div class="seller-onboarding-step">
+        <div class="seller-onboarding-step-num">3</div>
+        <span>Complete the short Stripe onboarding form</span>
+      </div>
+    </div>
+    <div class="seller-onboarding-actions">
+      <a href="/account#details-payment" class="seller-onboarding-btn-primary">
+        <i class="fa-solid fa-arrow-right"></i>
+        Set Up Payouts
+      </a>
+      <button type="button" class="seller-onboarding-btn-secondary" onclick="closeSellerOnboardingModal()">
+        Later
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.seller-onboarding-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+.seller-onboarding-modal.show {
+  display: flex;
+}
+.seller-onboarding-modal-content {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 32px 28px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.seller-onboarding-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.seller-onboarding-icon i {
+  font-size: 26px;
+  color: #7c3aed;
+}
+.seller-onboarding-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 10px;
+}
+.seller-onboarding-desc {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin: 0 0 22px;
+}
+.seller-onboarding-steps {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+.seller-onboarding-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #374151;
+}
+.seller-onboarding-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #7c3aed;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.seller-onboarding-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.seller-onboarding-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 20px;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.seller-onboarding-btn-primary:hover {
+  background: linear-gradient(135deg, #6d28d9, #5b21b6);
+  color: #ffffff;
+  text-decoration: none;
+}
+.seller-onboarding-btn-secondary {
+  padding: 11px 20px;
+  background: #f3f4f6;
+  color: #374151;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.seller-onboarding-btn-secondary:hover {
+  background: #e5e7eb;
+}
+@media (max-width: 480px) {
+  .seller-onboarding-modal-content {
+    padding: 28px 20px 24px;
+  }
+}
+</style>
+
 <!-- ============ Sell Listing Modals ============ -->
 {% include 'modals/sell_listing_modals.html' %}
 
@@ -685,6 +851,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/sell_listing_modals.css') }}?v=1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/field_validation_modal.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/modal-close-button.css') }}">
+
+<!-- Seller Stripe onboarding status -->
+<script>
+  window.sellerStripeReady = {{ (seller_stripe_ready if seller_stripe_ready is defined else false) | tojson }};
+</script>
 
 <!-- Pass prefill data to JS -->
 <script>

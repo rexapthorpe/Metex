@@ -176,6 +176,7 @@ def escrow_db(tmp_path):
             order_status TEXT DEFAULT 'AWAITING_SHIPMENT',
             gross_amount REAL DEFAULT 0,
             platform_fee_amount REAL DEFAULT 0,
+            spread_capture_amount REAL NOT NULL DEFAULT 0.0,
             buyer_id INTEGER,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
@@ -199,6 +200,7 @@ def escrow_db(tmp_path):
             seller_id INTEGER,
             tracking_number TEXT,
             carrier TEXT,
+            delivered_at TEXT DEFAULT NULL,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(order_id, seller_id)
@@ -222,8 +224,13 @@ def escrow_db(tmp_path):
                     payout_status='PAYOUT_NOT_READY',
                     net_amount=100.0,
                     tracking_number='TRACK123',
-                    tracking_days_ago=10):
-        """Insert a minimal complete set of rows and return payout_id."""
+                    tracking_days_ago=10,
+                    delivered_days_ago=2):
+        """Insert a minimal complete set of rows and return payout_id.
+
+        delivered_days_ago: number of days ago delivered_at is set.
+                            None means delivered_at stays NULL (not yet delivered).
+        """
         conn.executescript(
             "DELETE FROM users; DELETE FROM orders; DELETE FROM orders_ledger; "
             "DELETE FROM order_payouts; DELETE FROM seller_order_tracking; DELETE FROM order_events;"
@@ -237,18 +244,22 @@ def escrow_db(tmp_path):
             (payment_status, requires_clearance, refund_status, requires_recovery)
         )
         conn.execute(
-            "INSERT INTO orders_ledger VALUES (1, 1, ?, 200.0, 10.0, 2, datetime('now'))",
+            "INSERT INTO orders_ledger (id, order_id, order_status, gross_amount, platform_fee_amount, buyer_id, created_at) VALUES (1, 1, ?, 200.0, 10.0, 2, datetime('now'))",
             (order_status,)
         )
         conn.execute(
-            "INSERT INTO order_payouts VALUES (1, 1, 1, 1, ?, 110.0, 10.0, ?, NULL, 'not_needed', datetime('now'), datetime('now'))",
+            "INSERT INTO order_payouts (id, order_ledger_id, order_id, seller_id, payout_status, seller_gross_amount, fee_amount, seller_net_amount, provider_transfer_id, payout_recovery_status, created_at, updated_at) VALUES (1, 1, 1, 1, ?, 110.0, 10.0, ?, NULL, 'not_needed', datetime('now'), datetime('now'))",
             (payout_status, net_amount)
         )
         if tracking_number:
-            tracking_ts = (datetime.now() - timedelta(days=tracking_days_ago)).strftime('%Y-%m-%d %H:%M:%S')
+            delivered_ts = None
+            if delivered_days_ago is not None:
+                delivered_ts = (datetime.now() - timedelta(days=delivered_days_ago)).strftime('%Y-%m-%d %H:%M:%S')
             conn.execute(
-                "INSERT INTO seller_order_tracking VALUES (1, 1, 1, ?, 'USPS', datetime('now'), ?)",
-                (tracking_number, tracking_ts)
+                """INSERT INTO seller_order_tracking
+                   (id, order_id, seller_id, tracking_number, carrier, delivered_at, created_at, updated_at)
+                   VALUES (1, 1, 1, ?, 'USPS', ?, datetime('now'), datetime('now'))""",
+                (tracking_number, delivered_ts)
             )
         conn.commit()
         return 1  # payout_id
@@ -327,12 +338,14 @@ class TestPayoutBlockReason:
         assert result is not None
         assert 'tracking' in result.lower()
 
-    def test_blocked_when_delay_window_not_passed(self, escrow_db):
+    def test_blocked_when_not_delivered(self, escrow_db):
+        """Payout is blocked when shipment has not been confirmed delivered."""
         conn, insert = escrow_db
-        pid = insert(tracking_days_ago=0)  # uploaded just now
+        # delivered_days_ago=None means delivered_at stays NULL
+        pid = insert(delivered_days_ago=None)
         result = self._get_block(conn, pid)
         assert result is not None
-        assert 'delay' in result.lower()
+        assert 'delivered' in result.lower()
 
     def test_paid_out_returns_none(self, escrow_db):
         """PAID_OUT is terminal — block reason should be None."""

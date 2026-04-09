@@ -720,6 +720,25 @@ function validateSetLevelFields(form) {
 }
 
 /**
+ * Open/close the seller payout onboarding required modal
+ */
+function openSellerOnboardingModal() {
+  const modal = document.getElementById('sellerOnboardingModal');
+  if (modal) {
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function closeSellerOnboardingModal() {
+  const modal = document.getElementById('sellerOnboardingModal');
+  if (modal) {
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+}
+
+/**
  * Intercept sell form submission to validate first, then show confirmation modal
  */
 function interceptSellForm() {
@@ -733,6 +752,13 @@ function interceptSellForm() {
   sellForm.addEventListener('submit', (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // STEP 0: Gate on Stripe seller onboarding — must complete before creating a listing
+    // Skip this check in edit mode (editing an existing listing is always allowed)
+    if (!window.sellEditMode && !window.sellerStripeReady) {
+      openSellerOnboardingModal();
+      return;
+    }
 
     // STEP 1: Validate the form
     //
@@ -832,6 +858,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Intercept sell form
   interceptSellForm();
 
+  // Close onboarding gate modal on overlay click
+  document.getElementById('sellerOnboardingModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'sellerOnboardingModal') {
+      closeSellerOnboardingModal();
+    }
+  });
+
   // Close confirm modal on overlay click (not while submitting)
   document.getElementById('sellListingConfirmModal')?.addEventListener('click', (e) => {
     if (e.target.id === 'sellListingConfirmModal' && !_submitting) {
@@ -849,6 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Close modals on Escape key (not while submitting)
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      closeSellerOnboardingModal();
       if (!_submitting) closeSellConfirmModal();
       closeSellSuccessModal();
     }

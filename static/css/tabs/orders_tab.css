@@ -103,6 +103,7 @@
 /* ===== Price Block ===== */
 .order-card-price-block { text-align: right; }
 .order-card-price { font-size: 20px; font-weight: 700; color: #0f172a; }
+.order-card-price-label { font-size: 11px; font-weight: 500; color: #64748b; margin-top: 1px; letter-spacing: 0.02em; }
 .order-card-qty { font-size: 12px; color: #64748b; }
 
 /* ===== Title ===== */
@@ -747,19 +748,20 @@
 .order-action-dispute {
   display: flex;
   align-items: center;
-  gap: 7px;
-  width: 100%;
-  padding: 9px 12px;
-  border: 1px solid #e2d7f0;
-  border-radius: 8px;
-  background: #f5f0fb;
-  color: #7c3aed;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 6px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
+  width: 100%;
+  transition: background 0.15s ease;
 }
-.order-action-dispute:hover { background: #ede5fa; }
+.order-action-dispute:hover { background: #f8fafc; }
+.order-action-dispute i { width: 16px; text-align: center; }
 
 .order-dispute-bar {
   display: flex;
@@ -875,3 +877,281 @@
 .dispute-btn--cancel:hover { background: #e5e7eb; }
 .dispute-btn--submit { background: #7c3aed; color: #fff; }
 .dispute-btn--submit:hover { background: #6d28d9; }
+
+/* ── Dispute success state ─────────────────────────────────────────── */
+.dispute-success-content {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+.dispute-success-checkmark {
+  margin: 0 auto 24px;
+  width: 80px;
+  height: 80px;
+}
+.dispute-checkmark {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 3;
+  stroke: #7c3aed;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #ede9fe;
+  animation: disputeFill 0.4s ease-in-out 0.4s forwards, disputeScale 0.3s ease-in-out 0.9s both;
+}
+.dispute-checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 3;
+  stroke-miterlimit: 10;
+  stroke: #7c3aed;
+  fill: none;
+  animation: disputeStroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+.dispute-checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke: #7c3aed;
+  stroke-width: 3;
+  animation: disputeStroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+@keyframes disputeStroke {
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes disputeScale {
+  0%, 100% { transform: none; }
+  50% { transform: scale3d(1.1, 1.1, 1); }
+}
+@keyframes disputeFill {
+  100% { box-shadow: inset 0px 0px 0px 40px #ede9fe; }
+}
+.dispute-success-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e1e2e;
+  margin: 0 0 8px 0;
+}
+.dispute-success-message {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+.dispute-success-btn {
+  padding: 10px 32px;
+  border: none;
+  border-radius: 8px;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.dispute-success-btn:hover { background: #6d28d9; }
+
+/* ===== Transaction Details Modal ===== */
+.txn-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9100;
+  padding: 16px;
+}
+
+.txn-modal {
+  background: #ffffff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 620px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.txn-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.txn-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.txn-modal-header-left i {
+  font-size: 16px;
+  color: #1e40af;
+}
+
+.txn-modal-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.txn-modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.txn-modal-close:hover { color: #0f172a; background: #f1f5f9; }
+
+.txn-modal-body {
+  overflow-y: auto;
+  padding: 20px 22px;
+  flex: 1;
+}
+
+.txn-modal-footer {
+  padding: 14px 22px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.txn-close-btn {
+  padding: 9px 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.txn-close-btn:hover { background: #f1f5f9; }
+
+/* ── Transaction Table ── */
+.txn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.txn-table thead tr {
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.txn-table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.txn-th-qty,
+.txn-th-price,
+.txn-th-total { text-align: right; }
+
+/* Item rows */
+.txn-item-row td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.txn-item-label { max-width: 260px; }
+.txn-item-name {
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+}
+.txn-item-seller {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.txn-item-qty,
+.txn-item-price,
+.txn-item-total {
+  text-align: right;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.txn-item-total { font-weight: 600; }
+
+/* Summary / tfoot rows */
+.txn-summary-row td {
+  padding: 8px 10px;
+  color: #374151;
+}
+
+.txn-summary-row td:first-child {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.txn-summary-row td:last-child {
+  text-align: right;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.txn-subtotal-row {
+  border-top: 1px solid #e2e8f0;
+}
+
+.txn-subtotal-row td { padding-top: 14px; }
+
+.txn-summary-zero td { color: #94a3b8 !important; font-style: italic; }
+
+.txn-total-row {
+  border-top: 2px solid #1e40af;
+}
+
+.txn-total-row td {
+  padding: 12px 10px 6px;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+/* Loading / error states */
+.txn-loading {
+  text-align: center;
+  padding: 40px 0;
+  color: #64748b;
+  font-size: 14px;
+}
+.txn-loading i { margin-right: 6px; }
+.txn-error {
+  color: #b91c1c;
+  font-size: 14px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+@media (max-width: 480px) {
+  .txn-modal { max-height: 92vh; }
+  .txn-th-price, .txn-item-price { display: none; }
+  .txn-item-name { font-size: 13px; }
+}

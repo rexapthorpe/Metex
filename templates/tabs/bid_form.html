@@ -167,8 +167,8 @@
             {% if current_spot_price %}${{ '{:,.2f}'.format(current_spot_price) }}{% else %}Loading...{% endif %}
           </div>
           <div class="bm-spot-calc" id="bid-spot-calc-line">
-            Your bid: Spot + $<span id="premium-display">{{ '{:,.2f}'.format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}</span>
-            = $<span id="effective-bid-price">{{ '{:,.2f}'.format((current_spot_price or 0) + (bid.spot_premium or 0)) }}</span>
+            Your bid: (Spot × {{ bucket.weight if bucket and bucket.weight else '1 oz' }}) + $<span id="premium-display">{{ '{:,.2f}'.format(bid.spot_premium) if bid and bid.spot_premium else '0.00' }}</span>
+            = $<span id="effective-bid-price">—</span>
           </div>
         </div>
       </div>

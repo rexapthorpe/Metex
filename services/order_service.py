@@ -129,28 +129,43 @@ def calculate_cart_total(cart_items):
 
 
 def create_order(buyer_id, cart_items, shipping_address, recipient_first='', recipient_last='',
-                  placed_from_ip=None, payment_intent_id=None):
+                  placed_from_ip=None, payment_intent_id=None, buyer_card_fee=0.0,
+                  tax_amount=0.0, tax_rate=0.0):
     """
     Create a new order and related order items.
 
     Each item in cart_items must have: listing_id, quantity, price_each.
 
+    Pricing order (canonical):
+      subtotal        = sum of item line totals
+      tax_amount      = round(subtotal * tax_rate, 2)   — locked at checkout time
+      buyer_card_fee  = round((subtotal + tax_amount) * 0.0299 + 0.30, 2)  for card; 0 for ACH
+      total_price     = subtotal + tax_amount + buyer_card_fee
+
     Phase 1 additions:
-      placed_from_ip:    Buyer's IP address at checkout submission (from request.remote_addr).
-      payment_intent_id: Stripe PaymentIntent ID if already known at order creation time.
-                         Written to transaction_snapshots rows.
+      placed_from_ip:    Buyer's IP address at checkout submission.
+      payment_intent_id: Stripe PaymentIntent ID written to transaction_snapshots.
+      buyer_card_fee:    Card processing fee applied to taxed subtotal (2.99%+$0.30 for
+                         card, 0.0 for ACH). orders.total_price equals Stripe charge amount.
+      tax_amount:        Tax in dollars, locked at checkout so history is immutable.
+      tax_rate:          Rate applied (e.g. 0.0825), stored for audit purposes.
     """
     conn = _get_conn()
     cursor = conn.cursor()
 
     items_total = calculate_cart_total(cart_items)
-    total_price = items_total
+    buyer_card_fee = round(float(buyer_card_fee), 2)
+    tax_amount = round(float(tax_amount), 2)
+    tax_rate = float(tax_rate)
+    total_price = round(items_total + tax_amount + buyer_card_fee, 2)
 
     cursor.execute('''
-        INSERT INTO orders (buyer_id, total_price, shipping_address, recipient_first_name,
-                            recipient_last_name, placed_from_ip)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (buyer_id, total_price, shipping_address, recipient_first, recipient_last, placed_from_ip))
+        INSERT INTO orders (buyer_id, total_price, buyer_card_fee, tax_amount, tax_rate,
+                            shipping_address, recipient_first_name, recipient_last_name,
+                            placed_from_ip)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (buyer_id, total_price, buyer_card_fee, tax_amount, tax_rate,
+          shipping_address, recipient_first, recipient_last, placed_from_ip))
 
     order_id = cursor.lastrowid
 

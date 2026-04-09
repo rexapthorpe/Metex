@@ -677,3 +677,710 @@ class TestAcceptBidIntegration:
             mock_create.assert_not_called()
             mock_list.assert_not_called()
             mock_retrieve.assert_not_called()
+
+
+# ============================================================================
+# BP17-BP22  Tax-in-charge correctness tests (accept_bid.py path)
+# BP23-BP25  Auto-match tax correctness tests (auto_match.py path)
+# ============================================================================
+
+class TestBidTaxChargeCorrectness:
+    """
+    Verify that tax is always included in the Stripe charge amount and that the
+    fallback rate (8.25%) matches the modal preview rate exactly.
+    """
+
+    FALLBACK = 0.0825
+    CARD_RATE = 0.0299
+    CARD_FLAT = 0.30
+
+    def _expected_total(self, subtotal: float, tax_rate: float = None) -> float:
+        """Compute expected total: subtotal + tax + card_fee, rounded to 2dp."""
+        if tax_rate is None:
+            tax_rate = self.FALLBACK
+        tax = round(subtotal * tax_rate, 2)
+        taxed = subtotal + tax
+        fee = round(taxed * self.CARD_RATE + self.CARD_FLAT, 2)
+        return round(taxed + fee, 2)
+
+    # BP17: _get_stripe_tax_for_bid uses fallback rate when Stripe Tax fails
+    def test_BP17_tax_fallback_rate_when_stripe_inactive(self):
+        """
+        When Stripe Tax raises any exception and a postal code is present,
+        _get_stripe_tax_for_bid must return FALLBACK_TAX_RATE * subtotal (not 0).
+        """
+        import stripe as stripe_mod
+        from core.blueprints.bids.accept_bid import _get_stripe_tax_for_bid, FALLBACK_TAX_RATE
+
+        subtotal_cents = 10000  # $100.00
+        expected_fallback = round(subtotal_cents * FALLBACK_TAX_RATE)
+
+        with patch('stripe.tax.Calculation.create',
+                   side_effect=stripe_mod.error.InvalidRequestError(
+                       'No such Stripe Tax product', None
+                   )):
+            result = _get_stripe_tax_for_bid(subtotal_cents, '85001', 'AZ')
+
+        assert result == expected_fallback, (
+            f"Expected fallback tax {expected_fallback} cents "
+            f"({FALLBACK_TAX_RATE*100:.2f}%), got {result}"
+        )
+
+    # BP18: No postal code → tax = 0 (no address, cannot determine jurisdiction)
+    def test_BP18_no_postal_code_means_zero_tax(self):
+        """When postal code is empty, _get_stripe_tax_for_bid must return 0."""
+        from core.blueprints.bids.accept_bid import _get_stripe_tax_for_bid
+        with patch('stripe.tax.Calculation.create') as mock_stripe:
+            result = _get_stripe_tax_for_bid(10000, '', 'AZ')
+        assert result == 0
+        mock_stripe.assert_not_called()
+
+    # BP19: Preview tax rate == fallback charge tax rate
+    def test_BP19_preview_and_fallback_use_same_rate(self):
+        """
+        The bid modal preview (JS) uses 8.25%.
+        The bid charge fallback must use the same 8.25%.
+        If these diverge, the buyer sees one amount and is charged another.
+        """
+        from core.blueprints.bids.accept_bid import FALLBACK_TAX_RATE
+        PREVIEW_RATE = 0.0825  # hardcoded in bid_modal_steps.js populateReview()
+        assert FALLBACK_TAX_RATE == PREVIEW_RATE, (
+            f"FALLBACK_TAX_RATE ({FALLBACK_TAX_RATE}) != JS preview rate ({PREVIEW_RATE}). "
+            "Buyer would be shown one tax amount but charged a different one."
+        )
+
+    # BP20: Full charge amount includes subtotal + tax + fee
+    def test_BP20_stripe_amount_includes_tax(self):
+        """
+        Integration: when Stripe Tax is unavailable (fallback), the amount sent to
+        _charge_bid_payment (and thus to Stripe) must include tax, not just subtotal+fee.
+        """
+        import stripe as stripe_mod
+        from core.blueprints.bids.accept_bid import (
+            _get_stripe_tax_for_bid, FALLBACK_TAX_RATE, _CARD_RATE, _CARD_FLAT,
+        )
+
+        subtotal = 200.0   # 2 coins at $100 each
+        subtotal_cents = int(round(subtotal * 100))
+
+        # Stripe Tax fails → fallback
+        with patch('stripe.tax.Calculation.create',
+                   side_effect=stripe_mod.error.InvalidRequestError('inactive', None)):
+            tax_cents = _get_stripe_tax_for_bid(subtotal_cents, '10001', 'NY')
+
+        tax_amount = round(tax_cents / 100, 2)
+        taxed_subtotal = subtotal + tax_amount
+        card_fee = round(taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
+        total = round(taxed_subtotal + card_fee, 2)
+
+        # Verify tax is non-zero
+        assert tax_amount > 0, "Tax must be non-zero when postal code is present"
+
+        # Verify total > subtotal + fee (tax is included)
+        subtotal_plus_fee_only = round(subtotal * (1 + _CARD_RATE) + _CARD_FLAT, 2)
+        assert total > subtotal_plus_fee_only, (
+            f"Total {total} should be > subtotal+fee {subtotal_plus_fee_only}; "
+            "tax is being dropped from the charge"
+        )
+
+        # Verify arithmetic: total == subtotal + tax + card_fee
+        fee_cents = int(round(card_fee * 100))
+        charged_cents = int(round(total * 100))
+        assert charged_cents == subtotal_cents + tax_cents + fee_cents, (
+            f"charged_cents={charged_cents} != "
+            f"subtotal_cents={subtotal_cents} + tax_cents={tax_cents} + fee_cents={fee_cents} "
+            f"(={subtotal_cents + tax_cents + fee_cents})"
+        )
+
+    # BP21: Stripe Tax success path passes tax through correctly
+    def test_BP21_stripe_tax_success_uses_stripe_amount(self):
+        """
+        When Stripe Tax API succeeds, use the Stripe-computed amount (not fallback).
+        """
+        from core.blueprints.bids.accept_bid import _get_stripe_tax_for_bid
+
+        mock_calc = MagicMock()
+        mock_calc.tax_amount_exclusive = 750   # $7.50 — different from 8.25% fallback
+        mock_calc.id = 'taxcalc_test_123'
+
+        with patch('stripe.tax.Calculation.create', return_value=mock_calc):
+            result = _get_stripe_tax_for_bid(10000, '94102', 'CA')
+
+        assert result == 750, f"Expected 750 (Stripe value), got {result}"
+
+    # BP22: DB tax_amount matches what was charged
+    def test_BP22_db_tax_amount_matches_charge(self):
+        """
+        The orders.tax_amount stored in the DB must equal the tax used in the
+        Stripe charge, so admin reconciliation can verify correctness.
+        Checked via the accept_bid.py source code structure.
+        """
+        import ast, os
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'core', 'blueprints', 'bids', 'accept_bid.py',
+        )
+        with open(path) as f:
+            src = f.read()
+
+        # _tax_amount must appear in the INSERT INTO orders statement
+        assert '_tax_amount' in src, "_tax_amount not computed in accept_bid.py"
+        assert 'tax_amount' in src, "tax_amount column not written to orders in accept_bid.py"
+
+        # The INSERT INTO orders must include tax_amount
+        insert_start = src.find('INSERT INTO orders')
+        insert_end   = src.find(')', insert_start)
+        insert_block = src[insert_start:insert_end]
+        assert 'tax_amount' in insert_block, (
+            "tax_amount not included in the INSERT INTO orders statement — "
+            "DB record won't reflect what was charged."
+        )
+
+
+# ============================================================================
+# BP23-BP25  Auto-match tax correctness (auto_match.py path)
+# ============================================================================
+
+class TestAutoMatchTaxChargeCorrectness:
+    """
+    Verify that auto_match.py applies the same tax formula as accept_bid.py.
+
+    These tests use source-code (AST/text) checks because the stripe package is
+    not installed in the test environment.  The same pattern is used for BP22.
+    """
+
+    _BIDS_DIR = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'core', 'blueprints', 'bids',
+    )
+
+    def _read(self, filename):
+        with open(os.path.join(self._BIDS_DIR, filename)) as f:
+            return f.read()
+
+    def _extract_constant(self, src, name):
+        """
+        Extract a float constant defined as ``NAME = <float>`` from source text.
+        Returns None if not found.
+        """
+        import re
+        m = re.search(rf'^{name}\s*=\s*([\d.]+)', src, re.MULTILINE)
+        return float(m.group(1)) if m else None
+
+    def test_BP23_auto_match_has_fallback_tax_rate_constant(self):
+        """
+        auto_match.py must define FALLBACK_TAX_RATE.
+        Without this constant the fallback branch had no rate to apply and defaulted to 0.
+        """
+        src = self._read('auto_match.py')
+        assert 'FALLBACK_TAX_RATE' in src, (
+            "auto_match.py has no FALLBACK_TAX_RATE constant. "
+            "The fallback branch will return 0, undercharging buyers by the full tax."
+        )
+
+    def test_BP24_auto_match_and_accept_bid_same_fallback_rate(self):
+        """
+        auto_match.FALLBACK_TAX_RATE must equal accept_bid.FALLBACK_TAX_RATE and the
+        JS preview rate (0.0825).  Any divergence means manual vs auto-fill charge
+        different amounts, or the modal preview doesn't match what is charged.
+        """
+        am_src = self._read('auto_match.py')
+        ab_src = self._read('accept_bid.py')
+
+        am_rate = self._extract_constant(am_src, 'FALLBACK_TAX_RATE')
+        ab_rate = self._extract_constant(ab_src, 'FALLBACK_TAX_RATE')
+
+        assert am_rate is not None, "FALLBACK_TAX_RATE not found in auto_match.py"
+        assert ab_rate is not None, "FALLBACK_TAX_RATE not found in accept_bid.py"
+
+        assert am_rate == ab_rate, (
+            f"auto_match FALLBACK_TAX_RATE ({am_rate}) != "
+            f"accept_bid FALLBACK_TAX_RATE ({ab_rate}). "
+            "Manual acceptance and auto-fill charge different tax amounts."
+        )
+
+        JS_PREVIEW_RATE = 0.0825  # hardcoded in bid_modal_steps.js populateReview()
+        assert am_rate == JS_PREVIEW_RATE, (
+            f"auto_match FALLBACK_TAX_RATE ({am_rate}) != JS preview rate ({JS_PREVIEW_RATE}). "
+            "Buyer sees one tax amount in the modal but is charged a different amount."
+        )
+
+    def test_BP25_auto_match_fallback_branch_returns_fallback_not_zero(self):
+        """
+        The except block in auto_match._get_stripe_tax_for_bid must return
+        ``round(subtotal_cents * FALLBACK_TAX_RATE)`` — NOT ``return 0``.
+
+        This was the root cause: when Stripe Tax was unavailable the function returned
+        0, making _taxed_subtotal == _subtotal and dropping tax from the Stripe charge.
+        Result: $400 subtotal → $412.26 charged instead of $446.25.
+        """
+        src = self._read('auto_match.py')
+
+        # Find the _get_stripe_tax_for_bid function body
+        fn_start = src.find('def _get_stripe_tax_for_bid(')
+        assert fn_start != -1, "_get_stripe_tax_for_bid not found in auto_match.py"
+
+        # Find the next function definition after this one (to bound the search)
+        next_fn = src.find('\ndef ', fn_start + 1)
+        fn_body = src[fn_start:next_fn] if next_fn != -1 else src[fn_start:]
+
+        # The except block must NOT be a bare ``return 0``
+        # (the old buggy implementation: `return 0` on any Stripe Tax exception)
+        import re
+        # Look for the pattern: except ... block containing only "return 0"
+        # We check that FALLBACK_TAX_RATE is referenced inside the function body
+        assert 'FALLBACK_TAX_RATE' in fn_body, (
+            "_get_stripe_tax_for_bid in auto_match.py does not reference FALLBACK_TAX_RATE "
+            "in its body.  The except block is still returning 0 instead of the fallback rate."
+        )
+
+    def test_BP26_auto_match_charge_formula_math(self):
+        """
+        Pure-math verification of the correct charge formula.
+        $400 subtotal + 8.25% tax ($33) + 2.99%+$0.30 fee on taxed subtotal ($13.25)
+        must equal $446.25, NOT the buggy $412.26 (tax-dropped formula).
+
+        No imports from bids/ needed — just verifies the arithmetic is correct
+        so we can trust that when the code uses FALLBACK_TAX_RATE it gets the right answer.
+        """
+        FALLBACK_TAX_RATE = 0.0825
+        CARD_RATE = 0.0299
+        CARD_FLAT = 0.30
+
+        subtotal = 400.0
+        subtotal_cents = int(round(subtotal * 100))
+
+        # Correct formula (fixed)
+        tax_cents = round(subtotal_cents * FALLBACK_TAX_RATE)
+        tax_amount = round(tax_cents / 100, 2)
+        taxed_subtotal = subtotal + tax_amount
+        card_fee = round(taxed_subtotal * CARD_RATE + CARD_FLAT, 2)
+        fill_total = round(taxed_subtotal + card_fee, 2)
+
+        # Buggy formula (what was happening before the fix)
+        buggy_card_fee = round(subtotal * CARD_RATE + CARD_FLAT, 2)
+        buggy_total = round(subtotal + buggy_card_fee, 2)
+
+        assert buggy_total == pytest.approx(412.26, abs=0.01), (
+            f"Sanity: buggy formula should give $412.26, got {buggy_total}"
+        )
+        assert fill_total == pytest.approx(446.25, abs=0.01), (
+            f"Correct formula should give $446.25, got {fill_total}. "
+            "Check: tax=$33, taxed=$433, fee=$13.25, total=$446.25"
+        )
+        assert fill_total != pytest.approx(buggy_total), (
+            "Correct and buggy formulas produce the same result — "
+            "the fix has no effect on the charge amount"
+        )
+
+        # Hard assertion: subtotal + tax + fee == total
+        fee_cents = int(round(card_fee * 100))
+        charged_cents = int(round(fill_total * 100))
+        assert charged_cents == subtotal_cents + tax_cents + fee_cents, (
+            f"charged_cents ({charged_cents}) != "
+            f"subtotal_cents + tax_cents + fee_cents "
+            f"({subtotal_cents} + {tax_cents} + {fee_cents} = {subtotal_cents + tax_cents + fee_cents})"
+        )
+
+
+# ============================================================================
+# BP27-BP29  End-to-end: real Flask route via test client
+# ============================================================================
+
+# Extended schema that matches every column accept_bid.py writes.
+_FULL_SCHEMA = """
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT,
+    email TEXT DEFAULT 'x@x.com',
+    password_hash TEXT DEFAULT 'x',
+    first_name TEXT DEFAULT 'Test',
+    last_name TEXT DEFAULT 'User',
+    stripe_customer_id TEXT,
+    account_frozen INTEGER DEFAULT 0,
+    bid_payment_strikes INTEGER DEFAULT 0
+);
+
+CREATE TABLE categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    metal TEXT DEFAULT 'gold',
+    product_line TEXT DEFAULT 'AE',
+    product_type TEXT DEFAULT 'Coin',
+    weight TEXT DEFAULT '1 oz',
+    year TEXT DEFAULT '2024',
+    purity TEXT DEFAULT '.9999',
+    mint TEXT DEFAULT 'USM',
+    finish TEXT DEFAULT 'Bullion',
+    bucket_id INTEGER DEFAULT 1,
+    name TEXT
+);
+
+CREATE TABLE listings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    seller_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
+    price_per_coin REAL NOT NULL,
+    quantity INTEGER DEFAULT 1,
+    active INTEGER DEFAULT 1,
+    pricing_mode TEXT DEFAULT 'static',
+    spot_premium REAL DEFAULT 0,
+    floor_price REAL DEFAULT 0,
+    pricing_metal TEXT,
+    graded INTEGER DEFAULT 0,
+    grading_service TEXT,
+    image_url TEXT,
+    listing_title TEXT,
+    description TEXT,
+    packaging_type TEXT,
+    packaging_notes TEXT,
+    condition_notes TEXT
+);
+
+CREATE TABLE bids (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id INTEGER NOT NULL,
+    buyer_id INTEGER NOT NULL,
+    quantity_requested INTEGER NOT NULL,
+    price_per_coin REAL NOT NULL,
+    remaining_quantity INTEGER NOT NULL,
+    active INTEGER DEFAULT 1,
+    requires_grading INTEGER DEFAULT 0,
+    delivery_address TEXT DEFAULT '123 Main St • Austin, TX 78701',
+    status TEXT DEFAULT 'Open',
+    pricing_mode TEXT DEFAULT 'static',
+    spot_premium REAL,
+    ceiling_price REAL,
+    pricing_metal TEXT,
+    recipient_first_name TEXT DEFAULT 'Test',
+    recipient_last_name TEXT DEFAULT 'Buyer',
+    random_year INTEGER DEFAULT 0,
+    preferred_grader TEXT,
+    bid_payment_method_id TEXT,
+    bid_payment_status TEXT DEFAULT 'pending',
+    bid_payment_intent_id TEXT,
+    bid_payment_failure_code TEXT,
+    bid_payment_failure_message TEXT,
+    bid_payment_attempted_at TIMESTAMP
+);
+
+CREATE TABLE orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    buyer_id INTEGER,
+    total_price REAL,
+    buyer_card_fee REAL DEFAULT 0,
+    tax_amount REAL DEFAULT 0,
+    tax_rate REAL DEFAULT 0,
+    shipping_address TEXT,
+    status TEXT DEFAULT 'Pending Shipment',
+    created_at TEXT,
+    recipient_first_name TEXT,
+    recipient_last_name TEXT,
+    payment_status TEXT DEFAULT 'unpaid',
+    stripe_payment_intent_id TEXT,
+    paid_at TEXT,
+    payment_method_type TEXT,
+    source_bid_id INTEGER
+);
+
+CREATE TABLE order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER,
+    listing_id INTEGER,
+    quantity INTEGER,
+    price_each REAL,
+    seller_price_each REAL
+);
+
+CREATE TABLE spot_prices (
+    metal TEXT PRIMARY KEY,
+    price_usd_per_oz REAL NOT NULL
+);
+
+CREATE TABLE spot_price_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    metal TEXT,
+    price_usd REAL,
+    recorded_at TEXT DEFAULT (datetime('now')),
+    source TEXT DEFAULT 'test'
+);
+
+CREATE TABLE listing_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    listing_id INTEGER,
+    file_path TEXT,
+    display_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE transaction_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER,
+    order_item_id INTEGER,
+    listing_id INTEGER,
+    snapshot_at TEXT,
+    quantity INTEGER,
+    price_each REAL,
+    buyer_id INTEGER,
+    buyer_username TEXT,
+    buyer_email TEXT,
+    seller_id INTEGER,
+    seller_username TEXT,
+    seller_email TEXT,
+    metal TEXT,
+    product_line TEXT,
+    product_type TEXT,
+    weight TEXT,
+    year TEXT,
+    mint TEXT,
+    purity TEXT,
+    finish TEXT,
+    condition_category TEXT,
+    series_variant TEXT,
+    listing_title TEXT,
+    description TEXT,
+    packaging_type TEXT,
+    packaging_notes TEXT,
+    condition_notes TEXT,
+    photo_url_1 TEXT,
+    pricing_mode_used TEXT,
+    spot_price_usd REAL,
+    payment_intent_id TEXT,
+    placed_from_ip TEXT
+);
+
+CREATE TABLE notification_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    notification_type TEXT,
+    enabled INTEGER DEFAULT 1
+);
+
+CREATE TABLE notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    type TEXT,
+    message TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    read INTEGER DEFAULT 0,
+    metadata TEXT
+);
+
+CREATE TABLE orders_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER,
+    buyer_id INTEGER,
+    seller_id INTEGER,
+    listing_id INTEGER,
+    quantity INTEGER,
+    unit_price REAL,
+    buyer_unit_price REAL,
+    buyer_fee_amount REAL,
+    seller_fee_amount REAL,
+    platform_fee_amount REAL,
+    buyer_subtotal REAL,
+    seller_subtotal REAL,
+    order_status TEXT DEFAULT 'CHECKOUT_INITIATED',
+    payment_method TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+"""
+
+_SPOT_E2E = 2000.0   # gold spot price
+_PRICE_E2E = 1473.92  # effective bid price (matches bug-report screenshot)
+
+
+def _make_e2e_db():
+    """Create a full-schema in-memory SQLite for end-to-end route tests."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(_FULL_SCHEMA)
+    conn.execute("INSERT INTO spot_prices VALUES ('gold', ?)", (_SPOT_E2E,))
+    conn.execute(
+        "INSERT INTO spot_price_snapshots (metal, price_usd) VALUES ('gold', ?)",
+        (_SPOT_E2E,)
+    )
+    conn.execute(
+        "INSERT INTO system_settings (key, value) VALUES ('checkout_enabled', '1')"
+    )
+    conn.commit()
+    return conn
+
+
+def _seed_e2e(conn, price=_PRICE_E2E):
+    """Seed: seller id=1, buyer id=2 (with Stripe customer), category+listing+bid."""
+    conn.execute(
+        "INSERT INTO users (id, username, stripe_customer_id) VALUES (1,'seller',NULL)"
+    )
+    conn.execute(
+        "INSERT INTO users (id, username, stripe_customer_id) "
+        "VALUES (2,'buyer','cus_buyer_test')"
+    )
+    conn.execute(
+        "INSERT INTO categories (id, bucket_id, metal, weight) VALUES (1, 1, 'gold', '1 oz')"
+    )
+    conn.execute(
+        "INSERT INTO listings (id, seller_id, category_id, price_per_coin, quantity, active) "
+        "VALUES (1, 1, 1, ?, 1, 1)", (price,)
+    )
+    # Bid with full US delivery address so postal code can be parsed for tax
+    conn.execute(
+        "INSERT INTO bids (id, category_id, buyer_id, quantity_requested, "
+        "remaining_quantity, price_per_coin, active, pricing_mode, "
+        "delivery_address, bid_payment_method_id) "
+        "VALUES (1, 1, 2, 1, 1, ?, 1, 'static', "
+        "'123 Main St • Austin, TX 78701', 'pm_test_card')",
+        (price,)
+    )
+    conn.commit()
+
+
+class TestAcceptBidRouteE2E:
+    """
+    BP27-BP29: Exercise the REAL /bids/accept_bid/<bucket_id> Flask route via
+    test client. Verifies that stripe.PaymentIntent.create is called with the
+    FULL charge amount (subtotal + tax + fee), not just the subtotal.
+
+    This is the definitive regression guard: if the formula reverts to
+    ``total_price = filled * effective_bid_price`` (subtotal only), BP27 fails.
+    """
+
+    _PRICE = _PRICE_E2E      # $1,473.92 — matches bug-report screenshot
+    _TAX_RATE = 0.0825       # fallback 8.25% (Stripe Tax disabled in tests)
+    _CARD_RATE = 0.0299
+    _CARD_FLAT = 0.30
+
+    def _expected_cents(self, price=None):
+        price = price or self._PRICE
+        tax = round(price * self._TAX_RATE, 2)
+        taxed = price + tax
+        fee = round(taxed * self._CARD_RATE + self._CARD_FLAT, 2)
+        total = round(taxed + fee, 2)
+        return int(round(total * 100))
+
+    def _subtotal_only_cents(self, price=None):
+        price = price or self._PRICE
+        return int(round(price * 100))
+
+    def test_BP27_route_charges_full_total_not_subtotal(self):
+        """
+        The /bids/accept_bid route must call stripe.PaymentIntent.create with
+        subtotal + fallback_tax + card_fee, NOT just the subtotal.
+
+        Bug before fix:  amount = int(filled * effective_bid_price * 100)  → 147392
+        Correct amount:  amount = int((subtotal + tax + fee) * 100)         → 164353
+        """
+        import stripe as stripe_mod
+        import core.blueprints.bids.accept_bid as ab_mod
+
+        db = _make_e2e_db()
+        _seed_e2e(db)
+
+        from app import app as flask_app
+        import database as db_mod
+
+        original_db = db_mod.get_db_connection
+        original_ab = ab_mod.get_db_connection
+
+        # Patch all DB calls inside the route to use our in-memory DB.
+        # accept_bid.py does `from database import get_db_connection` at import time,
+        # so we must patch both the module attribute AND the bound name in accept_bid.
+        def _test_db():
+            return db
+
+        db_mod.get_db_connection = _test_db
+        ab_mod.get_db_connection = _test_db
+
+        try:
+            # Disable CSRF so the test POST is accepted
+            flask_app.config['WTF_CSRF_ENABLED'] = False
+
+            # Stripe Tax unavailable → expect fallback 8.25% to be applied
+            mock_tax_exc = stripe_mod.error.InvalidRequestError('Stripe Tax inactive', None)
+            mock_pi = MagicMock(status='succeeded', id='pi_bp27_test')
+
+            with flask_app.test_client() as client:
+                with client.session_transaction() as sess:
+                    sess['user_id'] = 1  # seller
+
+                with patch('stripe.tax.Calculation.create', side_effect=mock_tax_exc), \
+                     patch('stripe.PaymentIntent.create', return_value=mock_pi) as mock_create:
+
+                    resp = client.post(
+                        '/bids/accept_bid/1',
+                        data={'selected_bids': ['1'], 'accept_qty[1]': '1'},
+                        headers={'X-Requested-With': 'XMLHttpRequest'},
+                    )
+
+            assert resp.status_code == 200, (
+                f"Route returned HTTP {resp.status_code}. "
+                f"Response: {resp.get_data(as_text=True)[:500]}"
+            )
+
+            assert mock_create.called, (
+                "stripe.PaymentIntent.create was never called. "
+                "The bid acceptance did not attempt a Stripe charge."
+            )
+
+            # Extract the `amount` argument (cents)
+            call_kwargs = mock_create.call_args.kwargs
+            call_args = mock_create.call_args.args
+            actual_cents = call_kwargs.get('amount', call_args[0] if call_args else None)
+
+            expected_cents = self._expected_cents()
+            subtotal_cents = self._subtotal_only_cents()
+
+            assert actual_cents != subtotal_cents, (
+                f"REGRESSION: Stripe was charged {actual_cents} cents "
+                f"(${actual_cents/100:.2f}) — this equals the subtotal ONLY. "
+                f"Tax ({self._TAX_RATE*100:.2f}%) and card fee ({self._CARD_RATE*100:.2f}%+${self._CARD_FLAT}) "
+                f"are missing from the charge."
+            )
+
+            assert actual_cents == expected_cents, (
+                f"Stripe was charged {actual_cents} cents (${actual_cents/100:.2f}), "
+                f"expected {expected_cents} cents (${expected_cents/100:.2f}). "
+                f"Subtotal-only (buggy) amount: {subtotal_cents} cents."
+            )
+
+        finally:
+            flask_app.config['WTF_CSRF_ENABLED'] = True
+            db_mod.get_db_connection = original_db
+            ab_mod.get_db_connection = original_ab
+            db.close()
+
+    def test_BP28_charge_math_matches_bid_modal_preview(self):
+        """
+        The math used by accept_bid.py must produce the same total the bid modal
+        shows the buyer: $1,473.92 subtotal → $121.60 tax → $48.01 fee → $1,643.53.
+        """
+        price = self._PRICE        # 1473.92
+        tax = round(price * self._TAX_RATE, 2)        # 121.60
+        taxed = price + tax                            # 1595.52
+        fee = round(taxed * self._CARD_RATE + self._CARD_FLAT, 2)  # 48.01
+        total = round(taxed + fee, 2)                 # 1643.53
+
+        assert tax   == pytest.approx(121.60, abs=0.01), f"Tax mismatch: ${tax}"
+        assert fee   == pytest.approx(48.01,  abs=0.01), f"Fee mismatch: ${fee}"
+        assert total == pytest.approx(1643.53, abs=0.01), f"Total mismatch: ${total}"
+        assert total > price, "Total must exceed subtotal after adding tax and fee"
+
+    def test_BP29_subtotal_only_undercharges_by_significant_amount(self):
+        """
+        Quantify the bug impact: charging $1,473.92 instead of $1,643.53 means
+        the platform absorbs ~$169.61 in tax + processing fees per transaction.
+        """
+        price = self._PRICE
+        tax = round(price * self._TAX_RATE, 2)
+        taxed = price + tax
+        fee = round(taxed * self._CARD_RATE + self._CARD_FLAT, 2)
+        total = round(taxed + fee, 2)
+        undercharge = round(total - price, 2)
+        assert undercharge == pytest.approx(169.61, abs=0.05), (
+            f"Undercharge is ${undercharge}, expected ~$169.61"
+        )

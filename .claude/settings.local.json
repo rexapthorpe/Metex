@@ -108,7 +108,19 @@
       "Bash(python -m pytest tests/ -q --tb=no --timeout=60 2>&1 | tee /tmp/test_result.txt; cat /tmp/test_result.txt | tail -5)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(wait)",
-      "Bash(echo \"EXIT:$?\")"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(echo \"DONE $?\")",
+      "Bash(/Users/rexapthorpe/Desktop/Metex/venv/bin/python -m pytest tests/test_bucket_fees.py tests/test_ledger_phase1_verification.py tests/test_security_p0.py tests/test_payment_audit.py -q --tb=short)",
+      "Bash(echo \"DONE:$?\")",
+      "Bash(echo \"EX=$?\")",
+      "Bash(cp /Users/rexapthorpe/Desktop/Metex/routes/account_routes.py /tmp/account_routes_backup.py)",
+      "Bash(cp /tmp/account_routes_no_analytics.py /Users/rexapthorpe/Desktop/Metex/routes/account_routes.py)",
+      "Bash(tee /tmp/test_results.txt)",
+      "Read(//tmp/**)",
+      "Bash(/Users/rexapthorpe/Desktop/Metex/venv/bin/python -m pytest tests/ -q --tb=line --timeout=120)",
+      "Bash(echo \"EXIT_CODE:$?\")",
+      "Bash(sort -k5 -n)",
+      "Bash(PYTHONPATH=/Users/rexapthorpe/Desktop/Metex python:*)"
     ],
     "deny": [],
     "ask": []

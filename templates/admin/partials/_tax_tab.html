@@ -1,0 +1,157 @@
+<!-- ── Sales Tax Collection & Filing Support Tab ───────────────────────────── -->
+
+<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+  <button class="col-help-btn" onclick="showColInfo('tab-tax')" title="About this tab" style="font-size:16px;padding:4px 6px;display:flex;align-items:center;gap:5px;">
+    <i class="fa-regular fa-circle-question"></i>
+  </button>
+</div>
+
+<!-- Summary Cards -->
+<div class="stats-grid stats-grid-4" style="margin-bottom:20px;">
+  <div class="stat-card stat-card-colored stat-card-blue">
+    <div class="stat-card-header">
+      <span class="stat-label">Tax Collected</span>
+      <div class="stat-icon-inline"><i class="fa-solid fa-landmark"></i></div>
+    </div>
+    <div class="stat-value" id="tax-stat-collected">—</div>
+    <div class="stat-sub">from paid orders</div>
+  </div>
+  <div class="stat-card stat-card-colored stat-card-red">
+    <div class="stat-card-header">
+      <span class="stat-label">Tax Refunded</span>
+      <div class="stat-icon-inline"><i class="fa-solid fa-rotate-left"></i></div>
+    </div>
+    <div class="stat-value" id="tax-stat-refunded">—</div>
+    <div class="stat-sub">full refunds only</div>
+  </div>
+  <div class="stat-card stat-card-colored stat-card-dark">
+    <div class="stat-card-header">
+      <span class="stat-label">Net Tax Liability</span>
+      <div class="stat-icon-inline"><i class="fa-solid fa-scale-balanced"></i></div>
+    </div>
+    <div class="stat-value" id="tax-stat-net">—</div>
+    <div class="stat-sub">collected − refunded</div>
+  </div>
+  <div class="stat-card stat-card-colored stat-card-dark">
+    <div class="stat-card-header">
+      <span class="stat-label">This Month</span>
+      <div class="stat-icon-inline"><i class="fa-solid fa-calendar-day"></i></div>
+    </div>
+    <div class="stat-value" id="tax-stat-month">—</div>
+    <div class="stat-sub" id="tax-stat-orders">— taxable orders total</div>
+  </div>
+</div>
+
+<!-- Toolbar / Filters -->
+<div class="panel-toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+  <div class="search-filter-group" style="flex-wrap:wrap;gap:6px;">
+    <input type="date" id="taxStartDate" class="filter-input" placeholder="From">
+    <input type="date" id="taxEndDate"   class="filter-input" placeholder="To">
+    <input type="text" id="taxState"     class="filter-input" placeholder="State (e.g. CA)" style="width:110px;text-transform:uppercase;">
+    <select id="taxPaymentStatus" class="filter-select">
+      <option value="">All Payment</option>
+      <option value="paid">Paid</option>
+      <option value="unpaid">Unpaid</option>
+    </select>
+    <select id="taxRefundStatus" class="filter-select">
+      <option value="">All Refund Status</option>
+      <option value="not_refunded">Not Refunded</option>
+      <option value="refunded">Refunded</option>
+      <option value="partially_refunded">Partially Refunded</option>
+    </select>
+  </div>
+  <div class="toolbar-actions">
+    <button class="toolbar-btn toolbar-btn-primary" onclick="applyTaxFilters()">
+      <i class="fa-solid fa-filter"></i> Apply
+    </button>
+    <button class="toolbar-btn" onclick="clearTaxFilters()">
+      <i class="fa-solid fa-xmark"></i> Clear
+    </button>
+    <button class="toolbar-btn" onclick="exportTaxCSV()" title="Download filing-ready CSV">
+      <i class="fa-solid fa-file-csv"></i> Export CSV
+    </button>
+  </div>
+</div>
+
+<!-- Order-level Tax Records -->
+<div class="section-header" style="margin-bottom:10px;">
+  <h3>Order-Level Tax Records</h3>
+  <p style="font-size:12px;color:#6b7280;margin:0;">
+    Only orders where tax was collected (tax_amount &gt; 0). Tax is stored at checkout —
+    amounts shown here are the authoritative values from <code>orders.tax_amount</code>.
+  </p>
+</div>
+
+<div class="data-table-container" style="overflow-x:auto;">
+  <table class="data-table" style="font-size:12px;min-width:1100px;">
+    <thead>
+      <tr>
+        <th>Order</th>
+        <th>Date</th>
+        <th>Buyer</th>
+        <th>State</th>
+        <th>Postal</th>
+        <th>Taxable Subtotal</th>
+        <th>Tax Amount</th>
+        <th>Tax Rate</th>
+        <th>Payment</th>
+        <th>Refund Status</th>
+        <th>Tax Refunded</th>
+        <th>Net Tax</th>
+        <th>Stripe PI</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="taxTableBody">
+      <tr><td colspan="14" style="text-align:center;color:#6b7280;padding:40px;">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading…
+      </td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+<div class="pagination-controls" style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+  <button class="toolbar-btn" id="taxPrevBtn" onclick="taxPrevPage()" disabled>&#8592; Prev</button>
+  <span id="taxPageInfo" style="font-size:13px;color:#6b7280;">Page 1</span>
+  <button class="toolbar-btn" id="taxNextBtn" onclick="taxNextPage()">Next &#8594;</button>
+</div>
+
+<!-- Jurisdiction Summary Section -->
+<div class="section-header" style="margin-top:32px;margin-bottom:10px;">
+  <h3>Jurisdiction Summary</h3>
+  <p style="font-size:12px;color:#6b7280;margin:0;">
+    Tax aggregated by state for the filtered date range. Use this for filing jurisdiction
+    identification and to give to your accountant.
+  </p>
+</div>
+
+<div class="data-table-container" style="overflow-x:auto;">
+  <table class="data-table" style="font-size:12px;min-width:700px;">
+    <thead>
+      <tr>
+        <th>State / Jurisdiction</th>
+        <th>Country</th>
+        <th>Orders</th>
+        <th>Taxable Subtotal</th>
+        <th>Tax Collected</th>
+        <th>Tax Refunded</th>
+        <th>Net Tax Liability</th>
+      </tr>
+    </thead>
+    <tbody id="taxJurisdictionBody">
+      <tr><td colspan="7" style="text-align:center;color:#6b7280;padding:40px;">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading…
+      </td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Refund Notice -->
+<div style="margin-top:20px;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;
+            border-radius:8px;font-size:12px;color:#78350f;line-height:1.6;">
+  <strong><i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i>Refund Note:</strong>
+  Tax Refunded is computed only for <em>full</em> refunds (refund_amount ≈ total_price).
+  For partial refunds, refunded_tax is shown as $0.00 because the per-line tax split
+  is not yet stored. Partial-refund tax attribution will be added in a future release.
+</div>

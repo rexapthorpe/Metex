@@ -583,6 +583,10 @@ def send_feedback():
 
     data = request.form if request.form else request.get_json() or {}
     message_text = data.get('message_text', '').strip()[:4000]
+    feedback_type = data.get('feedback_type', '').strip().lower() or None
+    _valid_types = {'issue', 'improvement', 'praise', 'other'}
+    if feedback_type not in _valid_types:
+        feedback_type = None
 
     if not message_text:
         return jsonify({'error': 'Message cannot be empty'}), 400
@@ -594,9 +598,9 @@ def send_feedback():
             return jsonify({'error': 'No admin available'}), 404
 
         conn.execute("""
-            INSERT INTO messages (order_id, sender_id, receiver_id, content, message_type)
-            VALUES (0, ?, ?, ?, 'feedback')
-        """, (user_id, actual_admin_id, message_text))
+            INSERT INTO messages (order_id, sender_id, receiver_id, content, message_type, feedback_type)
+            VALUES (0, ?, ?, ?, 'feedback', ?)
+        """, (user_id, actual_admin_id, message_text, feedback_type))
         conn.commit()
 
         return jsonify({'status': 'sent'})

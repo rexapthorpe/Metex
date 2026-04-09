@@ -1,3 +1,37 @@
+<!-- Email Templates Modal -->
+<div class="admin-modal-overlay" id="emailTemplatesModal" style="display:none;">
+  <div class="admin-modal" style="background:#ffffff;width:720px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;">
+    <div class="admin-modal-header" style="flex-shrink:0;display:flex;align-items:center;gap:12px;">
+      <h2 style="flex:1;margin:0;font-size:16px;display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-envelope"></i>
+        <span id="emailTemplateLabel">Email Templates</span>
+      </h2>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button id="emailTemplatePrev"
+                onclick="emailTemplatePrev()"
+                title="Previous template"
+                style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <span id="emailTemplateCounter" style="font-size:13px;color:#6b7280;min-width:44px;text-align:center;"></span>
+        <button id="emailTemplateNext"
+                onclick="emailTemplateNext()"
+                title="Next template"
+                style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+      <button class="admin-modal-close" onclick="closeEmailTemplatesModal()" style="margin-left:4px;">&times;</button>
+    </div>
+    <div style="flex:1;overflow:hidden;background:#e5e7eb;padding:8px;">
+      <iframe id="emailTemplateFrame"
+              srcdoc=""
+              style="width:100%;height:100%;min-height:560px;border:none;border-radius:4px;background:#ffffff;"
+              sandbox="allow-same-origin"></iframe>
+    </div>
+  </div>
+</div>
+
 <!-- Listing Detail / Pricing Modal -->
 <div class="admin-modal-overlay" id="listingDetailModal" style="display:none;">
   <div class="admin-modal admin-modal-lg" style="background:#ffffff; max-height:90vh; overflow-y:auto;">
@@ -164,6 +198,20 @@
   </div>
 </div>
 
+<!-- Inline Refund Modal (triggered from Ledger tab row) -->
+<div class="admin-modal-overlay" id="inlineRefundModal" style="display:none;"
+     onclick="if(event.target===this)closeInlineRefundModal()">
+  <div class="admin-modal admin-modal-md" style="background:#ffffff;">
+    <div class="admin-modal-header">
+      <h2><i class="fa-solid fa-rotate-left"></i> Issue Refund</h2>
+      <button class="admin-modal-close" onclick="closeInlineRefundModal()">&times;</button>
+    </div>
+    <div class="admin-modal-body" id="inlineRefundModalBody">
+      <!-- populated by ledger-tab.js refundBuyer() -->
+    </div>
+  </div>
+</div>
+
 <!-- Ledger Order Detail Modal -->
 <div class="admin-modal-overlay" id="ledgerOrderModal" style="display: none;">
   <div class="admin-modal admin-modal-xl" style="background: #ffffff; min-height: 400px; max-height: 90vh; overflow-y: auto;">
@@ -233,7 +281,7 @@
                   <i class="fa-solid fa-receipt"></i>
                   <div class="option-info">
                     <span class="option-label">Orders</span>
-                    <span class="option-desc">All orders & items</span>
+                    <span class="option-desc">Orders, ledger, payouts, tracking, disputes & refunds</span>
                   </div>
                 </div>
               </label>

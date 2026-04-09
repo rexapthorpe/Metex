@@ -2,6 +2,98 @@
    Admin Ledger Dashboard Styles
    =========================================== */
 
+/* ===========================================
+   Modal Overlay (needed on standalone detail page)
+   =========================================== */
+
+.admin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.admin-modal-overlay .admin-modal {
+  background: #ffffff !important;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 560px;
+  min-width: 320px;
+  min-height: 200px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex !important;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 1;
+}
+
+.admin-modal-sm { max-width: 420px; }
+.admin-modal-md { max-width: 560px; }
+.admin-modal-lg { max-width: 720px; }
+.admin-modal-xl { max-width: 960px; }
+
+.admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.admin-modal-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-modal-header h2 i { color: #6b7280; }
+
+.admin-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  font-size: 18px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.modal-close-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
 /* General Layout */
 .ledger-dashboard,
 .ledger-order-detail {

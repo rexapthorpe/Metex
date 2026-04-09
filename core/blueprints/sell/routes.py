@@ -113,6 +113,16 @@ def sell():
 
     options = get_dropdown_options()
 
+    # Check seller Stripe onboarding status
+    seller_stripe_ready = False
+    with get_db_connection() as conn:
+        user_row = conn.execute(
+            'SELECT stripe_charges_enabled, stripe_payouts_enabled FROM users WHERE id = ?',
+            (session['user_id'],)
+        ).fetchone()
+        if user_row:
+            seller_stripe_ready = bool(user_row['stripe_charges_enabled']) and bool(user_row['stripe_payouts_enabled'])
+
     return render_template(
         'sell.html',
         metals=options['metals'],
@@ -128,7 +138,8 @@ def sell():
         condition_categories=options['condition_categories'],
         series_variants=options['series_variants'],
         prefill=edit_prefill if edit_prefill is not None else prefill,
-        edit_listing_id=edit_listing_id
+        edit_listing_id=edit_listing_id,
+        seller_stripe_ready=seller_stripe_ready
     )
 
 

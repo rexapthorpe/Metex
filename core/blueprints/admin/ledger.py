@@ -109,7 +109,7 @@ def ledger_order_detail(order_id):
 
     # Fetch refund info + payout delay info from the orders / tracking tables
     from database import get_db_connection as _get_db
-    from services.ledger_constants import PAYOUT_DELAY_DAYS_CARD, PAYOUT_DELAY_DAYS_ACH
+    from services.system_settings_service import get_auto_payout_delay_minutes
     _conn = _get_db()
     try:
         _row = _conn.execute(
@@ -117,45 +117,69 @@ def ledger_order_detail(order_id):
                       refunded_at, refund_reason, requires_payout_recovery,
                       stripe_payment_intent_id, payment_method_type,
                       requires_payment_clearance, payment_cleared_at,
-                      payment_cleared_by_admin_id
+                      payment_cleared_by_admin_id,
+                      COALESCE(buyer_card_fee, 0)          AS buyer_card_fee,
+                      COALESCE(tax_amount, 0)              AS tax_amount,
+                      COALESCE(total_price, 0)             AS total_price,
+                      COALESCE(refund_subtotal, 0)         AS refund_subtotal,
+                      COALESCE(refund_tax_amount, 0)       AS refund_tax_amount,
+                      COALESCE(refund_processing_fee, 0)   AS refund_processing_fee,
+                      COALESCE(platform_covered_amount, 0) AS platform_covered_amount
                FROM orders WHERE id = ?''',
             (order_id,)
         ).fetchone()
         refund_info = dict(_row) if _row else {}
         order_payment_method = (refund_info.get('payment_method_type') or '').lower()
 
+        # Read the configured payout delay (matches get_payout_block_reason logic)
+        delay_minutes = get_auto_payout_delay_minutes()
+
+        # Build a human-readable label for the delay (e.g. "24h", "2d", "30m")
+        if delay_minutes < 60:
+            delay_label = f"{delay_minutes}m"
+        elif delay_minutes % (24 * 60) == 0:
+            delay_label = f"{delay_minutes // (24 * 60)}d"
+        elif delay_minutes % 60 == 0:
+            delay_label = f"{delay_minutes // 60}h"
+        else:
+            delay_label = f"{delay_minutes // 60}h {delay_minutes % 60}m"
+
         # Compute per-payout delay window info for admin display
         payout_delay_info = {}
         for payout in ledger_data['payouts']:
             pid = payout['id']
             seller_id = payout['seller_id']
-            delay_days = PAYOUT_DELAY_DAYS_ACH if 'ach' in order_payment_method else PAYOUT_DELAY_DAYS_CARD
             t_row = _conn.execute(
-                'SELECT updated_at FROM seller_order_tracking WHERE order_id = ? AND seller_id = ?',
+                'SELECT updated_at, delivered_at FROM seller_order_tracking WHERE order_id = ? AND seller_id = ?',
                 (order_id, seller_id)
             ).fetchone()
             tracking_ts_raw = t_row['updated_at'] if t_row else None
-            tracking_at = None
+            delivered_at_raw = t_row['delivered_at'] if t_row else None
+
+            # eligible_at is based on delivered_at + configured delay (matches backend logic)
             eligible_at = None
             eligible_at_str = None
             days_remaining = None
-            if tracking_ts_raw:
+            if delivered_at_raw:
                 try:
-                    ts = str(tracking_ts_raw)
+                    ts = str(delivered_at_raw)
                     if 'T' in ts:
-                        tracking_at = datetime.fromisoformat(
+                        delivered_dt = datetime.fromisoformat(
                             ts.replace('Z', '+00:00')
                         ).replace(tzinfo=None)
                     else:
-                        tracking_at = datetime.strptime(ts[:19], '%Y-%m-%d %H:%M:%S')
-                    eligible_at = tracking_at + timedelta(days=delay_days)
+                        delivered_dt = datetime.strptime(ts[:19], '%Y-%m-%d %H:%M:%S')
+                    eligible_at = delivered_dt + timedelta(minutes=delay_minutes)
                     eligible_at_str = eligible_at.strftime('%Y-%m-%d %H:%M')
                     now = datetime.now()
                     if eligible_at > now:
                         delta = eligible_at - now
-                        days_remaining = delta.days + (1 if delta.seconds > 0 else 0)
+                        # Round up to nearest minute for display
+                        total_mins = delta.days * 1440 + (delta.seconds + 59) // 60
+                        days_remaining = total_mins  # minutes remaining (template shows appropriately)
                 except Exception:
                     pass
+
             # Seller Stripe setup status
             stripe_row = _conn.execute(
                 'SELECT stripe_account_id, stripe_payouts_enabled FROM users WHERE id = ?',
@@ -165,9 +189,10 @@ def ledger_order_detail(order_id):
             seller_payouts_enabled = bool(stripe_row and stripe_row['stripe_payouts_enabled'])
             payout_delay_info[pid] = {
                 'tracking_uploaded_at': str(tracking_ts_raw)[:16] if tracking_ts_raw else None,
+                'delivered_at': str(delivered_at_raw)[:16] if delivered_at_raw else None,
                 'eligible_at_str': eligible_at_str,
-                'delay_days': delay_days,
-                'days_remaining': days_remaining,
+                'delay_label': delay_label,
+                'days_remaining': days_remaining,  # actually minutes_remaining; template uses > 0 check
                 'payment_method_type': order_payment_method or 'card',
                 'seller_has_stripe': seller_has_stripe,
                 'seller_payouts_enabled': seller_payouts_enabled,
@@ -381,6 +406,30 @@ def get_ledger_stats():
 
         # Keep backward-compat key (sum of not-ready + ready)
         stats['pending_payout_total'] = stats['payout_pending_total'] + stats['payout_ready_total']
+
+        # Tax collected: sum of tax_amount for paid orders in the ledger
+        # (tax is a liability held by the platform, not platform revenue)
+        try:
+            r = conn.execute('''
+                SELECT COALESCE(SUM(o.tax_amount), 0) AS total
+                FROM orders o
+                JOIN orders_ledger ol ON o.id = ol.order_id
+                WHERE o.payment_status = 'paid'
+            ''').fetchone()
+            stats['total_tax_collected'] = float(r['total'] or 0)
+        except Exception:
+            stats['total_tax_collected'] = 0.0
+
+        # Spread capture revenue: buyer premium above seller ask (platform revenue beyond the fee)
+        # This is stored on orders_ledger.spread_capture_amount and is non-zero only for bid fills
+        # where the buyer bid price exceeded the seller's listing price.
+        try:
+            r = conn.execute(
+                'SELECT COALESCE(SUM(spread_capture_amount), 0) AS total FROM orders_ledger'
+            ).fetchone()
+            stats['total_spread_revenue'] = float(r['total'] or 0)
+        except Exception:
+            stats['total_spread_revenue'] = 0.0
 
         return jsonify({
             'success': True,

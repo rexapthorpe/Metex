@@ -12,7 +12,6 @@ from services.ledger_constants import (
     OrderStatus, PayoutStatus, ActorType, EventType,
     ORDER_HOLD_BLOCKED_STATUSES, PAYOUT_HOLD_BLOCKED_STATUSES,
     PAYABLE_ORDER_STATUSES,
-    PAYOUT_DELAY_DAYS_CARD, PAYOUT_DELAY_DAYS_ACH,
 )
 from .exceptions import EscrowControlError
 from .order_creation import _log_event_internal
@@ -795,6 +794,7 @@ def release_stripe_transfer(payout_id: int, admin_id: int) -> Dict[str, Any]:
                 ol.order_status,
                 o.requires_payment_clearance,
                 o.payment_method_type,
+                o.stripe_payment_intent_id,
                 u.username AS seller_username,
                 u.stripe_account_id,
                 u.stripe_payouts_enabled
@@ -853,8 +853,35 @@ def release_stripe_transfer(payout_id: int, admin_id: int) -> Dict[str, Any]:
             payout_id, payout['order_id'], payout['seller_id'], payout['seller_net_amount'],
         )
 
-        # Create Stripe transfer to seller's connected account
-        transfer = stripe.Transfer.create(
+        # Resolve the charge ID from the PaymentIntent so we can pin the
+        # transfer to that specific charge via source_transaction.  This avoids
+        # "insufficient available funds" errors caused by Stripe auto-sweeping
+        # the platform balance to the bank before we release the payout.
+        pi_id = payout['stripe_payment_intent_id']
+        source_transaction = None
+        if pi_id:
+            try:
+                pi = stripe.PaymentIntent.retrieve(pi_id)
+                source_transaction = pi.latest_charge  # 'ch_...' string
+                logger.info(
+                    "[Payout] Resolved charge  pi=%s  charge=%s  payout_id=%s",
+                    pi_id, source_transaction, payout_id,
+                )
+            except stripe.error.StripeError as e:
+                logger.warning(
+                    "[Payout] Could not retrieve PaymentIntent %s — "
+                    "proceeding without source_transaction: %s", pi_id, e,
+                )
+        else:
+            logger.warning(
+                "[Payout] No stripe_payment_intent_id on order %s — "
+                "transfer will draw from platform balance", payout['order_id'],
+            )
+
+        # Create Stripe transfer to seller's connected account.
+        # source_transaction pins the funds to the original charge so the
+        # transfer succeeds even if the platform's available balance is $0.
+        transfer_kwargs = dict(
             amount=transfer_amount_cents,
             currency='usd',
             destination=payout['stripe_account_id'],
@@ -864,6 +891,10 @@ def release_stripe_transfer(payout_id: int, admin_id: int) -> Dict[str, Any]:
                 'seller_id': str(payout['seller_id']),
             },
         )
+        if source_transaction:
+            transfer_kwargs['source_transaction'] = source_transaction
+
+        transfer = stripe.Transfer.create(**transfer_kwargs)
 
         logger.info(
             "[Payout] Stripe transfer created  transfer_id=%s  payout_id=%s",
@@ -924,7 +955,7 @@ def release_stripe_transfer(payout_id: int, admin_id: int) -> Dict[str, Any]:
         conn.close()
 
 
-def attempt_payout_recovery(payout_id: int, admin_id: int) -> Dict[str, Any]:
+def attempt_payout_recovery(payout_id: int, admin_id: int, conn=None) -> Dict[str, Any]:
     """
     Admin action: Attempt to recover a seller payout via Stripe Transfer Reversal.
 
@@ -956,7 +987,9 @@ def attempt_payout_recovery(payout_id: int, admin_id: int) -> Dict[str, Any]:
     """
     import stripe
 
-    conn = get_db_connection()
+    _owned_conn_recovery = conn is None
+    if _owned_conn_recovery:
+        conn = get_db_connection()
     try:
         payout = conn.execute('''
             SELECT op.id, op.order_id, op.seller_id, op.payout_status,
@@ -1052,6 +1085,15 @@ def attempt_payout_recovery(payout_id: int, admin_id: int) -> Dict[str, Any]:
                 WHERE id = ?
             ''', (reversal.id, now, payout_id))
 
+            # Reduce platform_covered_amount: if this payout was previously unrecovered,
+            # the platform is no longer covering it.
+            seller_net = float(payout['seller_net_amount'] or 0)
+            conn.execute('''
+                UPDATE orders
+                SET platform_covered_amount = MAX(0, platform_covered_amount - ?)
+                WHERE id = ?
+            ''', (seller_net, order_id))
+
             _log_event_internal(
                 conn, order_id, EventType.PAYOUT_RECOVERY_SUCCEEDED.value,
                 ActorType.ADMIN.value, admin_id,
@@ -1060,10 +1102,12 @@ def attempt_payout_recovery(payout_id: int, admin_id: int) -> Dict[str, Any]:
                     'seller_id': payout['seller_id'],
                     'reversal_id': reversal.id,
                     'transfer_id': transfer_id,
+                    'seller_net_amount': seller_net,
                 }
             )
 
-            conn.commit()
+            if _owned_conn_recovery:
+                conn.commit()
             return {'outcome': 'recovered', 'reversal_id': reversal.id, 'reason': None}
 
         except stripe.error.StripeError as stripe_err:
@@ -1111,68 +1155,102 @@ def attempt_payout_recovery(payout_id: int, admin_id: int) -> Dict[str, Any]:
                 }
             )
 
-            conn.commit()
+            if _owned_conn_recovery:
+                conn.commit()
             return {'outcome': outcome, 'reversal_id': None, 'reason': failure_reason}
 
     except (EscrowControlError, ValueError):
-        conn.rollback()
+        if _owned_conn_recovery:
+            conn.rollback()
         raise
     except Exception:
-        conn.rollback()
+        if _owned_conn_recovery:
+            conn.rollback()
         logger.exception("[Recovery] Unexpected error  payout_id=%s", payout_id)
         raise
     finally:
-        conn.close()
+        if _owned_conn_recovery:
+            conn.close()
 
 
-def refund_buyer_stripe(order_id: int, admin_id: int, reason: str = '') -> Dict[str, Any]:
+def refund_buyer_stripe(
+    order_id: int,
+    admin_id: int,
+    reason: str = '',
+    amount: Optional[float] = None,
+    conn=None,
+) -> Dict[str, Any]:
     """
-    Admin action: Create a full Stripe refund for the buyer's payment.
+    Admin action: Create a Stripe refund (full or partial) for the buyer's payment.
+
+    Args:
+        order_id:  The order to refund.
+        admin_id:  Admin performing the action.
+        reason:    Human-readable reason (stored on order and in Stripe metadata).
+        amount:    Dollar amount to refund.  None → full remaining refundable amount.
+                   Must be > 0 and <= refundable_remaining (total_price - already-refunded).
+        conn:      Optional DB connection (injected in tests).
 
     Preconditions:
-    - orders.stripe_payment_intent_id must be set
-    - orders.payment_status == 'paid'
-    - orders.refund_status == 'not_refunded' (idempotency guard)
+        - orders.stripe_payment_intent_id must be set
+        - orders.payment_status == 'paid'
+        - orders.refund_status != 'refunded'  (fully-refunded orders are terminal)
+        - amount <= refundable_remaining
 
     Multi-seller behavior:
-    - Creates ONE Stripe refund against the full PaymentIntent
-    - For each order_payouts row:
-        - If payout_status == PAID_OUT: payout_recovery_status='pending',
-          orders.requires_payout_recovery=1 (flag for manual recovery)
-        - Else: payout_status=PAYOUT_CANCELLED, payout_recovery_status='not_needed'
+        ONE Stripe refund is created against the full PaymentIntent.
+        Per order_payouts row:
+          - If payout_status == PAID_OUT:
+              → payout_recovery_status = 'pending'
+              → attempt_auto_recovery() is called immediately
+          - Else:
+              → payout_status = PAYOUT_CANCELLED
+              → payout_recovery_status = 'not_needed'
 
-    Effects:
-    - Creates stripe.Refund
-    - Updates orders: refund_status, refund_amount, stripe_refund_id,
-      refunded_at, refund_reason, requires_payout_recovery
-    - Updates orders_ledger.order_status = REFUNDED
-    - Logs REFUND_INITIATED and REFUND_COMPLETED events
+    Financial breakdown (stored per refund):
+        ratio = refund_amount / total_price
+        refund_subtotal       = gross_amount * ratio
+        refund_tax_amount     = tax_amount   * ratio
+        refund_processing_fee = buyer_card_fee * ratio
+        (all rounded to 2 dp, with remainder assigned to subtotal to keep sum exact)
+
+    Platform / spread reversal (stored on orders_ledger):
+        refunded_platform_fee_amount   += platform_fee_amount * ratio
+        refunded_spread_capture_amount += spread_capture_amount * ratio
 
     Returns:
         {
-            'refund_id': str,
-            'amount': float,
-            'requires_payout_recovery': bool,
-            'recovery_pending_payout_ids': List[int],
-            'cancelled_payout_ids': List[int],
+            'refund_id':                  str,
+            'amount':                     float,
+            'refund_subtotal':            float,
+            'refund_tax_amount':          float,
+            'refund_processing_fee':      float,
+            'is_partial':                 bool,
+            'requires_payout_recovery':   bool,
+            'recovery_outcomes':          list[dict],   # per paid-out payout
+            'recovery_pending_payout_ids': list[int],
+            'cancelled_payout_ids':       list[int],
         }
 
     Raises:
-        EscrowControlError: If preconditions fail or Stripe returns an error
-        ValueError: If order not found
+        EscrowControlError: If preconditions fail or Stripe returns an error.
+        ValueError:         If order not found.
     """
     import stripe
 
     if not reason:
         reason = 'Admin refund'
 
-    conn = get_db_connection()
+    _owned_conn = conn is None
+    if _owned_conn:
+        conn = get_db_connection()
     try:
         order = conn.execute('''
-            SELECT id, stripe_payment_intent_id, payment_status, total_price,
-                   refund_status, buyer_id
-            FROM orders
-            WHERE id = ?
+            SELECT o.id, o.stripe_payment_intent_id, o.payment_status, o.total_price,
+                   o.refund_status, o.refund_amount, o.buyer_id,
+                   o.tax_amount, o.buyer_card_fee
+            FROM orders o
+            WHERE o.id = ?
         ''', (order_id,)).fetchone()
 
         if not order:
@@ -1186,43 +1264,83 @@ def refund_buyer_stripe(order_id: int, admin_id: int, reason: str = '') -> Dict[
                 f"Cannot refund: payment_status is '{order['payment_status']}', must be 'paid'"
             )
 
-        refund_status = order['refund_status'] or 'not_refunded'
-        if refund_status in ('refunded', 'partially_refunded'):
+        current_refund_status = order['refund_status'] or 'not_refunded'
+        if current_refund_status == 'refunded':
             raise EscrowControlError(
-                f"Order {order_id} is already refunded (refund_status={refund_status!r})"
+                f"Order {order_id} is already fully refunded"
             )
 
+        total_price = float(order['total_price'] or 0)
+        already_refunded = float(order['refund_amount'] or 0)
+        refundable_remaining = round(total_price - already_refunded, 2)
+
+        if refundable_remaining <= 0:
+            raise EscrowControlError(
+                f"Nothing left to refund on order {order_id} "
+                f"(total={total_price:.2f}, already_refunded={already_refunded:.2f})"
+            )
+
+        # Resolve requested refund amount
+        if amount is None:
+            refund_amount = refundable_remaining
+        else:
+            refund_amount = round(float(amount), 2)
+            if refund_amount <= 0:
+                raise EscrowControlError("Refund amount must be positive")
+            if refund_amount > refundable_remaining + 0.005:  # 0.5-cent tolerance for rounding
+                raise EscrowControlError(
+                    f"Refund amount ${refund_amount:.2f} exceeds refundable remaining "
+                    f"${refundable_remaining:.2f}"
+                )
+
+        # is_partial: True only if we're NOT clearing the full remaining balance
+        is_partial = refund_amount < refundable_remaining - 0.005
+
+        # Financial breakdown proportional to refund_amount / total_price
+        ratio = refund_amount / total_price if total_price > 0 else 1.0
+        tax_amount = float(order['tax_amount'] or 0)
+        buyer_card_fee = float(order['buyer_card_fee'] or 0)
+        # Compute gross_amount (subtotal) from ledger
         ledger = conn.execute(
-            'SELECT id, order_status FROM orders_ledger WHERE order_id = ?',
+            'SELECT id, order_status, gross_amount, platform_fee_amount, spread_capture_amount '
+            'FROM orders_ledger WHERE order_id = ?',
             (order_id,)
         ).fetchone()
-
         if not ledger:
             raise ValueError(f"Order {order_id} not found in ledger")
 
+        gross_amount = float(ledger['gross_amount'] or 0)
+        platform_fee = float(ledger['platform_fee_amount'] or 0)
+        spread_capture = float(ledger['spread_capture_amount'] or 0)
+
+        refund_tax = round(tax_amount * ratio, 2)
+        refund_fee = round(buyer_card_fee * ratio, 2)
+        # Assign remainder to subtotal so totals add up exactly
+        refund_subtotal = round(refund_amount - refund_tax - refund_fee, 2)
+
+        platform_fee_reversed = round(platform_fee * ratio, 2)
+        spread_reversed = round(spread_capture * ratio, 2)
+
+        # Payout classification
         payouts = conn.execute(
-            'SELECT id, seller_id, payout_status FROM order_payouts WHERE order_id = ?',
+            'SELECT id, seller_id, payout_status, provider_transfer_id, seller_net_amount '
+            'FROM order_payouts WHERE order_id = ?',
             (order_id,)
         ).fetchall()
 
-        paid_out_payout_ids = [
-            p['id'] for p in payouts
-            if p['payout_status'] == PayoutStatus.PAID_OUT.value
-        ]
-        unpaid_payout_ids = [
-            p['id'] for p in payouts
-            if p['payout_status'] != PayoutStatus.PAID_OUT.value
-        ]
-        requires_recovery = len(paid_out_payout_ids) > 0
+        paid_out_payouts = [p for p in payouts if p['payout_status'] == PayoutStatus.PAID_OUT.value]
+        unpaid_payouts = [p for p in payouts if p['payout_status'] != PayoutStatus.PAID_OUT.value]
+        paid_out_payout_ids = [p['id'] for p in paid_out_payouts]
+        unpaid_payout_ids = [p['id'] for p in unpaid_payouts]
+        requires_recovery = bool(paid_out_payout_ids)
 
-        refund_amount = order['total_price'] or 0
-        if refund_amount <= 0:
-            raise EscrowControlError(f"Refund amount ${refund_amount:.2f} is not positive")
+        refund_amount_cents = int(round(refund_amount * 100))
 
         logger.info(
             "[Refund] Initiating Stripe refund  order_id=%s  admin_id=%s  amount=$%.2f  "
-            "payment_intent=%s  requires_recovery=%s",
-            order_id, admin_id, refund_amount, order['stripe_payment_intent_id'], requires_recovery,
+            "is_partial=%s  payment_intent=%s  requires_recovery=%s",
+            order_id, admin_id, refund_amount, is_partial,
+            order['stripe_payment_intent_id'], requires_recovery,
         )
 
         _log_event_internal(
@@ -1231,48 +1349,72 @@ def refund_buyer_stripe(order_id: int, admin_id: int, reason: str = '') -> Dict[
             {
                 'reason': reason.strip(),
                 'refund_amount': refund_amount,
+                'is_partial': is_partial,
+                'refund_subtotal': refund_subtotal,
+                'refund_tax_amount': refund_tax,
+                'refund_processing_fee': refund_fee,
                 'payment_intent_id': order['stripe_payment_intent_id'],
                 'requires_payout_recovery': requires_recovery,
                 'recovery_pending_payout_ids': paid_out_payout_ids,
             }
         )
 
-        refund = stripe.Refund.create(
+        # ── Stripe Refund ────────────────────────────────────────────────────
+        stripe_kwargs: Dict[str, Any] = dict(
             payment_intent=order['stripe_payment_intent_id'],
             reason='requested_by_customer',
             metadata={
                 'order_id': str(order_id),
                 'admin_id': str(admin_id),
-                'reason': reason[:500],
+                'reason': reason.strip()[:500],
+                'is_partial': str(is_partial),
             },
         )
+        if is_partial:
+            stripe_kwargs['amount'] = refund_amount_cents
+
+        refund = stripe.Refund.create(**stripe_kwargs)
 
         logger.info(
-            "[Refund] Stripe refund created  refund_id=%s  order_id=%s",
-            refund.id, order_id,
+            "[Refund] Stripe refund created  refund_id=%s  order_id=%s  amount_cents=%s",
+            refund.id, order_id, refund_amount_cents,
         )
 
         now = datetime.utcnow().isoformat()
 
+        # ── DB Updates ───────────────────────────────────────────────────────
+        new_total_refunded = round(already_refunded + refund_amount, 2)
+        new_refund_status = (
+            'refunded' if new_total_refunded >= total_price - 0.005
+            else 'partially_refunded'
+        )
+
         conn.execute('''
             UPDATE orders
-            SET refund_status = 'refunded',
-                refund_amount = ?,
-                stripe_refund_id = ?,
-                refunded_at = ?,
-                refund_reason = ?,
+            SET refund_status          = ?,
+                refund_amount          = ?,
+                refund_subtotal        = refund_subtotal + ?,
+                refund_tax_amount      = refund_tax_amount + ?,
+                refund_processing_fee  = refund_processing_fee + ?,
+                stripe_refund_id       = ?,
+                refunded_at            = ?,
+                refund_reason          = ?,
                 requires_payout_recovery = ?
             WHERE id = ?
-        ''', (refund_amount, refund.id, now, reason.strip(), 1 if requires_recovery else 0, order_id))
+        ''', (
+            new_refund_status,
+            new_total_refunded,
+            refund_subtotal,
+            refund_tax,
+            refund_fee,
+            refund.id,
+            now,
+            reason.strip(),
+            1 if requires_recovery else 0,
+            order_id,
+        ))
 
-        if paid_out_payout_ids:
-            placeholders = ','.join(['?'] * len(paid_out_payout_ids))
-            conn.execute(f'''
-                UPDATE order_payouts
-                SET payout_recovery_status = 'pending', updated_at = CURRENT_TIMESTAMP
-                WHERE id IN ({placeholders})
-            ''', paid_out_payout_ids)
-
+        # Cancel unpaid payouts
         if unpaid_payout_ids:
             placeholders = ','.join(['?'] * len(unpaid_payout_ids))
             conn.execute(f'''
@@ -1283,11 +1425,25 @@ def refund_buyer_stripe(order_id: int, admin_id: int, reason: str = '') -> Dict[
                 WHERE id IN ({placeholders})
             ''', [PayoutStatus.PAYOUT_CANCELLED.value] + unpaid_payout_ids)
 
+        # Flag paid-out payouts for recovery
+        if paid_out_payout_ids:
+            placeholders = ','.join(['?'] * len(paid_out_payout_ids))
+            conn.execute(f'''
+                UPDATE order_payouts
+                SET payout_recovery_status = 'pending',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id IN ({placeholders})
+            ''', paid_out_payout_ids)
+
+        # Reverse platform fee and spread on ledger
         conn.execute('''
             UPDATE orders_ledger
-            SET order_status = ?, updated_at = CURRENT_TIMESTAMP
+            SET order_status                    = ?,
+                refunded_platform_fee_amount    = refunded_platform_fee_amount + ?,
+                refunded_spread_capture_amount  = refunded_spread_capture_amount + ?,
+                updated_at                      = CURRENT_TIMESTAMP
             WHERE order_id = ?
-        ''', (OrderStatus.REFUNDED.value, order_id))
+        ''', (OrderStatus.REFUNDED.value, platform_fee_reversed, spread_reversed, order_id))
 
         _log_event_internal(
             conn, order_id, EventType.REFUND_COMPLETED.value,
@@ -1295,6 +1451,12 @@ def refund_buyer_stripe(order_id: int, admin_id: int, reason: str = '') -> Dict[
             {
                 'refund_id': refund.id,
                 'refund_amount': refund_amount,
+                'is_partial': is_partial,
+                'refund_subtotal': refund_subtotal,
+                'refund_tax_amount': refund_tax,
+                'refund_processing_fee': refund_fee,
+                'platform_fee_reversed': platform_fee_reversed,
+                'spread_reversed': spread_reversed,
                 'reason': reason.strip(),
                 'requires_payout_recovery': requires_recovery,
                 'recovery_pending_payout_ids': paid_out_payout_ids,
@@ -1302,34 +1464,119 @@ def refund_buyer_stripe(order_id: int, admin_id: int, reason: str = '') -> Dict[
             }
         )
 
+        # Write an audit record to the refunds table so the admin Refunds tab
+        # can display all refunds regardless of whether they originated from a
+        # dispute or a direct ledger action.  dispute_id is NULL for direct refunds.
+        # Use single seller_id when the order has exactly one seller; NULL for multi-seller.
+        unique_seller_ids = list({p['seller_id'] for p in payouts})
+        refund_seller_id = unique_seller_ids[0] if len(unique_seller_ids) == 1 else None
+        conn.execute(
+            '''INSERT INTO refunds
+                   (dispute_id, order_id, order_item_id, buyer_id, seller_id,
+                    amount, provider_refund_id, issued_by_admin_id, issued_at, note)
+               VALUES (NULL, ?, NULL, ?, ?, ?, ?, ?, ?, ?)''',
+            (
+                order_id,
+                order['buyer_id'],
+                refund_seller_id,
+                refund_amount,
+                refund.id,
+                admin_id,
+                now,
+                reason.strip(),
+            ),
+        )
+
+        conn.commit()
+
+        # ── Attempt automatic recovery for paid-out payouts ──────────────────
+        # IMPORTANT: attempt_payout_recovery() opens its own connection.
+        # We commit DB state first so that function sees the updated recovery flags.
+        recovery_outcomes: List[Dict[str, Any]] = []
+        still_pending_ids: List[int] = []
+        # Map payout_id → seller_net_amount for coverage calculation
+        paid_out_net_by_id = {p['id']: float(p['seller_net_amount'] or 0) for p in paid_out_payouts}
+
+        for payout in paid_out_payouts:
+            pid = payout['id']
+            try:
+                outcome = attempt_payout_recovery(pid, admin_id, conn=conn)
+                recovery_outcomes.append({
+                    'payout_id': pid,
+                    'seller_net_amount': paid_out_net_by_id[pid],
+                    'outcome': outcome['outcome'],
+                    'reversal_id': outcome.get('reversal_id'),
+                    'reason': outcome.get('reason'),
+                })
+                if outcome['outcome'] != 'recovered':
+                    still_pending_ids.append(pid)
+            except Exception as exc:
+                logger.warning(
+                    "[Refund] Auto-recovery failed for payout %s: %s", pid, exc
+                )
+                recovery_outcomes.append({
+                    'payout_id': pid,
+                    'seller_net_amount': paid_out_net_by_id[pid],
+                    'outcome': 'failed',
+                    'reversal_id': None,
+                    'reason': str(exc),
+                })
+                still_pending_ids.append(pid)
+
+        final_requires_recovery = bool(still_pending_ids)
+
+        # Platform coverage = seller net amounts that Metex must absorb (recovery not succeeded)
+        platform_covered = round(sum(
+            paid_out_net_by_id[pid] for pid in still_pending_ids
+        ), 2)
+
+        # Always commit after recovery loop — payout status updates (recovered/failed)
+        # are made on the shared conn without committing inside attempt_payout_recovery.
+        if platform_covered > 0:
+            conn.execute(
+                'UPDATE orders SET platform_covered_amount = platform_covered_amount + ? WHERE id = ?',
+                (platform_covered, order_id)
+            )
         conn.commit()
 
         logger.info(
-            "[Refund] Complete  order_id=%s  refund_id=%s  requires_recovery=%s",
-            order_id, refund.id, requires_recovery,
+            "[Refund] Complete  order_id=%s  refund_id=%s  is_partial=%s  "
+            "requires_recovery=%s  platform_covered=%.2f  recovery_outcomes=%s",
+            order_id, refund.id, is_partial, final_requires_recovery,
+            platform_covered, recovery_outcomes,
         )
 
         return {
             'refund_id': refund.id,
             'amount': refund_amount,
-            'requires_payout_recovery': requires_recovery,
-            'recovery_pending_payout_ids': paid_out_payout_ids,
+            'refund_subtotal': refund_subtotal,
+            'refund_tax_amount': refund_tax,
+            'refund_processing_fee': refund_fee,
+            'is_partial': is_partial,
+            'requires_payout_recovery': final_requires_recovery,
+            'recovery_outcomes': recovery_outcomes,
+            'recovery_pending_payout_ids': still_pending_ids,
             'cancelled_payout_ids': unpaid_payout_ids,
+            'platform_covered_amount': platform_covered,
         }
 
     except stripe.error.StripeError as e:
-        conn.rollback()
+        if _owned_conn:
+            conn.rollback()
         logger.error("[Refund] Stripe error  order_id=%s: %s", order_id, e)
         raise EscrowControlError(f"Stripe refund failed: {getattr(e, 'user_message', None) or str(e)}")
     except (EscrowControlError, ValueError):
-        conn.rollback()
+        if _owned_conn:
+            conn.rollback()
         raise
     except Exception:
-        conn.rollback()
+        if _owned_conn:
+            conn.rollback()
         logger.exception("[Refund] Unexpected error  order_id=%s", order_id)
         raise
     finally:
-        conn.close()
+        if _owned_conn:
+            conn.close()
 
 
 def mark_ach_cleared(order_id: int, admin_id: int) -> Dict[str, Any]:
@@ -1447,14 +1694,14 @@ def get_payout_block_reason(payout_id: int, conn=None) -> Optional[str]:
     9. Seller Stripe account missing
     10. Seller Stripe payouts not enabled
     11. Seller has not uploaded shipping tracking
-    12. Payout delay window not yet elapsed after tracking upload
+    12. Shipment not yet confirmed delivered (delivered_at is null)
+    13. Delivery hold period not yet elapsed (delivered_at + configured hours)
 
     Fulfillment signal: seller_order_tracking(order_id, seller_id, tracking_number).
     A non-null, non-empty tracking_number means the seller has shipped their portion.
 
-    Delay window: PAYOUT_DELAY_DAYS_CARD (card) or PAYOUT_DELAY_DAYS_ACH (ACH/bank)
-    days must elapse after seller_order_tracking.updated_at before payout is eligible.
-    This uses the existing updated_at column — no new column is required.
+    Delivery signal: seller_order_tracking.delivered_at — set by admin action.
+    Delay: auto_payout_delay_after_delivery_hours system setting (default 24 h).
 
     Args:
         payout_id: The order_payouts.id to evaluate.
@@ -1485,7 +1732,8 @@ def get_payout_block_reason(payout_id: int, conn=None) -> Optional[str]:
                 u.stripe_payouts_enabled,
                 u.username AS seller_username,
                 sot.tracking_number AS seller_tracking_number,
-                sot.updated_at AS tracking_uploaded_at
+                sot.updated_at AS tracking_uploaded_at,
+                sot.delivered_at AS delivered_at
             FROM order_payouts p
             JOIN orders_ledger ol ON p.order_ledger_id = ol.id
             JOIN orders o ON p.order_id = o.id
@@ -1546,34 +1794,34 @@ def get_payout_block_reason(payout_id: int, conn=None) -> Optional[str]:
         if not tracking or not tracking.strip():
             return 'Seller has not uploaded shipping tracking'
 
-        # Payout delay: enforce time window after tracking upload.
-        # Uses seller_order_tracking.updated_at (set on every upload/re-upload).
-        # Delay is payment-method-dependent: ACH carries higher chargeback risk.
-        tracking_uploaded_at_str = payout['tracking_uploaded_at']
-        payment_method = (payout['payment_method_type'] or '').lower()
-        delay_days = PAYOUT_DELAY_DAYS_ACH if 'ach' in payment_method else PAYOUT_DELAY_DAYS_CARD
-        if tracking_uploaded_at_str:
-            try:
-                ts = str(tracking_uploaded_at_str)
-                if 'T' in ts:
-                    tracking_at = datetime.fromisoformat(
-                        ts.replace('Z', '+00:00')
-                    ).replace(tzinfo=None)
-                else:
-                    tracking_at = datetime.strptime(ts[:19], '%Y-%m-%d %H:%M:%S')
-                eligible_at = tracking_at + timedelta(days=delay_days)
-                now = datetime.now()
-                if now < eligible_at:
-                    logger.info(
-                        "[Readiness] Payout %s blocked by delay window — "
-                        "tracking_uploaded_at=%s  eligible_at=%s  delay_days=%d  "
-                        "payment_method=%s",
-                        payout_id, tracking_at.isoformat(),
-                        eligible_at.isoformat(), delay_days, payment_method or 'card',
-                    )
-                    return 'Payout delay window not yet satisfied'
-            except Exception:
-                pass  # Timestamp parse failure — do not block on delay
+        # Delivery confirmation: admin must mark the shipment as delivered.
+        delivered_at_str = payout['delivered_at']
+        if not delivered_at_str:
+            return 'Shipment not yet confirmed delivered'
+
+        # Delivery hold: configured delay must elapse after delivery.
+        from services.system_settings_service import get_auto_payout_delay_minutes
+        delay_minutes = get_auto_payout_delay_minutes()
+        try:
+            ts = str(delivered_at_str)
+            if 'T' in ts:
+                delivered_at = datetime.fromisoformat(
+                    ts.replace('Z', '+00:00')
+                ).replace(tzinfo=None)
+            else:
+                delivered_at = datetime.strptime(ts[:19], '%Y-%m-%d %H:%M:%S')
+            eligible_at = delivered_at + timedelta(minutes=delay_minutes)
+            now = datetime.now()
+            if now < eligible_at:
+                logger.info(
+                    "[Readiness] Payout %s blocked by delivery hold — "
+                    "delivered_at=%s  eligible_at=%s  delay_minutes=%d",
+                    payout_id, delivered_at.isoformat(),
+                    eligible_at.isoformat(), delay_minutes,
+                )
+                return 'Delivery hold period not yet elapsed'
+        except Exception:
+            pass  # Timestamp parse failure — do not block on delay
 
         # All checks passed — no block
         return None

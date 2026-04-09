@@ -76,6 +76,13 @@ IMAGE_MAGIC_BYTES = {
     b'RIFF': 'webp',  # WebP starts with RIFF....WEBP
 }
 
+# Allowed document types (non-image)
+ALLOWED_DOCUMENT_TYPES = {
+    'application/pdf': ['.pdf'],
+}
+
+PDF_MAGIC = b'%PDF-'
+
 
 def get_image_type_from_content(file_content: bytes) -> Optional[str]:
     """
@@ -277,8 +284,21 @@ def validate_upload(
             result['error'] = f"File extension ({ext}) doesn't match content type ({detected_type})"
             return result
     else:
-        # Could not detect type - reject for safety
-        result['error'] = "Could not verify file type. Only images are allowed."
+        # Not a recognised image — check if it's an allowed document type (e.g. PDF)
+        if content.startswith(PDF_MAGIC):
+            detected_mime = 'application/pdf'
+            result['detected_type'] = detected_mime
+            if detected_mime not in (allowed_types or []):
+                result['error'] = "File type not allowed: application/pdf"
+                return result
+            allowed_exts = ALLOWED_DOCUMENT_TYPES.get(detected_mime, [])
+            if ext and ext not in allowed_exts:
+                result['error'] = f"File extension ({ext}) doesn't match content type (pdf)"
+                return result
+            result['valid'] = True
+            return result
+
+        result['error'] = "Could not verify file type. Allowed types: images (PNG/JPEG/WebP/HEIC) and PDF."
         return result
 
     # Validate actual image content (decode test)
@@ -441,9 +461,10 @@ def save_secure_upload(
     content = file.read()
     file.seek(0)
 
-    # Strip metadata if requested
-    if strip_metadata:
-        detected_type = validation.get('detected_type', 'image/jpeg')
+    # Strip metadata if requested (images only — skip for documents like PDF)
+    detected_type = validation.get('detected_type', '')
+    is_image_type = detected_type.startswith('image/')
+    if strip_metadata and is_image_type:
         format_map = {
             'image/jpeg': 'JPEG',
             'image/png': 'PNG',

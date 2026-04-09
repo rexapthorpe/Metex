@@ -79,9 +79,81 @@ function openSettings() {
   alert('Settings panel would open here.');
 }
 
-// System Settings Actions
+// ── Email Templates Modal ──────────────────────────────────────────────────────
+
+var _emailTemplates = [];
+var _emailTemplateIdx = 0;
+
 function openEmailTemplates() {
-  alert('Email Templates management would open here.');
+  var modal = document.getElementById('emailTemplatesModal');
+  if (!modal) return;
+
+  _emailTemplates = [];
+  _emailTemplateIdx = 0;
+
+  var frame   = document.getElementById('emailTemplateFrame');
+  var label   = document.getElementById('emailTemplateLabel');
+  var counter = document.getElementById('emailTemplateCounter');
+  var prev    = document.getElementById('emailTemplatePrev');
+  var next    = document.getElementById('emailTemplateNext');
+
+  if (frame)   frame.srcdoc = '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#6b7280"><i class="fa-solid fa-spinner fa-spin fa-lg"></i><br><br>Loading templates...</div>';
+  if (label)   label.textContent = 'Email Templates';
+  if (counter) counter.textContent = '';
+  if (prev)    prev.disabled = true;
+  if (next)    next.disabled = true;
+
+  modal.style.display = 'flex';
+
+  fetch('/admin/api/email-templates')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success || !data.templates || !data.templates.length) {
+        if (frame) frame.srcdoc = '<p style="color:#ef4444;padding:20px">No templates found.</p>';
+        return;
+      }
+      _emailTemplates = data.templates;
+      _emailTemplateIdx = 0;
+      _renderEmailTemplate();
+    })
+    .catch(function(err) {
+      if (frame) frame.srcdoc = '<p style="color:#ef4444;padding:20px">Failed to load templates: ' + String(err) + '</p>';
+    });
+}
+
+function _renderEmailTemplate() {
+  var t = _emailTemplates[_emailTemplateIdx];
+  if (!t) return;
+  var frame   = document.getElementById('emailTemplateFrame');
+  var label   = document.getElementById('emailTemplateLabel');
+  var counter = document.getElementById('emailTemplateCounter');
+  var prev    = document.getElementById('emailTemplatePrev');
+  var next    = document.getElementById('emailTemplateNext');
+
+  if (label)   label.textContent = t.label;
+  if (counter) counter.textContent = (_emailTemplateIdx + 1) + ' of ' + _emailTemplates.length;
+  if (frame)   frame.srcdoc = t.html;
+  if (prev)    prev.disabled = _emailTemplateIdx === 0;
+  if (next)    next.disabled = _emailTemplateIdx === _emailTemplates.length - 1;
+}
+
+function emailTemplatePrev() {
+  if (_emailTemplateIdx > 0) {
+    _emailTemplateIdx--;
+    _renderEmailTemplate();
+  }
+}
+
+function emailTemplateNext() {
+  if (_emailTemplateIdx < _emailTemplates.length - 1) {
+    _emailTemplateIdx++;
+    _renderEmailTemplate();
+  }
+}
+
+function closeEmailTemplatesModal() {
+  var modal = document.getElementById('emailTemplatesModal');
+  if (modal) modal.style.display = 'none';
 }
 
 function openSecuritySettings() {

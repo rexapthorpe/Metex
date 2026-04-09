@@ -118,7 +118,7 @@ def admin_list_refunds():
 @admin_bp.route('/api/refunds/<int:refund_id>')
 @admin_required
 def admin_get_refund(refund_id):
-    """Return a single refund with linked dispute and order metadata."""
+    """Return a single refund with breakdown, recovery details, and linked dispute/order."""
     try:
         conn = _get_conn()
         row = conn.execute(
@@ -133,7 +133,15 @@ def admin_get_refund(refund_id):
                 d.description     AS dispute_description,
                 o.total_price     AS order_total,
                 o.status          AS order_status,
-                o.stripe_payment_intent_id
+                o.stripe_payment_intent_id,
+                o.refund_status,
+                o.refund_subtotal,
+                o.refund_tax_amount,
+                o.refund_processing_fee,
+                o.platform_covered_amount,
+                o.refund_reason,
+                o.refunded_at,
+                o.stripe_refund_id
             FROM refunds r
             LEFT JOIN users buyer_u  ON r.buyer_id           = buyer_u.id
             LEFT JOIN users seller_u ON r.seller_id          = seller_u.id
@@ -144,12 +152,34 @@ def admin_get_refund(refund_id):
             ''',
             (refund_id,),
         ).fetchone()
-        conn.close()
 
         if not row:
+            conn.close()
             return jsonify({'success': False, 'error': 'Refund not found.'}), 404
 
-        return jsonify({'success': True, 'refund': dict(row)})
+        refund = dict(row)
+
+        # Fetch per-seller payout recovery details for this order
+        if refund.get('order_id'):
+            payout_rows = conn.execute(
+                '''
+                SELECT op.id, op.seller_id, op.payout_status, op.payout_recovery_status,
+                       op.provider_transfer_id, op.provider_reversal_id,
+                       op.seller_net_amount, op.recovery_failure_reason,
+                       u.username AS seller_username
+                FROM order_payouts op
+                LEFT JOIN users u ON op.seller_id = u.id
+                WHERE op.order_id = ?
+                ORDER BY op.id
+                ''',
+                (refund['order_id'],),
+            ).fetchall()
+            refund['payouts'] = [dict(p) for p in payout_rows]
+        else:
+            refund['payouts'] = []
+
+        conn.close()
+        return jsonify({'success': True, 'refund': refund})
 
     except Exception as exc:
         print(f'[Admin Refunds] detail error for {refund_id}: {exc}')

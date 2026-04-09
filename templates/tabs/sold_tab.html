@@ -6,9 +6,9 @@
 
   <!-- Summary Stats -->
   <div class="sold-summary-grid">
-    <div class="sold-summary-card">
+    <div class="sold-summary-card sold-summary-card--clickable" onclick="openSoldAnalytics('gross')" title="View sales over time">
       <div class="sold-summary-card-top">
-        <span class="sold-summary-label">TOTAL GROSS SALES</span>
+        <span class="sold-summary-label">TOTAL GROSS SALES <i class="fa-solid fa-chart-line sold-summary-caret"></i></span>
         <div class="sold-summary-icon sold-summary-icon--blue">
           <i class="fa-solid fa-wallet"></i>
         </div>
@@ -16,9 +16,9 @@
       <div class="sold-summary-value">${{ '{:,.2f}'.format(sold_summary.total_gross) }}</div>
       <div class="sold-summary-sub">All completed sale revenue</div>
     </div>
-    <div class="sold-summary-card">
+    <div class="sold-summary-card sold-summary-card--clickable" onclick="openSoldAnalytics('net')" title="View net proceeds over time">
       <div class="sold-summary-card-top">
-        <span class="sold-summary-label">NET PROCEEDS</span>
+        <span class="sold-summary-label">NET PROCEEDS <i class="fa-solid fa-chart-line sold-summary-caret"></i></span>
         <div class="sold-summary-icon sold-summary-icon--green">
           <i class="fa-solid fa-arrow-trend-up"></i>
         </div>
@@ -26,9 +26,9 @@
       <div class="sold-summary-value sold-summary-value--green">${{ '{:,.2f}'.format(sold_summary.net_proceeds) }}</div>
       <div class="sold-summary-sub">After fees &amp; spreads</div>
     </div>
-    <div class="sold-summary-card">
+    <div class="sold-summary-card sold-summary-card--clickable" onclick="openSoldAnalytics('pending')" title="View pending payouts over time">
       <div class="sold-summary-card-top">
-        <span class="sold-summary-label">PENDING PAYOUTS</span>
+        <span class="sold-summary-label">PENDING PAYOUTS <i class="fa-solid fa-chart-line sold-summary-caret"></i></span>
         <div class="sold-summary-icon sold-summary-icon--amber">
           <i class="fa-regular fa-clock"></i>
         </div>
@@ -36,9 +36,9 @@
       <div class="sold-summary-value">${{ '{:,.2f}'.format(sold_summary.pending_payouts) }}</div>
       <div class="sold-summary-sub">Awaiting disbursement</div>
     </div>
-    <div class="sold-summary-card">
+    <div class="sold-summary-card sold-summary-card--clickable" onclick="openSoldAnalytics('completed')" title="View completed payouts over time">
       <div class="sold-summary-card-top">
-        <span class="sold-summary-label">COMPLETED PAYOUTS</span>
+        <span class="sold-summary-label">COMPLETED PAYOUTS <i class="fa-solid fa-chart-line sold-summary-caret"></i></span>
         <div class="sold-summary-icon sold-summary-icon--teal">
           <i class="fa-solid fa-circle-check"></i>
         </div>
@@ -159,7 +159,7 @@
             <div class="payout-status-bar-left">
               <div class="payout-status-bar-icon">
                 {% if sale.payout_user_state == 'paid' %}<i class="fa-solid fa-circle-check"></i>
-                {% elif sale.payout_user_state == 'delayed' %}<i class="fa-regular fa-clock"></i>
+                {% elif sale.payout_user_state == 'delayed' or sale.payout_user_state == 'awaiting-delivery' %}<i class="fa-regular fa-clock"></i>
                 {% elif sale.payout_user_state == 'ready' %}<i class="fa-solid fa-money-bill-wave"></i>
                 {% elif sale.payout_user_state == 'waiting' %}<i class="fa-solid fa-box-open"></i>
                 {% elif sale.payout_user_state == 'hold' %}<i class="fa-solid fa-hand"></i>
@@ -171,8 +171,10 @@
               </div>
               <div class="payout-status-bar-text">
                 <div class="payout-status-bar-label">{{ sale.payout_user_label }}</div>
-                {% if sale.payout_user_state == 'delayed' and sale.payout_tracking_uploaded_str %}
-                  <div class="payout-status-bar-sub">Tracking uploaded {{ sale.payout_tracking_uploaded_str }} · Available {{ sale.payout_eligible_at_str }}</div>
+                {% if sale.payout_user_state == 'awaiting-delivery' %}
+                  <div class="payout-status-bar-sub">Tracking uploaded {{ sale.payout_tracking_uploaded_str }} · Waiting for delivery confirmation</div>
+                {% elif sale.payout_user_state == 'delayed' and sale.payout_delivered_str %}
+                  <div class="payout-status-bar-sub">Delivered {{ sale.payout_delivered_str }} · Available {{ sale.payout_eligible_at_str }}</div>
                 {% elif sale.payout_user_state == 'waiting' %}
                   <div class="payout-status-bar-sub">Add tracking to start the payout process</div>
                 {% elif sale.payout_user_state == 'hold' %}
@@ -459,6 +461,66 @@
   {% endif %}
 </div>
 
+<!-- ── Sold Analytics Modal ───────────────────────────────────────────── -->
+<div id="soldAnalyticsModal" class="sa-overlay" style="display:none;" onclick="closeSaModalOnOverlay(event)">
+  <div class="sa-card">
+    <button class="sa-close" onclick="closeSoldAnalytics()" aria-label="Close">&times;</button>
+
+    <div class="sa-header">
+      <div class="sa-header-left">
+        <div class="sa-header-icon" id="saHeaderIcon">
+          <i class="fa-solid fa-wallet"></i>
+        </div>
+        <div>
+          <h2 class="sa-title" id="saTitle">Total Gross Sales</h2>
+          <p class="sa-subtitle" id="saSubtitle">Your sales revenue over time</p>
+        </div>
+      </div>
+      <div class="sa-period-tabs" id="saPeriodTabs">
+        <button class="sa-period-btn" data-period="7d"  onclick="setSaPeriod('7d')">7D</button>
+        <button class="sa-period-btn active" data-period="30d" onclick="setSaPeriod('30d')">30D</button>
+        <button class="sa-period-btn" data-period="90d" onclick="setSaPeriod('90d')">90D</button>
+        <button class="sa-period-btn" data-period="all" onclick="setSaPeriod('all')">All</button>
+      </div>
+    </div>
+
+    <div class="sa-big-number">
+      <span class="sa-big-num-value" id="saBigValue">—</span>
+      <span class="sa-big-num-label" id="saBigLabel">Total in period</span>
+    </div>
+
+    <div class="sa-chart-wrap">
+      <div class="sa-chart-loading" id="saChartLoading">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading chart…
+      </div>
+      <svg id="saChartSvg" class="sa-chart-svg" style="display:none;"></svg>
+      <div class="sa-chart-empty" id="saChartEmpty" style="display:none;">
+        <i class="fa-regular fa-chart-bar" style="margin-right:8px;"></i> No data for this period
+      </div>
+      <div class="sa-tooltip" id="saTooltip"></div>
+    </div>
+
+    <div class="sa-stats-row">
+      <div class="sa-stat">
+        <div class="sa-stat-value" id="saStatAvg">—</div>
+        <div class="sa-stat-label">Avg / Day</div>
+      </div>
+      <div class="sa-stat">
+        <div class="sa-stat-value" id="saStatBestVal">—</div>
+        <div class="sa-stat-label">Best Day Amount</div>
+      </div>
+      <div class="sa-stat">
+        <div class="sa-stat-value" id="saStatBestDay">—</div>
+        <div class="sa-stat-label">Best Day</div>
+      </div>
+      <div class="sa-stat">
+        <div class="sa-stat-value" id="saStatDays">—</div>
+        <div class="sa-stat-label">Active Days</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Transaction Details Modal -->
 <div id="transactionDetailsModal" class="txn-overlay" style="display:none;" onclick="closeTxnModalOnOverlay(event)">
   <div class="txn-card">
@@ -488,8 +550,12 @@
       <div class="txn-divider"></div>
 
       <div class="txn-row">
-        <span class="txn-row-label txn-row-label--muted" id="txnFeeLabel">Metex Fee</span>
-        <span class="txn-row-value txn-row-value--fee" id="txnFeeAmount"></span>
+        <span class="txn-row-label txn-row-label--muted">UPS Shipping Insurance (1%)</span>
+        <span class="txn-row-value txn-row-value--fee" id="txnInsuranceAmount"></span>
+      </div>
+      <div class="txn-row">
+        <span class="txn-row-label txn-row-label--muted">Metex Service Fee (4%)</span>
+        <span class="txn-row-value txn-row-value--fee" id="txnServiceFeeAmount"></span>
       </div>
 
       <div class="txn-divider txn-divider--thick"></div>
@@ -598,15 +664,11 @@ function openTransactionDetailsModal(btn) {
   document.getElementById('txnOrderId').textContent   = orderId;
   document.getElementById('txnOrderDate').textContent = orderDate;
 
-  // Fee label
-  var feeLabel = 'Metex Fee';
-  if (feeType === 'percent' && feePct !== null) {
-    feeLabel = 'Metex Fee (' + feePct + '%)';
-  } else if (feeType === 'flat') {
-    feeLabel = 'Metex Fee (flat)';
-  }
-  document.getElementById('txnFeeLabel').textContent  = feeLabel;
-  document.getElementById('txnFeeAmount').textContent = '\u2212' + fmt(feeAmount).slice(1);
+  // Split fee: 1% insurance + 4% service fee
+  var insuranceAmt = gross * 0.01;
+  var serviceFeeAmt = gross * 0.04;
+  document.getElementById('txnInsuranceAmount').textContent  = '\u2212' + fmt(insuranceAmt);
+  document.getElementById('txnServiceFeeAmount').textContent = '\u2212' + fmt(serviceFeeAmt);
 
   // Payout badge
   var badge = document.getElementById('txnPayoutBadge');
@@ -726,6 +788,259 @@ function submitSellerEvidence() {
     .catch(function() { errEl.textContent = 'Network error. Please try again.'; });
 }
 window.submitSellerEvidence = submitSellerEvidence;
+
+// ══════════════════════════════════════════════════════════════════════════
+// Sold Analytics Modal
+// ══════════════════════════════════════════════════════════════════════════
+(function () {
+  var _saMetric  = 'gross';
+  var _saPeriod  = '30d';
+  var _saPoints  = [];
+
+  var META = {
+    gross:     { title: 'Total Gross Sales',  subtitle: 'Revenue before fees — all completed orders', icon: 'fa-wallet',      iconCls: 'sa-icon--blue',  bigLabel: 'Gross Revenue in Period' },
+    net:       { title: 'Net Proceeds',        subtitle: 'Your take-home after Metex fees',            icon: 'fa-arrow-trend-up', iconCls: 'sa-icon--green', bigLabel: 'Net Proceeds in Period'  },
+    pending:   { title: 'Pending Payouts',     subtitle: 'Awaiting disbursement to your account',       icon: 'fa-clock',       iconCls: 'sa-icon--amber', bigLabel: 'Pending Payout Value'    },
+    completed: { title: 'Completed Payouts',   subtitle: 'Funds that have landed in your account',      icon: 'fa-circle-check', iconCls: 'sa-icon--teal',  bigLabel: 'Completed Payout Value'  },
+  };
+
+  var fmtDollar = function (n) {
+    return '$' + parseFloat(n).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  };
+  var fmtDate = function (iso) {
+    if (!iso) return '—';
+    var d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+  };
+
+  function openSoldAnalytics(metric) {
+    _saMetric = metric || 'gross';
+    _saPeriod = '30d';
+
+    // Update header
+    var m = META[_saMetric] || META.gross;
+    document.getElementById('saTitle').textContent    = m.title;
+    document.getElementById('saSubtitle').textContent = m.subtitle;
+    document.getElementById('saBigLabel').textContent = m.bigLabel;
+    var iconEl = document.getElementById('saHeaderIcon');
+    iconEl.className = 'sa-header-icon ' + m.iconCls;
+    iconEl.innerHTML = '<i class="fa-solid ' + m.icon + '"></i>';
+
+    // Reset period buttons
+    document.querySelectorAll('#soldAnalyticsModal .sa-period-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.period === _saPeriod);
+    });
+
+    document.getElementById('soldAnalyticsModal').style.display = 'flex';
+    loadSaData();
+  }
+
+  function closeSoldAnalytics() {
+    var modal = document.getElementById('soldAnalyticsModal');
+    modal.style.display = 'none';
+  }
+
+  function closeSaModalOnOverlay(e) {
+    if (e.target === document.getElementById('soldAnalyticsModal')) closeSoldAnalytics();
+  }
+
+  function setSaPeriod(period) {
+    _saPeriod = period;
+    document.querySelectorAll('#soldAnalyticsModal .sa-period-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.period === period);
+    });
+    loadSaData();
+  }
+
+  function loadSaData() {
+    var loading = document.getElementById('saChartLoading');
+    var svg     = document.getElementById('saChartSvg');
+    var empty   = document.getElementById('saChartEmpty');
+
+    loading.style.display = 'flex';
+    svg.style.display     = 'none';
+    empty.style.display   = 'none';
+    document.getElementById('saBigValue').textContent  = '—';
+    document.getElementById('saStatAvg').textContent   = '—';
+    document.getElementById('saStatBestVal').textContent = '—';
+    document.getElementById('saStatBestDay').textContent = '—';
+    document.getElementById('saStatDays').textContent  = '—';
+
+    fetch('/account/api/sold-analytics?metric=' + _saMetric + '&period=' + _saPeriod)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        loading.style.display = 'none';
+        if (!data.success) { empty.style.display = 'flex'; return; }
+        _saPoints = data.points || [];
+        if (!_saPoints.length) { empty.style.display = 'flex'; return; }
+
+        // Stats
+        document.getElementById('saBigValue').textContent    = fmtDollar(data.total);
+        document.getElementById('saStatAvg').textContent     = fmtDollar(data.avg);
+        document.getElementById('saStatBestVal').textContent = fmtDollar(data.best_day_value);
+        document.getElementById('saStatBestDay').textContent = fmtDate(data.best_day);
+        document.getElementById('saStatDays').textContent    = data.active_days;
+
+        svg.style.display = 'block';
+        renderSaChart(_saPoints);
+      })
+      .catch(function () {
+        loading.style.display = 'none';
+        empty.style.display   = 'flex';
+      });
+  }
+
+  function renderSaChart(points) {
+    var svg = document.getElementById('saChartSvg');
+    svg.innerHTML = '';
+
+    var W = svg.clientWidth  || 700;
+    var H = svg.clientHeight || 200;
+    var pad = {top: 20, right: 20, bottom: 38, left: 56};
+    var cW = W - pad.left - pad.right;
+    var cH = H - pad.top  - pad.bottom;
+
+    var vals  = points.map(function (p) { return p.value; });
+    var maxV  = Math.max.apply(null, vals) || 1;
+    var minV  = 0;
+
+    // Helpers
+    function xPos(i) { return pad.left + (points.length === 1 ? cW / 2 : i / (points.length - 1) * cW); }
+    function yPos(v) { return pad.top + cH - ((v - minV) / (maxV - minV)) * cH; }
+
+    var ns = 'http://www.w3.org/2000/svg';
+
+    // SVG element size
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
+    // Gradient defs
+    var defs = document.createElementNS(ns, 'defs');
+    var grad = document.createElementNS(ns, 'linearGradient');
+    grad.setAttribute('id', 'saAreaGrad');
+    grad.setAttribute('x1', '0'); grad.setAttribute('y1', '0');
+    grad.setAttribute('x2', '0'); grad.setAttribute('y2', '1');
+    var s1 = document.createElementNS(ns, 'stop');
+    s1.setAttribute('offset', '0%');   s1.setAttribute('stop-color', '#6366f1'); s1.setAttribute('stop-opacity', '0.18');
+    var s2 = document.createElementNS(ns, 'stop');
+    s2.setAttribute('offset', '100%'); s2.setAttribute('stop-color', '#6366f1'); s2.setAttribute('stop-opacity', '0');
+    grad.appendChild(s1); grad.appendChild(s2);
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+
+    // Y-axis grid lines (5 levels)
+    var gridLevels = 5;
+    for (var gi = 0; gi <= gridLevels; gi++) {
+      var gv = minV + (maxV - minV) * gi / gridLevels;
+      var gy = yPos(gv);
+      var gline = document.createElementNS(ns, 'line');
+      gline.setAttribute('x1', pad.left); gline.setAttribute('x2', W - pad.right);
+      gline.setAttribute('y1', gy);       gline.setAttribute('y2', gy);
+      gline.setAttribute('stroke', '#e2e8f0'); gline.setAttribute('stroke-width', '1');
+      svg.appendChild(gline);
+      // Y label
+      if (gi > 0) {
+        var glbl = document.createElementNS(ns, 'text');
+        glbl.setAttribute('x', pad.left - 6);
+        glbl.setAttribute('y', gy + 4);
+        glbl.setAttribute('text-anchor', 'end');
+        glbl.setAttribute('font-size', '10');
+        glbl.setAttribute('fill', '#94a3b8');
+        glbl.textContent = gv >= 1000 ? '$' + (gv / 1000).toFixed(1) + 'k' : '$' + gv.toFixed(0);
+        svg.appendChild(glbl);
+      }
+    }
+
+    // Build path data
+    var pathD = '';
+    var areaD = '';
+    points.forEach(function (p, i) {
+      var x = xPos(i), y = yPos(p.value);
+      pathD += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+      if (i === 0) areaD = 'M' + x + ' ' + (pad.top + cH) + ' L' + x + ' ' + y + ' ';
+      else         areaD += 'L' + x + ' ' + y + ' ';
+    });
+    areaD += 'L' + xPos(points.length - 1) + ' ' + (pad.top + cH) + ' Z';
+
+    // Area fill
+    var area = document.createElementNS(ns, 'path');
+    area.setAttribute('d', areaD);
+    area.setAttribute('fill', 'url(#saAreaGrad)');
+    svg.appendChild(area);
+
+    // Line
+    var line = document.createElementNS(ns, 'path');
+    line.setAttribute('d', pathD);
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', '#6366f1');
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(line);
+
+    // X-axis labels (show up to 7 evenly spaced)
+    var labelStep = Math.max(1, Math.floor(points.length / 6));
+    points.forEach(function (p, i) {
+      if (i % labelStep !== 0 && i !== points.length - 1) return;
+      var xlbl = document.createElementNS(ns, 'text');
+      xlbl.setAttribute('x', xPos(i));
+      xlbl.setAttribute('y', H - 6);
+      xlbl.setAttribute('text-anchor', 'middle');
+      xlbl.setAttribute('font-size', '10');
+      xlbl.setAttribute('fill', '#94a3b8');
+      xlbl.textContent = fmtDate(p.date);
+      svg.appendChild(xlbl);
+    });
+
+    // Invisible hit-area rects + dot circles for hover
+    var tooltip = document.getElementById('saTooltip');
+    var rectW = points.length > 1 ? cW / (points.length - 1) : cW;
+    points.forEach(function (p, i) {
+      var cx = xPos(i), cy = yPos(p.value);
+
+      // Dot
+      var dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('r', '4');
+      dot.setAttribute('fill', '#ffffff'); dot.setAttribute('stroke', '#6366f1'); dot.setAttribute('stroke-width', '2');
+      dot.setAttribute('class', 'sa-dot');
+      dot.style.opacity = '0';
+      svg.appendChild(dot);
+
+      // Hit rect
+      var rx = cx - rectW / 2;
+      var hit = document.createElementNS(ns, 'rect');
+      hit.setAttribute('x', rx);   hit.setAttribute('y', pad.top);
+      hit.setAttribute('width', rectW); hit.setAttribute('height', cH);
+      hit.setAttribute('fill', 'transparent');
+      hit.style.cursor = 'crosshair';
+      (function (dot_, cx_, cy_, p_) {
+        hit.addEventListener('mouseenter', function () {
+          dot_.style.opacity = '1';
+          tooltip.textContent = fmtDate(p_.date) + '  ' + fmtDollar(p_.value);
+          tooltip.classList.add('visible');
+        });
+        hit.addEventListener('mousemove', function (ev) {
+          var rect = svg.getBoundingClientRect();
+          var tx = ev.clientX - rect.left + 12;
+          var ty = ev.clientY - rect.top  - 32;
+          if (tx + 140 > W) tx -= 152;
+          tooltip.style.left = tx + 'px';
+          tooltip.style.top  = ty + 'px';
+        });
+        hit.addEventListener('mouseleave', function () {
+          dot_.style.opacity = '0';
+          tooltip.classList.remove('visible');
+        });
+      }(dot, cx, cy, p));
+      svg.appendChild(hit);
+    });
+  }
+
+  // Expose globals
+  window.openSoldAnalytics    = openSoldAnalytics;
+  window.closeSoldAnalytics   = closeSoldAnalytics;
+  window.closeSaModalOnOverlay = closeSaModalOnOverlay;
+  window.setSaPeriod          = setSaPeriod;
+}());
 </script>
 
 <!-- ── Seller Respond to Dispute Modal ───────────────────────────────── -->

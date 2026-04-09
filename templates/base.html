@@ -264,6 +264,24 @@
                 </div>
                 <div class="contact-modal-body">
                     <p class="contact-modal-subtitle">Share your thoughts, suggestions, or ideas to help us improve Metex.</p>
+                    <div class="feedback-type-group">
+                        <span class="feedback-type-label">What kind of feedback is this?</span>
+                        <div class="feedback-type-pills">
+                            <button type="button" class="feedback-type-pill" data-type="issue">
+                                <i class="fa-solid fa-bug"></i> Issue / Bug
+                            </button>
+                            <button type="button" class="feedback-type-pill" data-type="improvement">
+                                <i class="fa-solid fa-lightbulb"></i> Improvement
+                            </button>
+                            <button type="button" class="feedback-type-pill" data-type="praise">
+                                <i class="fa-solid fa-thumbs-up"></i> Praise
+                            </button>
+                            <button type="button" class="feedback-type-pill" data-type="other">
+                                <i class="fa-solid fa-ellipsis"></i> Other
+                            </button>
+                        </div>
+                        <div class="feedback-type-error" id="feedbackTypeError" style="display:none;color:#ef4444;font-size:12px;margin-top:4px;">Please select a feedback type.</div>
+                    </div>
                     <textarea id="feedbackMessageText" class="contact-modal-textarea"
                               placeholder="What's on your mind? Suggestions, ideas, or general thoughts…" maxlength="2000"></textarea>
                     <div class="contact-modal-char-count"><span id="feedbackCharCount">0</span> / 2000</div>
@@ -557,17 +575,33 @@
         var openBtn  = document.getElementById('openFeedbackModal');
         if (!modal || !openBtn) return;
 
-        var textarea  = document.getElementById('feedbackMessageText');
-        var charCount = document.getElementById('feedbackCharCount');
-        var sendBtn   = document.getElementById('feedbackModalSend');
-        var errorEl   = document.getElementById('feedbackModalError');
-        var formEl    = document.getElementById('feedbackModalForm');
+        var textarea      = document.getElementById('feedbackMessageText');
+        var charCount     = document.getElementById('feedbackCharCount');
+        var sendBtn       = document.getElementById('feedbackModalSend');
+        var errorEl       = document.getElementById('feedbackModalError');
+        var typeErrorEl   = document.getElementById('feedbackTypeError');
+        var formEl        = document.getElementById('feedbackModalForm');
+        var selectedType  = null;
+
+        // Type pill selection
+        var pills = modal.querySelectorAll('.feedback-type-pill');
+        pills.forEach(function (pill) {
+            pill.addEventListener('click', function () {
+                pills.forEach(function (p) { p.classList.remove('active'); });
+                pill.classList.add('active');
+                selectedType = pill.dataset.type;
+                if (typeErrorEl) typeErrorEl.style.display = 'none';
+            });
+        });
 
         function openModal() {
             formEl.style.display = '';
             textarea.value = '';
+            selectedType = null;
+            pills.forEach(function (p) { p.classList.remove('active'); });
             if (charCount) charCount.textContent = '0';
             if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+            if (typeErrorEl) typeErrorEl.style.display = 'none';
             if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Feedback'; }
             modal.style.display = 'flex';
             setTimeout(function () { textarea.focus(); }, 50);
@@ -609,6 +643,10 @@
         if (sendBtn) {
             sendBtn.addEventListener('click', function () {
                 var text = textarea.value.trim();
+                if (!selectedType) {
+                    if (typeErrorEl) typeErrorEl.style.display = 'block';
+                    return;
+                }
                 if (!text) { showError('Please enter your feedback before sending.'); return; }
 
                 sendBtn.disabled = true;
@@ -617,6 +655,7 @@
 
                 var form = new FormData();
                 form.append('message_text', text);
+                form.append('feedback_type', selectedType);
 
                 fetch('/api/feedback', {
                     method: 'POST',

@@ -381,6 +381,24 @@ def ensure_message_type_column():
         print(f'Error ensuring message_type column: {e}')
 
 
+def ensure_feedback_type_column():
+    """
+    Ensure messages table has a feedback_type column to categorise feedback
+    submissions (issue, improvement, praise, other).
+    Only populated when message_type='feedback'. NULL for legacy rows.
+    """
+    try:
+        conn = get_db_connection()
+        existing = get_table_columns(conn, 'messages')
+        if 'feedback_type' not in existing:
+            conn.execute("ALTER TABLE messages ADD COLUMN feedback_type TEXT")
+            conn.commit()
+            print("✅ messages.feedback_type column added")
+        conn.close()
+    except Exception as e:
+        print(f'Error ensuring feedback_type column: {e}')
+
+
 def ensure_metex_guaranteed_column():
     """
     Ensure the is_metex_guaranteed column exists in the users table.
@@ -533,7 +551,7 @@ def ensure_refunds_table():
         conn.execute(_ddl('''
             CREATE TABLE IF NOT EXISTS refunds (
                 id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                dispute_id          INTEGER NOT NULL,
+                dispute_id          INTEGER,
                 order_id            INTEGER NOT NULL,
                 order_item_id       INTEGER,
                 buyer_id            INTEGER NOT NULL,
@@ -713,6 +731,160 @@ def ensure_user_risk_events_table():
         print(f'Error ensuring user_risk_events table: {e}')
 
 
+def ensure_tax_columns():
+    """
+    Ensure orders table has tax_amount and tax_rate columns (migration 031).
+    tax_amount: dollar amount of tax applied to the subtotal.
+    tax_rate:   rate at time of checkout (e.g. 0.0825 for 8.25%), locked for history.
+    Both default to 0.0 so pre-migration orders are unaffected. Idempotent.
+    """
+    try:
+        conn = get_db_connection()
+        existing = get_table_columns(conn, 'orders')
+        if 'tax_amount' not in existing:
+            conn.execute('ALTER TABLE orders ADD COLUMN tax_amount REAL NOT NULL DEFAULT 0.0')
+            conn.commit()
+            print('✅ orders.tax_amount column added (migration 031)')
+        if 'tax_rate' not in existing:
+            conn.execute('ALTER TABLE orders ADD COLUMN tax_rate REAL NOT NULL DEFAULT 0.0')
+            conn.commit()
+            print('✅ orders.tax_rate column added (migration 031)')
+        conn.close()
+    except Exception as e:
+        print(f'Error ensuring tax columns: {e}')
+
+
+def ensure_buyer_card_fee_column():
+    """
+    Ensure orders table has buyer_card_fee column (migration 030).
+    Stores the card processing fee charged to the buyer (2.99% + $0.30).
+    Zero for ACH payments. Idempotent.
+    """
+    try:
+        conn = get_db_connection()
+        existing = get_table_columns(conn, 'orders')
+        if 'buyer_card_fee' not in existing:
+            conn.execute('ALTER TABLE orders ADD COLUMN buyer_card_fee NUMERIC(10,2) NOT NULL DEFAULT 0')
+            conn.commit()
+            print('✅ orders.buyer_card_fee column added (migration 030)')
+        conn.close()
+    except Exception as e:
+        print(f'Error ensuring buyer_card_fee column: {e}')
+
+
+def migrate_refunds_dispute_id_nullable():
+    """
+    Make refunds.dispute_id nullable (migration 031).
+    Direct ledger refunds (issued without a dispute) need dispute_id = NULL.
+    Was originally created as NOT NULL (dispute-only flow).
+    """
+    try:
+        conn = get_db_connection()
+        if IS_POSTGRES:
+            try:
+                conn.execute('ALTER TABLE refunds ALTER COLUMN dispute_id DROP NOT NULL')
+                conn.commit()
+                print('✅ refunds.dispute_id made nullable (migration 031)')
+            except Exception:
+                conn.rollback()
+                # Already nullable — no-op
+        else:
+            # SQLite: inspect via PRAGMA table_info; column 3 is 'notnull' flag
+            rows = conn.execute("PRAGMA table_info(refunds)").fetchall()
+            dispute_notnull = None
+            for row in rows:
+                if row[1] == 'dispute_id':
+                    dispute_notnull = row[3]
+                    break
+            if dispute_notnull == 1:
+                # Recreate table with nullable dispute_id
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS refunds_migrated (
+                        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                        dispute_id          INTEGER,
+                        order_id            INTEGER NOT NULL,
+                        order_item_id       INTEGER,
+                        buyer_id            INTEGER NOT NULL,
+                        seller_id           INTEGER,
+                        amount              REAL NOT NULL,
+                        provider_refund_id  TEXT,
+                        issued_by_admin_id  INTEGER NOT NULL,
+                        issued_at           TEXT NOT NULL,
+                        note                TEXT,
+                        FOREIGN KEY (order_id) REFERENCES orders(id)
+                    )
+                ''')
+                conn.execute('INSERT INTO refunds_migrated SELECT * FROM refunds')
+                conn.execute('DROP TABLE refunds')
+                conn.execute('ALTER TABLE refunds_migrated RENAME TO refunds')
+                conn.commit()
+                print('✅ refunds.dispute_id made nullable (migration 031)')
+            else:
+                print('ℹ️  refunds.dispute_id already nullable (skip)')
+        conn.close()
+    except Exception as e:
+        print(f'Error in migrate_refunds_dispute_id_nullable: {e}')
+
+
+def backfill_missing_refund_records():
+    """
+    One-time backfill (migration 032): insert a refunds row for any order that was
+    refunded via refund_buyer_stripe() before the INSERT was added to that function.
+    Idempotent — skips orders that already have a refunds row.
+    """
+    try:
+        conn = get_db_connection()
+        # Find any admin user to attribute backfilled rows to
+        admin_row = conn.execute(
+            "SELECT id FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1"
+        ).fetchone()
+        fallback_admin_id = admin_row['id'] if admin_row else 0
+
+        orders = conn.execute(
+            """SELECT o.id AS order_id, o.buyer_id, o.refund_amount,
+                      o.stripe_refund_id, o.refunded_at, o.refund_reason
+               FROM orders o
+               WHERE o.refund_status IN ('refunded', 'partially_refunded')
+                 AND NOT EXISTS (
+                       SELECT 1 FROM refunds r WHERE r.order_id = o.id
+                 )"""
+        ).fetchall()
+
+        inserted = 0
+        for row in orders:
+            # Resolve seller_id: use the single seller if only one, else NULL
+            payout_rows = conn.execute(
+                "SELECT DISTINCT seller_id FROM order_payouts WHERE order_id = ?",
+                (row['order_id'],)
+            ).fetchall()
+            seller_id = payout_rows[0]['seller_id'] if len(payout_rows) == 1 else None
+
+            conn.execute(
+                """INSERT INTO refunds
+                       (dispute_id, order_id, order_item_id, buyer_id, seller_id,
+                        amount, provider_refund_id, issued_by_admin_id, issued_at, note)
+                   VALUES (NULL, ?, NULL, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    row['order_id'],
+                    row['buyer_id'],
+                    seller_id,
+                    row['refund_amount'] or 0,
+                    row['stripe_refund_id'],
+                    fallback_admin_id,
+                    row['refunded_at'] or '',
+                    row['refund_reason'] or '',
+                ),
+            )
+            inserted += 1
+
+        conn.commit()
+        conn.close()
+        if inserted:
+            print(f'✅ Backfilled {inserted} missing refund record(s) into refunds table (migration 032)')
+    except Exception as e:
+        print(f'Error in backfill_missing_refund_records: {e}')
+
+
 def init_database():
     """
     Run all database initialization checks
@@ -731,6 +903,7 @@ def init_database():
     ensure_payment_methods_table()
     ensure_ratings_multi_seller_constraint()
     ensure_message_type_column()
+    ensure_feedback_type_column()
     migrate_default_fee_to_5pct()
     ensure_stripe_customer_id_column()
     ensure_orders_placed_from_ip_column()
@@ -739,5 +912,9 @@ def init_database():
     ensure_dispute_evidence_table()
     ensure_dispute_timeline_table()
     ensure_refunds_table()
+    migrate_refunds_dispute_id_nullable()
+    backfill_missing_refund_records()
     ensure_user_risk_profile_table()
     ensure_user_risk_events_table()
+    ensure_buyer_card_fee_column()
+    ensure_tax_columns()

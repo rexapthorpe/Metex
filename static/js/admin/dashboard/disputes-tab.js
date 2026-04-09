@@ -224,7 +224,7 @@ function renderDisputeDetailModal(d) {
         </div>
         <div style="color:#6b7280;font-size:11px;margin-bottom:4px;">by @${escapeHtml(e.submitter_username||'?')}</div>
         ${e.note ? `<p style="margin:0 0 4px;">${escapeHtml(e.note)}</p>` : ''}
-        ${e.file_path ? `<a href="${escapeHtml(e.file_path)}" target="_blank" style="color:#7c3aed;font-size:12px;">View attachment</a>` : ''}
+        ${e.file_path ? `<a href="/static/${escapeHtml(e.file_path)}" target="_blank" style="color:#7c3aed;font-size:12px;">View attachment</a>` : ''}
       </div>`).join('');
     evidenceHtml = `
       <div class="report-detail-section full-width" style="margin-top:12px;">
