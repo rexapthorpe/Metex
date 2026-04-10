@@ -1,0 +1,36 @@
+{
+  "bucket_slug": "silver-mercury-dime",
+  "bucket_id": 56,
+  "metal": "silver",
+  "family": "silver/mercury_dimes",
+  "last_updated": "2026-04-10T18:47:13.994375+00:00",
+  "candidates": [
+    {
+      "id": "857c9eb0-ce91-408b-83b8-fdcb6f8a5677",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Mercury_dime.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/1/1a/Mercury_dime.jpg",
+      "raw_source_title": "Mercury Dime 0.072 oz silver US Mint",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint",
+      "rights_note": "License: public_domain",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:Mercury dime.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:32:57.659247+00:00",
+      "checksum": "2268ff5dab9b5cd293a118334dfdc5aafd3490490c5a00331cf46a2e75c76c49",
+      "width": 535,
+      "height": 260,
+      "mime_type": "image/jpeg",
+      "file_size": 84300,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/mercury_dimes/silver-mercury-dime_known_files_2268ff5d.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/mercury_dimes/thumbs/silver-mercury-dime_known_files_2268ff5d_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/2268ff5dab9b5cd2.jpg"
+    }
+  ]
+}

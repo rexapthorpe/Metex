@@ -1,0 +1,34 @@
+{
+  "bucket_slug": "silver-bar-1oz",
+  "bucket_id": 29,
+  "metal": "silver",
+  "family": "silver/bars",
+  "last_updated": "2026-04-10T18:47:20.650029+00:00",
+  "candidates": [
+    {
+      "id": "839e42b4-99d5-4024-91b5-4ea97efdbd7f",
+      "source": "Wikimedia Commons",
+      "source_type": "licensed",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:100_Troy_oz._Silver_Bullion_Bar_from_Johnson_Matthey.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/f/fd/100_Troy_oz._Silver_Bullion_Bar_from_Johnson_Matthey.jpg",
+      "raw_source_title": "100 Troy oz. Silver Bullion Bar from Johnson Matthey.jpg",
+      "license_type": "CC BY-SA 4.0",
+      "attribution_text": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Ausecure&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Ausecure (page does not exist)\">Ausecure</a>",
+      "rights_note": "License: CC BY-SA 4.0",
+      "usage_allowed": true,
+      "extra_metadata": {},
+      "confidence_score": 0.43,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:33:58.788957+00:00",
+      "checksum": "a2e2c9c51910b6750ce5d88461fa1a135feea53e36496a21e47db76a82e3dbb6",
+      "width": 2448,
+      "height": 2448,
+      "mime_type": "image/jpeg",
+      "file_size": 1397167,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/bars/silver-bar-1oz_wikimedia_a2e2c9c5.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/bars/thumbs/silver-bar-1oz_wikimedia_a2e2c9c5_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/a2e2c9c51910b675.jpg"
+    }
+  ]
+}

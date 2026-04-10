@@ -1,0 +1,34 @@
+{
+  "bucket_slug": "platinum-american-eagle-quarter-oz",
+  "bucket_id": 52,
+  "metal": "platinum",
+  "family": "platinum/eagles",
+  "last_updated": "2026-04-10T18:46:59.215785+00:00",
+  "candidates": [
+    {
+      "id": "bc3249ba-47ab-4020-8b9e-f935277e74ff",
+      "source": "US Mint (public domain)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:American_Platinum_Eagle_$25_quarter_ounce_reverse.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/3/3d/American_Platinum_Eagle_%2425_quarter_ounce_reverse.jpg",
+      "raw_source_title": "American Platinum Eagle $25 quarter ounce reverse.jpg",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint / US Government",
+      "rights_note": "US Government work \u2014 public domain",
+      "usage_allowed": true,
+      "extra_metadata": {},
+      "confidence_score": 0.66,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:35:50.606439+00:00",
+      "checksum": "19127a2fa93e0c62d5dcbdcc64e23569a3812dae5c488f55ec021035644ce2f1",
+      "width": 880,
+      "height": 880,
+      "mime_type": "image/jpeg",
+      "file_size": 470231,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/platinum/eagles/platinum-american-eagle-quarter-oz_us_mint_19127a2f.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/platinum/eagles/thumbs/platinum-american-eagle-quarter-oz_us_mint_19127a2f_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/19127a2fa93e0c62.jpg"
+    }
+  ]
+}

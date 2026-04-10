@@ -1,0 +1,63 @@
+{
+  "bucket_slug": "gold-american-buffalo-1oz",
+  "bucket_id": 5,
+  "metal": "gold",
+  "family": "gold/buffalos",
+  "last_updated": "2026-04-10T18:46:32.560830+00:00",
+  "candidates": [
+    {
+      "id": "bae74251-125c-4b1e-a4aa-ffb48e034181",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:2006_American_Buffalo_Proof_Obverse.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c7/2006_American_Buffalo_Proof_Obverse.jpg",
+      "raw_source_title": "American Buffalo 1 oz gold US Mint",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint",
+      "rights_note": "License: public_domain",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:2006 American Buffalo Proof Obverse.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T15:02:02.587028+00:00",
+      "checksum": "0cfaf66943023a70271a67bca523e6ded074c91cf6ac5012360dafc13a69d4d3",
+      "width": 2000,
+      "height": 2000,
+      "mime_type": "image/jpeg",
+      "file_size": 2861033,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/buffalos/gold-american-buffalo-1oz_known_files_0cfaf669.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/buffalos/thumbs/gold-american-buffalo-1oz_known_files_0cfaf669_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/0cfaf66943023a70.jpg"
+    },
+    {
+      "id": "8cb74758-6d46-4485-aa5d-f8817446b34d",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:American_buffalo_proof_vertical_edit.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/6/6e/American_buffalo_proof_vertical_edit.jpg",
+      "raw_source_title": "American Buffalo 1 oz gold US Mint",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint",
+      "rights_note": "License: public_domain",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:American buffalo proof vertical edit.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T15:02:05.023772+00:00",
+      "checksum": "25d34823d91f69c41ffb6c8966d1b22da55f3d6f8b94833ce2a1d21aea734ca7",
+      "width": 2585,
+      "height": 4631,
+      "mime_type": "image/jpeg",
+      "file_size": 4367979,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/buffalos/gold-american-buffalo-1oz_known_files_25d34823.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/buffalos/thumbs/gold-american-buffalo-1oz_known_files_25d34823_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/25d34823d91f69c4.jpg"
+    }
+  ]
+}

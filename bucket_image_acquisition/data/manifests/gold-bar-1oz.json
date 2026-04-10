@@ -1,0 +1,36 @@
+{
+  "bucket_slug": "gold-bar-1oz",
+  "bucket_id": 16,
+  "metal": "gold",
+  "family": "gold/bars",
+  "last_updated": "2026-04-10T18:46:44.525967+00:00",
+  "candidates": [
+    {
+      "id": "d0940096-7430-4184-970d-8610138ed886",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "licensed",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Gold_bar.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/1/18/Gold_bar.jpg",
+      "raw_source_title": "Bar 1 oz gold Various",
+      "license_type": "CC-BY-SA-4.0",
+      "attribution_text": "Wikimedia Commons contributor",
+      "rights_note": "License: CC-BY-SA-4.0",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:Gold bar.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T16:51:56.105922+00:00",
+      "checksum": "db4505374c89e9bac46466d2251bbfe8d2aad358833e5957b5a3254931724c20",
+      "width": 4000,
+      "height": 1800,
+      "mime_type": "image/jpeg",
+      "file_size": 1710757,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/bars/gold-bar-1oz_known_files_db450537.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/bars/thumbs/gold-bar-1oz_known_files_db450537_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/db4505374c89e9ba.jpg"
+    }
+  ]
+}

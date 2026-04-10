@@ -1,0 +1,61 @@
+{
+  "bucket_slug": "silver-morgan-dollar",
+  "bucket_id": 27,
+  "metal": "silver",
+  "family": "silver/morgan_dollars",
+  "last_updated": "2026-04-10T18:47:16.295024+00:00",
+  "candidates": [
+    {
+      "id": "39bac675-138f-44be-959c-248601576de1",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Morgansilverdollar_1882circulated.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/a/af/Morgansilverdollar_1882circulated.jpg",
+      "raw_source_title": "Morgan Dollar 0.77 oz silver US Mint",
+      "license_type": "CC0",
+      "attribution_text": "Wikimedia Commons contributor",
+      "rights_note": "License: CC0",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:Morgansilverdollar 1882circulated.jpg"
+      },
+      "confidence_score": 0.63,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:31:42.741685+00:00",
+      "checksum": "651556b0a5307e90f820f0e0c5a51ab5198f4cfce3b189bae698a6fe8dc732fc",
+      "width": 5312,
+      "height": 2988,
+      "mime_type": "image/jpeg",
+      "file_size": 5793930,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/morgan_dollars/silver-morgan-dollar_known_files_651556b0.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/morgan_dollars/thumbs/silver-morgan-dollar_known_files_651556b0_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/651556b0a5307e90.jpg"
+    },
+    {
+      "id": "1ffb75d5-b22e-47cf-a96b-00e7f81f57fc",
+      "source": "Open Numismatics (historic US)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:1902-O_NGC_graded_Morgan_silver_dollar_from_the_Fitzgerald_Collection.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/7/7f/1902-O_NGC_graded_Morgan_silver_dollar_from_the_Fitzgerald_Collection.jpg",
+      "raw_source_title": "1902-O NGC graded Morgan silver dollar from the Fitzgerald Collection.jpg",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint (pre-1978 public domain)",
+      "rights_note": "Pre-1978 US Mint \u2014 public domain",
+      "usage_allowed": true,
+      "extra_metadata": {},
+      "confidence_score": 0.41,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:31:50.036739+00:00",
+      "checksum": "7321179bc11f69ae1561138d3f3b142c16fe07b5e2d647ceed93a5882fc0cb94",
+      "width": 1697,
+      "height": 2471,
+      "mime_type": "image/jpeg",
+      "file_size": 1029955,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/morgan_dollars/silver-morgan-dollar_open_numisma_7321179b.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/morgan_dollars/thumbs/silver-morgan-dollar_open_numisma_7321179b_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/7321179bc11f69ae.jpg"
+    }
+  ]
+}

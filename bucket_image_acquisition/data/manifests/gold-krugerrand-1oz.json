@@ -1,0 +1,36 @@
+{
+  "bucket_slug": "gold-krugerrand-1oz",
+  "bucket_id": 7,
+  "metal": "gold",
+  "family": "gold/krugerrands",
+  "last_updated": "2026-04-10T18:46:54.057757+00:00",
+  "candidates": [
+    {
+      "id": "3e3def21-6945-4efc-8996-27c171696de9",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:1975_1_oz_krugerrand_obverse.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c3/1975_1_oz_krugerrand_obverse.jpg",
+      "raw_source_title": "Krugerrand 1 oz gold South African Mint",
+      "license_type": "CC0",
+      "attribution_text": "Wikimedia Commons contributor",
+      "rights_note": "License: CC0",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:1975 1 oz krugerrand obverse.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T15:03:01.612943+00:00",
+      "checksum": "8bfb8429d50ae0a37545c0a2ce1a6e922231c6ab7d7ac02d4b814e33f4b38282",
+      "width": 3148,
+      "height": 3157,
+      "mime_type": "image/jpeg",
+      "file_size": 2029757,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/krugerrands/gold-krugerrand-1oz_known_files_8bfb8429.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/krugerrands/thumbs/gold-krugerrand-1oz_known_files_8bfb8429_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/8bfb8429d50ae0a3.jpg"
+    }
+  ]
+}

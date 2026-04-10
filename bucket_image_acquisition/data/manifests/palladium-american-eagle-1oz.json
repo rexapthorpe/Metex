@@ -1,0 +1,63 @@
+{
+  "bucket_slug": "palladium-american-eagle-1oz",
+  "bucket_id": 37,
+  "metal": "palladium",
+  "family": "palladium/eagles",
+  "last_updated": "2026-04-10T18:46:59.211229+00:00",
+  "candidates": [
+    {
+      "id": "d529092d-1be4-450b-a90f-e59421371b08",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:2017_$25_Palladium_obverse.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/a/a7/2017_%2425_Palladium_obverse.jpg",
+      "raw_source_title": "American Eagle 1 oz palladium US Mint",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint",
+      "rights_note": "License: public_domain",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:2017 $25 Palladium obverse.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:36:42.767481+00:00",
+      "checksum": "853e936c813c2b6915a658eed678398bc7f94b5ee2756e63fa58fe49d5bbe02d",
+      "width": 768,
+      "height": 768,
+      "mime_type": "image/jpeg",
+      "file_size": 99049,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/palladium/eagles/palladium-american-eagle-1oz_known_files_853e936c.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/palladium/eagles/thumbs/palladium-american-eagle-1oz_known_files_853e936c_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/853e936c813c2b69.jpg"
+    },
+    {
+      "id": "e19a9656-f324-4321-a1ab-0ae460bf2ca7",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:2017_$25_Palladium_reverse.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/a/a2/2017_%2425_Palladium_reverse.jpg",
+      "raw_source_title": "American Eagle 1 oz palladium US Mint",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint",
+      "rights_note": "License: public_domain",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:2017 $25 Palladium reverse.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:36:44.822984+00:00",
+      "checksum": "bd0f5b54ef95872f0c45984153ade9565c6728fae7edeffb8047eccb33e3f87e",
+      "width": 768,
+      "height": 768,
+      "mime_type": "image/jpeg",
+      "file_size": 158142,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/palladium/eagles/palladium-american-eagle-1oz_known_files_bd0f5b54.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/palladium/eagles/thumbs/palladium-american-eagle-1oz_known_files_bd0f5b54_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/bd0f5b54ef95872f.jpg"
+    }
+  ]
+}

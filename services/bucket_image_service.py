@@ -383,6 +383,17 @@ def compute_match_confidence(
         warnings.append('brand_varies')
         score = min(score, 0.60)
 
+    # Warning: proof image for a non-proof bucket (or vice versa)
+    bucket_finish = (standard_bucket.get('finish') or '').lower().strip()
+    is_proof_bucket = bucket_finish in ('proof', 'reverse proof')
+    title_has_proof = 'proof' in title
+    if title_has_proof and not is_proof_bucket:
+        warnings.append('proof_vs_bullion')
+        score = min(score, 0.60)
+    elif not title_has_proof and is_proof_bucket:
+        warnings.append('proof_vs_bullion')
+        score = min(score, 0.60)
+
     # Retailer sources get a hard cap (they're candidates, not trusted truth)
     if source_type == 'retailer':
         score = min(score, 0.75)
@@ -1263,7 +1274,7 @@ def get_coverage_report(conn=None) -> Dict[str, Any]:
                                  if g['total'] else 0.0,
             }
 
-        # Source breakdown for active images
+        # Source breakdown for active images (existing compact dict)
         source_rows = conn.execute(
             """SELECT source_name, COUNT(*) AS cnt
                FROM bucket_image_assets
@@ -1272,6 +1283,40 @@ def get_coverage_report(conn=None) -> Dict[str, Any]:
                ORDER BY cnt DESC"""
         ).fetchall()
         by_source = {r['source_name']: r['cnt'] for r in source_rows}
+
+        # Detailed per-source breakdown: all statuses + candidate totals
+        detail_rows = conn.execute(
+            """SELECT source_name, status, COUNT(*) AS cnt
+               FROM bucket_image_assets
+               GROUP BY source_name, status
+               ORDER BY source_name, status"""
+        ).fetchall()
+        source_detail: Dict[str, Dict] = {}
+        for r in detail_rows:
+            sname  = r['source_name'] or 'unknown'
+            status = r['status']
+            entry  = source_detail.setdefault(sname, {
+                'active': 0, 'approved': 0, 'pending': 0, 'rejected': 0, 'total': 0
+            })
+            entry[status] = entry.get(status, 0) + r['cnt']
+            entry['total'] += r['cnt']
+
+        # Buckets still empty (no active cover) for per-source "gaps" view
+        empty_bucket_rows = conn.execute(
+            """SELECT sb.id, sb.slug, sb.title, sb.metal,
+                      COUNT(bia.id)                                             AS total_assets,
+                      SUM(CASE WHEN bia.status = 'pending' THEN 1 ELSE 0 END)  AS pending_count
+               FROM standard_buckets sb
+               LEFT JOIN bucket_image_assets bia ON bia.standard_bucket_id = sb.id
+               WHERE sb.active = 1
+                 AND NOT EXISTS (
+                     SELECT 1 FROM bucket_image_assets ba2
+                     WHERE ba2.standard_bucket_id = sb.id AND ba2.status = 'active'
+                 )
+               GROUP BY sb.id, sb.slug, sb.title, sb.metal
+               ORDER BY sb.metal, sb.title"""
+        ).fetchall()
+        empty_buckets = [dict(r) for r in empty_bucket_rows]
 
         return {
             'total':             total,
@@ -1282,6 +1327,8 @@ def get_coverage_report(conn=None) -> Dict[str, Any]:
             'by_metal':          by_metal,
             'by_product_group':  by_product_group,
             'by_source':         by_source,
+            'by_source_detail':  source_detail,
+            'empty_buckets':     empty_buckets,
         }
     finally:
         if close:

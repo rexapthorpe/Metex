@@ -129,6 +129,7 @@ def process_image(
     ext = MIME_TO_EXT.get(mime, ".jpg")
     key8 = storage_key[:8]
     safe_source = source_short.replace(" ", "_").lower()[:16]
+    slug = slug.replace("/", "-")  # sanitize slugs like "gold-bar-1/4oz"
 
     # Save raw original
     raw_path = raw_dir / f"{storage_key}{ext}"

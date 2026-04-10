@@ -132,7 +132,7 @@ _SEED_BUCKETS: List[Dict] = [
     {"id": 20, "slug": "gold-bar-1g",    "title": "1 g Gold Bar",  "metal": "gold", "form": "bar",
      "weight": "1 g",  "weight_oz": 0.032,  "mint": "Various",  "product_family": "Bar",
      "year_policy": "varies",  "purity": ".9999"},
-    {"id": 21, "slug": "gold-bar-2.5g",  "title": "2.5 g Gold Bar", "metal": "gold", "form": "bar",
+    {"id": 21, "slug": "gold-bar-2-5g",  "title": "2.5 g Gold Bar", "metal": "gold", "form": "bar",
      "weight": "2.5 g",  "weight_oz": 0.080,  "mint": "Various",  "product_family": "Bar",
      "year_policy": "varies",  "purity": ".9999"},
     {"id": 22, "slug": "gold-bar-5g",   "title": "5 g Gold Bar",   "metal": "gold", "form": "bar",
@@ -141,7 +141,7 @@ _SEED_BUCKETS: List[Dict] = [
     {"id": 23, "slug": "gold-bar-10g",  "title": "10 g Gold Bar",  "metal": "gold", "form": "bar",
      "weight": "10 g",  "weight_oz": 0.321,  "mint": "Various",  "product_family": "Bar",
      "year_policy": "varies",  "purity": ".9999"},
-    {"id": 24, "slug": "gold-bar-1/4oz","title": "1/4 oz Gold Bar","metal": "gold", "form": "bar",
+    {"id": 24, "slug": "gold-bar-quarter-oz","title": "1/4 oz Gold Bar","metal": "gold", "form": "bar",
      "weight": "1/4 oz","weight_oz": 0.25,   "mint": "Various",  "product_family": "Bar",
      "year_policy": "varies",  "purity": ".9999"},
     {"id": 25, "slug": "gold-bar-1oz",  "title": "1 oz Gold Bar",  "metal": "gold", "form": "bar",
@@ -195,7 +195,7 @@ _SEED_BUCKETS: List[Dict] = [
      "mint": "Mexican Mint",  "product_family": "Libertad",  "year_policy": "varies",
      "purity": ".999"},
 
-    {"id": 35, "slug": "silver-chinese-panda-1oz",        "title": "1 oz Silver Chinese Panda",
+    {"id": 35, "slug": "silver-chinese-panda-30g",        "title": "30 g Silver Chinese Panda",
      "metal": "silver", "form": "coin",  "weight": "1 oz",  "weight_oz": 1.0,
      "mint": "China Gold Coin",  "product_family": "Panda",  "year_policy": "varies",
      "purity": ".999"},
@@ -304,7 +304,7 @@ _SEED_BUCKETS: List[Dict] = [
      "mint": "Various",  "product_family": "Bar",  "year_policy": "varies",  "purity": ".999"},
 
     # ── Kookaburra (Perth Mint) ───────────────────────────────────────────────
-    {"id": 62, "slug": "silver-australian-kookaburra-1oz",   "title": "1 oz Silver Kookaburra",
+    {"id": 62, "slug": "silver-perth-kookaburra-1oz",         "title": "1 oz Silver Kookaburra",
      "metal": "silver", "form": "coin", "weight": "1 oz", "weight_oz": 1.0,
      "mint": "Perth Mint",  "product_family": "Kookaburra",  "year_policy": "varies",  "purity": ".999"},
 ]
@@ -317,10 +317,13 @@ def load_from_db() -> Optional[List[Dict]]:
         return None
     try:
         import sys
-        # Add Metex root to path so we can import database module
+        # Add Metex root to path (appended so our config/ package stays at front)
         metex_root = str(Path(__file__).resolve().parent.parent.parent)
+        bia_root = str(Path(__file__).resolve().parent.parent)
         if metex_root not in sys.path:
-            sys.path.insert(0, metex_root)
+            sys.path.append(metex_root)
+        if bia_root not in sys.path:
+            sys.path.insert(0, bia_root)
         import database
         conn = database.get_db_connection()
         cur = conn.cursor()

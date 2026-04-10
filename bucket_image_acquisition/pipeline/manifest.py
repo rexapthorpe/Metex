@@ -39,7 +39,9 @@ def _now_iso() -> str:
 
 
 def manifest_path(slug: str) -> Path:
-    return MANIFESTS_DIR / f"{slug}.json"
+    # Sanitize slug to be safe as a filename (replace / with -)
+    safe_slug = slug.replace("/", "-")
+    return MANIFESTS_DIR / f"{safe_slug}.json"
 
 
 def load_manifest(slug: str) -> dict:

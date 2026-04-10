@@ -22,21 +22,25 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Ensure Metex root is importable
+# Ensure Metex root is importable.
+# Use append (not insert) so that our config/ package is not shadowed by
+# the Metex root-level config.py.
 _METEX_ROOT = Path(__file__).resolve().parent.parent.parent
+_BIA_ROOT = Path(__file__).resolve().parent.parent
 if str(_METEX_ROOT) not in sys.path:
-    sys.path.insert(0, str(_METEX_ROOT))
+    sys.path.append(str(_METEX_ROOT))
+# Always keep bucket_image_acquisition at the front
+if str(_BIA_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BIA_ROOT))
 
 
-def _get_service():
-    """Lazy-import BucketImageService from Metex."""
+def _get_ingest_fns():
+    """Lazy-import ingest functions from Metex bucket_image_service."""
     try:
-        from services.bucket_image_service import BucketImageService
-        return BucketImageService()
+        from services.bucket_image_service import ingest_from_url, ingest_from_upload
+        return ingest_from_url, ingest_from_upload
     except ImportError as e:
-        raise RuntimeError(
-            f"Cannot import BucketImageService — is DATABASE_URL set? ({e})"
-        )
+        raise RuntimeError(f"Cannot import ingest functions: {e}")
 
 
 def _get_db():
@@ -50,7 +54,7 @@ def _get_db():
 def _resolve_bucket_id(slug: str, conn) -> Optional[int]:
     """Look up standard_bucket id by slug."""
     cur = conn.cursor()
-    cur.execute("SELECT id FROM standard_buckets WHERE slug = %s", (slug,))
+    cur.execute("SELECT id FROM standard_buckets WHERE slug = ?", (slug,))
     row = cur.fetchone()
     return row[0] if row else None
 
@@ -91,7 +95,7 @@ def export_manifest(
         return stats
 
     try:
-        bis = _get_service()
+        ingest_from_url, ingest_from_upload = _get_ingest_fns()
         conn = _get_db()
     except RuntimeError as e:
         logger.error("Export setup failed for %s: %s", slug, e)
@@ -116,19 +120,20 @@ def export_manifest(
             continue
 
         source_info = {
-            "source_name":       cand.get("source", "unknown"),
-            "source_type":       cand.get("source_type", "unknown"),
-            "source_page_url":   cand.get("source_page_url", ""),
-            "attribution_text":  cand.get("attribution_text", ""),
-            "license_type":      cand.get("license_type", "unknown"),
-            "rights_note":       cand.get("rights_note", ""),
-            "usage_allowed":     cand.get("usage_allowed", True),
-            "raw_source_title":  cand.get("raw_source_title", ""),
-            "raw_source_metadata": cand.get("extra_metadata", {}),
+            "source_name":         cand.get("source", "unknown"),
+            "source_type":         cand.get("source_type", "unknown"),
+            "source_page_url":     cand.get("source_page_url", ""),
+            "original_image_url":  cand.get("original_image_url", ""),
+            "attribution_text":    cand.get("attribution_text", ""),
+            "license_type":        cand.get("license_type", "unknown"),
+            "rights_note":         cand.get("rights_note", ""),
+            "usage_allowed":       cand.get("usage_allowed", True),
+            "raw_source_title":    cand.get("raw_source_title", ""),
+            "confidence_score":    confidence,
         }
 
         if dry_run:
-            logger.info("[DRY RUN] Would export to Metex: %s / conf=%.2f / %s",
+            logger.info("[DRY RUN] Would export: %s | conf=%.2f | %s",
                         slug, confidence, cand.get("raw_source_title", "")[:60])
             stats["exported"] += 1
             continue
@@ -140,12 +145,12 @@ def export_manifest(
                     logger.debug("Local file missing for %s: %s", slug, local_path)
                     stats["skipped_no_file"] += 1
                     continue
+                import io
                 with open(local_path, "rb") as f:
-                    image_bytes = f.read()
-                result = bis.ingest_from_upload(
-                    bucket_id=bucket_id,
-                    image_bytes=image_bytes,
-                    filename=Path(local_path).name,
+                    file_stream = io.BytesIO(f.read())
+                result = ingest_from_upload(
+                    standard_bucket_id=bucket_id,
+                    file_stream=file_stream,
                     source_info=source_info,
                     admin_user_id=None,
                 )
@@ -154,8 +159,8 @@ def export_manifest(
                 if not url:
                     stats["skipped_no_file"] += 1
                     continue
-                result = bis.ingest_from_url(
-                    bucket_id=bucket_id,
+                result = ingest_from_url(
+                    standard_bucket_id=bucket_id,
                     url=url,
                     source_info=source_info,
                     admin_user_id=None,
@@ -165,7 +170,7 @@ def export_manifest(
                 logger.warning("Metex rejected %s: %s", slug, result["error"])
                 stats["errors"] += 1
             else:
-                logger.info("Exported to Metex: %s | asset_id=%s | duplicate=%s",
+                logger.info("Exported: %s | asset_id=%s | duplicate=%s",
                             slug, result.get("asset_id"), result.get("duplicate"))
                 stats["exported"] += 1
 

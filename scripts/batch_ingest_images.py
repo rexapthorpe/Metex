@@ -55,11 +55,14 @@ import services.bucket_image_service as bis
 from services.ingestion_adapters import (
     KnownFilesAdapter,
     WikimediaAdapter,
+    UsMintDirectAdapter,
     UsMintAdapter,
     RcmAdapter,
     RoyalMintAdapter,
     PerthMintAdapter,
     RefinerAdapter,
+    ApmexAdapter,
+    JmBullionAdapter,
 )
 
 # ---------------------------------------------------------------------------
@@ -71,13 +74,16 @@ from services.ingestion_adapters import (
 # ---------------------------------------------------------------------------
 
 ADAPTERS = {
-    'known_files': KnownFilesAdapter,  # hardcoded curated catalog (highest precision)
-    'wikimedia':   WikimediaAdapter,   # generic Wikimedia Commons search
-    'us_mint':     UsMintAdapter,      # US Mint (public_domain, auto-activatable)
-    'rcm':         RcmAdapter,         # Royal Canadian Mint (licensed, review req'd)
-    'royal_mint':  RoyalMintAdapter,   # Royal Mint UK (licensed, review req'd)
-    'perth_mint':  PerthMintAdapter,   # Perth Mint AU (licensed, review req'd)
-    'refiner':     RefinerAdapter,     # Bullion bars: PAMP, Valcambi, Sunshine, etc.
+    'known_files':    KnownFilesAdapter,   # hardcoded curated catalog (highest precision)
+    'wikimedia':      WikimediaAdapter,    # generic Wikimedia Commons search
+    'us_mint_direct': UsMintDirectAdapter, # US Mint scraped from usmint.gov (public_domain, preferred)
+    'us_mint':        UsMintAdapter,       # US Mint via Wikimedia search (public_domain, fallback)
+    'rcm':            RcmAdapter,          # Royal Canadian Mint via Wikimedia (licensed, review req'd)
+    'royal_mint':     RoyalMintAdapter,    # Royal Mint UK via Wikimedia (licensed, review req'd)
+    'perth_mint':     PerthMintAdapter,    # Perth Mint AU via Wikimedia (licensed, review req'd)
+    'refiner':        RefinerAdapter,      # Bullion bars: PAMP, Valcambi, Sunshine, etc.
+    'apmex':          ApmexAdapter,        # APMEX retailer (candidate-only, always pending)
+    'jmbullion':      JmBullionAdapter,    # JM Bullion retailer (candidate-only, always pending)
 }
 
 

@@ -1,0 +1,36 @@
+{
+  "bucket_slug": "silver-canadian-maple-leaf-1oz",
+  "bucket_id": 20,
+  "metal": "silver",
+  "family": "silver/maples",
+  "last_updated": "2026-04-10T18:47:25.017537+00:00",
+  "candidates": [
+    {
+      "id": "c8d83685-dde3-43d9-8e87-cdf4f5c5b050",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "licensed",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:1-ounce_Silver_Canadian_Maple_Leaf_MADE_OF_%2B.9999%25_PURE_SILVER.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/9/90/1-ounce_Silver_Canadian_Maple_Leaf_MADE_OF_%2B.9999%25_PURE_SILVER.jpg",
+      "raw_source_title": "Maple Leaf 1 oz silver Royal Canadian Mint",
+      "license_type": "CC-BY-SA-4.0",
+      "attribution_text": "Wikimedia Commons contributor",
+      "rights_note": "License: CC-BY-SA-4.0",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:1-ounce Silver Canadian Maple Leaf MADE OF +.9999% PURE SILVER.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:29:39.107728+00:00",
+      "checksum": "ad72203886e0d2092627d5989929cbe40fddd4546f855f7f21afbf623dc24579",
+      "width": 4128,
+      "height": 2322,
+      "mime_type": "image/jpeg",
+      "file_size": 3932921,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/maples/silver-canadian-maple-leaf-1oz_known_files_ad722038.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/maples/thumbs/silver-canadian-maple-leaf-1oz_known_files_ad722038_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/ad72203886e0d209.jpg"
+    }
+  ]
+}

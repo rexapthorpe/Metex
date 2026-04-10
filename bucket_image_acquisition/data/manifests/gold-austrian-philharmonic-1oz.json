@@ -1,0 +1,63 @@
+{
+  "bucket_slug": "gold-austrian-philharmonic-1oz",
+  "bucket_id": 8,
+  "metal": "gold",
+  "family": "gold/philharmonics",
+  "last_updated": "2026-04-10T18:46:51.862022+00:00",
+  "candidates": [
+    {
+      "id": "c52c47de-5236-485f-8c9a-3c82ab853979",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "licensed",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Wiener_Philharmoniker_coin_Obverse.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/8/8c/Wiener_Philharmoniker_coin_Obverse.jpg",
+      "raw_source_title": "Philharmonic 1 oz gold Austrian Mint",
+      "license_type": "CC-BY-SA-3.0",
+      "attribution_text": "Wikimedia Commons contributor",
+      "rights_note": "License: CC-BY-SA-3.0",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:Wiener Philharmoniker coin Obverse.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T15:03:39.295081+00:00",
+      "checksum": "57a6810255a20b69620be2cca173e37497f4049b00571df6395da4e6d76b5fd6",
+      "width": 400,
+      "height": 400,
+      "mime_type": "image/jpeg",
+      "file_size": 38533,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/philharmonics/gold-austrian-philharmonic-1oz_known_files_57a68102.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/philharmonics/thumbs/gold-austrian-philharmonic-1oz_known_files_57a68102_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/57a6810255a20b69.jpg"
+    },
+    {
+      "id": "70ad7fbc-1639-4768-94c1-e0736d5bae30",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "licensed",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:1_oz_Vienna_Philharmonic_2017_averse.png",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c2/1_oz_Vienna_Philharmonic_2017_averse.png",
+      "raw_source_title": "Philharmonic 1 oz gold Austrian Mint",
+      "license_type": "CC-BY-SA-4.0",
+      "attribution_text": "Wikimedia Commons contributor",
+      "rights_note": "License: CC-BY-SA-4.0",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:1 oz Vienna Philharmonic 2017 averse.png"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T15:03:41.504335+00:00",
+      "checksum": "c07decc87bfc3d41dfecf4b067891abc6d9b80b5fed17ee04b366c52b74577ae",
+      "width": 1000,
+      "height": 1000,
+      "mime_type": "image/png",
+      "file_size": 2013067,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/philharmonics/gold-austrian-philharmonic-1oz_known_files_c07decc8.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/philharmonics/thumbs/gold-austrian-philharmonic-1oz_known_files_c07decc8_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/c07decc87bfc3d41.png"
+    }
+  ]
+}

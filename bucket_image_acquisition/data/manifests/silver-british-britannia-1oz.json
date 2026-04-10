@@ -1,0 +1,36 @@
+{
+  "bucket_slug": "silver-british-britannia-1oz",
+  "bucket_id": 23,
+  "metal": "silver",
+  "family": "silver/britannias",
+  "last_updated": "2026-04-10T18:47:20.653739+00:00",
+  "candidates": [
+    {
+      "id": "e3c5bca5-96f9-48d8-bb4c-1681f3a452e1",
+      "source": "Wikimedia Commons",
+      "source_type": "licensed",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:British_Britannia_Silver_2021_1Oz._.999_Fine_Silver_2_Pounds_English_coin.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/2/26/British_Britannia_Silver_2021_1Oz._.999_Fine_Silver_2_Pounds_English_coin.jpg",
+      "raw_source_title": "British Britannia Silver 2021 1Oz. .999 Fine Silver 2 Pounds English coin.jpg",
+      "license_type": "CC BY-SA 4.0",
+      "attribution_text": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:ARAR123&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:ARAR123 (page does not exist)\">ARAR123</a>",
+      "rights_note": "License: CC BY-SA 4.0",
+      "usage_allowed": true,
+      "extra_metadata": {},
+      "confidence_score": 0.43,
+      "warnings": [
+        "size_mismatch"
+      ],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:30:42.045804+00:00",
+      "checksum": "027f666a71a25c64800a7b3bd72c1ccaa6935635604222aeb8b029de083f4a12",
+      "width": 4128,
+      "height": 2322,
+      "mime_type": "image/jpeg",
+      "file_size": 4097580,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/britannias/silver-british-britannia-1oz_wikimedia_027f666a.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/britannias/thumbs/silver-british-britannia-1oz_wikimedia_027f666a_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/027f666a71a25c64.jpg"
+    }
+  ]
+}

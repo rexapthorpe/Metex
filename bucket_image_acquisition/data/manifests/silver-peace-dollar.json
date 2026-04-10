@@ -1,0 +1,36 @@
+{
+  "bucket_slug": "silver-peace-dollar",
+  "bucket_id": 28,
+  "metal": "silver",
+  "family": "silver/peace_dollars",
+  "last_updated": "2026-04-10T18:47:18.389024+00:00",
+  "candidates": [
+    {
+      "id": "106d6193-ffa8-40e3-b24c-b164e3719b88",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Peace_dollar.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Peace_dollar.jpg",
+      "raw_source_title": "Peace Dollar 0.77 oz silver US Mint",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint",
+      "rights_note": "License: public_domain",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:Peace dollar.jpg"
+      },
+      "confidence_score": 0.63,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:32:00.339293+00:00",
+      "checksum": "0f3f437348aca62aeca6358465e4db06563da2f2911b2b89b8a14e4eca508dd1",
+      "width": 507,
+      "height": 500,
+      "mime_type": "image/jpeg",
+      "file_size": 103380,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/peace_dollars/silver-peace-dollar_known_files_0f3f4373.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/peace_dollars/thumbs/silver-peace-dollar_known_files_0f3f4373_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/0f3f437348aca62a.jpg"
+    }
+  ]
+}

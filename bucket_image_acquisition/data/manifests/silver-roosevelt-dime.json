@@ -1,0 +1,36 @@
+{
+  "bucket_slug": "silver-roosevelt-dime",
+  "bucket_id": 57,
+  "metal": "silver",
+  "family": "silver/roosevelt_dimes",
+  "last_updated": "2026-04-10T18:47:20.648362+00:00",
+  "candidates": [
+    {
+      "id": "442c0564-5573-447b-badf-96680439516b",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:2015-W_proof_Roosevelt_dime_obverse.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/1/10/2015-W_proof_Roosevelt_dime_obverse.jpg",
+      "raw_source_title": "Roosevelt Dime 0.072 oz silver US Mint",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint",
+      "rights_note": "License: public_domain",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:2015-W proof Roosevelt dime obverse.jpg"
+      },
+      "confidence_score": 0.83,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:33:13.337304+00:00",
+      "checksum": "d6e143aeb3274a9bde0469d7aa588215edb248a4e9f349eaf2e1030b322b8c49",
+      "width": 2900,
+      "height": 2900,
+      "mime_type": "image/jpeg",
+      "file_size": 4583655,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/roosevelt_dimes/silver-roosevelt-dime_known_files_d6e143ae.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/roosevelt_dimes/thumbs/silver-roosevelt-dime_known_files_d6e143ae_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/d6e143aeb3274a9b.jpg"
+    }
+  ]
+}

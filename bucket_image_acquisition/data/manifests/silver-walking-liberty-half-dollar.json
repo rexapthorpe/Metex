@@ -1,0 +1,61 @@
+{
+  "bucket_slug": "silver-walking-liberty-half-dollar",
+  "bucket_id": 54,
+  "metal": "silver",
+  "family": "silver/walking_liberty",
+  "last_updated": "2026-04-10T18:47:27.211210+00:00",
+  "candidates": [
+    {
+      "id": "5786b761-55b5-4702-a3e7-30eb8568eab9",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Walking_Liberty_Half_Dollar_1945D_Obverse.png",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Walking_Liberty_Half_Dollar_1945D_Obverse.png",
+      "raw_source_title": "Walking Liberty 0.36 oz silver US Mint",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint",
+      "rights_note": "License: public_domain",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:Walking Liberty Half Dollar 1945D Obverse.png"
+      },
+      "confidence_score": 0.63,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:32:16.824395+00:00",
+      "checksum": "369a0b39e4e6dbd5e033694f82bbbe60735183d8b6ceb73443008b21778f9dec",
+      "width": 1127,
+      "height": 1121,
+      "mime_type": "image/png",
+      "file_size": 2498898,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/walking_liberty/silver-walking-liberty-half-dollar_known_files_369a0b39.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/walking_liberty/thumbs/silver-walking-liberty-half-dollar_known_files_369a0b39_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/369a0b39e4e6dbd5.png"
+    },
+    {
+      "id": "6452ab02-b40d-45df-9081-2e8f341e979b",
+      "source": "Open Numismatics (historic US)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:2019_American_Silver_Eagle_and_1943_Walking_Liberty_Half_dollar_side_by_side.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/b/bb/2019_American_Silver_Eagle_and_1943_Walking_Liberty_Half_dollar_side_by_side.jpg",
+      "raw_source_title": "2019 American Silver Eagle and 1943 Walking Liberty Half dollar side by side.jpg",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint (pre-1978 public domain)",
+      "rights_note": "Pre-1978 US Mint \u2014 public domain",
+      "usage_allowed": true,
+      "extra_metadata": {},
+      "confidence_score": 0.43,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:32:24.090635+00:00",
+      "checksum": "8f1c1ac6aebcd1bfec83b1c4fe7e287f207c77a87ada6d9b29b6013e6aec8c71",
+      "width": 1609,
+      "height": 1548,
+      "mime_type": "image/jpeg",
+      "file_size": 518959,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/walking_liberty/silver-walking-liberty-half-dollar_open_numisma_8f1c1ac6.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/walking_liberty/thumbs/silver-walking-liberty-half-dollar_open_numisma_8f1c1ac6_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/8f1c1ac6aebcd1bf.jpg"
+    }
+  ]
+}

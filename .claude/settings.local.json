@@ -120,7 +120,8 @@
       "Bash(/Users/rexapthorpe/Desktop/Metex/venv/bin/python -m pytest tests/ -q --tb=line --timeout=120)",
       "Bash(echo \"EXIT_CODE:$?\")",
       "Bash(sort -k5 -n)",
-      "Bash(PYTHONPATH=/Users/rexapthorpe/Desktop/Metex python:*)"
+      "Bash(PYTHONPATH=/Users/rexapthorpe/Desktop/Metex python:*)",
+      "Bash(DATABASE_URL=1 python:*)"
     ],
     "deny": [],
     "ask": []

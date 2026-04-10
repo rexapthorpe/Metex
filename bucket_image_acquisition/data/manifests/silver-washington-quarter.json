@@ -1,0 +1,36 @@
+{
+  "bucket_slug": "silver-washington-quarter",
+  "bucket_id": 58,
+  "metal": "silver",
+  "family": "silver/washington_quarters",
+  "last_updated": "2026-04-10T18:47:29.344350+00:00",
+  "candidates": [
+    {
+      "id": "a0896f12-db5e-496a-92a6-ef5101c7f2b9",
+      "source": "Wikimedia Commons (curated)",
+      "source_type": "public_domain",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Washington_Quarter_Silver_1944S_Obverse.png",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/d/d5/Washington_Quarter_Silver_1944S_Obverse.png",
+      "raw_source_title": "Washington Quarter 0.18 oz silver US Mint",
+      "license_type": "public_domain",
+      "attribution_text": "United States Mint",
+      "rights_note": "License: public_domain",
+      "usage_allowed": true,
+      "extra_metadata": {
+        "wikimedia_file_title": "File:Washington Quarter Silver 1944S Obverse.png"
+      },
+      "confidence_score": 0.63,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T17:33:26.898355+00:00",
+      "checksum": "a8b7cb1988d75d8a75762ffeb113af3fcb670046280dff8e1f3a441d672cc2b0",
+      "width": 750,
+      "height": 755,
+      "mime_type": "image/png",
+      "file_size": 1076453,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/washington_quarters/silver-washington-quarter_known_files_a8b7cb19.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/silver/washington_quarters/thumbs/silver-washington-quarter_known_files_a8b7cb19_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/a8b7cb1988d75d8a.png"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "bucket_slug": "gold-bar-1g",
+  "bucket_id": 13,
+  "metal": "gold",
+  "family": "gold/bars",
+  "last_updated": "2026-04-10T18:46:40.241193+00:00",
+  "candidates": [
+    {
+      "id": "21719177-4de3-4994-922a-9a0cc3e2d438",
+      "source": "Refiner",
+      "source_type": "licensed",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Goldas_1g_gold_bullion_in_assay_card.jpg",
+      "original_image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c4/Goldas_1g_gold_bullion_in_assay_card.jpg",
+      "raw_source_title": "Goldas 1g gold bullion in assay card.jpg",
+      "license_type": "licensed",
+      "attribution_text": "Various refiners",
+      "rights_note": "Refiner licensed image \u2014 requires admin review",
+      "usage_allowed": true,
+      "extra_metadata": {},
+      "confidence_score": 0.43,
+      "warnings": [],
+      "status": "candidate",
+      "acquired_at": "2026-04-10T15:04:54.882249+00:00",
+      "checksum": "0cded7e1fbeaaead3202eae1d4dd01279a152a07332d42e9e068263be807f156",
+      "width": 2050,
+      "height": 1365,
+      "mime_type": "image/jpeg",
+      "file_size": 2031810,
+      "local_web_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/bars/gold-bar-1g_refiner_0cded7e1.jpg",
+      "local_thumb_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/catalog/gold/bars/thumbs/gold-bar-1g_refiner_0cded7e1_thumb.jpg",
+      "local_raw_path": "/Users/rexapthorpe/Desktop/Metex/bucket_image_acquisition/data/raw/0cded7e1fbeaaead.jpg"
+    }
+  ]
+}
