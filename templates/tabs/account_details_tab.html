@@ -126,6 +126,17 @@
         </div>
         {% endif %}
 
+        <!-- Return-to-bid banner (shown temporarily when user arrived from the bid modal) -->
+        <div id="pmBidReturnBanner" class="pm-bid-return-banner" style="display:none;">
+          <div class="pm-bid-return-inner">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Bid in progress — </span>
+            <button type="button" class="pm-bid-return-btn" onclick="pmReturnToBid()">
+              Back to bid
+            </button>
+          </div>
+        </div>
+
         <!-- Saved cards list (populated by JS) -->
         <div id="pmList" class="pm-list">
           <div class="pm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
@@ -139,13 +150,13 @@
         <!-- Stripe SetupIntent form (shown by JS after load — visible when no saved cards) -->
         <div id="pmFormWrap" class="pm-form-wrap" style="display:none;">
           <div class="pm-form-header">
-            <span>New Card</span>
+            <span>New Payment Method</span>
             <button class="pm-form-close" onclick="pmHideForm()" aria-label="Close">&times;</button>
           </div>
           <div id="pmStripeElement"></div>
           <div id="pmFormError" class="pm-form-error" style="display:none;"></div>
           <button class="pm-form-submit" id="pmSubmitBtn" onclick="pmSubmit()">
-            <i class="fa-solid fa-lock"></i> Save Card
+            <i class="fa-solid fa-lock"></i> Save
           </button>
         </div>
 
@@ -179,7 +190,7 @@
       <!-- ── Remove Card Confirmation Modal ─────────────────────────────── -->
       <div id="pmRemoveModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
         <div class="pm-remove-dialog">
-          <h4 class="pm-remove-title">Remove Card</h4>
+          <h4 class="pm-remove-title">Remove Payment Method</h4>
           <p class="pm-remove-body">Are you sure you want to remove this payment method? This cannot be undone.</p>
           <div class="pm-remove-actions">
             <button type="button" class="pm-remove-btn-cancel" onclick="pmRemoveCancel()">Cancel</button>
@@ -211,7 +222,10 @@
             .catch(function() { list.innerHTML = '<p class="empty-state">Could not load cards.</p>'; });
         }
 
-        function pmBrandIcon(brand) {
+        function pmBrandIcon(brand, methodType) {
+          if (methodType === 'bank_account') {
+            return 'fa-solid fa-building-columns';
+          }
           var icons = {
             visa:       'fa-brands fa-cc-visa',
             mastercard: 'fa-brands fa-cc-mastercard',
@@ -228,26 +242,32 @@
           var list = document.getElementById('pmList');
           if (!methods || methods.length === 0) {
             list.innerHTML = '';
-            // No saved cards — show form, hide add button
+            // No saved methods — show form, hide add button
             document.getElementById('pmFormWrap').style.display = '';
             document.getElementById('pmAddBtn').style.display = 'none';
             pmInitElement();
             return;
           }
-          // Has saved cards — hide form, show add button
+          // Has saved methods — hide form, show add button
           document.getElementById('pmFormWrap').style.display = 'none';
           document.getElementById('pmAddBtn').style.display = '';
           if (paymentElement) { paymentElement.unmount(); paymentElement = null; elements = null; }
           list.innerHTML = methods.map(function(m) {
-            var expStr = (m.exp_month ? String(m.exp_month).padStart(2,'0') : '--') + '/' + (m.exp_year ? String(m.exp_year).slice(-2) : '--');
-            var brandName = m.brand ? m.brand.charAt(0).toUpperCase() + m.brand.slice(1) : 'Card';
+            var isBankAccount = m.method_type === 'bank_account';
+            var displayName = m.brand ? m.brand.charAt(0).toUpperCase() + m.brand.slice(1) : (isBankAccount ? 'Bank' : 'Card');
+            var secondLine = isBankAccount
+              ? '<span class="pm-card-exp">Bank account</span>'
+              : (function() {
+                  var expStr = (m.exp_month ? String(m.exp_month).padStart(2,'0') : '--') + '/' + (m.exp_year ? String(m.exp_year).slice(-2) : '--');
+                  return '<span class="pm-card-exp">Expires ' + expStr + '</span>';
+                })();
             return [
               '<div class="pm-card' + (m.is_default ? ' pm-card--default' : '') + '" data-pmid="' + m.id + '">',
               '  <div class="pm-card-left">',
-              '    <i class="' + pmBrandIcon(m.brand) + ' pm-brand-icon"></i>',
+              '    <i class="' + pmBrandIcon(m.brand, m.method_type) + ' pm-brand-icon"></i>',
               '    <div class="pm-card-info">',
-              '      <span class="pm-card-number">' + brandName + ' •••• ' + (m.last4 || '----') + '</span>',
-              '      <span class="pm-card-exp">Expires ' + expStr + '</span>',
+              '      <span class="pm-card-number">' + displayName + ' •••• ' + (m.last4 || '----') + '</span>',
+              '      ' + secondLine,
               '    </div>',
               '  </div>',
               '  <div class="pm-card-right">',
@@ -305,10 +325,13 @@
 
           stripe.confirmSetup({
             elements: elements,
+            confirmParams: {
+              return_url: window.location.origin + '/account',
+            },
             redirect: 'if_required',
           }).then(function(result) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-lock"></i> Save Card';
+            btn.innerHTML = '<i class="fa-solid fa-lock"></i> Save';
             if (result.error) {
               pmShowError(result.error.message);
             } else {
@@ -362,10 +385,38 @@
           el.style.display = 'block';
         }
 
+        // ── Bid return banner ──────────────────────────────────────────────
+        function pmCheckBidReturnBanner() {
+          var banner = document.getElementById('pmBidReturnBanner');
+          if (!banner) return;
+          try {
+            var raw = sessionStorage.getItem('bidModalReturnState');
+            banner.style.display = raw ? 'block' : 'none';
+          } catch (e) {
+            banner.style.display = 'none';
+          }
+        }
+
+        window.pmReturnToBid = function () {
+          try {
+            var raw = sessionStorage.getItem('bidModalReturnState');
+            if (!raw) { window.location.href = '/'; return; }
+            var state = JSON.parse(raw);
+            // Navigate back; bid_modal.js will read & apply the state on arrival
+            window.location.href = state.returnPath || '/';
+          } catch (e) {
+            window.location.href = '/';
+          }
+        };
+
         // Load on page open and whenever the payment section is shown
         pmLoad();
+        pmCheckBidReturnBanner();
         document.addEventListener('detailsSectionShown', function(e) {
-          if (e.detail === 'payment') pmLoad();
+          if (e.detail === 'payment') {
+            pmLoad();
+            pmCheckBidReturnBanner();
+          }
         });
 
         // ── Payout bank account (Stripe Connect) ──────────────────────────

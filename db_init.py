@@ -885,6 +885,121 @@ def backfill_missing_refund_records():
         print(f'Error in backfill_missing_refund_records: {e}')
 
 
+def ensure_bucket_image_tables():
+    """
+    Ensure the three bucket image catalog tables exist.
+    Safe to run multiple times (CREATE TABLE IF NOT EXISTS).
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(_ddl("""
+            CREATE TABLE IF NOT EXISTS standard_buckets (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug               TEXT NOT NULL UNIQUE,
+                title              TEXT NOT NULL,
+                metal              TEXT NOT NULL,
+                form               TEXT NOT NULL DEFAULT 'coin',
+                weight             TEXT,
+                weight_oz          REAL,
+                denomination       TEXT,
+                mint               TEXT,
+                product_family     TEXT,
+                product_series     TEXT,
+                year_policy        TEXT NOT NULL DEFAULT 'fixed',
+                year               TEXT,
+                purity             TEXT,
+                finish             TEXT,
+                variant            TEXT,
+                category_bucket_id INTEGER,
+                active             INTEGER NOT NULL DEFAULT 1,
+                created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+
+        cursor.execute(_ddl("""
+            CREATE TABLE IF NOT EXISTS bucket_image_assets (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                standard_bucket_id   INTEGER NOT NULL,
+                source_name          TEXT NOT NULL,
+                source_type          TEXT NOT NULL DEFAULT 'unknown',
+                source_priority      INTEGER NOT NULL DEFAULT 99,
+                source_page_url      TEXT,
+                original_image_url   TEXT,
+                storage_key          TEXT UNIQUE,
+                local_path           TEXT,
+                web_path             TEXT,
+                thumb_path           TEXT,
+                checksum             TEXT,
+                width                INTEGER,
+                height               INTEGER,
+                mime_type            TEXT,
+                file_size            INTEGER,
+                attribution_text     TEXT,
+                license_type         TEXT,
+                rights_note          TEXT,
+                usage_allowed        INTEGER NOT NULL DEFAULT 1,
+                confidence_score     REAL NOT NULL DEFAULT 0.0,
+                status               TEXT NOT NULL DEFAULT 'pending',
+                is_primary_candidate INTEGER NOT NULL DEFAULT 0,
+                ingestion_run_id     INTEGER,
+                matched_title        TEXT,
+                matched_weight       TEXT,
+                matched_mint         TEXT,
+                matched_year         TEXT,
+                matched_series       TEXT,
+                match_warnings       TEXT,
+                raw_source_title     TEXT,
+                raw_source_metadata  TEXT,
+                created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                reviewed_at          TIMESTAMP,
+                reviewed_by          INTEGER,
+                FOREIGN KEY (standard_bucket_id) REFERENCES standard_buckets(id)
+            )
+        """))
+
+        cursor.execute(_ddl("""
+            CREATE TABLE IF NOT EXISTS bucket_image_ingestion_runs (
+                id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+                standard_bucket_id       INTEGER,
+                source_name              TEXT,
+                source_url               TEXT,
+                status                   TEXT NOT NULL DEFAULT 'running',
+                images_found             INTEGER NOT NULL DEFAULT 0,
+                images_ingested          INTEGER NOT NULL DEFAULT 0,
+                images_skipped_duplicate INTEGER NOT NULL DEFAULT 0,
+                error_message            TEXT,
+                triggered_by             INTEGER,
+                started_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at             TIMESTAMP,
+                FOREIGN KEY (standard_bucket_id) REFERENCES standard_buckets(id),
+                FOREIGN KEY (triggered_by) REFERENCES users(id)
+            )
+        """))
+
+        # Indexes (CREATE INDEX IF NOT EXISTS works for both SQLite and Postgres)
+        for idx_sql in [
+            "CREATE INDEX IF NOT EXISTS idx_sb_slug ON standard_buckets(slug)",
+            "CREATE INDEX IF NOT EXISTS idx_sb_cat_bucket ON standard_buckets(category_bucket_id)",
+            "CREATE INDEX IF NOT EXISTS idx_sb_active ON standard_buckets(active)",
+            "CREATE INDEX IF NOT EXISTS idx_bia_bucket ON bucket_image_assets(standard_bucket_id)",
+            "CREATE INDEX IF NOT EXISTS idx_bia_status ON bucket_image_assets(status)",
+            "CREATE INDEX IF NOT EXISTS idx_bia_checksum ON bucket_image_assets(checksum)",
+            "CREATE INDEX IF NOT EXISTS idx_biir_bucket ON bucket_image_ingestion_runs(standard_bucket_id)",
+        ]:
+            try:
+                cursor.execute(idx_sql)
+            except Exception:
+                pass  # Index may already exist under a different backend
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f'Error in ensure_bucket_image_tables: {e}')
+
+
 def init_database():
     """
     Run all database initialization checks
@@ -918,3 +1033,4 @@ def init_database():
     ensure_user_risk_events_table()
     ensure_buyer_card_fee_column()
     ensure_tax_columns()
+    ensure_bucket_image_tables()

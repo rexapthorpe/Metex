@@ -47,14 +47,21 @@
               {% endif %}
             </div>
           {% else %}
-            {# Standard listing: use images array #}
+            {# Standard listing: use listing photos; fall back to catalog cover image #}
             {% set has_images = images and images|length > 0 %}
+            {% if not has_images %}
+              {% set _catalog_cover = bucket_cover_url(bucket['bucket_id']) %}
+            {% else %}
+              {% set _catalog_cover = None %}
+            {% endif %}
 
             <button class="gal-arrow left" id="galPrev" aria-label="Previous image"
                     {% if not has_images or images|length < 2 %}disabled{% endif %}>‹</button>
 
             {% if has_images %}
               <img src="{{ images[0] }}" alt="Item image" id="mainImage">
+            {% elif _catalog_cover %}
+              <img src="{{ _catalog_cover }}" alt="{{ bucket['metal'] }} {{ bucket['product_type'] or '' }}" id="mainImage" style="object-fit:contain;">
             {% else %}
               <div id="mainImagePlaceholder" class="gallery-ph" aria-label="Image placeholder"></div>
             {% endif %}
@@ -86,7 +93,7 @@
             </div>
           </div>
         {% else %}
-          {# Standard listing: show existing thumb layout #}
+          {# Standard listing: show listing photos or catalog cover thumbnail #}
           <div class="thumbs-row">
             <div class="thumbs">
               {% set has_images = images and images|length > 0 %}
@@ -98,8 +105,16 @@
                   <img src="{{ images[1] if images|length>1 else images[0] }}" alt="">
                 </button>
               {% else %}
-                <div class="thumb ph" aria-hidden="true"></div>
-                <div class="thumb ph" aria-hidden="true"></div>
+                {% set _thumb_cover = bucket_cover_url(bucket['bucket_id']) %}
+                {% if _thumb_cover %}
+                  <button class="thumb" data-idx="0" aria-label="Show cover image" style="cursor:default;">
+                    <img src="{{ _thumb_cover }}" alt="Product image" style="width:100%;height:100%;object-fit:contain;">
+                  </button>
+                  <div class="thumb ph" aria-hidden="true"></div>
+                {% else %}
+                  <div class="thumb ph" aria-hidden="true"></div>
+                  <div class="thumb ph" aria-hidden="true"></div>
+                {% endif %}
               {% endif %}
             </div>
 

@@ -141,32 +141,65 @@ def _get_spot_prices_from_cursor(cursor):
 
 
 def _charge_bid_payment(bid_id: int, order_id: int, buyer_id: int,
-                        pm_id: str, customer_id: str, amount_dollars: float) -> dict:
+                        pm_id: str, customer_id: str, amount_dollars: float,
+                        pm_type: str = 'card') -> dict:
     """
-    Create and confirm a Stripe PaymentIntent off-session for a bid auto-fill.
+    Create and confirm a Stripe PaymentIntent for a bid auto-fill.
+
+    Supports both card and ACH bank account payment methods:
+    - Cards:  off_session=True, payment_method_types=['card'], status must be 'succeeded'
+    - ACH:    mandate required, no off_session, payment_method_types=['us_bank_account'],
+              'processing' is success (ACH settles in 1-4 business days)
 
     Returns:
-        {'success': True, 'pi_id': 'pi_xxx'}
+        {'success': True, 'pi_id': 'pi_xxx', 'pm_type': '...'}
         {'success': False, 'code': '...', 'message': '...', 'is_card_decline': bool}
     """
+    is_ach = (pm_type == 'us_bank_account')
+
     try:
-        pi = stripe.PaymentIntent.create(
+        create_kwargs = dict(
             amount=max(1, round(amount_dollars * 100)),
             currency='usd',
             customer=customer_id,
             payment_method=pm_id,
+            payment_method_types=['us_bank_account'] if is_ach else ['card'],
             confirm=True,
-            off_session=True,
             metadata={
                 'user_id': str(buyer_id),
                 'order_id': str(order_id),
                 'bid_id': str(bid_id),
                 'source': 'bid_auto_fill',
+                'pm_type': pm_type,
             },
             idempotency_key=f'bid-autofill-{bid_id}-{order_id}',
         )
-        if pi.status == 'succeeded':
-            return {'success': True, 'pi_id': pi.id}
+        if not is_ach:
+            create_kwargs['off_session'] = True
+        else:
+            # ACH off-session debits require the mandate from the buyer's SetupIntent.
+            mandate_id = None
+            try:
+                for si in stripe.SetupIntent.list(
+                        customer=customer_id, limit=50).auto_paging_iter():
+                    if (si.get('payment_method') == pm_id
+                            and si.status == 'succeeded'
+                            and si.get('mandate')):
+                        mandate_id = si.mandate
+                        break
+            except stripe.error.StripeError as e:
+                logger.warning('[auto_match] Could not list SetupIntents for mandate '
+                               'lookup PM %s: %s', pm_id, e)
+            if mandate_id:
+                create_kwargs['mandate'] = mandate_id
+            else:
+                logger.error('[auto_match] No mandate found for ACH PM %s — '
+                             'charge will fail', pm_id)
+
+        pi = stripe.PaymentIntent.create(**create_kwargs)
+
+        if pi.status in ('succeeded', 'processing'):
+            return {'success': True, 'pi_id': pi.id, 'pm_type': pm_type}
         return {
             'success': False,
             'code': pi.status,
@@ -182,6 +215,8 @@ def _charge_bid_payment(bid_id: int, order_id: int, buyer_id: int,
             'is_card_decline': True,
         }
     except stripe.error.InvalidRequestError as e:
+        logger.error('[auto_match] InvalidRequest charging bid %s order %s pm_type=%s: %s',
+                     bid_id, order_id, pm_type, e)
         return {'success': False, 'code': 'invalid_request', 'message': str(e), 'is_card_decline': False}
     except stripe.error.StripeError as e:
         logger.error('[auto_match] Stripe error charging bid %s order %s: %s', bid_id, order_id, e)
@@ -231,6 +266,18 @@ def auto_match_bid_to_listings(bid_id, cursor):
         buyer_customer_id = buyer_row['stripe_customer_id'] if buyer_row else None
     except Exception:
         buyer_customer_id = None
+
+    # Determine PM type once (needed for fee calc + PI creation).
+    bid_pm_type = 'card'
+    bid_is_ach = False
+    if bid_pm_id:
+        try:
+            _pm_obj = stripe.PaymentMethod.retrieve(bid_pm_id)
+            bid_pm_type = _pm_obj.type
+            bid_is_ach = (bid_pm_type == 'us_bank_account')
+        except stripe.error.StripeError as e:
+            logger.warning('[auto_match] Could not check PM type for %s: %s — assuming card',
+                           bid_pm_id, e)
 
     # Fetch spot prices from spot_price_snapshots (canonical source, same as cart/checkout/
     # bucket page).  Falls back to spot_prices legacy cache if no snapshots exist.
@@ -409,8 +456,8 @@ def auto_match_bid_to_listings(bid_id, cursor):
         _tax_amount     = round(_tax_cents / 100, 2)
         _taxed_subtotal = _subtotal + _tax_amount
 
-        # Autofill charges the buyer's saved card (always a card payment).
-        _bid_card_fee   = round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
+        # Card payments: 2.99% + $0.30 fee. ACH bank account: no card fee.
+        _bid_card_fee   = 0.0 if bid_is_ach else round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
 
         # Final charge: subtotal + tax + card fee
         fill_total      = round(_taxed_subtotal + _bid_card_fee, 2)
@@ -479,12 +526,13 @@ def auto_match_bid_to_listings(bid_id, cursor):
             ''', (order_id, fill['listing']['id'], fill['fill_qty'],
                   fill['buyer_price_each'], fill['seller_price_each']))
 
-        # Charge buyer's saved card
+        # Charge buyer's saved payment method (card or ACH bank account)
         if bid_pm_id and buyer_customer_id:
             pay_result = _charge_bid_payment(
                 bid_id=bid_id, order_id=order_id, buyer_id=buyer_id,
                 pm_id=bid_pm_id, customer_id=buyer_customer_id,
                 amount_dollars=fill_total,
+                pm_type=bid_pm_type,
             )
 
             if not pay_result['success']:
@@ -518,15 +566,16 @@ def auto_match_bid_to_listings(bid_id, cursor):
                 break
 
             # Payment succeeded — stamp order with payment info
+            _paid_pm_type = pay_result.get('pm_type', 'card')
             cursor.execute('''
                 UPDATE orders
                    SET stripe_payment_intent_id = ?,
                        payment_status = 'paid',
                        status = 'paid',
                        paid_at = datetime('now'),
-                       payment_method_type = 'card'
+                       payment_method_type = ?
                  WHERE id = ?
-            ''', (pay_result['pi_id'], order_id))
+            ''', (pay_result['pi_id'], _paid_pm_type, order_id))
 
             cursor.execute('''
                 UPDATE bids
@@ -744,6 +793,18 @@ def auto_match_listing_to_bids(listing_id, cursor):
         recipient_last_name = bid.get('recipient_last_name', '')
         bid_pm_id = bid.get('bid_payment_method_id')
 
+        # Determine PM type (card vs ACH) — needed for fee calc + PI creation.
+        _l2b_pm_type = 'card'
+        _l2b_is_ach = False
+        if bid_pm_id:
+            try:
+                _pm_obj = stripe.PaymentMethod.retrieve(bid_pm_id)
+                _l2b_pm_type = _pm_obj.type
+                _l2b_is_ach = (_l2b_pm_type == 'us_bank_account')
+            except stripe.error.StripeError as e:
+                logger.warning('[auto_match L2B] Could not check PM type for %s: %s — assuming card',
+                               bid_pm_id, e)
+
         # Determine fill quantity
         fill_qty = min(remaining_inventory, bid_remaining)
 
@@ -758,7 +819,8 @@ def auto_match_listing_to_bids(listing_id, cursor):
         _tax_cents      = _get_stripe_tax_for_bid(_subtotal_cents, _postal, _state)
         _tax_amount     = round(_tax_cents / 100, 2)
         _taxed_subtotal = _subtotal + _tax_amount
-        _bid_card_fee   = round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
+        # Card payments: 2.99% + $0.30. ACH: no card processing fee.
+        _bid_card_fee   = 0.0 if _l2b_is_ach else round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
         total_price     = round(_taxed_subtotal + _bid_card_fee, 2)
         _effective_tax_rate = round(_tax_amount / _subtotal, 6) if _subtotal else 0.0
 
@@ -816,6 +878,7 @@ def auto_match_listing_to_bids(listing_id, cursor):
                 bid_id=bid_id, order_id=order_id, buyer_id=buyer_id,
                 pm_id=bid_pm_id, customer_id=buyer_customer_id,
                 amount_dollars=total_price,
+                pm_type=_l2b_pm_type,
             )
 
             if not pay_result['success']:
@@ -849,15 +912,16 @@ def auto_match_listing_to_bids(listing_id, cursor):
                 continue  # Skip to next bid; don't decrement remaining_inventory
 
             # Payment succeeded — stamp order with payment info
+            _l2b_paid_pm_type = pay_result.get('pm_type', 'card')
             cursor.execute('''
                 UPDATE orders
                    SET stripe_payment_intent_id = ?,
                        payment_status = 'paid',
                        status = 'paid',
                        paid_at = datetime('now'),
-                       payment_method_type = 'card'
+                       payment_method_type = ?
                  WHERE id = ?
-            ''', (pay_result['pi_id'], order_id))
+            ''', (pay_result['pi_id'], _l2b_paid_pm_type, order_id))
 
             cursor.execute('''
                 UPDATE bids

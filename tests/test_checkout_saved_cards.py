@@ -313,11 +313,14 @@ class TestGetPaymentMethods:
             else (args[0] if args else None)
         )
 
-        mock_list = MagicMock()
-        mock_list.auto_paging_iter.return_value = [mock_pm]
+        def _mock_list(**kwargs):
+            t = kwargs.get('type')
+            m = MagicMock()
+            m.auto_paging_iter.return_value = [mock_pm] if t == 'card' else []
+            return m
 
         with patch('stripe.Customer.retrieve', return_value=mock_customer):
-            with patch('stripe.PaymentMethod.list', return_value=mock_list):
+            with patch('stripe.PaymentMethod.list', side_effect=_mock_list):
                 resp = client.get('/account/api/payment-methods')
 
         assert resp.status_code == 200

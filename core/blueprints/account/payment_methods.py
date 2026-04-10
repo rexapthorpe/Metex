@@ -85,7 +85,7 @@ def create_setup_intent():
     try:
         setup_intent = stripe.SetupIntent.create(
             customer=customer_id,
-            payment_method_types=['card'],
+            payment_method_types=['card', 'us_bank_account'],
             usage='off_session',  # allows future off-session charges at checkout
         )
         _log.info('[PM] SetupIntent %s created for customer %s', setup_intent.id, customer_id)
@@ -126,13 +126,14 @@ def get_payment_methods():
         customer = stripe.Customer.retrieve(customer_id)
         default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
 
-        pms = stripe.PaymentMethod.list(customer=customer_id, type='card')
-
         methods = []
-        for pm in pms.auto_paging_iter():
+
+        # Cards
+        for pm in stripe.PaymentMethod.list(customer=customer_id, type='card').auto_paging_iter():
             card = pm.get('card') or {}
             methods.append({
                 'id': pm.id,
+                'method_type': 'card',
                 'brand': card.get('brand', 'unknown'),
                 'last4': card.get('last4', ''),
                 'exp_month': card.get('exp_month'),
@@ -141,7 +142,21 @@ def get_payment_methods():
                 'is_default': pm.id == default_pm_id,
             })
 
-        # Default card first, then reverse-chronological (Stripe returns newest last)
+        # ACH bank accounts
+        for pm in stripe.PaymentMethod.list(customer=customer_id, type='us_bank_account').auto_paging_iter():
+            bank = pm.get('us_bank_account') or {}
+            methods.append({
+                'id': pm.id,
+                'method_type': 'bank_account',
+                'brand': bank.get('bank_name') or 'Bank',
+                'last4': bank.get('last4', ''),
+                'exp_month': None,
+                'exp_year': None,
+                'funding': 'bank',
+                'is_default': pm.id == default_pm_id,
+            })
+
+        # Default first
         methods.sort(key=lambda m: (not m['is_default'], 0))
 
     except stripe.error.StripeError as e:

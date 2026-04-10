@@ -262,7 +262,12 @@
       {% for bucket in standard_buckets %}
       <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
         <div class="image-box">
-          <span>Item image</span>
+          {% set _cover = bucket_cover_url(bucket['bucket_id']) %}
+          {% if _cover %}
+            <img src="{{ _cover }}" alt="{{ bucket['metal'] }} {{ bucket['product_type'] or '' }}" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
+          {% else %}
+            <span>Item image</span>
+          {% endif %}
         </div>
         <div class="product-text">
           <p class="product-title">

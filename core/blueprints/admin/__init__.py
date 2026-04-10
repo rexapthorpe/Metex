@@ -42,6 +42,7 @@ from . import refunds   # Phase 5 — refunds tab + overview metrics
 from . import feedback        # Feedback analytics tab
 from . import reconciliation  # Financial reconciliation tab
 from . import tax             # Sales Tax tab
+from . import bucket_images   # Bucket image catalog + ingestion
 
 # Re-export for compatibility
 __all__ = ['admin_bp']

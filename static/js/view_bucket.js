@@ -347,4 +347,17 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => { popup.remove(); }, 5000);
     });
   }
+
+  /* ── Restore bid modal if returning from payment-methods page ── */
+  (function checkBidReturnState() {
+    let raw;
+    try { raw = sessionStorage.getItem('bidModalReturnState'); } catch (e) { return; }
+    if (!raw) return;
+    let state;
+    try { state = JSON.parse(raw); } catch (e) { return; }
+    if (state.bucketId == null || String(state.bucketId) !== String(window.bucketId)) return;
+    if (typeof openBidModal === 'function') {
+      openBidModal(state.bucketId, state.bidId ? Number(state.bidId) : null);
+    }
+  })();
 });

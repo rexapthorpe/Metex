@@ -91,6 +91,12 @@
           <span class="sidebar-label">System</span>
         </li>
 
+        <div class="admin-nav-section-label">Catalog</div>
+        <li class="admin-nav-item" data-tab="bucket-images" onclick="switchTab('bucket-images')">
+          <i class="fa-solid fa-images sidebar-icon"></i>
+          <span class="sidebar-label">Bucket Images</span>
+        </li>
+
       </nav>
       <div class="sidebar-divider sidebar-divider--bottom"></div>
     </div><!-- /.admin-sidebar-inner -->
@@ -170,6 +176,9 @@
       <div class="tab-panel" id="panel-tax">
         {% include 'admin/partials/_tax_tab.html' %}
       </div>
+      <div class="tab-panel" id="panel-bucket-images">
+        {% include 'admin/partials/_bucket_images_tab.html' %}
+      </div>
     </div><!-- /.admin-content -->
   </div><!-- /.admin-main -->
 </div><!-- /.admin-layout -->
@@ -212,5 +221,6 @@
 <script src="{{ url_for('static', filename='js/admin/dashboard/listings-modal.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/admin/dashboard/reconciliation-tab.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/admin/dashboard/tax-tab.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/admin/dashboard/bucket-images-tab.js') }}?v=1"></script>
 <script src="{{ url_for('static', filename='js/admin/dashboard.js') }}?v=15"></script>
 {% endblock %}

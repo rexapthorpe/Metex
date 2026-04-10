@@ -259,4 +259,6 @@ document.addEventListener('DOMContentLoaded', function() {
   if (window.actualBucketId && typeof initBucketPriceChart === 'function') {
     initBucketPriceChart(window.actualBucketId);
   }
+
+
 });

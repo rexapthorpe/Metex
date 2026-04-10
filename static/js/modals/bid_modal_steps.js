@@ -444,8 +444,61 @@
     }, 2500);
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     SAVE STATE & NAVIGATE TO PAYMENT METHODS
+     Called by the "Manage / Add payment method" links in Step 4.
+     Serialises the in-progress bid form to sessionStorage, then
+     navigates to /account#details-payment in the same tab.
+     ══════════════════════════════════════════════════════════════ */
+  window.bmSaveStateAndNavigateToPayments = function (evt) {
+    if (evt) evt.preventDefault();
+
+    var form       = document.getElementById('bid-form');
+    var bidIdInput = form ? form.querySelector('[name="bid_id"]') : null;
+
+    var val = function (id) {
+      var el = document.getElementById(id);
+      return el ? el.value : '';
+    };
+    var checked = function (id) {
+      var el = document.getElementById(id);
+      return el ? el.checked : false;
+    };
+
+    var state = {
+      bucketId:     window.bucketId   || null,
+      bidId:        bidIdInput ? (bidIdInput.value || null) : null,
+      returnPath:   window.location.pathname + window.location.search,
+      step:         currentStep,
+      pricingMode:  val('bid-pricing-mode'),
+      qty:          val('qty-input'),
+      price:        val('bid-price-input'),
+      qtyPremium:   val('qty-input-premium'),
+      spotPremium:  val('bid-spot-premium'),
+      ceilingPrice: val('bid-ceiling-price'),
+      randomYear:   checked('random_year_bid'),
+      addrSelector: val('addr-selector'),
+      addrLine1:    val('addr-line1'),
+      addrLine2:    val('addr-line2'),
+      addrCity:     val('addr-city'),
+      addrState:    val('addr-state'),
+      addrZip:      val('addr-zip'),
+      selectedPmId: val('selected-pm-id'),
+      paymentMethod: val('payment_method'),
+    };
+
+    try {
+      sessionStorage.setItem('bidModalReturnState', JSON.stringify(state));
+    } catch (e) {
+      console.warn('[BidModal] Could not save return state:', e);
+    }
+
+    window.location.href = '/account#details-payment';
+  };
+
   /* ── Exports ── */
   window.initBidModalSteps = initBidModalSteps;
   window.showWizardSuccess  = showWizardSuccess;
+  window.bmGoToStep         = goToStep;
 
 })();

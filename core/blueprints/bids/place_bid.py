@@ -24,8 +24,8 @@ _BID_STRIKE_THRESHOLD = 3
 
 def _verify_saved_card(user_id: int, conn, selected_pm_id: str):
     """
-    Verify that the user has at least one saved Stripe card and that
-    selected_pm_id (if given) belongs to their Stripe customer.
+    Verify that the user has at least one saved Stripe payment method (card OR
+    bank account) and that selected_pm_id (if given) belongs to their customer.
 
     Returns (pm_id_to_use, error_message).
     On success error_message is None.
@@ -37,31 +37,36 @@ def _verify_saved_card(user_id: int, conn, selected_pm_id: str):
     customer_id = row['stripe_customer_id'] if row else None
 
     if not customer_id:
-        return None, 'You must save a payment card before placing a bid.'
+        return None, 'You must save a payment method before placing a bid.'
 
     try:
-        # Check that user has at least one saved card
-        pms = stripe.PaymentMethod.list(customer=customer_id, type='card', limit=10)
-        pm_list = list(pms.auto_paging_iter())
+        # Collect cards + ACH bank accounts
+        card_pms = list(stripe.PaymentMethod.list(customer=customer_id, type='card', limit=10).auto_paging_iter())
+        bank_pms = list(stripe.PaymentMethod.list(customer=customer_id, type='us_bank_account', limit=10).auto_paging_iter())
+        pm_list = card_pms + bank_pms
+
         if not pm_list:
-            return None, 'You must save a payment card before placing a bid.'
+            return None, 'You must save a payment method before placing a bid.'
 
         if selected_pm_id:
-            # Verify ownership
+            # Verify ownership across both types
             matching = [pm for pm in pm_list if pm.id == selected_pm_id]
             if not matching:
                 return None, 'The selected payment method was not found on your account.'
             return selected_pm_id, None
         else:
-            # Auto-select the first (default) card
+            # Auto-select default, preferring cards over bank accounts
             customer = stripe.Customer.retrieve(customer_id)
             default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
             if default_pm_id and any(pm.id == default_pm_id for pm in pm_list):
                 return default_pm_id, None
-            return pm_list[0].id, None
+            # Fall back to first card, then first bank account
+            if card_pms:
+                return card_pms[0].id, None
+            return bank_pms[0].id, None
 
     except stripe.error.StripeError as e:
-        _log.error('[BID PLACE] Stripe error verifying card for user %s: %s', user_id, e)
+        _log.error('[BID PLACE] Stripe error verifying payment method for user %s: %s', user_id, e)
         return None, 'Unable to verify payment method. Please try again.'
 
 from . import bid_bp

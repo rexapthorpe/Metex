@@ -889,12 +889,19 @@ function _gatherShippingInfo() {
 }
 
 /**
- * Place the order via AJAX, then confirm payment with Stripe.
+ * Place the order with confirm-first payment flow.
  *
- * Phase 1: POST /checkout (creates order record, decrements inventory)
- * Phase 2: stripe.confirmPayment() — charges the card
- *          On success (no 3DS): redirect to /order-success
- *          On redirect (3DS):   Stripe handles redirect to /order-success
+ * Phase 1: POST /checkout/prepare-payment
+ *          — Validates cart + spot, updates PaymentIntent amount, saves session state.
+ *          — Does NOT create an order.
+ * Phase 2: stripe.confirmPayment() — charges the card.
+ *          If Stripe returns ANY error (validation, decline, 3DS failure):
+ *            → show error and return — no order is ever created.
+ *          If browser redirects for 3DS:
+ *            → /order-success creates the order from saved session state on return.
+ * Phase 3: POST /checkout (finalize) — creates order, decrements inventory.
+ *          Only reached after Phase 2 succeeds synchronously (no 3DS redirect).
+ *
  * On SPOT_EXPIRED: show recalculate modal.
  */
 async function placeOrder() {
@@ -940,62 +947,61 @@ async function placeOrder() {
 
   try {
     const { shippingAddress, firstName, lastName } = _gatherShippingInfo();
-    // Gather address components for Stripe Tax on the server side
     const _city    = (document.getElementById('city') || {}).value || '';
     const _state   = (document.getElementById('state') || {}).value || '';
     const _zipCode = (document.getElementById('zipCode') || {}).value || '';
     const _country = (document.getElementById('country') || {}).value || 'US';
 
-    // Phase 1: Create the order record in our DB.
-    // We include the payment_intent_id so the server stores it on the order immediately —
-    // this lets /order-success find the order by PI ID without needing metadata stamping.
-    const response = await fetch('/checkout', {
+    // ── Phase 1: Validate cart, update PI amount, save session state ─────────
+    // This must happen before confirmPayment() so Stripe charges the correct
+    // final amount (subtotal + tax + card fee).
+    const prepareResp = await fetch('/checkout/prepare-payment', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
       },
       body: JSON.stringify({
-        shipping_address: shippingAddress,
-        city:             _city,
-        state:            _state,
-        zip_code:         _zipCode,
-        country:          _country,
-        payment_method: 'card',
+        payment_intent_id:   _stripePaymentIntentId,
         payment_method_type: _stripeSelectedMethod || 'card',
-        recipient_first: firstName,
-        recipient_last: lastName,
-        checkout_nonce: window.checkoutNonce,
-        payment_intent_id: _stripePaymentIntentId,
+        shipping_address:    shippingAddress,
+        recipient_first:     firstName,
+        recipient_last:      lastName,
+        city:                _city,
+        state:               _state,
+        zip_code:            _zipCode,
+        country:             _country,
+        checkout_nonce:      window.checkoutNonce,
       }),
     });
 
-    if (!response.ok && response.status !== 409) {
-      const text = await response.text();
-      console.error('[placeOrder] /checkout HTTP error', response.status, text);
-      _showError('Server error processing your order (HTTP ' + response.status + '). Please try again.');
+    if (!prepareResp.ok && prepareResp.status !== 409) {
+      const text = await prepareResp.text();
+      console.error('[placeOrder] prepare-payment HTTP error', prepareResp.status, text);
+      _showError('Error setting up payment (HTTP ' + prepareResp.status + '). Please try again.');
       _resetBtn();
       return;
     }
 
-    const data = await response.json();
+    const prepareData = await prepareResp.json();
 
-    if (!data.success) {
-      if (data.error_code === 'SPOT_EXPIRED') {
+    if (!prepareData.success) {
+      if (prepareData.error_code === 'SPOT_EXPIRED') {
         showSpotExpiredModal();
-      } else if (data.error_code === 'SPOT_UNAVAILABLE') {
-        _showError(data.message || 'Live pricing temporarily unavailable. Please try again in a moment.');
+      } else if (prepareData.error_code === 'SPOT_UNAVAILABLE') {
+        _showError(prepareData.message || 'Live pricing temporarily unavailable. Please try again in a moment.');
       } else {
-        _showError(data.message || 'Error processing order. Please try again.');
+        _showError(prepareData.message || 'Error validating your order. Please try again.');
       }
       _resetBtn();
       return;
     }
 
-    // Phase 1 succeeded — order created. Now confirm payment with Stripe.
-    console.log('[placeOrder] Phase 1 complete, order_id=' + data.order_id + '. Confirming payment...');
+    console.log('[placeOrder] Phase 1 complete — PI updated, cart validated. Confirming payment...');
 
-    // Phase 2: Confirm payment with Stripe.
+    // ── Phase 2: Confirm payment with Stripe ─────────────────────────────────
+    // If confirmPayment returns an error (validation, card declined, 3DS failure),
+    // we stop here — no order is created, no backend call is made.
     let confirmResult;
     try {
       if (_selectedSavedPmId) {
@@ -1017,10 +1023,12 @@ async function placeOrder() {
         });
       }
     } catch (stripeErr) {
-      // Stripe SDK threw (network error, etc.). Order exists — go to success page
-      // and let the webhook confirm payment status asynchronously.
+      // Stripe SDK threw (network error, etc.).
+      // The payment may or may not have gone through — navigate to order-success
+      // to let the server check PI status and create the order if confirmed.
       console.error('[placeOrder] stripe.confirmPayment threw:', stripeErr);
-      window.location.href = '/order-success?payment_intent=' + (_stripePaymentIntentId || '');
+      window.location.href = '/order-success?payment_intent=' + (_stripePaymentIntentId || '') +
+                             '&redirect_status=uncertain';
       return;
     }
 
@@ -1029,17 +1037,17 @@ async function placeOrder() {
     if (error) {
       console.error('[Stripe] confirmPayment error:', error);
 
-      // Transient errors: network blip or internal Stripe error. The order was already
-      // created in Phase 1 and the payment may have reached Stripe before the error.
-      // Navigate to /order-success and let the webhook determine the real outcome
-      // rather than incorrectly telling the user the payment failed.
+      // Transient errors — payment may have reached Stripe.
+      // Navigate to order-success; server verifies PI and creates order if confirmed.
       if (error.type === 'api_connection_error' || error.type === 'api_error') {
-        console.warn('[placeOrder] Transient Stripe error (' + error.type + ') — order exists, navigating to order-success');
-        window.location.href = '/order-success?payment_intent=' + (_stripePaymentIntentId || '');
+        console.warn('[placeOrder] Transient Stripe error (' + error.type + ') — navigating to order-success for server check');
+        window.location.href = '/order-success?payment_intent=' + (_stripePaymentIntentId || '') +
+                               '&redirect_status=uncertain';
         return;
       }
 
-      // Definitive errors (card declined, 3DS auth failure, validation, etc.) — show and allow retry.
+      // Definitive errors (card declined, 3DS failure, validation error, etc.).
+      // NO order is created. Show the error and allow the user to retry.
       const errMsg = error.message || 'Payment failed. Please check your payment details and try again.';
       const errDiv = document.getElementById('step3-error');
       if (errDiv) {
@@ -1065,8 +1073,55 @@ async function placeOrder() {
       return;
     }
 
-    // Payment confirmed — navigate to the confirmation page.
-    console.log('[placeOrder] Payment confirmed, pi=' + paymentIntent.id + ' status=' + paymentIntent.status);
+    console.log('[placeOrder] Phase 2 complete — payment confirmed, pi=' + paymentIntent.id +
+                ' status=' + paymentIntent.status);
+
+    // ── Phase 3: Payment confirmed — create the order record ─────────────────
+    // For 3DS redirects, this phase is never reached in the same tab:
+    // the browser was redirected in Phase 2, and /order-success creates the
+    // order from the session state saved in Phase 1.
+    const response = await fetch('/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({
+        shipping_address:    shippingAddress,
+        city:                _city,
+        state:               _state,
+        zip_code:            _zipCode,
+        country:             _country,
+        payment_method:      'card',
+        payment_method_type: _stripeSelectedMethod || 'card',
+        recipient_first:     firstName,
+        recipient_last:      lastName,
+        checkout_nonce:      window.checkoutNonce,
+        payment_intent_id:   paymentIntent.id,
+      }),
+    });
+
+    if (!response.ok && response.status !== 409) {
+      const text = await response.text();
+      console.error('[placeOrder] /checkout HTTP error', response.status, text);
+      _showError('Server error recording your order (HTTP ' + response.status + '). Your payment was taken — please contact support with reference ' + paymentIntent.id + '.');
+      _resetBtn();
+      return;
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      // The payment went through but order creation failed.
+      // Route to order-success so the user isn't left in limbo;
+      // the webhook will eventually set the order to paid state.
+      console.error('[placeOrder] order creation failed after payment:', data.message);
+      window.location.href = '/order-success?payment_intent=' + paymentIntent.id;
+      return;
+    }
+
+    // Order created successfully — navigate to the confirmation page.
+    console.log('[placeOrder] Phase 3 complete, order_id=' + data.order_id);
     window.location.href = '/order-success?payment_intent=' + paymentIntent.id;
 
   } catch (err) {

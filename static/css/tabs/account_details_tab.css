@@ -960,3 +960,34 @@
 }
 .relist-bid-btn:hover { background: #b45309; }
 .relist-bid-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ===== Bid Return Banner ===== */
+.pm-bid-return-banner {
+  margin-bottom: 14px;
+}
+.pm-bid-return-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  color: #1e40af;
+}
+.pm-bid-return-inner i {
+  font-size: 12px;
+}
+.pm-bid-return-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d4ed8;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pm-bid-return-btn:hover { color: #1e3a8a; }

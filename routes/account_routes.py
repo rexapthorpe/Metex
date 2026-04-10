@@ -2156,7 +2156,7 @@ def create_payment_method_setup_intent():
     try:
         setup_intent = stripe.SetupIntent.create(
             customer=customer_id,
-            payment_method_types=['card'],
+            payment_method_types=['card', 'us_bank_account'],
             usage='off_session',
         )
     except stripe.error.StripeError as exc:
@@ -2188,19 +2188,35 @@ def get_payment_methods():
     try:
         customer = stripe.Customer.retrieve(customer_id)
         default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
-        pms = stripe.PaymentMethod.list(customer=customer_id, type='card')
         methods = []
-        for pm in pms.auto_paging_iter():
+
+        # Cards
+        for pm in stripe.PaymentMethod.list(customer=customer_id, type='card').auto_paging_iter():
             card = pm.get('card') or {}
             methods.append({
                 'id': pm.id,
+                'method_type': 'card',
                 'brand': card.get('brand', 'unknown'),
                 'last4': card.get('last4', ''),
                 'exp_month': card.get('exp_month'),
                 'exp_year': card.get('exp_year'),
                 'is_default': pm.id == default_pm_id,
             })
-        # Default card first
+
+        # ACH bank accounts
+        for pm in stripe.PaymentMethod.list(customer=customer_id, type='us_bank_account').auto_paging_iter():
+            bank = pm.get('us_bank_account') or {}
+            methods.append({
+                'id': pm.id,
+                'method_type': 'bank_account',
+                'brand': bank.get('bank_name') or 'Bank',
+                'last4': bank.get('last4', ''),
+                'exp_month': None,
+                'exp_year': None,
+                'is_default': pm.id == default_pm_id,
+            })
+
+        # Default first
         methods.sort(key=lambda m: (not m['is_default'], 0))
     except stripe.error.StripeError as exc:
         _pm_log.error('[PM] list failed for customer %s: %s', customer_id, exc)

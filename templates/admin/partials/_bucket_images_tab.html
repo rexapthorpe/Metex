@@ -1,0 +1,318 @@
+<!-- ═══════════════════════════════════════════════════════════════════════
+     BUCKET IMAGES TAB
+     Manage standard bucket catalog and cover-image ingestion.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<!-- Stats row -->
+<div class="stats-grid stats-grid-3">
+  <div class="stat-card">
+    <div class="stat-card-header">
+      <span class="stat-label">Standard Buckets</span>
+      <div class="stat-icon stat-icon-blue"><i class="fa-solid fa-layer-group"></i></div>
+    </div>
+    <div class="stat-value" id="biStatsBuckets">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-header">
+      <span class="stat-label">With Active Cover</span>
+      <div class="stat-icon stat-icon-green"><i class="fa-solid fa-image"></i></div>
+    </div>
+    <div class="stat-value" id="biStatsCovered">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-header">
+      <span class="stat-label">Missing Cover</span>
+      <div class="stat-icon stat-icon-yellow"><i class="fa-solid fa-circle-exclamation"></i></div>
+    </div>
+    <div class="stat-value" id="biStatsMissing">—</div>
+  </div>
+</div>
+
+<!-- Coverage report bar -->
+<div id="biCoverageBar" style="display:none;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;margin-top:16px;font-size:13px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <strong style="font-size:14px;"><i class="fa-solid fa-chart-pie" style="color:#3b82f6;"></i> Coverage Report</strong>
+    <button class="admin-action-btn" style="padding:3px 10px;font-size:12px;" onclick="document.getElementById('biCoverageBar').style.display='none'">✕ Close</button>
+  </div>
+  <div id="biCoverageContent"></div>
+</div>
+
+<!-- Toolbar -->
+<div class="section-header" style="margin-top:20px;">
+  <h3>Standard Bucket Catalog</h3>
+  <div style="display:flex;gap:8px;">
+    <button class="admin-action-btn" onclick="biLoadCoverageReport()" title="Show full coverage statistics">
+      <i class="fa-solid fa-chart-pie"></i> Coverage Report
+    </button>
+    <button class="admin-action-btn admin-action-btn--primary" onclick="biOpenCreateBucketModal()">
+      <i class="fa-solid fa-plus"></i> New Bucket
+    </button>
+  </div>
+</div>
+
+<div class="filter-bar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+  <select id="biFilterMetal" class="form-select" style="min-width:140px;">
+    <option value="">All Metals</option>
+    <option value="Gold">Gold</option>
+    <option value="Silver">Silver</option>
+    <option value="Platinum">Platinum</option>
+    <option value="Palladium">Palladium</option>
+    <option value="Copper">Copper</option>
+  </select>
+  <select id="biFilterQueue" class="form-select" style="min-width:220px;"
+          onchange="biLoadBuckets()" title="Review queue filters">
+    <option value="">All Buckets</option>
+    <optgroup label="Coverage gaps">
+      <option value="missing_cover">Missing cover image</option>
+      <option value="no_candidates">No candidates at all</option>
+      <option value="pending_only">Has pending, no active</option>
+    </optgroup>
+    <optgroup label="Quality review">
+      <option value="low_confidence">Low-confidence active (&lt;0.6)</option>
+      <option value="missing_license">Active image — no license</option>
+    </optgroup>
+    <optgroup label="Source review">
+      <option value="retailer_only">Retailer-only candidates</option>
+    </optgroup>
+  </select>
+  <button class="admin-action-btn" onclick="biLoadBuckets()">
+    <i class="fa-solid fa-magnifying-glass"></i> Filter
+  </button>
+</div>
+
+<!-- Bucket list table -->
+<div id="biBucketList" style="overflow-x:auto;">
+  <div class="dispute-loading">
+    <i class="fa-solid fa-spinner fa-spin"></i>
+    <span>Loading buckets...</span>
+  </div>
+</div>
+<div id="biBucketEmpty" style="display:none;">
+  <div class="empty-state-icon"><i class="fa-solid fa-layer-group"></i></div>
+  <h3>No Standard Buckets</h3>
+  <p>Create your first standard bucket to begin cataloging images.</p>
+</div>
+
+
+<!-- ═══════════════════════════════ CREATE BUCKET MODAL ══════════════════════════════ -->
+<div id="biCreateBucketModal" class="admin-modal-overlay" style="display:none;">
+  <div class="admin-modal admin-modal-md">
+    <div class="admin-modal-header">
+      <h2><i class="fa-solid fa-layer-group"></i> New Standard Bucket</h2>
+      <button class="modal-close-btn" onclick="biCloseCreateBucketModal()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="admin-modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="form-label">Slug <span style="color:red">*</span></label>
+          <input id="biNewSlug" class="form-input" placeholder="e.g. 1oz-american-gold-eagle" style="width:100%;">
+          <small style="color:#888;">Unique identifier, lowercase, hyphens only.</small>
+        </div>
+        <div>
+          <label class="form-label">Title <span style="color:red">*</span></label>
+          <input id="biNewTitle" class="form-input" placeholder="e.g. 1 oz American Gold Eagle Coin" style="width:100%;">
+        </div>
+        <div>
+          <label class="form-label">Metal <span style="color:red">*</span></label>
+          <select id="biNewMetal" class="form-select" style="width:100%;">
+            <option value="">Select…</option>
+            <option value="Gold">Gold</option>
+            <option value="Silver">Silver</option>
+            <option value="Platinum">Platinum</option>
+            <option value="Palladium">Palladium</option>
+            <option value="Copper">Copper</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Form</label>
+          <select id="biNewForm" class="form-select" style="width:100%;">
+            <option value="coin">Coin</option>
+            <option value="bar">Bar</option>
+            <option value="round">Round</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Weight (display)</label>
+          <input id="biNewWeight" class="form-input" placeholder="e.g. 1 oz" style="width:100%;">
+        </div>
+        <div>
+          <label class="form-label">Weight (oz, numeric)</label>
+          <input id="biNewWeightOz" class="form-input" type="number" step="0.001" placeholder="1.0" style="width:100%;">
+        </div>
+        <div>
+          <label class="form-label">Mint / Refiner</label>
+          <input id="biNewMint" class="form-input" placeholder="e.g. United States Mint" style="width:100%;">
+        </div>
+        <div>
+          <label class="form-label">Denomination</label>
+          <input id="biNewDenomination" class="form-input" placeholder="e.g. $50" style="width:100%;">
+        </div>
+        <div>
+          <label class="form-label">Product Family</label>
+          <input id="biNewFamily" class="form-input" placeholder="e.g. American Eagle" style="width:100%;">
+        </div>
+        <div>
+          <label class="form-label">Product Series</label>
+          <input id="biNewSeries" class="form-input" placeholder="e.g. Bullion" style="width:100%;">
+        </div>
+        <div>
+          <label class="form-label">Year Policy</label>
+          <select id="biNewYearPolicy" class="form-select" style="width:100%;">
+            <option value="fixed">Fixed year</option>
+            <option value="varies">Year varies</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Year</label>
+          <input id="biNewYear" class="form-input" placeholder="e.g. 2024" style="width:100%;">
+        </div>
+        <div>
+          <label class="form-label">Purity</label>
+          <input id="biNewPurity" class="form-input" placeholder="e.g. .9999" style="width:100%;">
+        </div>
+        <div>
+          <label class="form-label">Category Bucket ID</label>
+          <input id="biNewCategoryBucketId" class="form-input" type="number" placeholder="Link to categories.bucket_id" style="width:100%;">
+          <small style="color:#888;">Optional: links this to an existing trading bucket.</small>
+        </div>
+      </div>
+    </div>
+    <div class="admin-modal-footer" style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="admin-action-btn" onclick="biCloseCreateBucketModal()">Cancel</button>
+      <button class="admin-action-btn admin-action-btn--primary" onclick="biCreateBucket()">
+        <i class="fa-solid fa-plus"></i> Create Bucket
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════ BUCKET DETAIL MODAL ══════════════════════════════ -->
+<div id="biBucketDetailModal" class="admin-modal-overlay" style="display:none;">
+  <div class="admin-modal admin-modal-xl">
+    <div class="admin-modal-header">
+      <h2 id="biBucketDetailTitle"><i class="fa-solid fa-images"></i> Bucket Images</h2>
+      <button class="modal-close-btn" onclick="biCloseBucketDetailModal()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="admin-modal-body">
+
+      <!-- Bucket metadata row -->
+      <div id="biBucketMeta" style="background:#f8f8f8;border-radius:6px;padding:12px;margin-bottom:16px;font-size:13px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+
+      <!-- Active cover preview -->
+      <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:20px;">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Active Cover</div>
+          <div id="biActiveCoverWrap" style="width:160px;height:160px;border:2px dashed #ccc;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+            <span id="biActiveCoverPlaceholder" style="color:#aaa;font-size:12px;">None</span>
+            <img id="biActiveCoverImg" src="" alt="Active cover" style="display:none;width:100%;height:100%;object-fit:contain;">
+          </div>
+        </div>
+        <div style="flex:1;">
+          <!-- Ingest from URL -->
+          <div style="font-size:12px;font-weight:600;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Add Image from URL</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+            <div style="flex:1;min-width:200px;">
+              <label class="form-label">Direct Image URL</label>
+              <input id="biIngestUrl" class="form-input" placeholder="https://…" style="width:100%;">
+            </div>
+            <div style="min-width:140px;">
+              <label class="form-label">Source Name</label>
+              <input id="biIngestSourceName" class="form-input" placeholder="e.g. APMEX" style="width:100%;">
+            </div>
+            <div style="min-width:150px;">
+              <label class="form-label">Source Type</label>
+              <select id="biIngestSourceType" class="form-select" style="width:100%;">
+                <option value="public_domain">Public Domain</option>
+                <option value="licensed">Licensed (CC etc.)</option>
+                <option value="approved_db">Approved DB/API</option>
+                <option value="retailer" selected>Retailer (review required)</option>
+                <option value="unknown">Unknown</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px;">
+            <div style="flex:1;min-width:200px;">
+              <label class="form-label">Raw Source Title / Alt Text</label>
+              <input id="biIngestRawTitle" class="form-input" placeholder="Title or alt text from source page (used for confidence scoring)" style="width:100%;">
+            </div>
+            <div style="min-width:160px;">
+              <label class="form-label">License Type</label>
+              <input id="biIngestLicenseType" class="form-input" placeholder="e.g. public_domain, CC-BY-4.0" style="width:100%;">
+            </div>
+            <div>
+              <label class="form-label">&nbsp;</label>
+              <button class="admin-action-btn admin-action-btn--primary" onclick="biIngestFromUrl()" style="height:36px;">
+                <i class="fa-solid fa-cloud-arrow-down"></i> Ingest URL
+              </button>
+            </div>
+          </div>
+
+          <!-- Upload file -->
+          <div style="margin-top:16px;">
+            <div style="font-size:12px;font-weight:600;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Upload Image Directly</div>
+            <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+              <div>
+                <label class="form-label">Image File (JPEG / PNG / WebP)</label>
+                <input type="file" id="biUploadFile" accept="image/jpeg,image/png,image/webp" class="form-input">
+              </div>
+              <div style="min-width:140px;">
+                <label class="form-label">Source Name</label>
+                <input id="biUploadSourceName" class="form-input" placeholder="Admin Upload" style="width:100%;">
+              </div>
+              <div>
+                <label class="form-label">&nbsp;</label>
+                <button class="admin-action-btn admin-action-btn--primary" onclick="biUploadImage()" style="height:36px;">
+                  <i class="fa-solid fa-upload"></i> Upload
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Candidates toolbar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:12px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.5px;">Candidate Images</div>
+        <div style="display:flex;gap:8px;">
+          <button class="admin-action-btn admin-action-btn--primary" onclick="biAutoActivateBest()" title="Activate the highest-confidence approved/pending candidate">
+            <i class="fa-solid fa-star"></i> Auto-Activate Best
+          </button>
+          <button class="admin-action-btn admin-action-btn--danger" id="biBulkRejectBtn"
+                  style="display:none;" onclick="biBulkRejectSelected()">
+            <i class="fa-solid fa-ban"></i> Reject Selected (<span id="biBulkCount">0</span>)
+          </button>
+          <button class="admin-action-btn" id="biBulkSelectAllBtn" onclick="biToggleSelectAll()"
+                  style="font-size:12px;">
+            <i class="fa-solid fa-check-double"></i> Select All
+          </button>
+        </div>
+      </div>
+
+      <!-- Candidates grid -->
+      <div id="biCandidatesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;"></div>
+      <div id="biCandidatesEmpty" style="display:none;color:#888;font-size:13px;padding:20px 0;">No candidate images yet for this bucket.</div>
+
+    </div><!-- /.admin-modal-body -->
+  </div><!-- /.admin-modal -->
+</div><!-- /.biBucketDetailModal -->
+
+
+<!-- ═══════════════════════════════ IMAGE DETAIL MODAL ══════════════════════════════ -->
+<div id="biAssetDetailModal" class="admin-modal-overlay" style="display:none;">
+  <div class="admin-modal admin-modal-md">
+    <div class="admin-modal-header">
+      <h2><i class="fa-solid fa-image"></i> Image Details</h2>
+      <button class="modal-close-btn" onclick="biCloseAssetDetailModal()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div id="biAssetDetailBody" class="admin-modal-body" style="font-size:13px;"></div>
+    <div class="admin-modal-footer" style="display:flex;gap:8px;justify-content:flex-end;" id="biAssetDetailFooter"></div>
+  </div>
+</div>

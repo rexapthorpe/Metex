@@ -394,6 +394,11 @@ def _register_context_processors(app):
         Only the publishable key is injected — never the secret key."""
         return dict(stripe_publishable_key=app.config.get('STRIPE_PUBLISHABLE_KEY', ''))
 
+    # Register bucket cover-image lookup as a Jinja global so any template can call
+    # {{ bucket_cover_url(category_bucket_id) }} to resolve the active cover image.
+    from utils.bucket_image_utils import get_bucket_cover_url
+    app.jinja_env.globals['bucket_cover_url'] = get_bucket_cover_url
+
 
 def _register_blueprints(app):
     """Register all application blueprints."""

@@ -118,6 +118,13 @@ function openBidModal(bucketId, bidId = null) {
       } catch (e) {
         console.error('❌ Step wizard initialization error:', e);
       }
+
+      // Restore in-progress state if returning from the payment-methods page
+      try {
+        applyBidReturnState();
+      } catch (e) {
+        console.warn('[BidModal] State restore failed:', e);
+      }
     })
     .catch(err => {
       console.error('❌ Bid form fetch error:', err);
@@ -155,6 +162,81 @@ function openBidModal(bucketId, bidId = null) {
         `;
       }
     });
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   RESTORE IN-PROGRESS BID STATE
+   Called after the form is loaded + initialised.  Reads
+   bidModalReturnState from sessionStorage (written by
+   bmSaveStateAndNavigateToPayments when the user left for the
+   payment-methods page) and re-applies every field + navigates
+   to the saved wizard step.
+   ───────────────────────────────────────────────────────────────── */
+function applyBidReturnState() {
+  var raw = sessionStorage.getItem('bidModalReturnState');
+  if (!raw) return;
+
+  var state;
+  try { state = JSON.parse(raw); } catch (e) { return; }
+
+  // Verify the saved state belongs to the current bucket
+  if (state.bucketId != null && window.bucketId != null &&
+      String(state.bucketId) !== String(window.bucketId)) {
+    return;
+  }
+
+  // Clear from sessionStorage immediately so a subsequent reload
+  // does not re-apply stale state.
+  sessionStorage.removeItem('bidModalReturnState');
+
+  var setVal = function (id, val) {
+    if (val == null) return;
+    var el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+
+  // Pricing
+  setVal('bid-pricing-mode', state.pricingMode);
+  setVal('bid-price-input',  state.price);
+  setVal('qty-input',        state.qty);
+  setVal('bid-spot-premium', state.spotPremium);
+  setVal('bid-ceiling-price', state.ceilingPrice);
+  setVal('qty-input-premium', state.qtyPremium);
+
+  // Update qty display spans (stepper shows text, not input value)
+  var qtySpan = document.getElementById('qty-value');
+  if (qtySpan && state.qty) qtySpan.textContent = state.qty;
+  var qtySpanP = document.getElementById('qty-value-premium');
+  if (qtySpanP && state.qtyPremium) qtySpanP.textContent = state.qtyPremium;
+
+  // Options
+  var ryEl = document.getElementById('random_year_bid');
+  if (ryEl) ryEl.checked = !!state.randomYear;
+
+  // Delivery
+  setVal('addr-selector', state.addrSelector);
+  setVal('addr-line1',    state.addrLine1);
+  setVal('addr-line2',    state.addrLine2);
+  setVal('addr-city',     state.addrCity);
+  setVal('addr-state',    state.addrState);
+  setVal('addr-zip',      state.addrZip);
+
+  // Payment
+  setVal('selected-pm-id', state.selectedPmId);
+  setVal('payment_method', state.paymentMethod);
+
+  // Fire change events so dependent UI (pricing-mode toggle, addr selector) re-evaluates
+  ['bid-pricing-mode', 'addr-selector'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  // Navigate to the step where the user left off (with a small delay to allow
+  // the wizard to finish its initial goToStep(1) rendering pass)
+  var savedStep = parseInt(state.step) || 4;
+  if (savedStep > 1 && typeof window.bmGoToStep === 'function') {
+    setTimeout(function () { window.bmGoToStep(savedStep); }, 60);
+  }
 }
 
 function closeBidModal() {
@@ -834,10 +916,10 @@ window.submitBidForm = function() {
                 </div>
                 <div class="bm-auth-logo">MetEx</div>
                 <h2 class="bm-auth-title">Payment Method Required</h2>
-                <p class="bm-auth-sub">A saved payment card is required to place a bid. Your card is only charged if a seller accepts your bid — there's no charge now.</p>
+                <p class="bm-auth-sub">A saved payment method is required to place a bid. You are only charged if a seller accepts your bid — there's no charge now.</p>
                 <div class="bm-auth-actions">
-                  <button type="button" onclick="window.location.href='/account'" class="bm-auth-btn-primary">
-                    <i class="fa-solid fa-plus"></i> Add a Card
+                  <button type="button" onclick="window.location.href='/account#details-payment'" class="bm-auth-btn-primary">
+                    <i class="fa-solid fa-plus"></i> Add a Payment Method
                   </button>
                   <button type="button" onclick="closeBidModal()" class="bm-auth-btn-secondary">Cancel</button>
                 </div>

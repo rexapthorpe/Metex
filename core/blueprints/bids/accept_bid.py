@@ -92,38 +92,94 @@ def _get_stripe_tax_for_bid(subtotal_cents: int, postal_code: str, state: str = 
 
 
 def _charge_bid_payment(bid_id: int, order_id: int, buyer_id: int,
-                        pm_id: str, customer_id: str, amount_dollars: float) -> dict:
+                        pm_id: str, customer_id: str, amount_dollars: float,
+                        pm_type: str = 'card') -> dict:
     """
-    Create and confirm a Stripe PaymentIntent off-session for a bid acceptance.
+    Create and confirm a Stripe PaymentIntent for a bid acceptance.
+
+    Supports both card and ACH bank account payment methods:
+    - Cards:  off_session=True, payment_method_types=['card'], status must be 'succeeded'
+    - ACH:    mandate required (from the SetupIntent that set up the bank account),
+              no off_session, payment_method_types=['us_bank_account'], 'processing' is success
+              (ACH settles in 1-4 business days; the mandate from the SetupIntent authorises the debit)
+
+    Args:
+        pm_type: 'card' or 'us_bank_account' — caller should pre-determine this to avoid
+                 a redundant PaymentMethod.retrieve call.
 
     Returns:
-        {'success': True, 'pi_id': 'pi_xxx'}
-        {'success': False, 'code': 'card_declined', 'message': '...'}
+        {'success': True,  'pi_id': 'pi_xxx', 'pm_type': 'card'|'us_bank_account'}
+        {'success': False, 'code': '...', 'message': '...'}
     """
+    is_ach = (pm_type == 'us_bank_account')
+
     try:
-        pi = stripe.PaymentIntent.create(
+        create_kwargs = dict(
             amount=max(1, round(amount_dollars * 100)),
             currency='usd',
             customer=customer_id,
             payment_method=pm_id,
+            payment_method_types=['us_bank_account'] if is_ach else ['card'],
             confirm=True,
-            off_session=True,
             metadata={
                 'user_id': str(buyer_id),
                 'order_id': str(order_id),
                 'bid_id': str(bid_id),
                 'source': 'bid_acceptance',
+                'pm_type': pm_type,
             },
             idempotency_key=f'bid-accept-{bid_id}-{order_id}',
         )
-        if pi.status == 'succeeded':
-            return {'success': True, 'pi_id': pi.id}
+        # off_session is a card concept (cardholder not present).
+        # ACH uses the stored mandate from the SetupIntent — no off_session flag.
+        if not is_ach:
+            create_kwargs['off_session'] = True
+        else:
+            # ACH off-session debits require the mandate created when the buyer
+            # set up their bank account via SetupIntent.  Without it Stripe throws
+            # InvalidRequestError before creating any PI record.
+            mandate_id = None
+            try:
+                for si in stripe.SetupIntent.list(
+                        customer=customer_id, limit=50).auto_paging_iter():
+                    if (si.get('payment_method') == pm_id
+                            and si.status == 'succeeded'
+                            and si.get('mandate')):
+                        mandate_id = si.mandate
+                        _log.info('[BID ACCEPT] Found mandate %s for ACH PM %s',
+                                  mandate_id, pm_id)
+                        break
+            except stripe.error.StripeError as e:
+                _log.warning('[BID ACCEPT] Could not list SetupIntents for mandate '
+                             'lookup PM %s: %s', pm_id, e)
+            if mandate_id:
+                create_kwargs['mandate'] = mandate_id
+                print(f'[DEBUG ACH] mandate found: {mandate_id} for PM {pm_id}')
+            else:
+                _log.error('[BID ACCEPT] No mandate found for ACH PM %s — '
+                           'charge will fail', pm_id)
+                print(f'[DEBUG ACH] NO MANDATE FOUND for PM {pm_id} — attempting charge anyway')
+
+        print(f'[DEBUG ACH] PaymentIntent.create kwargs keys: {list(create_kwargs.keys())}')
+        print(f'[DEBUG ACH] payment_method_types: {create_kwargs.get("payment_method_types")}')
+        print(f'[DEBUG ACH] mandate in kwargs: {"mandate" in create_kwargs}')
+        pi = stripe.PaymentIntent.create(**create_kwargs)
+
+        # Cards confirm instantly → 'succeeded'.
+        # ACH debit is initiated → 'processing' (settles in 1-4 business days).
+        # Both are considered a successful charge initiation.
+        if pi.status in ('succeeded', 'processing'):
+            return {'success': True, 'pi_id': pi.id, 'pi_status': pi.status,
+                    'pm_type': pm_type}
+
         # Unexpected status (requires_action, etc.)
         return {
             'success': False,
             'code': pi.status,
-            'message': f'Payment could not be confirmed automatically (status: {pi.status}). '
-                       'The buyer may need to complete authentication.',
+            'message': (
+                f'Payment could not be confirmed automatically (status: {pi.status}). '
+                'The buyer may need to complete additional authentication.'
+            ),
         }
     except stripe.error.CardError as e:
         err = e.error
@@ -134,6 +190,9 @@ def _charge_bid_payment(bid_id: int, order_id: int, buyer_id: int,
             'is_card_decline': True,
         }
     except stripe.error.InvalidRequestError as e:
+        _log.error('[BID ACCEPT] InvalidRequest charging bid %s order %s pm_type=%s: %s',
+                   bid_id, order_id, pm_type, e)
+        print(f'[DEBUG ACH] InvalidRequestError: {e}')
         return {
             'success': False,
             'code': 'invalid_request',
@@ -259,6 +318,19 @@ def accept_bid(bucket_id):
             })
             continue
 
+        # Determine PM type (card vs ACH) — needed for fee calculation AND PI creation.
+        # Do this once here so _charge_bid_payment doesn't need a second PM.retrieve call.
+        try:
+            _pm_obj = stripe.PaymentMethod.retrieve(bid_pm_id)
+            bid_pm_type = _pm_obj.type  # 'card' or 'us_bank_account'
+            print(f'[DEBUG ACH] bid={bid_id} pm_id={bid_pm_id} pm_type={bid_pm_type}')
+        except stripe.error.StripeError as e:
+            _log.warning('[BID ACCEPT] Could not check PM type for %s: %s — assuming card',
+                         bid_pm_id, e)
+            print(f'[DEBUG ACH] bid={bid_id} pm retrieve FAILED for {bid_pm_id}: {e}')
+            bid_pm_type = 'card'
+        bid_is_ach = (bid_pm_type == 'us_bank_account')
+
         # Load buyer's Stripe customer ID
         buyer_row = cursor.execute(
             'SELECT stripe_customer_id FROM users WHERE id = ?', (buyer_id,)
@@ -379,8 +451,12 @@ def accept_bid(bucket_id):
             _tax_amount      = round(_tax_cents / 100, 2)
             _taxed_subtotal  = _subtotal + _tax_amount
 
-            # Bid payments are always card payments (off-session saved card).
-            _bid_card_fee    = round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
+            # Card payments: 2.99% + $0.30 processing fee.
+            # ACH bank-account payments: no card processing fee.
+            if bid_is_ach:
+                _bid_card_fee = 0.0
+            else:
+                _bid_card_fee = round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
 
             # Final charge: subtotal + tax + card fee
             total_price      = round(_taxed_subtotal + _bid_card_fee, 2)
@@ -484,9 +560,11 @@ def accept_bid(bucket_id):
                 pm_id=bid_pm_id,
                 customer_id=buyer_customer_id,
                 amount_dollars=total_price,
+                pm_type=bid_pm_type,
             )
 
             if not pay_result['success']:
+                print(f'[DEBUG ACH] PAYMENT FAILED for bid={bid_id}: {pay_result}')
                 # Payment failed — roll back all DB work for this bid
                 cursor.execute(f'ROLLBACK TO SAVEPOINT {sp_name}')
                 cursor.execute(f'RELEASE SAVEPOINT {sp_name}')
@@ -529,6 +607,7 @@ def accept_bid(bucket_id):
             # ── Payment succeeded ────────────────────────────────────────
 
             pi_id = pay_result['pi_id']
+            _paid_pm_type = pay_result.get('pm_type', 'card')
 
             # Stamp order with payment info
             cursor.execute('''
@@ -537,9 +616,9 @@ def accept_bid(bucket_id):
                        payment_status = 'paid',
                        status = 'paid',
                        paid_at = datetime('now'),
-                       payment_method_type = 'card'
+                       payment_method_type = ?
                  WHERE id = ?
-            ''', (pi_id, order_id))
+            ''', (pi_id, _paid_pm_type, order_id))
 
             # Mark bid payment as charged
             cursor.execute('''

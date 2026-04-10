@@ -1656,6 +1656,126 @@ class SchemaManager:
             self.log_skip("Table 'user_risk_events' already exists")
         self.create_index('idx_ure_user', 'user_risk_events', 'user_id')
 
+    # -------------------------------------------------------------------------
+    # Bucket Image Catalog (standard product images)
+    # -------------------------------------------------------------------------
+
+    def create_standard_buckets_table(self):
+        """Create the standard_buckets table — canonical product catalog for image matching."""
+        print("\n[46/48] Creating STANDARD_BUCKETS table...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS standard_buckets (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug               TEXT NOT NULL UNIQUE,
+            title              TEXT NOT NULL,
+            metal              TEXT NOT NULL,
+            form               TEXT NOT NULL DEFAULT 'coin',
+            weight             TEXT,
+            weight_oz          REAL,
+            denomination       TEXT,
+            mint               TEXT,
+            product_family     TEXT,
+            product_series     TEXT,
+            year_policy        TEXT NOT NULL DEFAULT 'fixed',
+            year               TEXT,
+            purity             TEXT,
+            finish             TEXT,
+            variant            TEXT,
+            category_bucket_id INTEGER,
+            active             INTEGER NOT NULL DEFAULT 1,
+            created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+        if not self.table_exists('standard_buckets'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created standard_buckets table")
+        else:
+            self.log_skip("Table 'standard_buckets' already exists")
+        self.create_index('idx_sb_slug', 'standard_buckets', 'slug')
+        self.create_index('idx_sb_cat_bucket', 'standard_buckets', 'category_bucket_id')
+        self.create_index('idx_sb_active', 'standard_buckets', 'active')
+
+    def create_bucket_image_assets_table(self):
+        """Create the bucket_image_assets table — every stored image with full provenance."""
+        print("\n[47/48] Creating BUCKET_IMAGE_ASSETS table...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS bucket_image_assets (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            standard_bucket_id   INTEGER NOT NULL,
+            source_name          TEXT NOT NULL,
+            source_type          TEXT NOT NULL DEFAULT 'unknown',
+            source_priority      INTEGER NOT NULL DEFAULT 99,
+            source_page_url      TEXT,
+            original_image_url   TEXT,
+            storage_key          TEXT UNIQUE,
+            local_path           TEXT,
+            web_path             TEXT,
+            thumb_path           TEXT,
+            checksum             TEXT,
+            width                INTEGER,
+            height               INTEGER,
+            mime_type            TEXT,
+            file_size            INTEGER,
+            attribution_text     TEXT,
+            license_type         TEXT,
+            rights_note          TEXT,
+            usage_allowed        INTEGER NOT NULL DEFAULT 1,
+            confidence_score     REAL NOT NULL DEFAULT 0.0,
+            status               TEXT NOT NULL DEFAULT 'pending',
+            is_primary_candidate INTEGER NOT NULL DEFAULT 0,
+            ingestion_run_id     INTEGER,
+            matched_title        TEXT,
+            matched_weight       TEXT,
+            matched_mint         TEXT,
+            matched_year         TEXT,
+            matched_series       TEXT,
+            match_warnings       TEXT,
+            raw_source_title     TEXT,
+            raw_source_metadata  TEXT,
+            created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            reviewed_at          TIMESTAMP,
+            reviewed_by          INTEGER,
+            FOREIGN KEY (standard_bucket_id) REFERENCES standard_buckets(id)
+        )
+        """
+        if not self.table_exists('bucket_image_assets'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created bucket_image_assets table")
+        else:
+            self.log_skip("Table 'bucket_image_assets' already exists")
+        self.create_index('idx_bia_bucket', 'bucket_image_assets', 'standard_bucket_id')
+        self.create_index('idx_bia_status', 'bucket_image_assets', 'status')
+        self.create_index('idx_bia_checksum', 'bucket_image_assets', 'checksum')
+
+    def create_bucket_image_ingestion_runs_table(self):
+        """Create the bucket_image_ingestion_runs table — audit trail for ingestion jobs."""
+        print("\n[48/48] Creating BUCKET_IMAGE_INGESTION_RUNS table...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS bucket_image_ingestion_runs (
+            id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+            standard_bucket_id       INTEGER,
+            source_name              TEXT,
+            source_url               TEXT,
+            status                   TEXT NOT NULL DEFAULT 'running',
+            images_found             INTEGER NOT NULL DEFAULT 0,
+            images_ingested          INTEGER NOT NULL DEFAULT 0,
+            images_skipped_duplicate INTEGER NOT NULL DEFAULT 0,
+            error_message            TEXT,
+            triggered_by             INTEGER,
+            started_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at             TIMESTAMP,
+            FOREIGN KEY (standard_bucket_id) REFERENCES standard_buckets(id),
+            FOREIGN KEY (triggered_by) REFERENCES users(id)
+        )
+        """
+        if not self.table_exists('bucket_image_ingestion_runs'):
+            self.cursor.execute(_ddl(sql))
+            self.log_change("Created bucket_image_ingestion_runs table")
+        else:
+            self.log_skip("Table 'bucket_image_ingestion_runs' already exists")
+        self.create_index('idx_biir_bucket', 'bucket_image_ingestion_runs', 'standard_bucket_id')
+
     def run(self):
         """Run the complete schema creation/update process"""
         print("=" * 70)
@@ -1715,6 +1835,9 @@ class SchemaManager:
             self.create_refunds_table()
             self.create_user_risk_profile_table()
             self.create_user_risk_events_table()
+            self.create_standard_buckets_table()
+            self.create_bucket_image_assets_table()
+            self.create_bucket_image_ingestion_runs_table()
 
             # Add cancellation columns to orders table (idempotent — also in create_orders_table)
             self.add_column('orders', 'canceled_at', 'TIMESTAMP')
