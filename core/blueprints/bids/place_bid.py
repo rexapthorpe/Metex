@@ -57,7 +57,8 @@ def _verify_saved_card(user_id: int, conn, selected_pm_id: str):
         else:
             # Auto-select default, preferring cards over bank accounts
             customer = stripe.Customer.retrieve(customer_id)
-            default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
+            customer_data = customer.to_dict()
+            default_pm_id = (customer_data.get('invoice_settings') or {}).get('default_payment_method')
             if default_pm_id and any(pm.id == default_pm_id for pm in pm_list):
                 return default_pm_id, None
             # Fall back to first card, then first bank account
