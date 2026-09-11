@@ -846,6 +846,42 @@ def mark_tracking_forfeitures(now=None):
     conn.commit(); conn.close(); return ids
 
 
+def process_tracking_forfeiture_refunds():
+    """Refund forfeited fills once the configured component policy permits it."""
+    import stripe
+    conn=get_db_connection(); ensure_flow_schema(conn)
+    rows=conn.execute("""SELECT f.id fill_id,f.quantity,f.refunded_quantity,f.snapshot_line_id,
+      f.execution_id,e.provider_payment_id,l.listing_id
+      FROM seller_fills f JOIN executions e ON e.id=f.execution_id
+      JOIN snapshot_lines l ON l.id=f.snapshot_line_id
+      WHERE f.state='FORFEITED' AND f.refunded_quantity<f.quantity""").fetchall()
+    conn.close(); completed=[]
+    for row in rows:
+        key=f"tracking-forfeiture-refund:{row['fill_id']}"
+        try:
+            refund,_=create_refund(row["execution_id"],
+              {row["fill_id"]:row["quantity"]-row["refunded_quantity"]},
+              "TRACKING_FORFEITURE",key)
+            provider=stripe.Refund.create(payment_intent=row["provider_payment_id"],
+              amount=refund["total_cents"],metadata={"flow_refund_id":refund["id"],
+              "seller_fill_id":row["fill_id"],"reason":"tracking_forfeiture"},
+              idempotency_key=key)
+            if complete_refund(refund["id"],provider.id):
+                restore=get_db_connection()
+                restore.execute("UPDATE listings SET quantity=quantity+?,active=1 WHERE id=?",
+                                (row["quantity"]-row["refunded_quantity"],row["listing_id"]))
+                restore.commit(); restore.close()
+            completed.append(row["fill_id"])
+        except FlowError:
+            # An unresolved refund-component policy intentionally leaves the
+            # affected payable held for an administrator instead of guessing.
+            continue
+        except Exception:
+            # The claimed financial operation remains retryable with the same key.
+            continue
+    return completed
+
+
 def record_shipment_event(shipment_id, state, evidence):
     if state not in ("IN_TRANSIT","DELIVERED","LOST","DAMAGED","RETURNED"):
         raise FlowError("Invalid shipment state","INVALID_SHIPMENT_STATE")
@@ -1119,11 +1155,18 @@ def execute_bid_fill(bid_id, buyer_id, seller_id, items, payment_rail, tax_cents
     conn=get_db_connection(); ensure_flow_schema(conn)
     require_approved_policy(conn,"tracking_upload_deadline_days","ups_coverage_and_claim_policy")
     if payment_rail=="us_bank_account": require_approved_policy(conn,"ach_approval_policy")
+    if any(bool(item.get("requires_grading")) for item in items):
+        require_approved_policy(conn,"grading_vendor_policy")
     if database_module.IS_POSTGRES:
         bid=conn.execute("SELECT * FROM bids WHERE id=? FOR UPDATE",(bid_id,)).fetchone()
     else: bid=conn.execute("SELECT * FROM bids WHERE id=?",(bid_id,)).fetchone()
     if not bid or int(bid["buyer_id"])!=int(buyer_id) or bid["remaining_quantity"]<quantity:
         conn.close(); raise FlowError("Bid quantity is no longer available","BID_CONCURRENCY_CONFLICT",409)
+    listing_ids=[int(item["listing_id"]) for item in items]
+    placeholders=",".join("?" for _ in listing_ids)
+    sellers=conn.execute(f"SELECT DISTINCT seller_id FROM listings WHERE id IN ({placeholders})",listing_ids).fetchall()
+    if len(sellers)!=1 or int(sellers[0]["seller_id"])!=int(seller_id) or int(seller_id)==int(buyer_id):
+        conn.close(); raise FlowError("Bid fill seller ownership is invalid","BID_SELLER_MISMATCH",409)
     ordinal=bid["remaining_quantity"]
     for item in items: item["source_bid_id"]=bid_id
     checkout,snapshot,_=prepare_checkout(buyer_id,items,payment_rail,tax_cents,shipping,
@@ -1142,6 +1185,22 @@ def execute_bid_fill(bid_id, buyer_id, seller_id, items, payment_rail, tax_cents
       metadata={"checkout_id":checkout["id"],"snapshot_hash":snapshot["snapshot_hash"],
                 "buyer_id":str(buyer_id),"bid_id":str(bid_id),"policy_version":POLICY_VERSION})
     if payment_rail=="card": kwargs["off_session"]=True
+    else:
+        # Off-session ACH needs the mandate created with the buyer's saved bank method.
+        try:
+            for setup_intent in stripe.SetupIntent.list(customer=customer_id,limit=50).auto_paging_iter():
+                if (setup_intent.get("payment_method")==payment_method_id and
+                        setup_intent.get("status")=="succeeded" and setup_intent.get("mandate")):
+                    kwargs["mandate"]=setup_intent.get("mandate")
+                    break
+        except Exception as exc:
+            conn=get_db_connection(); conn.execute("UPDATE checkout_attempts SET state='PAYMENT_CORRECTION',expires_at=?,updated_at=? WHERE id=?",
+                                                  (expires,_now(),checkout["id"])); conn.commit(); conn.close()
+            raise FlowError("ACH mandate verification is temporarily unavailable","ACH_MANDATE_VERIFICATION_FAILED",503) from exc
+        if "mandate" not in kwargs:
+            conn=get_db_connection(); conn.execute("UPDATE checkout_attempts SET state='PAYMENT_CORRECTION',expires_at=?,updated_at=? WHERE id=?",
+                                                  (expires,_now(),checkout["id"])); conn.commit(); conn.close()
+            raise FlowError("ACH payment mandate is missing","ACH_MANDATE_REQUIRED",409)
     try:
         pi=stripe.PaymentIntent.create(**kwargs,idempotency_key=op["idempotency_key"])
         bind_provider_payment(checkout["id"],pi.id,op["id"])

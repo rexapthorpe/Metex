@@ -35,11 +35,13 @@ def _tick(app):
         with app.app_context():
             from services.flow_of_funds import (
                 dispatch_outbox, expire_due_reservations, mark_tracking_forfeitures,
+                process_tracking_forfeiture_refunds,
                 reconcile_internal, replay_retry_webhooks,
             )
             retries = replay_retry_webhooks()
             released = expire_due_reservations()
             forfeited = mark_tracking_forfeitures()
+            forfeiture_refunds = process_tracking_forfeiture_refunds()
             sent = dispatch_outbox()
             unbalanced = reconcile_internal()
             if unbalanced:
@@ -49,8 +51,8 @@ def _tick(app):
                 _provider_reconciliation()
                 _last_provider_reconciliation = now
             logger.info(
-                "[flow_worker] retries=%s reservations=%s forfeitures=%s notifications=%s",
-                retries, released, len(forfeited), sent,
+                "[flow_worker] retries=%s reservations=%s forfeitures=%s forfeiture_refunds=%s notifications=%s",
+                retries, released, len(forfeited), len(forfeiture_refunds), sent,
             )
     except Exception:
         logger.exception("[flow_worker] Recovery tick failed")

@@ -180,3 +180,11 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 database.db
+
+# Local runtime data must never be committed.
+.DS_Store
+*.db
+*.db-shm
+*.db-wal
+data/archive/
+data/uploads/reports/

@@ -503,6 +503,10 @@ def respond_to_cancellation(order_id):
                             'final_status': final, 'items_restored': sum(quantities.values()),
                             'refund_id': provider.id})
 
+        conn.close()
+        return jsonify({'success': False,
+                        'error': 'This order is not linked to a canonical execution; cancellation refund is blocked.'}), 410
+
         # If denied, immediately deny the entire request
         if response == 'denied':
             conn.execute("""

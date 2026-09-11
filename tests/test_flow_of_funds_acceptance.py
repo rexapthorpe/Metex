@@ -1,5 +1,7 @@
 import sqlite3
+import sys
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -23,6 +25,8 @@ def db(tmp_path, monkeypatch):
       CREATE TABLE order_items(id INTEGER PRIMARY KEY AUTOINCREMENT,order_id INTEGER,listing_id INTEGER,quantity INTEGER,price_each REAL,
         price_at_purchase REAL,seller_price_each REAL,third_party_grading_requested INTEGER,grading_fee_charged REAL,grading_status TEXT);
       CREATE TABLE cart(id INTEGER PRIMARY KEY,user_id INTEGER,listing_id INTEGER,quantity INTEGER);
+      CREATE TABLE bids(id INTEGER PRIMARY KEY,buyer_id INTEGER,remaining_quantity INTEGER,
+        active INTEGER,status TEXT,bid_payment_status TEXT,bid_payment_intent_id TEXT);
     ''')
     c.executemany('INSERT INTO users VALUES (?,?,?,?,?)',[(1,'b@x','x','b',None),(2,'s@x','x','s',None),(3,'s2@x','x','s2',None)])
     c.executemany('INSERT INTO listings VALUES (?,?,?,?,?,?)',[(10,2,1,20,1,100.0),(11,3,1,20,1,200.0)])
@@ -218,6 +222,51 @@ def test_each_graded_fill_has_separate_first_shipment_leg(db):
     flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
     c=db(); legs=c.execute('SELECT leg_type,destination_type FROM shipments ORDER BY id').fetchall(); c.close()
     assert [tuple(x) for x in legs]==[('SELLER_TO_GRADER','GRADER'),('SELLER_TO_GRADER','GRADER')]
+
+
+def test_bid_fill_uses_canonical_payment_and_commits_quantity(db,monkeypatch):
+    class Payment:
+        id='pi_bid_1'; status='succeeded'
+        def __init__(self,kwargs): self.kwargs=kwargs
+        def to_dict(self):
+            return {'id':self.id,'status':self.status,'amount':self.kwargs['amount'],
+                    'currency':'usd','metadata':self.kwargs['metadata'],'latest_charge':'ch_bid_1'}
+    def create_payment(**kwargs): return Payment(kwargs)
+    monkeypatch.setitem(sys.modules,'stripe',SimpleNamespace(
+        PaymentIntent=SimpleNamespace(create=create_payment)))
+    c=db(); approve(c,'tracking_upload_deadline_days','ups_coverage_and_claim_policy')
+    c.execute("INSERT INTO bids VALUES (7,1,3,1,'Open','pending',NULL)"); c.commit(); c.close()
+    result=flow.execute_bid_fill(7,1,2,[{'listing_id':10,'quantity':2,'price_each':101,
+        'seller_price_each':100}], 'card', 125,
+        {'shipping_address':'1 Main, Austin, TX 78701','recipient_first':'A','recipient_last':'B'},
+        'pm_card_1','cus_1')
+    assert result['state']=='FUNDED'
+    c=db()
+    bid=c.execute('SELECT remaining_quantity,status FROM bids WHERE id=7').fetchone()
+    fill=c.execute('SELECT seller_fee_cents,seller_net_cents,spread_cents FROM seller_fills').fetchone()
+    assert tuple(bid)==(1,'Partially Filled')
+    assert tuple(fill)==(1000,19000,200)
+    assert c.execute('SELECT COUNT(*) FROM executions').fetchone()[0]==1
+    c.close()
+
+
+def test_bid_fill_ach_without_verified_mandate_holds_correction_window(db,monkeypatch):
+    class SetupIntents:
+        def auto_paging_iter(self): return iter([])
+    monkeypatch.setitem(sys.modules,'stripe',SimpleNamespace(
+        SetupIntent=SimpleNamespace(list=lambda **kwargs: SetupIntents())))
+    c=db(); approve(c,'tracking_upload_deadline_days','ups_coverage_and_claim_policy','ach_approval_policy')
+    c.execute("INSERT INTO bids VALUES (8,1,1,1,'Open','pending',NULL)"); c.commit(); c.close()
+    with pytest.raises(flow.FlowError) as exc:
+        flow.execute_bid_fill(8,1,2,[{'listing_id':10,'quantity':1,'price_each':100,
+            'seller_price_each':100}], 'us_bank_account', 0,
+            {'shipping_address':'1 Main, Austin, TX 78701','recipient_first':'A','recipient_last':'B'},
+            'pm_bank_1','cus_1')
+    assert exc.value.code=='ACH_MANDATE_REQUIRED'
+    c=db()
+    assert c.execute('SELECT state FROM checkout_attempts').fetchone()[0]=='PAYMENT_CORRECTION'
+    assert c.execute('SELECT state FROM bid_quantity_reservations').fetchone()[0]=='HELD'
+    c.close()
 
 
 def test_webhook_duplicate_is_processed_once(db):

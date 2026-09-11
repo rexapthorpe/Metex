@@ -621,8 +621,16 @@ def set_session_user(user_id: int, username: str = None):
     if username:
         session['username'] = username
 
-    # Add session version for password change invalidation
-    session['session_version'] = int(time.time())
+    # Bind the cookie to the durable account session version. Administrators and
+    # password changes increment this value to revoke every older browser session.
+    try:
+        from database import get_db_connection
+        conn = get_db_connection()
+        row = conn.execute('SELECT session_version FROM users WHERE id = ?', (user_id,)).fetchone()
+        conn.close()
+        session['session_version'] = int(row['session_version'] or 0) if row else 0
+    except Exception:
+        session['session_version'] = 0
 
     # Mark as modified
     session.modified = True

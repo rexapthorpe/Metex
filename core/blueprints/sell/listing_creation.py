@@ -494,10 +494,18 @@ def handle_sell_post():
             if result is not None:
                 return result  # Error response
 
-        # Auto-match intentionally disabled: bids fill only when a seller manually
-        # accepts via /bids/accept_bid/<bucket_id>, which charges the buyer's card.
-        # Calling auto_match_listing_to_bids here would create orders without payment.
         conn.commit()
+
+        # Match only after the listing is durable. Every fill then enters the
+        # canonical checkout/payment engine with its own idempotent execution.
+        try:
+            from core.blueprints.bids.auto_match import auto_match_listing_to_bids
+            auto_match_listing_to_bids(listing_id)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                '[LISTING CREATE] Secure automatic match failed for listing %s', listing_id
+            )
 
         # Update bucket price history after creating new listing
         try:

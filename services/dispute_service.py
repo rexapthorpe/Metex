@@ -600,29 +600,8 @@ def admin_resolve(dispute_id, admin_id, resolution, note):
             stripe_refund_id=provider.id; refund_amount=canonical['total_cents']/100
             refund_result={'success':True,'refund_id':provider.id,'amount':refund_amount}
         else:
-            pi_id = dispute['stripe_payment_intent_id']
-            order_amount = dispute['order_amount'] or 0
-
-            if pi_id and order_amount > 0:
-                refund_result = _attempt_stripe_refund(pi_id, dispute_id)
-                if refund_result.get('success'):
-                    stripe_refund_id = refund_result['refund_id']
-                    refund_amount = order_amount
-                    cursor.execute(
-                    '''INSERT INTO refunds
-                           (dispute_id, order_id, order_item_id, buyer_id, seller_id,
-                            amount, provider_refund_id, issued_by_admin_id, issued_at, note)
-                       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)''',
-                    (dispute_id, dispute['order_id'],
-                     dispute['buyer_id'], dispute['seller_id'],
-                     order_amount, stripe_refund_id, admin_id, now, note.strip()),
-                    )
-                else:
-                    conn.close()
-                    raise ValueError('Refund provider call failed; dispute remains active for retry.')
-            else:
-                conn.close()
-                raise ValueError('No payment is available for refund; dispute remains active.')
+            conn.close()
+            raise ValueError('This dispute is not linked to canonical seller fills; refund is blocked for financial safety.')
 
     event_note = note.strip()
     if refund_amount:

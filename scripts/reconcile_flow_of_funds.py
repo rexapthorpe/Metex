@@ -5,6 +5,7 @@ import stripe
 from database import get_db_connection
 from services.flow_of_funds import (
     dispatch_outbox, ensure_flow_schema, expire_due_reservations, mark_tracking_forfeitures,
+    process_tracking_forfeiture_refunds,
     reconcile_internal, reconcile_provider_payment,
 )
 
@@ -19,8 +20,10 @@ def run():
         raise RuntimeError(f"unbalanced journals: {internal}")
     for payment_id in ids:
         reconcile_provider_payment(stripe.PaymentIntent.retrieve(payment_id))
-    released=expire_due_reservations(); forfeited=mark_tracking_forfeitures(); notifications=dispatch_outbox()
-    print({"payments":len(ids),"reservations_released":released,"tracking_forfeitures":len(forfeited),"notifications":notifications})
+    released=expire_due_reservations(); forfeited=mark_tracking_forfeitures()
+    forfeiture_refunds=process_tracking_forfeiture_refunds(); notifications=dispatch_outbox()
+    print({"payments":len(ids),"reservations_released":released,"tracking_forfeitures":len(forfeited),
+           "tracking_forfeiture_refunds":len(forfeiture_refunds),"notifications":notifications})
     return 0
 
 

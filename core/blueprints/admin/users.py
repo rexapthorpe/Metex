@@ -158,7 +158,7 @@ def ban_user(user_id):
             ''', (user_id,))
 
         # Update ban status
-        conn.execute('UPDATE users SET is_banned = ? WHERE id = ?', (new_status, user_id))
+        conn.execute('UPDATE users SET is_banned = ?, session_version=session_version+1 WHERE id = ?', (new_status, user_id))
         conn.commit()
 
         action = 'banned' if new_status else 'unbanned'
@@ -209,7 +209,7 @@ def freeze_user(user_id):
                 reason = None
 
         # Update freeze status and reason
-        conn.execute('UPDATE users SET is_frozen = ?, freeze_reason = ? WHERE id = ?', (new_status, reason, user_id))
+        conn.execute('UPDATE users SET is_frozen = ?, freeze_reason = ?, session_version=session_version+1 WHERE id = ?', (new_status, reason, user_id))
         conn.commit()
 
         action = 'frozen' if new_status else 'unfrozen'

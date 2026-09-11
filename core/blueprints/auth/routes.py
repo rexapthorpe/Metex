@@ -446,7 +446,7 @@ def reset_password(token):
 
         # Update password
         conn.execute(
-            'UPDATE users SET password = ?, password_hash = ? WHERE id = ?',
+            'UPDATE users SET password = ?, password_hash = ?, session_version=session_version+1 WHERE id = ?',
             (new_password_hash, new_password_hash, user_id)
         )
 

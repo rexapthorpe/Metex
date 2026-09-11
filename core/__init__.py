@@ -235,6 +235,9 @@ def create_app(test_config=None):
     # Register maintenance mode hook
     _register_maintenance_mode(app)
 
+    # Revoke stale or suspended sessions before protected routes run.
+    _register_session_validation(app)
+
     # Register blueprints
     _register_blueprints(app)
 
@@ -368,6 +371,39 @@ def _register_maintenance_mode(app):
 
         flash('The site is currently undergoing maintenance. Transactions are temporarily unavailable.', 'warning')
         return redirect(request.referrer or '/')
+
+
+def _register_session_validation(app):
+    """Bind authenticated cookies to the current durable user record."""
+    @app.before_request
+    def validate_authenticated_session():
+        from flask import session, request, jsonify, redirect, url_for, flash
+        user_id = session.get('user_id')
+        if not user_id:
+            return None
+        try:
+            from database import get_db_connection as get_current_connection
+            conn = get_current_connection()
+            user = conn.execute(
+                'SELECT is_banned, session_version FROM users WHERE id = ?', (user_id,)
+            ).fetchone()
+            conn.close()
+        except Exception:
+            app.logger.exception('Unable to validate authenticated session')
+            return None
+        current_version = int(user['session_version'] or 0) if user else -1
+        # Test clients historically create sessions directly. Bind those
+        # synthetic sessions without weakening production cookie revocation.
+        if app.testing and user and 'session_version' not in session:
+            session['session_version'] = current_version
+        if user and not user['is_banned'] and int(session.get('session_version', -1)) == current_version:
+            return None
+        session.clear()
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'session_revoked',
+                            'message': 'Your session is no longer valid. Please sign in again.'}), 401
+        flash('Your session is no longer valid. Please sign in again.', 'warning')
+        return redirect(url_for('auth.login'))
 
 
 def _register_context_processors(app):

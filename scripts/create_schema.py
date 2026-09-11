@@ -164,6 +164,7 @@ class SchemaManager:
         self.add_column('users', 'stripe_payouts_enabled', 'INTEGER DEFAULT 0')
         self.add_column('users', 'stripe_customer_id', 'TEXT')  # buyer payment methods
         self.add_column('users', 'bid_payment_strikes', 'INTEGER DEFAULT 0')  # failed accepted-bid payments
+        self.add_column('users', 'session_version', 'INTEGER NOT NULL DEFAULT 0')
 
         # Create indexes
         self.create_index('idx_users_is_admin', 'users', 'is_admin')

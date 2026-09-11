@@ -1630,14 +1630,14 @@ def change_password():
     try:
         # Hash the new password before storing
         new_password_hash = generate_password_hash(new_password)
-        conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
+        conn.execute('UPDATE users SET password_hash = ?, session_version=session_version+1 WHERE id = ?', (new_password_hash, user_id))
+        version = conn.execute('SELECT session_version FROM users WHERE id=?', (user_id,)).fetchone()['session_version']
         conn.commit()
         conn.close()
         # Invalidate current session and reissue it so the user stays logged in
         # but any other sessions (other browsers/devices) are effectively invalidated
         # because their session_version will be older than the new password change timestamp.
-        import time
-        session['session_version'] = int(time.time())
+        session['session_version'] = int(version)
         session.modified = True
         try:
             from services.notification_types import notify_password_changed

@@ -231,11 +231,16 @@ def place_bid(bucket_id):
     )
     new_bid_id = cursor.lastrowid
 
-    # Auto-match intentionally disabled: bids fill only when a seller manually
-    # accepts via /bids/accept_bid/<bucket_id>, which charges the buyer's card.
-    # Calling auto_match here would create orders without payment.
     conn.commit()
     conn.close()
+
+    # Run only after the bid commit. The matcher creates a durable checkout and
+    # inventory reservation before each independent provider payment.
+    try:
+        from .auto_match import secure_auto_match_bid
+        secure_auto_match_bid(new_bid_id)
+    except Exception:
+        _log.exception('[BID PLACE] Secure automatic match failed for bid %s', new_bid_id)
 
     flash("Your bid was placed successfully!", "success")
     return redirect(url_for('buy.view_bucket', bucket_id=bucket_id))
@@ -416,12 +421,16 @@ def create_bid_unified(bucket_id):
         )
         new_bid_id = cursor.lastrowid
 
-        # Auto-match intentionally disabled: bids fill only when a seller manually
-        # accepts via /bids/accept_bid/<bucket_id>, which charges the buyer's card.
-        # Calling auto_match here would create orders without payment.
-        match_result = {'filled_quantity': 0, 'orders_created': 0, 'message': '', 'notifications': [], 'ledger_orders': []}
-
         conn.commit()
+
+        try:
+            from .auto_match import secure_auto_match_bid
+            match_result = secure_auto_match_bid(new_bid_id)
+        except Exception:
+            _log.exception('[BID CREATE] Secure automatic match failed for bid %s', new_bid_id)
+            match_result = {'filled_quantity': 0, 'orders_created': 0,
+                            'message': 'Bid saved; automatic matching will retry.',
+                            'notifications': [], 'ledger_orders': []}
 
         # Get the created bid with all fields for effective price calculation
         created_bid = conn.execute('''

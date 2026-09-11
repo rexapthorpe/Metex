@@ -14,9 +14,11 @@ The web process runs recovery every five minutes and provider reconciliation dai
 - Webhooks are retained before processing and replay by provider event ID. A processing error returns HTTP 500 so Stripe retries.
 - `payment_intent.processing` retains inventory and cannot authorize shipment. ACH authorization requires evidence and an admin audit event.
 - Failed bid payment retains its reservation for one day. Other definitive pre-funding failures release inventory exactly once. Unknown/pending payments are never released by the ordinary reservation timeout.
+- Automatic matches run only after the bid or listing is committed. Each seller listing becomes an independent canonical payment and execution. Card authentication and ACH mandate failures enter the one-day correction window; they never create an unpaid order.
 - Refunds are created from fill quantities and original component slices. Never enter an arbitrary cross-order refund amount. A provider call uses the persisted financial-operation idempotency key.
 - A connected-account transfer is `TRANSFERRED_TO_CONNECTED_ACCOUNT`. Only provider payout events may record `BANK_PAYOUT_PAID`.
 - Post-transfer recovery requires an approved reason-specific seller liability mapping. Apply provider reversal, available balance, future offsets, negative balance, repayment, then suspension; log each attempt.
+- Bans, freezes, and password changes increment the durable account session version. Existing browser sessions are revoked on their next request.
 
 ## Restore procedure
 

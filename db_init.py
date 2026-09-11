@@ -249,6 +249,7 @@ def ensure_user_status_columns():
             ('is_frozen', 'INTEGER DEFAULT 0'),
             ('freeze_reason', 'TEXT'),
             ('bid_payment_strikes', 'INTEGER DEFAULT 0'),
+            ('session_version', 'INTEGER NOT NULL DEFAULT 0'),
         ]:
             if col_name not in existing:
                 cursor.execute(f'ALTER TABLE users ADD COLUMN {col_name} {col_def}')

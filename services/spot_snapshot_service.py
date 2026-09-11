@@ -180,30 +180,19 @@ def _try_acquire_run_lock(conn) -> bool:
     now = datetime.now()
     cutoff = (now - timedelta(seconds=_LOCK_TTL_SECS)).isoformat()
 
-    # Check if a fresh lock exists
-    row = conn.execute(
-        "SELECT value FROM system_settings WHERE key = ?", (_LOCK_KEY,)
-    ).fetchone()
-
-    if row:
-        try:
-            lock_time = datetime.fromisoformat(row["value"])
-            if (now - lock_time).total_seconds() < _LOCK_TTL_SECS:
-                return False  # fresh lock held by another process
-        except Exception:
-            pass  # malformed timestamp — overwrite
-
-    # Acquire the lock
-    conn.execute(
+    # The conflict predicate makes inspection and acquisition one atomic write
+    # on both SQLite and PostgreSQL. Only an expired lease may be replaced.
+    changed = conn.execute(
         """
         INSERT INTO system_settings (key, value, updated_at)
         VALUES (?, ?, ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+        WHERE system_settings.value < ?
         """,
-        (_LOCK_KEY, now.isoformat(), now.isoformat()),
+        (_LOCK_KEY, now.isoformat(), now.isoformat(), cutoff),
     )
     conn.commit()
-    return True
+    return changed.rowcount == 1
 
 
 def _release_run_lock(conn) -> None:

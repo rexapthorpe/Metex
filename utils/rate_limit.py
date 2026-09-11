@@ -61,6 +61,7 @@ def init_rate_limiter(app):
         app=app,
         key_func=get_remote_address,
         storage_uri=actual_storage,
+        enabled=os.getenv('FLASK_TESTING', '').lower() not in ('1', 'true', 'yes'),
         default_limits=["200 per hour", "50 per minute"],
         # Don't count successful responses against limits for some endpoints
         default_limits_deduct_when=lambda response: response.status_code >= 400

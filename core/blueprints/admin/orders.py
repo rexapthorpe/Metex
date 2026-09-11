@@ -260,6 +260,11 @@ def admin_refund_order(order_id):
     - Affected payouts → PAYOUT_CANCELLED
     - Logs REFUND_INITIATED and REFUND_COMPLETED events
     """
+    return jsonify({
+        'success': False,
+        'error': 'This legacy ledger-only refund route is retired. Use /refund-stripe, which uses the canonical component refund engine.'
+    }), 410
+
     from services.ledger_service import LedgerService, EscrowControlError
 
     data = request.get_json() or {}
@@ -542,6 +547,9 @@ def admin_refund_buyer_stripe(order_id):
         return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
     finally:
         _flow_conn.close()
+
+    return jsonify({'success':False,
+                    'error':'This order has no canonical execution and cannot use a legacy money-moving path.'}),410
 
     try:
         result = LedgerService.refund_buyer_stripe(order_id, admin_id, reason, amount=amount)
