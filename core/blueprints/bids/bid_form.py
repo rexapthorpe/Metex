@@ -147,11 +147,12 @@ def bid_form_unified(bucket_id, bid_id=None):
     if customer_id:
         try:
             customer = stripe.Customer.retrieve(customer_id)
-            default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
+            customer_data = customer.to_dict()
+            default_pm_id = (customer_data.get('invoice_settings') or {}).get('default_payment_method')
 
             # Cards
             for pm in stripe.PaymentMethod.list(customer=customer_id, type='card').auto_paging_iter():
-                card = pm.get('card') or {}
+                card = (pm.to_dict().get('card') or {})
                 saved_cards.append({
                     'id': pm.id,
                     'method_type': 'card',
@@ -164,7 +165,7 @@ def bid_form_unified(bucket_id, bid_id=None):
 
             # ACH bank accounts
             for pm in stripe.PaymentMethod.list(customer=customer_id, type='us_bank_account').auto_paging_iter():
-                bank = pm.get('us_bank_account') or {}
+                bank = (pm.to_dict().get('us_bank_account') or {})
                 saved_cards.append({
                     'id': pm.id,
                     'method_type': 'bank_account',
