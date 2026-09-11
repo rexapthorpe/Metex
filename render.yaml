@@ -3,7 +3,8 @@ services:
     name: metex
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 120
+    startCommand: python -m scripts.create_schema && gunicorn "core:create_app()" --workers 1 --threads 4 --timeout 120
+    healthCheckPath: /healthz
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -17,6 +18,16 @@ services:
         value: "true"
       - key: ENABLE_HSTS
         value: "true"
+      - key: FLASK_ENV
+        value: production
+      - key: SITE_URL
+        value: https://metex.onrender.com
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
       # Set these manually in the Render dashboard:
       # METALPRICE_API_KEY, EMAIL_ADDRESS, EMAIL_PASSWORD,
       # GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
