@@ -11,7 +11,7 @@ Security features:
 - Rate limiting on authentication endpoints
 """
 
-from flask import render_template, request, redirect, url_for, session, jsonify
+from flask import render_template, request, redirect, url_for, session, jsonify, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection
 from datetime import datetime, timedelta
@@ -178,11 +178,21 @@ def login():
         username = sanitize_string(request.form.get('username', ''), max_length=50)
         password = request.form.get('password', '')
 
-        conn = get_db_connection()
-        user = conn.execute(
-            'SELECT id, username, password_hash, is_banned, is_frozen FROM users WHERE username = ?',
-            (username,)
-        ).fetchone()
+        conn = None
+        try:
+            conn = get_db_connection()
+            user = conn.execute(
+                'SELECT id, username, password_hash, is_banned, is_frozen FROM users WHERE username = ?',
+                (username,)
+            ).fetchone()
+        except Exception:
+            if conn is not None:
+                conn.close()
+            current_app.logger.exception('Login database lookup failed')
+            error_msg = 'Sign-in is temporarily unavailable. Please try again shortly.'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                return jsonify({'success': False, 'message': error_msg}), 503
+            return render_template('login.html', service_error=error_msg), 503
 
         if user and check_password_hash(user['password_hash'], password):
             # Check if user is banned
