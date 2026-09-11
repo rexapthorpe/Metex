@@ -2141,12 +2141,13 @@ def get_payment_methods():
 
     try:
         customer = stripe.Customer.retrieve(customer_id)
-        default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
+        customer_data = customer.to_dict()
+        default_pm_id = (customer_data.get('invoice_settings') or {}).get('default_payment_method')
         methods = []
 
         # Cards
         for pm in stripe.PaymentMethod.list(customer=customer_id, type='card').auto_paging_iter():
-            card = pm.get('card') or {}
+            card = (pm.to_dict().get('card') or {})
             methods.append({
                 'id': pm.id,
                 'method_type': 'card',
@@ -2159,7 +2160,7 @@ def get_payment_methods():
 
         # ACH bank accounts
         for pm in stripe.PaymentMethod.list(customer=customer_id, type='us_bank_account').auto_paging_iter():
-            bank = pm.get('us_bank_account') or {}
+            bank = (pm.to_dict().get('us_bank_account') or {})
             methods.append({
                 'id': pm.id,
                 'method_type': 'bank_account',
@@ -2200,7 +2201,7 @@ def detach_payment_method(pm_id):
 
     try:
         pm = stripe.PaymentMethod.retrieve(pm_id)
-        if pm.get('customer') != customer_id:
+        if pm.to_dict().get('customer') != customer_id:
             return jsonify({'success': False, 'error': 'Payment method not found'}), 403
         stripe.PaymentMethod.detach(pm_id)
         _pm_log.info('[PM] Detached %s from customer %s (user %s)', pm_id, customer_id, user_id)
@@ -2234,7 +2235,7 @@ def set_default_payment_method(pm_id):
 
     try:
         pm = stripe.PaymentMethod.retrieve(pm_id)
-        if pm.get('customer') != customer_id:
+        if pm.to_dict().get('customer') != customer_id:
             return jsonify({'success': False, 'error': 'Payment method not found'}), 403
         stripe.Customer.modify(customer_id, invoice_settings={'default_payment_method': pm_id})
         _pm_log.info('[PM] Default set to %s for customer %s (user %s)', pm_id, customer_id, user_id)
@@ -2269,7 +2270,7 @@ def get_payout_bank_account():
 
     try:
         account = stripe.Account.retrieve(row['stripe_account_id'], expand=['external_accounts'])
-        ext_accounts = account.get('external_accounts', {}).get('data', [])
+        ext_accounts = account.to_dict().get('external_accounts', {}).get('data', [])
         bank = next((ea for ea in ext_accounts if ea.get('object') == 'bank_account'), None)
         if not bank:
             return jsonify({'success': True, 'bank_account': None})
