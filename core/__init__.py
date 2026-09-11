@@ -434,6 +434,22 @@ def _register_blueprints(app):
     app.register_blueprint(messages_bp)
     app.register_blueprint(cart_bp)
     app.register_blueprint(bid_bp)
+
+        @app.route('/healthz')
+    def healthz():
+        """Readiness check used by the deployment platform."""
+        conn = None
+        try:
+            conn = get_db_connection()
+            conn.execute('SELECT 1').fetchone()
+            return {'status': 'ok'}, 200
+        except Exception:
+            app.logger.exception('Readiness database check failed')
+            return {'status': 'unavailable'}, 503
+        finally:
+            if conn is not None:
+                conn.close()
+
     app.register_blueprint(ratings_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(notification_bp)
