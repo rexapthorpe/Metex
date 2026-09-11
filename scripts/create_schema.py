@@ -449,9 +449,12 @@ class SchemaManager:
         self.add_column('order_items', 'condition_notes', 'TEXT')
         self.add_column('order_items', 'grading_fee_charged', 'REAL DEFAULT 0')
         self.add_column('order_items', 'grading_status', "TEXT DEFAULT 'not_requested'")
-        # Note: grading_service, seller_tracking_to_grader, grader_tracking_to_buyer,
-        # grading_notes, mismatch_description removed in Phase 6 (grading cleanup).
-        # Existing DB rows retain these columns; they are no longer written by active code.
+        # Compatibility fields are still read by the live account, order, grading,
+        # and fulfillment views. Keep them in clean installs until those readers
+        # have been migrated to the canonical grading/shipment entities.
+        self.add_column('order_items', 'grading_service', 'TEXT')
+        self.add_column('order_items', 'seller_tracking_to_grader', 'TEXT')
+        self.add_column('order_items', 'grader_tracking_to_buyer', 'TEXT')
 
     def create_cart_table(self):
         """Create the cart table"""
