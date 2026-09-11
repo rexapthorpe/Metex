@@ -233,27 +233,4 @@ def upload_tracking(order_id):
 def sold_orders():
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
-
-    conn = get_db_connection()
-
-    # Fetch sold orders for this seller
-    sold_orders = conn.execute('''
-        SELECT orders.id, orders.quantity, orders.price, orders.status, orders.order_date,
-            orders.shipping_address,
-            categories.metal, categories.product_type,
-            users.username AS buyer_username,
-            (
-                SELECT 1 FROM ratings
-                WHERE ratings.order_id = orders.id AND ratings.rater_id = ?
-            ) AS already_rated
-        FROM orders
-        JOIN listings ON orders.listing_id = listings.id
-        JOIN categories ON listings.category_id = categories.id
-        JOIN users ON orders.buyer_id = users.id
-        WHERE listings.seller_id = ?
-        ORDER BY orders.order_date DESC
-    ''', (session['user_id'], session['user_id'])).fetchall()
-
-    conn.close()
-
-    return render_template('sold_orders.html', sold_orders=sold_orders)
+    return redirect(url_for('account.account') + '#sold')
