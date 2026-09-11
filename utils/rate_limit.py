@@ -147,7 +147,10 @@ def rate_limit_deferred(limit_string):
         def decorated_function(*args, **kwargs):
             if limiter is not None:
                 # Apply rate limit at request time
-                @limiter.limit(limit_string)
+                @limiter.limit(
+                    limit_string,
+                    exempt_when=lambda: request.method in ('GET', 'HEAD', 'OPTIONS'),
+                )
                 @wraps(f)
                 def limited(*args, **kwargs):
                     return f(*args, **kwargs)

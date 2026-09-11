@@ -55,6 +55,10 @@ class TestSecurityHeaders:
         assert 'camera=()' in pp
         assert 'microphone=()' in pp
 
+    def test_login_form_views_do_not_consume_attempt_limit(self, client):
+        for _ in range(8):
+            assert client.get('/login').status_code == 200
+
 
 class TestSessionSecurity:
     """Test session security features."""
