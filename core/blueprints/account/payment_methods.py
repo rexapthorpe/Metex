@@ -124,13 +124,14 @@ def get_payment_methods():
     try:
         # Retrieve customer to find the default PM
         customer = stripe.Customer.retrieve(customer_id)
-        default_pm_id = (customer.get('invoice_settings') or {}).get('default_payment_method')
+        customer_data = customer.to_dict()
+        default_pm_id = (customer_data.get('invoice_settings') or {}).get('default_payment_method')
 
         methods = []
 
         # Cards
         for pm in stripe.PaymentMethod.list(customer=customer_id, type='card').auto_paging_iter():
-            card = pm.get('card') or {}
+            card = (pm.to_dict().get('card') or {})
             methods.append({
                 'id': pm.id,
                 'method_type': 'card',
@@ -144,7 +145,7 @@ def get_payment_methods():
 
         # ACH bank accounts
         for pm in stripe.PaymentMethod.list(customer=customer_id, type='us_bank_account').auto_paging_iter():
-            bank = pm.get('us_bank_account') or {}
+            bank = (pm.to_dict().get('us_bank_account') or {})
             methods.append({
                 'id': pm.id,
                 'method_type': 'bank_account',
@@ -191,7 +192,7 @@ def detach_payment_method(pm_id):
     try:
         # Verify ownership before detaching
         pm = stripe.PaymentMethod.retrieve(pm_id)
-        if pm.get('customer') != customer_id:
+        if pm.to_dict().get('customer') != customer_id:
             return jsonify({'success': False, 'error': 'Payment method not found'}), 403
 
         stripe.PaymentMethod.detach(pm_id)
@@ -231,7 +232,7 @@ def set_default_payment_method(pm_id):
     try:
         # Verify ownership
         pm = stripe.PaymentMethod.retrieve(pm_id)
-        if pm.get('customer') != customer_id:
+        if pm.to_dict().get('customer') != customer_id:
             return jsonify({'success': False, 'error': 'Payment method not found'}), 403
 
         stripe.Customer.modify(
