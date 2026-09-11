@@ -202,28 +202,16 @@ class TestOrderFlows:
     """Test order viewing workflows."""
 
     def test_my_orders_accessible(self, auth_client):
-        """Test user can view my orders page (may error on schema)."""
-        import sqlite3
+        """Legacy My Orders URL opens the canonical account Orders tab."""
         client, user_id = auth_client
-        try:
-            response = client.get('/my_orders')
-            # May return 500 if DB schema mismatch in test isolation
-            assert response.status_code in [200, 500]
-        except sqlite3.OperationalError:
-            # Route exists but DB schema incomplete in test environment
-            pass
+        response = client.get('/my_orders', follow_redirects=True)
+        assert response.status_code == 200
 
     def test_sold_orders_accessible(self, auth_client):
-        """Test user can view sold orders (may error on schema)."""
-        import sqlite3
+        """Legacy Sold Orders URL opens the canonical account Sold Items tab."""
         client, user_id = auth_client
-        try:
-            response = client.get('/sold_orders')
-            # May return 500 if DB schema mismatch in test isolation
-            assert response.status_code in [200, 500]
-        except sqlite3.OperationalError:
-            # Route exists but DB schema incomplete in test environment
-            pass
+        response = client.get('/sold_orders', follow_redirects=True)
+        assert response.status_code == 200
 
 
 class TestPortfolioFlows:
