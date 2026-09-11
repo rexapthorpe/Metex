@@ -27,7 +27,13 @@ jobs:
         run: python -m compileall -q core routes services utils
       - name: Check browser JavaScript syntax
         run: find static -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Build a clean test database schema
+        env:
+          FLASK_TESTING: "1"
+        run: python -m scripts.create_schema
       - name: Run authoritative financial acceptance tests
+        env:
+          FLASK_TESTING: "1"
         run: >-
           pytest -q
           tests/test_flow_of_funds_acceptance.py
