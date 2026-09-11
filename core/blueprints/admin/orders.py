@@ -13,6 +13,78 @@ from . import admin_bp
 logger = logging.getLogger(__name__)
 
 
+@admin_bp.route('/api/flow-policy', methods=['GET', 'PUT'])
+@admin_required
+def admin_flow_policy():
+    """View or approve the explicit launch-policy gates."""
+    import json
+    import database as _db
+    from services.flow_of_funds import FlowError, ensure_flow_schema, set_policy_config
+    if request.method == 'PUT':
+        body=request.get_json(silent=True) or {}
+        try:
+            set_policy_config(body.get('key'),body.get('value'),bool(body.get('approved')),session.get('user_id'))
+            return jsonify({'success':True})
+        except FlowError as exc:
+            return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
+    conn=_db.get_db_connection(); ensure_flow_schema(conn)
+    rows=conn.execute('SELECT * FROM flow_policy_config ORDER BY key').fetchall(); conn.commit(); conn.close()
+    return jsonify({'success':True,'policies':[dict(r,value=json.loads(r['value_json']),approved=bool(r['approved'])) for r in rows]})
+
+
+@admin_bp.route('/api/flow-payables/<payable_id>/transfer', methods=['POST'])
+@admin_required
+def admin_flow_transfer(payable_id):
+    """Release an eligible payable to a connected account with one operation key."""
+    import stripe
+    import database as _db
+    from services.flow_of_funds import FlowError, claim_seller_transfer, complete_seller_transfer
+    key=request.headers.get('Idempotency-Key') or f'seller-transfer:{payable_id}'
+    try:
+        transfer,_=claim_seller_transfer(payable_id,key)
+        conn=_db.get_db_connection()
+        row=conn.execute('''SELECT p.seller_id,u.stripe_account_id,u.stripe_payouts_enabled,f.execution_id,e.provider_payment_id
+          FROM seller_payables p JOIN seller_fills f ON f.id=p.seller_fill_id
+          JOIN executions e ON e.id=f.execution_id JOIN users u ON u.id=p.seller_id WHERE p.id=?''',(payable_id,)).fetchone()
+        conn.close()
+        if not row or not row['stripe_account_id'] or not row['stripe_payouts_enabled']:
+            raise FlowError('Seller payout account is not ready','SELLER_ACCOUNT_NOT_READY',409)
+        pi=stripe.PaymentIntent.retrieve(row['provider_payment_id'])
+        provider=stripe.Transfer.create(amount=transfer['amount_cents'],currency='usd',
+          destination=row['stripe_account_id'],source_transaction=pi.latest_charge,
+          metadata={'seller_payable_id':payable_id,'seller_id':str(row['seller_id'])},
+          idempotency_key=key)
+        complete_seller_transfer(transfer['id'],provider.id)
+        return jsonify({'success':True,'transfer_id':provider.id,
+                        'state':'TRANSFERRED_TO_CONNECTED_ACCOUNT'})
+    except FlowError as exc:
+        return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
+
+
+@admin_bp.route('/api/flow-shipments/<shipment_id>/insurance', methods=['POST'])
+@admin_required
+def admin_flow_insurance(shipment_id):
+    from services.flow_of_funds import FlowError, record_insurance
+    body=request.get_json(silent=True) or {}
+    try:
+        record_insurance(shipment_id,session.get('user_id'),body.get('policy_number'),
+          int(body.get('insured_value_cents') or 0),int(body.get('premium_cents') or 0),body.get('evidence'))
+        return jsonify({'success':True})
+    except FlowError as exc:
+        return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
+
+
+@admin_bp.route('/api/flow-shipments/<shipment_id>/authorize', methods=['POST'])
+@admin_required
+def admin_flow_authorize_shipment(shipment_id):
+    from services.flow_of_funds import FlowError, authorize_shipment
+    try:
+        due=authorize_shipment(shipment_id,session.get('user_id'))
+        return jsonify({'success':True,'tracking_due_at':due})
+    except FlowError as exc:
+        return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
+
+
 @admin_bp.route('/api/orders/<int:order_id>/hold', methods=['POST'])
 @admin_required
 def admin_hold_order(order_id):
@@ -251,6 +323,19 @@ def admin_mark_ach_cleared(order_id):
 
     admin_id = session.get('user_id')
 
+    import database as _flow_db
+    _flow_conn = _flow_db.get_db_connection()
+    _execution = _flow_conn.execute('SELECT id FROM executions WHERE legacy_order_id=?',(order_id,)).fetchone()
+    _flow_conn.close()
+    if _execution:
+        from services.flow_of_funds import FlowError, approve_ach_payment
+        try:
+            evidence=(request.get_json(silent=True) or {}).get('evidence')
+            approve_ach_payment(_execution['id'],admin_id,evidence)
+            return jsonify({'success':True,'already_cleared':False,'message':f'Order {order_id} ACH payment approved'})
+        except FlowError as exc:
+            return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
+
     try:
         result = LedgerService.mark_ach_cleared(order_id, admin_id)
         return jsonify({
@@ -425,6 +510,38 @@ def admin_refund_buyer_stripe(order_id):
         "[Refund] Admin %s initiating refund for order %s  amount=%s",
         admin_id, order_id, amount,
     )
+
+    # Canonical orders use exact quantity/component allocation.
+    import database as _flow_db
+    from services.flow_of_funds import FlowError, create_refund, complete_refund
+    _flow_conn = _flow_db.get_db_connection()
+    try:
+        _execution = _flow_conn.execute(
+            'SELECT * FROM executions WHERE legacy_order_id = ?', (order_id,)
+        ).fetchone()
+        if _execution:
+            import stripe
+            quantities = data.get('quantities_by_fill')
+            if not quantities:
+                if amount is not None:
+                    return jsonify({'success':False,'error':'Canonical partial refunds require quantities_by_fill.'}),400
+                quantities = {r['id']: r['quantity']-r['refunded_quantity'] for r in
+                              _flow_conn.execute('SELECT id,quantity,refunded_quantity FROM seller_fills WHERE execution_id=?',
+                                                 (_execution['id'],)).fetchall()}
+            key = request.headers.get('Idempotency-Key') or f'admin-refund:{order_id}:{reason}:{sorted(quantities.items())}'
+            refund, _ = create_refund(_execution['id'], quantities, reason, key)
+            provider = stripe.Refund.create(
+                payment_intent=_execution['provider_payment_id'], amount=refund['total_cents'],
+                metadata={'flow_refund_id':refund['id'],'execution_id':_execution['id']},
+                idempotency_key=key)
+            complete_refund(refund['id'], provider.id)
+            return jsonify({'success':True,'message':f'Stripe refund created: {provider.id}',
+                            'refund_id':provider.id,'flow_refund_id':refund['id'],
+                            'amount':refund['total_cents']/100})
+    except FlowError as exc:
+        return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
+    finally:
+        _flow_conn.close()
 
     try:
         result = LedgerService.refund_buyer_stripe(order_id, admin_id, reason, amount=amount)

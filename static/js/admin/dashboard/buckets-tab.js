@@ -411,7 +411,7 @@ function renderBucketDetailContent(data) {
   const feeHistory = data.fee_history;
 
   // Fee display
-  let feeDisplay = 'Default (2.5%)';
+  let feeDisplay = 'Default (5%)';
   if (bucket.fee_config.fee_type && bucket.fee_config.fee_value !== null) {
     if (bucket.fee_config.fee_type === 'percent') {
       feeDisplay = `${bucket.fee_config.fee_value}%`;
@@ -592,7 +592,7 @@ function openBucketFeeModal(bucketId, currentFeeType, currentFeeValue) {
     document.getElementById('bucketFeeType').value = currentFeeType;
     document.getElementById('bucketFeeValue').value = currentFeeValue;
   } else {
-    currentDisplay.textContent = 'Default (2.5%)';
+    currentDisplay.textContent = 'Default (5%)';
     document.getElementById('bucketFeeType').value = 'percent';
     document.getElementById('bucketFeeValue').value = '';
   }

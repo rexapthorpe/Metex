@@ -257,8 +257,9 @@ def get_metrics_data(metric_type):
             }
 
         elif metric_type == 'revenue':
-            # Platform revenue (2.5% of volume)
-            PLATFORM_FEE_RATE = 0.025
+            # Legacy projection only. Canonical reporting reads fee and spread
+            # ledger accounts; the contractual seller fee is fixed at 5%.
+            PLATFORM_FEE_RATE = 0.05
 
             if days == 0:
                 first_order = conn.execute('''

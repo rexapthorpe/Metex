@@ -59,8 +59,13 @@ def dashboard():
         else:
             stats['transaction_volume'] = f"{volume:,.0f}"
 
-        # Platform revenue (placeholder)
-        stats['platform_revenue'] = f"{volume * 0.025:,.0f}"
+        # Canonical gross revenue is posted, never inferred from buyer volume.
+        try:
+            revenue = conn.execute("""SELECT COALESCE(SUM(credit_cents-debit_cents),0) cents
+              FROM ledger_entries WHERE account_code IN ('MARKETPLACE_FEE_REVENUE','SPREAD_REVENUE')""").fetchone()['cents']/100
+        except Exception:
+            revenue = 0
+        stats['platform_revenue'] = f"{revenue:,.0f}"
 
         # Count active disputes
         try:

@@ -43,11 +43,11 @@ if _web_concurrency > 1:
 # core/blueprints/checkout/routes.py — all bid and checkout charge paths must
 # use the exact same formula so buyers are always charged the same total.
 _CARD_RATE = 0.0299   # 2.99%
-_CARD_FLAT = 0.30     # $0.30 fixed per transaction
+_CARD_FLAT = 0.0     # $0.30 fixed per transaction
 
 # Must match accept_bid.py and the preview rate in bid_modal_steps.js.
 # Applied when Stripe Tax is unavailable but a postal code is present.
-FALLBACK_TAX_RATE = 0.0825  # 8.25%
+FALLBACK_TAX_RATE = 0.0  # 8.25%
 
 
 def _parse_address_for_tax(delivery_address: str):
@@ -95,15 +95,8 @@ def _get_stripe_tax_for_bid(subtotal_cents: int, postal_code: str, state: str = 
                     calc.id, subtotal_cents, calc.tax_amount_exclusive)
         return int(calc.tax_amount_exclusive)
     except Exception as exc:
-        # Stripe Tax unavailable (not activated, network error, etc.).
-        # Apply fallback rate so the buyer is charged what the bid modal showed.
-        # MUST match the fallback in accept_bid.py and bid_modal_steps.js.
-        fallback = round(subtotal_cents * FALLBACK_TAX_RATE)
-        logger.warning(
-            '[auto_match TAX] Stripe Tax unavailable — using fallback %.2f%% (%d cents): %s',
-            FALLBACK_TAX_RATE * 100, fallback, exc,
-        )
-        return fallback
+        logger.error('[auto_match TAX] Stripe Tax unavailable; execution blocked: %s', exc)
+        raise
 
 
 def _get_spot_prices_from_cursor(cursor):
@@ -238,7 +231,15 @@ def auto_match_bid_to_listings(bid_id, cursor):
     Returns:
         dict with 'filled_quantity', 'orders_created', 'message'
     """
-    # Load the bid with all fields including metal and weight for price calculation
+    # Financial auto-matching previously charged before a durable execution
+    # existed. Keep automated matching disabled until its scheduler invokes
+    # services.flow_of_funds.execute_bid_fill outside the caller transaction.
+    # Seller-initiated partial fills already use that canonical path.
+    return {'filled_quantity': 0, 'orders_created': 0,
+            'message': 'Automatic financial matching is disabled; secure seller acceptance remains available.',
+            'notifications': [], 'ledger_orders': []}
+
+    # Retained read-only reference; unreachable by design.
     bid = cursor.execute('''
         SELECT b.*, c.metal, c.weight, c.product_type
         FROM bids b
@@ -457,7 +458,9 @@ def auto_match_bid_to_listings(bid_id, cursor):
         _taxed_subtotal = _subtotal + _tax_amount
 
         # Card payments: 2.99% + $0.30 fee. ACH bank account: no card fee.
-        _bid_card_fee   = 0.0 if bid_is_ach else round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
+
+        from services.flow_of_funds import card_surcharge_cents
+        _bid_card_fee = 0.0 if bid_is_ach else card_surcharge_cents(_subtotal_cents + _tax_cents) / 100
 
         # Final charge: subtotal + tax + card fee
         fill_total      = round(_taxed_subtotal + _bid_card_fee, 2)
@@ -679,6 +682,11 @@ def auto_match_listing_to_bids(listing_id, cursor):
     Returns:
         dict with 'filled_quantity', 'orders_created', 'message', 'notifications'
     """
+    return {'filled_quantity': 0, 'orders_created': 0,
+            'message': 'Automatic financial matching is disabled; secure seller acceptance remains available.',
+            'notifications': [], 'ledger_orders': []}
+
+    # Retained read-only reference; unreachable by design.
     # Load the listing with all fields including extra category specs for random_year matching.
     listing = cursor.execute('''
         SELECT l.*, c.metal, c.weight, c.product_type, c.bucket_id,
@@ -820,7 +828,9 @@ def auto_match_listing_to_bids(listing_id, cursor):
         _tax_amount     = round(_tax_cents / 100, 2)
         _taxed_subtotal = _subtotal + _tax_amount
         # Card payments: 2.99% + $0.30. ACH: no card processing fee.
-        _bid_card_fee   = 0.0 if _l2b_is_ach else round(_taxed_subtotal * _CARD_RATE + _CARD_FLAT, 2)
+
+        from services.flow_of_funds import card_surcharge_cents
+        _bid_card_fee = 0.0 if _l2b_is_ach else card_surcharge_cents(_subtotal_cents + _tax_cents) / 100
         total_price     = round(_taxed_subtotal + _bid_card_fee, 2)
         _effective_tax_rate = round(_tax_amount / _subtotal, 6) if _subtotal else 0.0
 

@@ -476,19 +476,7 @@ def view_bucket(bucket_id):
     # Compute fee indicator for this bucket
     fee_indicator = None
     fee_display = None
-    fee_type = bucket['platform_fee_type'] if bucket else None
-    fee_value = bucket['platform_fee_value'] if bucket else None
-
-    if fee_type == 'percent' and fee_value is not None:
-        if fee_value < DEFAULT_PLATFORM_FEE_VALUE:
-            fee_indicator = 'reduced'
-            fee_display = f"{fee_value:.1f}% fee"
-        elif fee_value > DEFAULT_PLATFORM_FEE_VALUE:
-            fee_indicator = 'elevated'
-            fee_display = f"{fee_value:.1f}% fee"
-    elif fee_type == 'flat' and fee_value is not None:
-        fee_indicator = 'custom'
-        fee_display = f"${fee_value:.2f} fee"
+    # The fee is contractually fixed at 5%; no per-bucket override is displayed.
 
     return render_template(
         'view_bucket.html',

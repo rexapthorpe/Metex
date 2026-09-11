@@ -24,18 +24,7 @@ def get_fee_config(config_key: str = 'default_platform_fee') -> Tuple[str, float
     Returns:
         Tuple of (fee_type, fee_value)
     """
-    conn = get_db_connection()
-    try:
-        result = conn.execute('''
-            SELECT fee_type, fee_value FROM fee_config
-            WHERE config_key = ? AND active = 1
-        ''', (config_key,)).fetchone()
-
-        if result:
-            return result['fee_type'], result['fee_value']
-        return DEFAULT_PLATFORM_FEE_TYPE.value, DEFAULT_PLATFORM_FEE_VALUE
-    finally:
-        conn.close()
+    return 'percent', 5.0
 
 
 def get_bucket_fee_config(bucket_id: int, conn=None) -> Tuple[str, float]:
@@ -58,10 +47,10 @@ def get_bucket_fee_config(bucket_id: int, conn=None) -> Tuple[str, float]:
     """
     close_conn = False
     if conn is None:
-        conn = get_db_connection()
-        close_conn = True
-
+        conn = get_db_connection(); close_conn = True
     try:
+        return 'percent', 5.0
+        # Deprecated configurable fee lookup retained below for migration reference.
         # Try to get bucket-level fee config
         bucket_fee = conn.execute('''
             SELECT platform_fee_type, platform_fee_value
@@ -144,10 +133,8 @@ def update_bucket_fee(
     Raises:
         ValueError: If fee_type or fee_value is invalid
     """
-    if fee_type not in ('percent', 'flat'):
-        raise ValueError(f"Invalid fee_type '{fee_type}'. Must be 'percent' or 'flat'.")
-    if fee_value < 0:
-        raise ValueError(f"Invalid fee_value '{fee_value}'. Must be >= 0.")
+    if fee_type != 'percent' or float(fee_value) != 5.0:
+        raise ValueError('The seller-funded marketplace fee is fixed at 5%.')
 
     conn = get_db_connection()
     try:
@@ -222,8 +209,4 @@ def calculate_fee(gross_amount: float, fee_type: str, fee_value: float) -> float
     Returns:
         The calculated fee amount (rounded to 2 decimal places)
     """
-    if fee_type == FeeType.PERCENT.value or fee_type == 'percent':
-        return round(gross_amount * (fee_value / 100), 2)
-    elif fee_type == FeeType.FLAT.value or fee_type == 'flat':
-        return round(fee_value, 2)
-    return 0.0
+    return round(gross_amount * 0.05, 2)

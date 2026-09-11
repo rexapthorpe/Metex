@@ -46,12 +46,13 @@ def open_dispute_route():
     order_id = request.form.get('order_id', type=int)
     dispute_type = request.form.get('dispute_type', '').strip()
     description = request.form.get('description', '').strip()
+    seller_id = request.form.get('seller_id', type=int)
 
     if not order_id:
         return jsonify({'error': 'Order ID is required.'}), 400
 
     try:
-        dispute_id = open_dispute(order_id, user_id, dispute_type, description)
+        dispute_id = open_dispute(order_id, user_id, dispute_type, description, seller_id=seller_id)
         return jsonify({'success': True, 'dispute_id': dispute_id})
     except ValueError as exc:
         return jsonify({'error': str(exc)}), 400

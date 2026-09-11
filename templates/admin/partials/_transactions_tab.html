@@ -462,7 +462,7 @@ const COL_INFO = {
       { badge: 'PAYOUT_NOT_READY',  cls: 'ci-gray',   desc: 'Conditions not met: likely missing tracking, hold window active, ACH not cleared, or seller has no Stripe account.' },
       { badge: 'PAYOUT_READY',      cls: 'ci-green',  desc: 'All release conditions met. Go to the order detail page to release the payout.' },
       { badge: 'PAYOUT_ON_HOLD',    cls: 'ci-amber',  desc: 'Admin hold is active — payout will not release automatically.' },
-      { badge: 'PAID_OUT',          cls: 'ci-purple', desc: 'Stripe transfer sent. Seller has been paid.' },
+      { badge: 'PAID_OUT',          cls: 'ci-purple', desc: 'Legacy terminal label. Verify bank payout evidence; a connected-account transfer alone is not final bank payment.' },
       { badge: 'PAYOUT_CANCELLED',  cls: 'ci-gray',   desc: 'Payout voided — order refunded or cancelled.' },
     ]
   },
@@ -587,7 +587,7 @@ const COL_INFO = {
       { badge: 'What counts as a row?',       cls: 'ci-blue',   desc: 'One row per seller-payout pair (order × seller). A multi-seller order produces multiple rows. Only paid orders are reconciled; unpaid orders show status UNPAID.' },
       { badge: 'MATCHED',                     cls: 'ci-green',  desc: 'A Stripe transfer was found for this payout, and the amount matches the expected seller net. No action needed.' },
       { badge: 'AWAITING_TRANSFER',           cls: 'ci-teal',   desc: 'Payout status is PAYOUT_READY but no Stripe transfer has been sent yet. Go to the order detail to release it.' },
-      { badge: 'MISSING_TRANSFER',            cls: 'ci-red',    desc: 'The platform recorded the payout as PAID_OUT but no Stripe transfer ID is on file. Verify manually in the Stripe Dashboard.' },
+      { badge: 'MISSING_TRANSFER',            cls: 'ci-red',    desc: 'A legacy payout is labeled PAID_OUT but no Stripe transfer ID is on file. Verify manually in the Stripe Dashboard.' },
       { badge: 'MISSING_STRIPE_REF',          cls: 'ci-red',    desc: 'Payment was captured but no Stripe PaymentIntent ID was stored in the database. Investigate at the order level.' },
       { badge: 'AMOUNT_MISMATCH',             cls: 'ci-red',    desc: 'The transfer found in Stripe differs from the expected seller net in our records. Review for rounding errors or manual overrides.' },
       { badge: 'PENDING_PAYOUT',              cls: 'ci-amber',  desc: 'Payout not yet ready — hold period active, tracking missing, ACH not cleared, or no Stripe account connected.' },

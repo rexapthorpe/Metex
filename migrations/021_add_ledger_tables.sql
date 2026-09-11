@@ -140,6 +140,6 @@ CREATE TABLE IF NOT EXISTS fee_config (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert default platform fee (2.5%)
+-- Insert contractual seller-funded platform fee (5%)
 INSERT OR IGNORE INTO fee_config (config_key, fee_type, fee_value, description)
-VALUES ('default_platform_fee', 'percent', 2.5, 'Default platform fee applied to all transactions');
+VALUES ('default_platform_fee', 'percent', 5.0, 'Seller-funded marketplace fee');

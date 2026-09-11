@@ -96,7 +96,7 @@ def can_open_dispute(order_id, buyer_id, conn):
     return True, None
 
 
-def open_dispute(order_id, buyer_id, dispute_type, description):
+def open_dispute(order_id, buyer_id, dispute_type, description, seller_id=None):
     """
     Open a new dispute for the given order.
 
@@ -116,14 +116,28 @@ def open_dispute(order_id, buyer_id, dispute_type, description):
         conn.close()
         raise ValueError(reason)
 
-    # Resolve seller_id from the first listing in the order
-    item_row = cursor.execute(
-        '''SELECT l.seller_id FROM order_items oi
-           JOIN listings l ON oi.listing_id = l.id
-           WHERE oi.order_id = ? LIMIT 1''',
-        (order_id,)
-    ).fetchone()
-    seller_id = item_row['seller_id'] if item_row else None
+    # Canonical disputes are scoped to one seller's independent fills.
+    try:
+        execution = cursor.execute('SELECT id FROM executions WHERE legacy_order_id=?',(order_id,)).fetchone()
+    except Exception:
+        execution = None
+    canonical_fills=[]
+    if execution:
+        query='SELECT id,seller_id FROM seller_fills WHERE execution_id=?'
+        params=[execution['id']]
+        if seller_id is not None: query+=' AND seller_id=?'; params.append(seller_id)
+        canonical_fills=cursor.execute(query,params).fetchall()
+        sellers={r['seller_id'] for r in canonical_fills}
+        if seller_id is None and len(sellers)>1:
+            conn.close(); raise ValueError('Choose the seller/fill affected by this dispute.')
+        if not canonical_fills:
+            conn.close(); raise ValueError('No affected seller fill was found.')
+        seller_id=canonical_fills[0]['seller_id']
+    else:
+        item_row = cursor.execute(
+            '''SELECT l.seller_id FROM order_items oi JOIN listings l ON oi.listing_id=l.id
+               WHERE oi.order_id=? LIMIT 1''',(order_id,)).fetchone()
+        seller_id=item_row['seller_id'] if item_row else None
 
     now = datetime.now().isoformat()
     cursor.execute(
@@ -135,6 +149,14 @@ def open_dispute(order_id, buyer_id, dispute_type, description):
          dispute_type, description.strip(), now),
     )
     dispute_id = cursor.lastrowid
+
+    for fill in canonical_fills:
+        cursor.execute('INSERT INTO dispute_fill_links VALUES (?,?,?)',(dispute_id,fill['id'],now))
+        cursor.execute('INSERT INTO holds VALUES (?,?,?,?,?,?,?,?)',
+                       (f'hold_dispute_{dispute_id}_{fill["id"]}',fill['id'],'INTERNAL_DISPUTE',
+                        description.strip(),'ACTIVE',str(dispute_id),now,None))
+        cursor.execute("UPDATE seller_payables SET state='HELD',block_reason='INTERNAL_DISPUTE',updated_at=? WHERE seller_fill_id=?",
+                       (now,fill['id']))
 
     _add_timeline_entry(
         cursor, dispute_id, 'buyer', buyer_id, 'opened',
@@ -557,15 +579,36 @@ def admin_resolve(dispute_id, admin_id, resolution, note):
     refund_amount = None
 
     if resolution == 'resolved_refund':
-        pi_id = dispute['stripe_payment_intent_id']
-        order_amount = dispute['order_amount'] or 0
+        # Canonical dispute refunds use the same quantity/component engine as
+        # cancellations and admin refunds. Provider failure leaves the dispute
+        # active and the claimed operation retryable.
+        execution = cursor.execute('SELECT id,provider_payment_id FROM executions WHERE legacy_order_id=?',
+                                   (dispute['order_id'],)).fetchone()
+        links = cursor.execute('SELECT seller_fill_id FROM dispute_fill_links WHERE dispute_id=?',
+                               (dispute_id,)).fetchall() if execution else []
+        if execution and links:
+            from services.flow_of_funds import create_refund, complete_refund
+            quantities={}
+            for link in links:
+                fill=cursor.execute('SELECT quantity,refunded_quantity FROM seller_fills WHERE id=?',(link['seller_fill_id'],)).fetchone()
+                quantities[link['seller_fill_id']]=fill['quantity']-fill['refunded_quantity']
+            canonical,_=create_refund(execution['id'],quantities,'INTERNAL_DISPUTE',f'dispute-refund-{dispute_id}')
+            import stripe
+            provider=stripe.Refund.create(payment_intent=execution['provider_payment_id'],amount=canonical['total_cents'],
+                metadata={'dispute_id':str(dispute_id),'flow_refund_id':canonical['id']},idempotency_key=f'dispute-refund-{dispute_id}')
+            complete_refund(canonical['id'],provider.id)
+            stripe_refund_id=provider.id; refund_amount=canonical['total_cents']/100
+            refund_result={'success':True,'refund_id':provider.id,'amount':refund_amount}
+        else:
+            pi_id = dispute['stripe_payment_intent_id']
+            order_amount = dispute['order_amount'] or 0
 
-        if pi_id and order_amount > 0:
-            refund_result = _attempt_stripe_refund(pi_id, dispute_id)
-            if refund_result.get('success'):
-                stripe_refund_id = refund_result['refund_id']
-                refund_amount = order_amount
-                cursor.execute(
+            if pi_id and order_amount > 0:
+                refund_result = _attempt_stripe_refund(pi_id, dispute_id)
+                if refund_result.get('success'):
+                    stripe_refund_id = refund_result['refund_id']
+                    refund_amount = order_amount
+                    cursor.execute(
                     '''INSERT INTO refunds
                            (dispute_id, order_id, order_item_id, buyer_id, seller_id,
                             amount, provider_refund_id, issued_by_admin_id, issued_at, note)
@@ -573,18 +616,13 @@ def admin_resolve(dispute_id, admin_id, resolution, note):
                     (dispute_id, dispute['order_id'],
                      dispute['buyer_id'], dispute['seller_id'],
                      order_amount, stripe_refund_id, admin_id, now, note.strip()),
-                )
+                    )
+                else:
+                    conn.close()
+                    raise ValueError('Refund provider call failed; dispute remains active for retry.')
             else:
-                refund_result['warning'] = (
-                    'Dispute marked resolved_refund but Stripe refund failed. '
-                    'Manual action required with payment processor.'
-                )
-        else:
-            refund_result = {
-                'success': False,
-                'warning': 'No Stripe PaymentIntent on file for this order. '
-                           'Resolve refund manually with payment processor.',
-            }
+                conn.close()
+                raise ValueError('No payment is available for refund; dispute remains active.')
 
     event_note = note.strip()
     if refund_amount:

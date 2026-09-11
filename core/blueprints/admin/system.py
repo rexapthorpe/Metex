@@ -229,17 +229,14 @@ def set_maintenance_mode():
 @admin_bp.route("/api/system-settings/default-fee", methods=["GET"])
 @admin_required
 def get_default_fee():
-    """Return current global default platform fee from fee_config table."""
+    """Return the authoritative seller-funded marketplace fee."""
     import database
     conn = database.get_db_connection()
     try:
         row = conn.execute(
             "SELECT fee_type, fee_value FROM fee_config WHERE config_key = 'default_platform_fee' AND active = 1"
         ).fetchone()
-        if row:
-            return jsonify({"success": True, "fee_type": row["fee_type"], "fee_value": row["fee_value"]})
-        from services.ledger_constants import DEFAULT_PLATFORM_FEE_TYPE, DEFAULT_PLATFORM_FEE_VALUE
-        return jsonify({"success": True, "fee_type": DEFAULT_PLATFORM_FEE_TYPE.value, "fee_value": DEFAULT_PLATFORM_FEE_VALUE})
+        return jsonify({"success": True, "fee_type": "percent", "fee_value": 5.0})
     finally:
         conn.close()
 
@@ -254,14 +251,14 @@ def set_default_fee():
     fee_type = data.get("fee_type", "percent")
     fee_value = data.get("fee_value")
 
-    if fee_type not in ("percent", "flat"):
-        return jsonify({"success": False, "message": "fee_type must be 'percent' or 'flat'"}), 400
+    if fee_type != "percent":
+        return jsonify({"success": False, "message": "The marketplace fee is fixed at 5%."}), 400
     try:
         fee_value = float(fee_value)
     except (TypeError, ValueError):
         return jsonify({"success": False, "message": "fee_value must be a number"}), 400
-    if fee_value < 0 or fee_value > 100:
-        return jsonify({"success": False, "message": "fee_value must be between 0 and 100"}), 400
+    if fee_value != 5.0:
+        return jsonify({"success": False, "message": "The marketplace fee is fixed at 5%."}), 400
 
     conn = database.get_db_connection()
     try:
@@ -331,6 +328,12 @@ def set_tracking_forfeit():
 
     total = days * 86400 + hours * 3600 + minutes * 60
     saved = set_tracking_forfeit_window(total)
+    # Canonical fulfillment uses a positive whole-day X. Saving this admin
+    # control is the explicit approval event for that policy value.
+    from services.flow_of_funds import set_policy_config
+    canonical_days = max(1, (saved + 86399) // 86400)
+    set_policy_config('tracking_upload_deadline_days', canonical_days, True,
+                      session.get('user_id'))
 
     s_days    = saved // 86400
     s_hours   = (saved % 86400) // 3600

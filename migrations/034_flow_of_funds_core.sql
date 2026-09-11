@@ -1,0 +1,11 @@
+-- Canonical flow-of-funds migration marker.
+-- The executable, cross-database DDL is maintained in
+-- services.flow_of_funds.ensure_flow_schema and is invoked by scripts/create_schema.py
+-- during every deploy. It creates immutable execution snapshots, reservations,
+-- executions/fills/payables, balanced journals, financial operations, webhook inbox,
+-- outbox, refunds/allocations, shipments/insurance/grading, transfers/bank payouts,
+-- processor disputes, recovery obligations, reconciliation cases and audit events.
+--
+-- This migration is intentionally additive. Legacy tables remain read projections;
+-- all new financial writes go through services.flow_of_funds.
+SELECT 1;

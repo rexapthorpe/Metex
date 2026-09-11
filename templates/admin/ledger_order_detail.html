@@ -96,7 +96,7 @@
         <dd>
           {% if _card_fee > 0 %}
             <span style="font-family:monospace;">${{ '{:,.2f}'.format(_card_fee) }}</span>
-            <span class="muted-text" style="font-size:12px;"> (2.99% + $0.30 — charged to buyer)</span>
+            <span class="muted-text" style="font-size:12px;"> (2.99% gross-up — charged to buyer)</span>
           {% else %}
             <span class="muted-text">$0.00 — ACH / no fee</span>
           {% endif %}

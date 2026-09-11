@@ -894,21 +894,24 @@ def release_stripe_transfer(payout_id: int, admin_id: int) -> Dict[str, Any]:
         if source_transaction:
             transfer_kwargs['source_transaction'] = source_transaction
 
-        transfer = stripe.Transfer.create(**transfer_kwargs)
+        transfer = stripe.Transfer.create(
+            **transfer_kwargs,
+            idempotency_key=f"legacy-payout-transfer:{payout_id}",
+        )
 
         logger.info(
             "[Payout] Stripe transfer created  transfer_id=%s  payout_id=%s",
             transfer.id, payout_id,
         )
 
-        # Mark payout PAID_OUT and store transfer ID
+        # A connected-account transfer is not proof of final bank payout.
         conn.execute('''
             UPDATE order_payouts
             SET payout_status = ?,
                 provider_transfer_id = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        ''', (PayoutStatus.PAID_OUT.value, transfer.id, payout_id))
+        ''', ('TRANSFERRED_TO_CONNECTED_ACCOUNT', transfer.id, payout_id))
 
         # Log event
         _log_event_internal(
@@ -926,7 +929,7 @@ def release_stripe_transfer(payout_id: int, admin_id: int) -> Dict[str, Any]:
         conn.commit()
 
         logger.info(
-            "[Payout] Payout marked PAID_OUT  payout_id=%s  transfer_id=%s",
+            "[Payout] Funds transferred to connected account  payout_id=%s  transfer_id=%s",
             payout_id, transfer.id,
         )
 

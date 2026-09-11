@@ -139,13 +139,13 @@ def create_order(buyer_id, cart_items, shipping_address, recipient_first='', rec
     Pricing order (canonical):
       subtotal        = sum of item line totals
       tax_amount      = round(subtotal * tax_rate, 2)   — locked at checkout time
-      buyer_card_fee  = round((subtotal + tax_amount) * 0.0299 + 0.30, 2)  for card; 0 for ACH
+      buyer_card_fee  = gross_up(subtotal + tax_amount, 2.99%) for card; 0 for ACH
       total_price     = subtotal + tax_amount + buyer_card_fee
 
     Phase 1 additions:
       placed_from_ip:    Buyer's IP address at checkout submission.
       payment_intent_id: Stripe PaymentIntent ID written to transaction_snapshots.
-      buyer_card_fee:    Card processing fee applied to taxed subtotal (2.99%+$0.30 for
+      buyer_card_fee:    Card processing surcharge supplied by the canonical gross-up engine for
                          card, 0.0 for ACH). orders.total_price equals Stripe charge amount.
       tax_amount:        Tax in dollars, locked at checkout so history is immutable.
       tax_rate:          Rate applied (e.g. 0.0825), stored for audit purposes.

@@ -159,6 +159,25 @@ def upload_tracking(order_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Canonical fills accept seller input as pending verification. It does not
+    # satisfy fulfillment or payout gates until carrier evidence confirms it.
+    canonical = cursor.execute('''
+        SELECT s.id FROM shipments s
+        JOIN seller_fills f ON f.id=s.seller_fill_id
+        JOIN executions e ON e.id=f.execution_id
+        WHERE e.legacy_order_id=? AND f.seller_id=?
+        ORDER BY s.created_at LIMIT 1
+    ''', (order_id, user_id)).fetchone()
+    if canonical:
+        conn.close()
+        from services.flow_of_funds import FlowError, submit_tracking_for_verification
+        try:
+            submit_tracking_for_verification(canonical['id'], user_id, carrier, tracking_number)
+            flash('Tracking submitted and awaiting carrier verification.', 'success')
+        except FlowError as exc:
+            flash(str(exc), 'error')
+        return redirect(url_for('sell.sold_orders'))
+
     # Insert or update tracking info (legacy table)
     existing_tracking = cursor.execute(
         'SELECT id FROM tracking WHERE order_id = ?', (order_id,)

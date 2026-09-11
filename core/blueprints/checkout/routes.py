@@ -16,7 +16,6 @@ import secrets
 import stripe
 from flask import render_template, redirect, url_for, request, session, flash, jsonify
 from database import get_db_connection
-from services.order_service import create_order
 from utils.cart_utils import build_cart_summary
 from services.notification_service import notify_listing_sold, notify_order_confirmed
 from services.pricing_service import get_effective_price, create_price_lock
@@ -40,9 +39,7 @@ from . import checkout_bp
 # used in all downstream calculations. This makes Stripe the single source of
 # truth for tax — no manual rates in Python or JavaScript.
 #
-CARD_RATE = 0.0299   # 2.99%
-CARD_FLAT = 0.30     # $0.30 fixed per transaction
-FALLBACK_TAX_RATE = 0.0825  # Used when Stripe Tax API is unavailable
+CARD_RATE = 0.0299   # Display only; canonical math uses integer basis points.
 
 # Map common full country names → ISO 3166-1 alpha-2 codes accepted by Stripe Tax.
 _COUNTRY_NAME_TO_CODE = {
@@ -112,10 +109,8 @@ def _get_stripe_tax(subtotal_cents: int, postal_code: str,
                   calc.id, subtotal_cents, calc.tax_amount_exclusive)
         return int(calc.tax_amount_exclusive), calc.id
     except Exception as exc:
-        _log.warning('[Tax] Stripe Tax unavailable — using fallback rate %.2f%%: %s',
-                     FALLBACK_TAX_RATE * 100, exc)
-        fallback_cents = round(subtotal_cents * FALLBACK_TAX_RATE)
-        return fallback_cents, 'fallback_rate'
+        _log.error('[Tax] Stripe Tax unavailable; checkout must fail closed: %s', exc)
+        return 0, None
 
 
 # ---------------------------------------------------------------------------
@@ -140,56 +135,6 @@ def _parse_weight_oz(weight_str):
     if m.group(1) and m.group(2):          # fraction: "1/4 oz"
         return float(m.group(1)) / float(m.group(2))
     return float(m.group(3))               # integer or decimal: "1 oz", "2.5 g"
-
-def _create_ledger_for_order(buyer_id, order_id, cart_data, conn):
-    """
-    Create ledger records for an order.
-    This is a minimal integration point that builds a cart_snapshot from cart_data
-    and calls the ledger service.
-
-    Args:
-        buyer_id: The buyer's user ID
-        order_id: The created order ID
-        cart_data: List of dicts with listing_id, quantity, price_each
-        conn: Database connection for fetching seller_ids
-    """
-    try:
-        from services.ledger_service import LedgerService
-
-        # Build cart_snapshot with seller_ids
-        cart_snapshot = []
-        for item in cart_data:
-            # Get seller_id from the listing
-            listing = conn.execute(
-                'SELECT seller_id FROM listings WHERE id = ?',
-                (item['listing_id'],)
-            ).fetchone()
-
-            if listing:
-                cart_snapshot.append({
-                    'seller_id': listing['seller_id'],
-                    'listing_id': item['listing_id'],
-                    'quantity': item['quantity'],
-                    'unit_price': item['price_each']
-                    # fee_type and fee_value will use defaults from ledger service
-                })
-
-        if cart_snapshot:
-            ledger_id = LedgerService.create_order_ledger_from_cart(
-                buyer_id=buyer_id,
-                cart_snapshot=cart_snapshot,
-                payment_method=None,  # Stripe not integrated yet
-                order_id=order_id
-            )
-            print(f"[CHECKOUT] Created ledger record {ledger_id} for order {order_id}")
-            return ledger_id
-    except Exception as e:
-        # Don't fail checkout if ledger creation fails - log and continue
-        print(f"[CHECKOUT] Warning: Failed to create ledger for order {order_id}: {e}")
-        import traceback
-        traceback.print_exc()
-    return None
-
 
 def _fetch_listing_pricing_meta(conn, listing_ids):
     """
@@ -461,615 +406,38 @@ def checkout():
             is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
             if is_ajax:
-                # ── Unified AJAX finalize handler ──────────────────────────────
-                # Handles both bucket finalize (session_items present) and cart
-                # checkout.  Uses modal-first spot check: raises SPOT_EXPIRED if
-                # stale instead of auto-refreshing, so the frontend can prompt the
-                # user to recalculate before proceeding.
+                # Canonical finalize: verify the bound immutable snapshot, then commit
+                # execution, legacy UI projections, inventory, payables and ledger once.
+                from services.flow_of_funds import FlowError, finalize_payment
+                data = request.get_json(silent=True) or {}
+                checkout_id = session.get('canonical_checkout_id')
+                pi_id = (data.get('payment_intent_id') or '').strip()
+                if not checkout_id or not pi_id:
+                    conn.close()
+                    return jsonify({'success':False,'message':'Canonical checkout identity is missing.',
+                                    'error_code':'CHECKOUT_IDENTITY_MISSING'}), 409
                 try:
-                    data = request.get_json() or {}
-                    shipping_address = data.get('shipping_address', 'Default Address')
-                    recipient_first = data.get('recipient_first', '')
-                    recipient_last = data.get('recipient_last', '')
-                    payment_intent_id = data.get('payment_intent_id', '')
-                    # 'card' is the default; frontend sends _stripeSelectedMethod
-                    payment_method_type = data.get('payment_method_type', 'card')
-
-                    # ── Idempotency guard: validate one-time checkout nonce ─────
-                    # Prevents duplicate orders from double-submit or simultaneous
-                    # requests. The nonce is generated on GET and validated here.
-                    # It is NOT consumed yet — it is consumed only at the point of
-                    # order creation so that earlier failures (SPOT_EXPIRED, etc.)
-                    # leave the nonce intact for the user to retry.
-                    submitted_nonce = data.get('checkout_nonce')
-                    if not submitted_nonce or submitted_nonce != session.get('checkout_nonce'):
-                        conn.close()
-                        return jsonify({
-                            'success': False,
-                            'message': 'Order already submitted or session expired. Please refresh the page.',
-                        }), 409
-
-                    from services.checkout_spot_service import check_spot_map_freshness
-
-                    session_items = session.pop('checkout_items', None)
-                    # Phase 0A: discard any stale tpg session value.
-                    session.pop('checkout_tpg', None)
-                    buy_tpg = False
-
-                    if session_items:
-                        # ── Bucket finalize: use locked prices from session ──
-                        cart_data = [
-                            {
-                                'listing_id': i['listing_id'],
-                                'quantity': i['quantity'],
-                                'price_each': i['price_each'],
-                                'requires_grading': False,  # Phase 0A: grading deactivated
-                            }
-                            for i in session_items
-                        ]
-
-                        # Check that spot used when prices were locked is still fresh.
-                        # No auto-refresh — stale → SPOT_EXPIRED so frontend shows modal.
-                        listing_ids_si = [i['listing_id'] for i in cart_data]
-                        listing_meta_si = _fetch_listing_pricing_meta(conn, listing_ids_si)
-                        si_metals = {
-                            (m.get('pricing_metal') or m.get('metal') or '').lower()
-                            for m in listing_meta_si.values()
-                            if m.get('pricing_mode') == 'premium_to_spot'
-                        }
-                        try:
-                            spot_map = check_spot_map_freshness(si_metals) if si_metals else {}
-                        except SpotExpiredError:
-                            # Restore session so recalculate endpoint can find items
-                            session['checkout_items'] = session_items
-                            session['checkout_tpg'] = 0  # Phase 0A: always 0
-                            conn.close()
-                            return jsonify({
-                                'success': False,
-                                'error_code': 'SPOT_EXPIRED',
-                                'message': SpotExpiredError.USER_MESSAGE,
-                            }), 409
-                        except SpotUnavailableError:
-                            session['checkout_items'] = session_items
-                            session['checkout_tpg'] = 0  # Phase 0A: always 0
-                            conn.close()
-                            return jsonify({
-                                'success': False,
-                                'error_code': 'SPOT_UNAVAILABLE',
-                                'message': SpotUnavailableError.USER_MESSAGE,
-                            }), 503
-
-                        _enrich_cart_data_with_spot_audit(cart_data, spot_map, listing_meta_si)
-
-                    else:
-                        # ── Cart checkout: build fresh cart summary ──
-                        cart_metals = _get_cart_metals_for_spot(conn, user_id)
-                        try:
-                            spot_map = check_spot_map_freshness(cart_metals) if cart_metals else {}
-                        except SpotExpiredError:
-                            conn.close()
-                            return jsonify({
-                                'success': False,
-                                'error_code': 'SPOT_EXPIRED',
-                                'message': SpotExpiredError.USER_MESSAGE,
-                            }), 409
-                        except SpotUnavailableError:
-                            conn.close()
-                            return jsonify({
-                                'success': False,
-                                'error_code': 'SPOT_UNAVAILABLE',
-                                'message': SpotUnavailableError.USER_MESSAGE,
-                            }), 503
-
-                        spot_prices_dict = _build_spot_prices_dict(spot_map)
-                        summary = build_cart_summary(conn, user_id, spot_prices=spot_prices_dict)
-
-                        if not summary['buckets']:
-                            conn.close()
-                            return jsonify({
-                                'success': False,
-                                'message': 'Your cart is empty or items are no longer available',
-                            })
-
-                        cart_data = [
-                            {
-                                'listing_id': listing['listing_id'],
-                                'quantity': listing['quantity'],
-                                'price_each': listing['effective_price'],
-                                'requires_grading': listing['requires_grading'],
-                            }
-                            for bucket in summary['buckets'].values()
-                            for listing in bucket['listings']
-                        ]
-                        listing_ids = [item['listing_id'] for item in cart_data]
-                        listing_meta = _fetch_listing_pricing_meta(conn, listing_ids)
-                        _enrich_cart_data_with_spot_audit(cart_data, spot_map, listing_meta)
-
-                    if not cart_data:
-                        conn.close()
-                        return jsonify({
-                            'success': False,
-                            'message': 'Your cart is empty or items are no longer available',
-                        })
-
-                    # ── Tax (Stripe) → buyer card fee → total ──────────────────
-                    #
-                    # 1. Subtotal   = sum of item line totals (no fees).
-                    # 2. Tax        = stripe.tax.Calculation on subtotal with buyer address.
-                    #                 Stripe is the single source of truth for tax amount.
-                    # 3. Card fee   = round((subtotal + tax) × CARD_RATE + CARD_FLAT, 2)
-                    #                 Fee is on the taxed subtotal because that is the actual
-                    #                 amount Stripe will process.  ACH = $0.00.
-                    # 4. Total      = subtotal + tax + card_fee  (= Stripe charge amount)
-                    #
-                    # The PaymentIntent is updated with the final total so what Stripe
-                    # charges, what we store, and what the buyer sees all match exactly.
-                    _items_subtotal = round(
-                        sum(item['price_each'] * item['quantity'] for item in cart_data), 2
-                    )
-                    # ── Stripe Tax: look up address components from JSON body ──
-                    _tax_postal  = data.get('zip_code', '') or data.get('postal_code', '')
-                    _tax_state   = data.get('state', '')
-                    _tax_country = data.get('country', 'US') or 'US'
-                    _tax_cents, _tax_calc_id = _get_stripe_tax(
-                        int(round(_items_subtotal * 100)),
-                        _tax_postal, _tax_state, _tax_country,
-                    )
-                    _tax_amount = round(_tax_cents / 100, 2)
-                    _taxed_subtotal = _items_subtotal + _tax_amount
-
-                    if payment_method_type == 'us_bank_account':
-                        buyer_card_fee = 0.0
-                    else:
-                        buyer_card_fee = round(_taxed_subtotal * CARD_RATE + CARD_FLAT, 2)
-
-                    _charged_total = _taxed_subtotal + buyer_card_fee
-                    _charged_total_cents = int(round(_charged_total * 100))
-
-                    import logging as _co_logging
-                    _co_log = _co_logging.getLogger(__name__)
-                    _co_log.info(
-                        '[CHECKOUT] subtotal=%.2f tax=%.2f card_fee=%.2f total=%.2f '
-                        'pi_cents=%d pi_id=%s method=%s',
-                        _items_subtotal, _tax_amount, buyer_card_fee, _charged_total,
-                        _charged_total_cents, payment_intent_id or '(missing)',
-                        payment_method_type,
-                    )
-
-                    # ── Verify PI status and update amount ───────────────────
-                    # Retrieve the PI once to both check its status (guardrail) and
-                    # decide whether to call modify().  ACH payments go to 'processing'
-                    # immediately after confirmPayment(), so the PI is already in a
-                    # terminal-ish state by the time we get here — modify() would fail
-                    # with "cannot update a PaymentIntent that has a status of processing".
-                    # We skip modify() for any already-confirmed PI and rely on the amount
-                    # that /checkout/prepare-payment set before the client confirmed.
-                    if payment_intent_id:
-                        try:
-                            _pi_verify = stripe.PaymentIntent.retrieve(payment_intent_id)
-                        except stripe.error.StripeError as _pi_verify_err:
-                            _co_log.error(
-                                '[CHECKOUT] PI retrieval error for %s: %s',
-                                payment_intent_id, _pi_verify_err,
-                            )
-                            conn.close()
-                            return jsonify({
-                                'success': False,
-                                'message': 'Payment verification failed. Please try again.',
-                            }), 500
-
-                        # Only update amount if the PI hasn't been confirmed yet.
-                        # For card payments without prepare-payment, PI is still 'requires_confirmation'.
-                        # For ACH / prepare-payment flows, PI is already 'processing' or 'succeeded'
-                        # — modifying would raise an InvalidRequestError, so skip it.
-                        if _pi_verify.status not in ('succeeded', 'processing'):
-                            try:
-                                stripe.PaymentIntent.modify(
-                                    payment_intent_id,
-                                    amount=_charged_total_cents,
-                                )
-                                _co_log.info('[CHECKOUT] PI %s amount set to %d cents (%.2f)',
-                                             payment_intent_id, _charged_total_cents, _charged_total)
-                            except stripe.error.InvalidRequestError as _pi_err:
-                                _err_str = str(_pi_err).lower()
-                                if ('confirmed' in _err_str or 'cannot modify' in _err_str
-                                        or 'processing' in _err_str or 'status of' in _err_str):
-                                    _co_log.info(
-                                        '[CHECKOUT] PI %s already confirmed — amount pre-set; skipping modify',
-                                        payment_intent_id,
-                                    )
-                                else:
-                                    conn.close()
-                                    return jsonify({
-                                        'success': False,
-                                        'message': f'Payment setup error: {str(_pi_err)}',
-                                    }), 500
-                            except stripe.error.StripeError as _pi_err:
-                                conn.close()
-                                return jsonify({
-                                    'success': False,
-                                    'message': f'Payment setup error: {str(_pi_err)}',
-                                }), 500
-                        else:
-                            _co_log.info(
-                                '[CHECKOUT] PI %s already in status=%s — skipping amount modify',
-                                payment_intent_id, _pi_verify.status,
-                            )
-
-                        # ── HARD GUARDRAIL ────────────────────────────────────────
-                        # PI must be confirmed before we create an order.
-                        if _pi_verify.status not in ('succeeded', 'processing'):
-                            conn.close()
-                            return jsonify({
-                                'success': False,
-                                'message': (
-                                    'Payment has not been confirmed. '
-                                    'Please complete payment before placing your order.'
-                                ),
-                                'error_code': 'PAYMENT_NOT_CONFIRMED',
-                            }), 402
-                        _co_log.info(
-                            '[CHECKOUT] PI %s verified (status=%s) — proceeding to create order',
-                            payment_intent_id, _pi_verify.status,
-                        )
-
-                        # ── Auto-save new card to customer ────────────────────────
-                        # Explicitly attach the used PM to the Stripe customer so it
-                        # appears in saved payment methods immediately (synchronous,
-                        # not reliant on webhook timing).  Cards only — skip ACH.
-                        _pm_id = _pi_verify.payment_method
-                        _cust_id = _pi_verify.customer
-                        if (_pm_id and _cust_id
-                                and payment_method_type not in ('us_bank_account',)):
-                            try:
-                                _pm_obj = stripe.PaymentMethod.retrieve(_pm_id)
-                                if _pm_obj.type == 'card' and _pm_obj.get('customer') != _cust_id:
-                                    stripe.PaymentMethod.attach(_pm_id, customer=_cust_id)
-                                    _co_log.info(
-                                        '[CHECKOUT] Auto-saved card %s to customer %s (user %s)',
-                                        _pm_id, _cust_id, user_id,
-                                    )
-                            except stripe.error.StripeError as _pm_save_err:
-                                _co_log.warning(
-                                    '[CHECKOUT] Could not auto-save card %s: %s',
-                                    _pm_id, _pm_save_err,
-                                )
-
-                    # ── Consume nonce immediately before order creation ──────────
-                    # All validation has passed; remove the nonce so any duplicate
-                    # request that reaches this point is rejected as "already submitted".
+                    pi = stripe.PaymentIntent.retrieve(pi_id)
+                    result, created = finalize_payment(checkout_id, pi)
                     session.pop('checkout_nonce', None)
-
-                    # ── Create order ────────────────────────────────────────────
-                    # Effective tax rate stored for display; Stripe is authoritative source.
-                    _effective_tax_rate = round(_tax_amount / _items_subtotal, 6) if _items_subtotal else 0.0
-                    order_id = create_order(
-                        user_id, cart_data, shipping_address, recipient_first, recipient_last,
-                        placed_from_ip=request.remote_addr,
-                        payment_intent_id=payment_intent_id or None,
-                        buyer_card_fee=buyer_card_fee,
-                        tax_amount=_tax_amount,
-                        tax_rate=_effective_tax_rate,
-                    )
-                    _create_ledger_for_order(user_id, order_id, cart_data, conn)
-
-                    # Decrement inventory + collect notification data
-                    total_items = 0
-                    order_total = 0.0
-                    notifications_to_send = []
-
-                    for item in cart_data:
-                        # Atomic decrement: only deducts if quantity >= purchase amount
-                        # This prevents overselling under concurrent checkout (race condition fix)
-                        result = conn.execute('''
-                            UPDATE listings
-                               SET quantity = quantity - ?,
-                                   active = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
-                             WHERE id = ? AND quantity >= ? AND active = 1
-                        ''', (item['quantity'], item['quantity'], item['listing_id'], item['quantity']))
-
-                        if result.rowcount == 0:
-                            # Concurrent buyer took the last stock.
-                            # 1) Roll back all inventory decrements already applied in this
-                            #    transaction (items processed before this one in the loop).
-                            # 2) Clean up the order record that was committed by create_order()
-                            #    in its own connection.
-                            # 3) Clean up ledger records created by _create_ledger_for_order()
-                            #    (committed in their own connection — not covered by rollback above).
-                            conn.rollback()
-                            try:
-                                conn.execute('DELETE FROM order_items_ledger WHERE order_id = ?', (order_id,))
-                                conn.execute('DELETE FROM order_payouts WHERE order_id = ?', (order_id,))
-                                conn.execute('DELETE FROM order_events WHERE order_id = ?', (order_id,))
-                                conn.execute('DELETE FROM orders_ledger WHERE order_id = ?', (order_id,))
-                                conn.execute('DELETE FROM order_items WHERE order_id = ?', (order_id,))
-                                conn.execute('DELETE FROM orders WHERE id = ?', (order_id,))
-                                conn.commit()
-                            except Exception:
-                                pass
-                            conn.close()
-                            return jsonify({
-                                'success': False,
-                                'message': 'One or more items are no longer available. Please refresh your cart.',
-                            }), 409
-
-                        listing_info = conn.execute('''
-                            SELECT listings.quantity, listings.seller_id, listings.category_id,
-                                   categories.metal, categories.product_type
-                            FROM listings
-                            JOIN categories ON listings.category_id = categories.id
-                            WHERE listings.id = ?
-                        ''', (item['listing_id'],)).fetchone()
-
-                        if listing_info:
-                            new_quantity = listing_info['quantity']
-                            item_description = f"{listing_info['metal']} {listing_info['product_type']}"
-                            is_partial = new_quantity > 0
-                            notifications_to_send.append({
-                                'seller_id': listing_info['seller_id'],
-                                'order_id': order_id,
-                                'listing_id': item['listing_id'],
-                                'item_description': item_description,
-                                'quantity_sold': item['quantity'],
-                                'price_per_unit': item['price_each'],
-                                'total_amount': item['quantity'] * item['price_each'],
-                                'shipping_address': shipping_address,
-                                'is_partial': is_partial,
-                                'remaining_quantity': new_quantity if is_partial else 0,
-                            })
-
-                        total_items += item['quantity']
-                        order_total += item['quantity'] * item['price_each']
-
-                    conn.execute('DELETE FROM cart WHERE user_id = ?', (user_id,))
-
-                    # Store the Stripe PaymentIntent ID on the order now so the
-                    # webhook can find the order by PI ID (no separate round-trip needed).
-                    if payment_intent_id:
-                        conn.execute(
-                            'UPDATE orders SET stripe_payment_intent_id = ? WHERE id = ?',
-                            (payment_intent_id, order_id)
-                        )
-
-                    conn.commit()
+                    session.pop('canonical_checkout_id', None)
+                    session.pop('checkout_items', None)
                     conn.close()
-
-                    # Send notifications after commit
-                    for notif_data in notifications_to_send:
-                        try:
-                            notify_listing_sold(**notif_data)
-                        except Exception as e:
-                            print(f"[CHECKOUT] Failed to send seller notification: {e}")
-
-                    try:
-                        item_descriptions = [n['item_description'] for n in notifications_to_send]
-                        buyer_item_description = (
-                            item_descriptions[0] if len(set(item_descriptions)) == 1
-                            else f"{len(set(item_descriptions))} different items"
-                        )
-                        notify_order_confirmed(
-                            buyer_id=user_id,
-                            order_id=order_id,
-                            item_description=buyer_item_description,
-                            quantity_purchased=total_items,
-                            price_per_unit=order_total / total_items if total_items > 0 else 0,
-                            total_amount=round(order_total + _tax_amount + buyer_card_fee, 2),
-                        )
-                    except Exception as e:
-                        print(f"[CHECKOUT] Failed to send buyer notification: {e}")
-
-                    return jsonify({
-                        'success': True,
-                        'order_id': order_id,
-                        'total_items': total_items,
-                        'order_total': round(order_total + _tax_amount + buyer_card_fee, 2),
-                    })
-
-                except Exception as e:
+                    return jsonify({'success':True,'order_id':result['legacy_order_id'],
+                                    'execution_id':result['id'],'created':created})
+                except FlowError as exc:
                     conn.close()
-                    return jsonify({
-                        'success': False,
-                        'message': f'Error processing order: {str(e)}',
-                    }), 500
-
-            # Final submit: create the order from either session-selected items or the cart
-            shipping_address = request.form.get('shipping_address')
-            recipient_first = request.form.get('recipient_first_name', '')
-            recipient_last = request.form.get('recipient_last_name', '')
-
-            # Prefer direct-bucket selection if present
-            session_items = session.pop('checkout_items', None)
-            # checkout_tpg is the canonical boolean (0/1 int) stored by the bucket POST.
-            buy_tpg = bool(session.pop('checkout_tpg', 0))
-            if session_items:
-                cart_data = [{
-                    'listing_id': item['listing_id'],
-                    'quantity': item['quantity'],
-                    'price_each': item['price_each'],
-                    'requires_grading': buy_tpg,
-                } for item in session_items]
-            else:
-                # Fallback to the user's cart via the authoritative summary.
-                # Pre-fetch checkout-validated spot prices first.
-                from services.checkout_spot_service import check_spot_map_freshness
-                cart_metals = _get_cart_metals_for_spot(conn, user_id)
-                # Modal-first: if snapshot is stale, redirect to checkout with a
-                # message so the user sees the recalculate prompt on reload.
-                try:
-                    spot_map_fb = check_spot_map_freshness(cart_metals) if cart_metals else {}
-                except SpotExpiredError:
+                    return jsonify({'success':False,'message':str(exc),'error_code':exc.code}), exc.status
+                except stripe.error.StripeError:
                     conn.close()
-                    flash(SpotExpiredError.USER_MESSAGE, 'error')
-                    return redirect(url_for('checkout.checkout'))
-                except SpotUnavailableError:
-                    conn.close()
-                    flash(SpotUnavailableError.USER_MESSAGE, 'error')
-                    return redirect(url_for('buy.view_cart'))
-                spot_prices_fb = _build_spot_prices_dict(spot_map_fb)
+                    return jsonify({'success':False,'message':'Payment verification is temporarily unavailable.',
+                                    'error_code':'PAYMENT_VERIFICATION_UNAVAILABLE'}), 503
 
-                _summary = build_cart_summary(conn, user_id, spot_prices=spot_prices_fb)
-                cart_data = [
-                    {
-                        'listing_id': listing['listing_id'],
-                        'quantity': listing['quantity'],
-                        'price_each': listing['effective_price'],
-                        'requires_grading': listing['requires_grading'],
-                    }
-                    for bucket in _summary['buckets'].values()
-                    for listing in bucket['listings']
-                ]
-                # Enrich with spot audit for cart fallback path
-                listing_ids_fb = [item['listing_id'] for item in cart_data]
-                listing_meta_fb = _fetch_listing_pricing_meta(conn, listing_ids_fb)
-                _enrich_cart_data_with_spot_audit(cart_data, spot_map_fb, listing_meta_fb)
+                raise AssertionError('canonical finalize returned without a response')
 
-            if not cart_data:
-                flash("Your cart is empty or items are no longer available.")
-                conn.close()
-                return redirect(url_for('buy.view_cart'))
-
-            # For session-items path: enrich with spot audit info from current snapshots
-            if session_items:
-                from services.checkout_spot_service import check_spot_map_freshness
-                listing_ids_si = [item['listing_id'] for item in cart_data]
-                listing_meta_si = _fetch_listing_pricing_meta(conn, listing_ids_si)
-                si_metals = {
-                    (meta.get('pricing_metal') or meta.get('metal') or '').lower()
-                    for meta in listing_meta_si.values()
-                    if meta.get('pricing_mode') == 'premium_to_spot'
-                }
-                # Modal-first: stale snapshot → restore session + redirect to checkout
-                try:
-                    spot_map_si = check_spot_map_freshness(si_metals) if si_metals else {}
-                except SpotExpiredError:
-                    session['checkout_items'] = session_items
-                    session['checkout_tpg'] = int(buy_tpg)
-                    conn.close()
-                    flash(SpotExpiredError.USER_MESSAGE, 'error')
-                    return redirect(url_for('checkout.checkout'))
-                except SpotUnavailableError:
-                    conn.close()
-                    flash(SpotUnavailableError.USER_MESSAGE, 'error')
-                    return redirect(url_for('buy.view_cart'))
-                _enrich_cart_data_with_spot_audit(cart_data, spot_map_si, listing_meta_si)
-
-            # Create the order record (service inserts into orders & order_items)
-            order_id = create_order(
-                user_id, cart_data, shipping_address, recipient_first, recipient_last,
-                placed_from_ip=request.remote_addr,
-            )
-
-            # Create ledger records for this order
-            _create_ledger_for_order(user_id, order_id, cart_data, conn)
-
-            # Decrement inventory atomically to prevent overselling (race condition fix)
-            for item in cart_data:
-                # Atomic decrement: only updates if sufficient quantity remains
-                result = conn.execute('''
-                    UPDATE listings
-                       SET quantity = quantity - ?,
-                           active = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
-                     WHERE id = ? AND quantity >= ? AND active = 1
-                ''', (item['quantity'], item['quantity'], item['listing_id'], item['quantity']))
-
-                if result.rowcount == 0:
-                    # Concurrent buyer took the last stock.
-                    # 1) Roll back all inventory decrements already applied in this
-                    #    transaction (items processed before this one in the loop).
-                    # 2) Clean up the order record committed by create_order().
-                    # 3) Clean up ledger records created by _create_ledger_for_order()
-                    #    (committed in their own connection — not covered by rollback above).
-                    conn.rollback()
-                    try:
-                        conn.execute('DELETE FROM order_items_ledger WHERE order_id = ?', (order_id,))
-                        conn.execute('DELETE FROM order_payouts WHERE order_id = ?', (order_id,))
-                        conn.execute('DELETE FROM order_events WHERE order_id = ?', (order_id,))
-                        conn.execute('DELETE FROM orders_ledger WHERE order_id = ?', (order_id,))
-                        conn.execute('DELETE FROM order_items WHERE order_id = ?', (order_id,))
-                        conn.execute('DELETE FROM orders WHERE id = ?', (order_id,))
-                        conn.commit()
-                    except Exception:
-                        pass
-                    conn.close()
-                    flash('One or more items are no longer available. Please review your cart.', 'error')
-                    return redirect(url_for('buy.view_cart'))
-
-                listing_info = conn.execute('''
-                    SELECT listings.quantity, listings.seller_id, listings.category_id,
-                           categories.metal, categories.product_type
-                    FROM listings
-                    JOIN categories ON listings.category_id = categories.id
-                    WHERE listings.id = ?
-                ''', (item['listing_id'],)).fetchone()
-
-                if listing_info:
-                    new_quantity = listing_info['quantity']
-                    # Send notification to seller
-                    try:
-                        item_description = f"{listing_info['metal']} {listing_info['product_type']}"
-                        is_partial = new_quantity > 0
-
-                        notify_listing_sold(
-                            seller_id=listing_info['seller_id'],
-                            order_id=order_id,
-                            listing_id=item['listing_id'],
-                            item_description=item_description,
-                            quantity_sold=item['quantity'],
-                            price_per_unit=item['price_each'],
-                            total_amount=item['quantity'] * item['price_each'],
-                            shipping_address=shipping_address,
-                            is_partial=is_partial,
-                            remaining_quantity=new_quantity if is_partial else 0
-                        )
-                    except Exception as e:
-                        print(f"[CHECKOUT] Failed to send notification to seller: {e}")
-
-            # Clear cart regardless (safe if buying from bucket)
-            conn.execute('DELETE FROM cart WHERE user_id = ?', (user_id,))
-            conn.commit()
             conn.close()
-
-            # Send buyer notification AFTER commit
-            try:
-                # Phase 0A: no grading fee in total
-                total_items = sum(item['quantity'] for item in cart_data)
-                order_total = round(
-                    sum(item['quantity'] * item['price_each'] for item in cart_data),
-                    2
-                )
-
-                # Get unique item types for description
-                conn_temp = get_db_connection()
-                item_types = set()
-                for item in cart_data:
-                    listing = conn_temp.execute('''
-                        SELECT categories.metal, categories.product_type
-                        FROM listings
-                        JOIN categories ON listings.category_id = categories.id
-                        WHERE listings.id = ?
-                    ''', (item['listing_id'],)).fetchone()
-                    if listing:
-                        item_types.add(f"{listing['metal']} {listing['product_type']}")
-                conn_temp.close()
-
-                # Use first item description or "Multiple items" if more than one type
-                if len(item_types) == 1:
-                    buyer_item_description = list(item_types)[0]
-                else:
-                    buyer_item_description = f"{len(item_types)} different items"
-
-                notify_order_confirmed(
-                    buyer_id=user_id,
-                    order_id=order_id,
-                    item_description=buyer_item_description,
-                    quantity_purchased=total_items,
-                    price_per_unit=order_total / total_items if total_items > 0 else 0,
-                    total_amount=order_total
-                )
-            except Exception as e:
-                print(f"[CHECKOUT] Failed to send buyer notification: {e}")
-
-            return redirect(url_for('checkout.order_confirmation', order_id=order_id))
+            flash('Please complete payment through the secure checkout form.', 'error')
+            return redirect(url_for('checkout.checkout'))
 
     else:
         # Render the checkout page
@@ -1437,457 +805,155 @@ def order_confirmation(order_id):
 
 
 @checkout_bp.route('/create-payment-intent', methods=['POST'])
+@frozen_check
 def create_payment_intent():
-    """
-    Create a Stripe PaymentIntent for the current cart total.
-    Returns the clientSecret so the frontend can mount the Payment Element.
-    """
+    """Reserve inventory, freeze checkout economics, then create one bound PI."""
     import logging
-    _log = logging.getLogger(__name__)
-
-    # Global checkout safety switch — admin-controlled via system settings.
-    from services.system_settings_service import get_checkout_enabled, get_payments_pause_reason
-    if not get_checkout_enabled():
-        reason = get_payments_pause_reason()
-        msg = reason or "Checkout is temporarily unavailable. Please try again shortly."
-        _log.warning('[PI] blocked — checkout disabled (admin toggle)')
-        return jsonify({'error': msg}), 503
-
+    from services.flow_of_funds import (
+        FlowError, bind_provider_payment, claim_operation, ensure_flow_schema,
+        prepare_checkout, require_approved_policy,
+    )
+    log = logging.getLogger(__name__)
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
-
+    from services.system_settings_service import get_checkout_enabled, get_payments_pause_reason
+    if not get_checkout_enabled():
+        return jsonify({'error': get_payments_pause_reason() or 'Checkout is temporarily unavailable.'}), 503
     user_id = session['user_id']
+    body = request.get_json(silent=True) or {}
+    nonce = session.get('checkout_nonce')
+    if not nonce:
+        return jsonify({'error': 'Checkout session expired. Please refresh.'}), 409
     conn = get_db_connection()
-
-    # --- DB work: Stripe customer + cart total (same connection) -------------
-    customer_id = None
     try:
-        # Resolve or create the buyer's Stripe Customer so saved cards work.
-        # Non-fatal: if this fails the PI is still created, just without a customer.
+        ensure_flow_schema(conn)
+        require_approved_policy(conn, 'tracking_upload_deadline_days',
+                                'ups_coverage_and_claim_policy')
+        session_items = session.get('checkout_items')
+        if session_items:
+            cart_data = [dict(i, requires_grading=bool(i.get('requires_grading', False))) for i in session_items]
+        else:
+            from services.reference_price_service import get_current_spots_from_snapshots
+            summary = build_cart_summary(conn, user_id, spot_prices=get_current_spots_from_snapshots(conn))
+            cart_data = [{'listing_id': x['listing_id'], 'quantity': x['quantity'],
+                          'price_each': x['effective_price'],
+                          'requires_grading': bool(x.get('requires_grading'))}
+                         for b in summary['buckets'].values() for x in b['listings']]
+        if not cart_data:
+            return jsonify({'error': 'Cart is empty.'}), 400
+        subtotal_cents = sum(int(round(float(i['price_each'])*100))*int(i['quantity']) for i in cart_data)
+        tax_cents, tax_calc_id = _get_stripe_tax(
+            subtotal_cents, body.get('zip_code',''), body.get('state',''), body.get('country','US'))
+        if not tax_calc_id or tax_calc_id == 'fallback_rate':
+            return jsonify({'error': 'Tax could not be verified. Check the delivery address and try again.'}), 503
+        shipping = {'shipping_address': body.get('shipping_address',''),
+                    'recipient_first': body.get('recipient_first',''),
+                    'recipient_last': body.get('recipient_last',''),
+                    'city': body.get('city',''), 'state': body.get('state',''),
+                    'postal_code': body.get('zip_code',''), 'country': body.get('country','US'),
+                    'tax_calculation_id': tax_calc_id}
+        checkout, snapshot, _ = prepare_checkout(
+            user_id, cart_data, 'card', tax_cents, shipping,
+            idempotency_key=f'browser:{user_id}:{nonce}', conn=conn)
+        existing = conn.execute('SELECT * FROM financial_operations WHERE aggregate_id=? AND operation_type=\'PAYMENT\'',
+                                (checkout['id'],)).fetchone()
+        if existing and existing['provider_object_id']:
+            conn.commit(); pi = stripe.PaymentIntent.retrieve(existing['provider_object_id'])
+            session['canonical_checkout_id'] = checkout['id']
+            return jsonify({'clientSecret': pi.client_secret, 'paymentIntentId': pi.id,
+                            'checkoutId': checkout['id']})
+        op, _ = claim_operation(conn, 'PAYMENT', f'payment:{checkout["id"]}', 'checkout', checkout['id'],
+                                snapshot['buyer_total_cents'], {'snapshot_hash':snapshot['snapshot_hash']})
+        customer_id = None
         try:
             from core.blueprints.account.payment_methods import _ensure_stripe_customer
             customer_id = _ensure_stripe_customer(user_id, conn)
-            _log.info('[PI] resolved stripe customer %s for user %s', customer_id, user_id)
         except Exception:
-            _log.warning('[PI] could not resolve Stripe customer for user %s — saved cards unavailable', user_id)
-
-        session_items = session.get('checkout_items')
-        # Phase 0A: grading deactivated — no grading fee in PaymentIntent.
-
-        if session_items:
-            subtotal = sum(i['price_each'] * i['quantity'] for i in session_items)
-            grading_fee = 0.0
-            _log.info('[PI] cart from session: subtotal=%.2f', subtotal)
-        else:
-            from services.reference_price_service import get_current_spots_from_snapshots
-            spot_prices = get_current_spots_from_snapshots(conn)
-            summary = build_cart_summary(conn, user_id, spot_prices=spot_prices)
-            subtotal = summary['subtotal']
-            grading_fee = 0.0
-            _log.info('[PI] cart from DB: subtotal=%.2f buckets=%d',
-                      subtotal, len(summary['buckets']))
-    except Exception as e:
-        _log.exception('[PI] failed to compute cart total for user %s', user_id)
-        return jsonify({'error': 'Could not read cart: ' + str(e)}), 500
-    finally:
-        conn.close()  # always close — success and failure alike
-
-    # --- Compute tax + card fee using address sent by the client -------------
-    # The JS sends zip_code/state/country when it transitions to the payment
-    # step, so we can compute the full charge amount right here instead of
-    # relying on the modify() call later.
-    req_json    = request.get_json(silent=True) or {}
-    _pi_postal  = req_json.get('zip_code', '') or ''
-    _pi_state   = req_json.get('state', '') or ''
-    _pi_country = req_json.get('country', 'US') or 'US'
-
-    _subtotal_cents = int(round((subtotal + grading_fee) * 100))
-    _tax_cents, _tax_calc_id = _get_stripe_tax(
-        _subtotal_cents, _pi_postal, _pi_state, _pi_country,
-    )
-    _tax_amount  = round(_tax_cents / 100, 2)
-    _taxed_sub   = round((subtotal + grading_fee) + _tax_amount, 2)
-    # Default to card fee (ACH path: fee is 0; determined at confirm time).
-    # We default to card here so the PI amount is never *less* than needed.
-    _card_fee    = round(_taxed_sub * CARD_RATE + CARD_FLAT, 2)
-    _full_total  = round(_taxed_sub + _card_fee, 2)
-    amount_cents = int(round(_full_total * 100))
-
-    _log.info(
-        '[PI] creating PaymentIntent subtotal=%.2f tax=%.2f card_fee=%.2f '
-        'total=%.2f amount_cents=%d user=%s customer=%s',
-        subtotal + grading_fee, _tax_amount, _card_fee,
-        _full_total, amount_cents, user_id, customer_id,
-    )
-
-    if amount_cents <= 0:
-        _log.warning('[PI] amount_cents=%d — cart may be empty, user=%s', amount_cents, user_id)
-        return jsonify({'error': 'Cart total is zero. Please add items before checking out.'}), 400
-
-    try:
-        pi_kwargs = dict(
-            amount=amount_cents,
-            currency='usd',
-            payment_method_types=['card', 'us_bank_account'],
-            metadata={'user_id': str(user_id)},
-        )
+            log.warning('Could not bind Stripe customer for buyer %s', user_id, exc_info=True)
+        conn.commit()
+        kwargs = {'amount': snapshot['buyer_total_cents'], 'currency':'usd',
+                  'payment_method_types':['card','us_bank_account'],
+                  'metadata': {'checkout_id':checkout['id'], 'snapshot_hash':snapshot['snapshot_hash'],
+                               'buyer_id':str(user_id), 'policy_version':'flow-of-funds-v1'}}
         if customer_id:
-            pi_kwargs['customer'] = customer_id
-            # Save the card to the customer so it appears in bid payment options
-            pi_kwargs['setup_future_usage'] = 'off_session'
-        payment_intent = stripe.PaymentIntent.create(**pi_kwargs)
-        _log.info('[PI] created pi=%s user=%s customer=%s', payment_intent.id, user_id, customer_id)
-    except stripe.error.StripeError as e:
-        _log.error('[PI] Stripe error for user %s: %s', user_id, e)
-        return jsonify({'error': str(e)}), 500
-
-    return jsonify({
-        'clientSecret': payment_intent.client_secret,
-        'paymentIntentId': payment_intent.id,
-    })
+            kwargs.update(customer=customer_id, setup_future_usage='off_session')
+        pi = stripe.PaymentIntent.create(**kwargs, idempotency_key=op['idempotency_key'])
+        bind_provider_payment(checkout['id'], pi.id, op['id'], conn=conn)
+        conn.commit(); session['canonical_checkout_id'] = checkout['id']
+        return jsonify({'clientSecret':pi.client_secret,'paymentIntentId':pi.id,'checkoutId':checkout['id']})
+    except FlowError as exc:
+        conn.rollback(); return jsonify({'error':str(exc),'error_code':exc.code}), exc.status
+    except stripe.error.StripeError:
+        conn.rollback(); log.exception('Stripe PI creation failed')
+        return jsonify({'error':'Payment setup failed. Please try again.'}), 502
+    except Exception:
+        conn.rollback(); log.exception('Canonical checkout preparation failed')
+        return jsonify({'error':'Checkout could not be prepared.'}), 500
+    finally:
+        conn.close()
 
 
 @checkout_bp.route('/attach-order-to-payment', methods=['POST'])
 def attach_order_to_payment():
-    """
-    After order creation, stamp the order_id onto the PaymentIntent metadata
-    so /order-success can look up the exact order by PI — not by "latest order".
-    """
-    if 'user_id' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-
-    user_id = session['user_id']
-    body = request.get_json(silent=True) or {}
-    payment_intent_id = body.get('payment_intent_id')
-    order_id = body.get('order_id')
-
-    if not payment_intent_id or not order_id:
-        return jsonify({'error': 'Missing payment_intent_id or order_id'}), 400
-
-    # Verify this order actually belongs to the current user before stamping it.
-    conn = get_db_connection()
-    row = conn.execute(
-        "SELECT id FROM orders WHERE id = ? AND buyer_id = ?",
-        (order_id, user_id)
-    ).fetchone()
-    conn.close()
-
-    if not row:
-        return jsonify({'error': 'Order not found or access denied'}), 403
-
-    try:
-        stripe.PaymentIntent.modify(
-            payment_intent_id,
-            metadata={'user_id': str(user_id), 'order_id': str(order_id)},
-        )
-    except stripe.error.StripeError as e:
-        return jsonify({'error': str(e)}), 500
-
-    return jsonify({'ok': True})
+    """Retired: provider payments are bound before confirmation."""
+    return jsonify({'error':'This legacy payment path has been retired.'}), 410
 
 
 @checkout_bp.route('/checkout/prepare-payment', methods=['POST'])
 @frozen_check
 def prepare_payment():
-    """
-    Confirm-first Phase 1: compute final charge amount and update the PaymentIntent.
-
-    Must be called BEFORE stripe.confirmPayment() on the frontend so that Stripe
-    charges the exact correct amount (subtotal + Stripe Tax + card fee).
-    Also saves checkout state to the session for 3DS redirect recovery.
-
-    Does NOT create an order and does NOT consume the checkout nonce.
-    """
+    """Freeze the selected rail and update the bound unconfirmed PI."""
+    from services.flow_of_funds import FlowError, revise_payment_rail
     if 'user_id' not in session:
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
-
-    import logging as _pp_log_m
-    _pp_log = _pp_log_m.getLogger(__name__)
-
-    user_id = session['user_id']
-    data = request.get_json(silent=True) or {}
-
-    payment_intent_id   = (data.get('payment_intent_id') or '').strip() or None
-    payment_method_type = data.get('payment_method_type', 'card') or 'card'
-    shipping_address    = data.get('shipping_address', '')
-    recipient_first     = data.get('recipient_first', '')
-    recipient_last      = data.get('recipient_last', '')
-    _tax_postal         = data.get('zip_code', '') or data.get('postal_code', '') or ''
-    _tax_state          = data.get('state', '') or ''
-    _tax_country        = data.get('country', 'US') or 'US'
-    submitted_nonce     = data.get('checkout_nonce')
-
-    # Nonce check (not consumed — consumed at finalize)
-    if not submitted_nonce or submitted_nonce != session.get('checkout_nonce'):
-        return jsonify({
-            'success': False,
-            'message': 'Session expired. Please refresh the page.',
-        }), 409
-
-    if not payment_intent_id:
-        return jsonify({'success': False, 'message': 'PaymentIntent ID is required.'}), 400
-
-    conn = get_db_connection()
+        return jsonify({'success':False,'error':'Not authenticated'}), 401
+    data=request.get_json(silent=True) or {}; checkout_id=session.get('canonical_checkout_id')
+    if not checkout_id or data.get('checkout_nonce') != session.get('checkout_nonce'):
+        return jsonify({'success':False,'message':'Checkout session expired.'}), 409
+    rail=data.get('payment_method_type') or 'card'; pi_id=(data.get('payment_intent_id') or '').strip()
+    conn=get_db_connection()
     try:
-        from services.checkout_spot_service import check_spot_map_freshness
-        session_items = session.get('checkout_items')
-
-        if session_items:
-            cart_data = [
-                {
-                    'listing_id': i['listing_id'],
-                    'quantity': i['quantity'],
-                    'price_each': i['price_each'],
-                    'requires_grading': False,
-                }
-                for i in session_items
-            ]
-            listing_ids_si = [i['listing_id'] for i in cart_data]
-            listing_meta_si = _fetch_listing_pricing_meta(conn, listing_ids_si)
-            si_metals = {
-                (m.get('pricing_metal') or m.get('metal') or '').lower()
-                for m in listing_meta_si.values()
-                if m.get('pricing_mode') == 'premium_to_spot'
-            }
-            try:
-                check_spot_map_freshness(si_metals) if si_metals else {}
-            except SpotExpiredError:
-                session['checkout_items'] = session_items
-                session['checkout_tpg'] = 0
-                conn.close()
-                return jsonify({
-                    'success': False,
-                    'error_code': 'SPOT_EXPIRED',
-                    'message': SpotExpiredError.USER_MESSAGE,
-                }), 409
-            except SpotUnavailableError:
-                conn.close()
-                return jsonify({
-                    'success': False,
-                    'error_code': 'SPOT_UNAVAILABLE',
-                    'message': SpotUnavailableError.USER_MESSAGE,
-                }), 503
-        else:
-            cart_metals = _get_cart_metals_for_spot(conn, user_id)
-            try:
-                _spot_map_pp = check_spot_map_freshness(cart_metals) if cart_metals else {}
-            except SpotExpiredError:
-                conn.close()
-                return jsonify({
-                    'success': False,
-                    'error_code': 'SPOT_EXPIRED',
-                    'message': SpotExpiredError.USER_MESSAGE,
-                }), 409
-            except SpotUnavailableError:
-                conn.close()
-                return jsonify({
-                    'success': False,
-                    'error_code': 'SPOT_UNAVAILABLE',
-                    'message': SpotUnavailableError.USER_MESSAGE,
-                }), 503
-            _spot_prices_pp = _build_spot_prices_dict(_spot_map_pp)
-            summary_pp = build_cart_summary(conn, user_id, spot_prices=_spot_prices_pp)
-            if not summary_pp['buckets']:
-                conn.close()
-                return jsonify({'success': False, 'message': 'Cart is empty.'}), 400
-            cart_data = [
-                {
-                    'listing_id': listing['listing_id'],
-                    'quantity': listing['quantity'],
-                    'price_each': listing['effective_price'],
-                    'requires_grading': listing['requires_grading'],
-                }
-                for bucket in summary_pp['buckets'].values()
-                for listing in bucket['listings']
-            ]
-
-        if not cart_data:
-            conn.close()
-            return jsonify({'success': False, 'message': 'Cart is empty.'}), 400
-
-        # Compute final amounts (same formula as the finalize handler)
-        _pp_subtotal = round(sum(i['price_each'] * i['quantity'] for i in cart_data), 2)
-        _pp_tax_cents, _ = _get_stripe_tax(
-            int(round(_pp_subtotal * 100)), _tax_postal, _tax_state, _tax_country,
-        )
-        _pp_tax = round(_pp_tax_cents / 100, 2)
-        _pp_taxed = _pp_subtotal + _pp_tax
-        _pp_fee = (0.0 if payment_method_type == 'us_bank_account'
-                   else round(_pp_taxed * CARD_RATE + CARD_FLAT, 2))
-        _pp_total = _pp_taxed + _pp_fee
-        _pp_total_cents = int(round(_pp_total * 100))
-
-        # Update PaymentIntent with the final confirmed amount
-        try:
-            stripe.PaymentIntent.modify(payment_intent_id, amount=_pp_total_cents)
-            _pp_log.info('[PREPARE] PI %s amount set to %d cents (%.2f)',
-                         payment_intent_id, _pp_total_cents, _pp_total)
-        except stripe.error.StripeError as _pp_err:
-            conn.close()
-            return jsonify({
-                'success': False,
-                'message': f'Payment setup error: {str(_pp_err)}',
-            }), 500
-
-        # Save state for 3DS redirect recovery — if confirmPayment() redirects the
-        # browser to a 3DS page, /order-success uses this to create the order on return.
-        session['prepared_checkout'] = {
-            'cart_data': cart_data,
-            'shipping_address': shipping_address,
-            'recipient_first': recipient_first,
-            'recipient_last': recipient_last,
-            'tax_amount': _pp_tax,
-            'buyer_card_fee': _pp_fee,
-            'items_subtotal': _pp_subtotal,
-            'payment_method_type': payment_method_type,
-            'payment_intent_id': payment_intent_id,
-        }
-
+        checkout=conn.execute('SELECT * FROM checkout_attempts WHERE id=? AND buyer_id=?',(checkout_id,session['user_id'])).fetchone()
+        if not checkout or checkout['provider_payment_id'] != pi_id:
+            raise FlowError('Payment is not bound to this checkout','PAYMENT_BINDING_MISMATCH',409)
+        snapshot, changed=revise_payment_rail(checkout_id,rail,conn=conn)
+        metadata={'checkout_id':checkout_id,'snapshot_hash':snapshot['snapshot_hash'],
+                  'buyer_id':str(session['user_id']),'policy_version':'flow-of-funds-v1'}
+        stripe.PaymentIntent.modify(pi_id,amount=snapshot['buyer_total_cents'],metadata=metadata)
+        conn.execute('UPDATE financial_operations SET amount_cents=?,request_hash=?,updated_at=CURRENT_TIMESTAMP WHERE aggregate_id=? AND operation_type=\'PAYMENT\'',
+                     (snapshot['buyer_total_cents'],snapshot['snapshot_hash'],checkout_id))
+        conn.commit()
+        return jsonify({'success':True,'tax_amount':snapshot['tax_cents']/100,
+                        'buyer_card_fee':snapshot['card_surcharge_cents']/100,
+                        'items_subtotal':snapshot['merchandise_cents']/100,
+                        'total':snapshot['buyer_total_cents']/100,'total_cents':snapshot['buyer_total_cents']})
+    except FlowError as exc:
+        conn.rollback(); return jsonify({'success':False,'message':str(exc),'error_code':exc.code}),exc.status
+    except stripe.error.StripeError:
+        conn.rollback(); return jsonify({'success':False,'message':'Payment setup failed. Please try again.'}),502
+    finally:
         conn.close()
-        return jsonify({
-            'success': True,
-            'tax_amount': _pp_tax,
-            'buyer_card_fee': _pp_fee,
-            'items_subtotal': _pp_subtotal,
-            'total': _pp_total,
-            'total_cents': _pp_total_cents,
-        })
-
-    except Exception as _pp_exc:
-        conn.close()
-        _pp_log.exception('[PREPARE] Unexpected error for user %s: %s', user_id, _pp_exc)
-        return jsonify({'success': False, 'message': f'Error: {str(_pp_exc)}'}), 500
 
 
 @checkout_bp.route('/order-success')
 def order_success():
-    """
-    Browser landing page after Stripe redirects the buyer back.
-
-    This route is NOT the source of truth for payment finalization —
-    the /stripe/webhook handler owns that responsibility.  This page
-    only reads the current state of the order and renders an appropriate
-    message.  It is safe to reload or revisit.
-    """
+    """Read-only recovery page; webhook or canonical finalize owns all writes."""
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
-
-    user_id = session['user_id']
-    payment_intent_id = request.args.get('payment_intent')
-
-    if not payment_intent_id:
-        flash('Payment information missing.', 'error')
-        return redirect(url_for('buy.buy'))
-
-    # Look up the order first via DB (PI ID stored during Phase 1 checkout).
-    # This avoids depending on Stripe metadata stamping and is always fast.
-    conn = get_db_connection()
-    order = conn.execute(
-        "SELECT id, total_price, status FROM orders WHERE stripe_payment_intent_id = ? AND buyer_id = ?",
-        (payment_intent_id, user_id)
-    ).fetchone()
-
-    if not order:
-        # Fallback: try metadata route (legacy or orders created before this change).
+    pi_id=request.args.get('payment_intent'); conn=get_db_connection()
+    order=conn.execute('SELECT id,total_price,status FROM orders WHERE stripe_payment_intent_id=? AND buyer_id=?',
+                       (pi_id,session['user_id'])).fetchone() if pi_id else None
+    if not order and pi_id:
         try:
-            pi_meta = stripe.PaymentIntent.retrieve(payment_intent_id)
-            order_id_meta = pi_meta.metadata.get('order_id')
-            if order_id_meta:
-                order = conn.execute(
-                    "SELECT id, total_price, status FROM orders WHERE id = ? AND buyer_id = ?",
-                    (order_id_meta, user_id)
-                ).fetchone()
+            pi=stripe.PaymentIntent.retrieve(pi_id)
+            checkout_id=(pi.to_dict() if hasattr(pi,'to_dict') else dict(pi)).get('metadata',{}).get('checkout_id')
+            if checkout_id and pi.status=='succeeded':
+                from services.flow_of_funds import finalize_payment
+                result,_=finalize_payment(checkout_id,pi)
+                order=conn.execute('SELECT id,total_price,status FROM orders WHERE id=?',(result['legacy_order_id'],)).fetchone()
         except Exception:
-            pass
-
-    # ── 3DS / uncertain return recovery ──────────────────────────────────────────
-    # With the confirm-first architecture, stripe.confirmPayment() may redirect the
-    # browser for 3DS auth (or throw a network error) before Phase 3 (order creation)
-    # is reached.  When we arrive here without an existing order, check the PI status
-    # and create the order from the session state saved by /checkout/prepare-payment.
-    redirect_status = request.args.get('redirect_status')
-    if not order and redirect_status in ('succeeded', 'uncertain'):
-        prepared = session.get('prepared_checkout')
-        if prepared and prepared.get('payment_intent_id') == payment_intent_id:
-            import logging as _os_log_m
-            _os_log = _os_log_m.getLogger(__name__)
-            try:
-                _pi_3ds = stripe.PaymentIntent.retrieve(payment_intent_id)
-                if _pi_3ds.status == 'succeeded':
-                    _os_log.info('[ORDER-SUCCESS] 3DS return — creating order for PI %s', payment_intent_id)
-                    session.pop('prepared_checkout', None)
-                    _prepared_cart   = prepared['cart_data']
-                    _prepared_tax    = prepared['tax_amount']
-                    _prepared_fee    = prepared['buyer_card_fee']
-                    _prepared_sub    = prepared.get('items_subtotal', 0)
-                    _prepared_txrate = round(_prepared_tax / _prepared_sub, 6) if _prepared_sub else 0.0
-                    _new_order_id = create_order(
-                        user_id, _prepared_cart,
-                        prepared['shipping_address'],
-                        prepared['recipient_first'],
-                        prepared['recipient_last'],
-                        placed_from_ip=request.remote_addr,
-                        payment_intent_id=payment_intent_id,
-                        buyer_card_fee=_prepared_fee,
-                        tax_amount=_prepared_tax,
-                        tax_rate=_prepared_txrate,
-                    )
-                    # Decrement inventory + clear cart
-                    for _pi_item in _prepared_cart:
-                        conn.execute('''
-                            UPDATE listings
-                               SET quantity = quantity - ?,
-                                   active = CASE WHEN quantity - ? <= 0 THEN 0 ELSE active END
-                             WHERE id = ? AND quantity >= ? AND active = 1
-                        ''', (_pi_item['quantity'], _pi_item['quantity'],
-                              _pi_item['listing_id'], _pi_item['quantity']))
-                    conn.execute('DELETE FROM cart WHERE user_id = ?', (user_id,))
-                    conn.commit()
-                    # Notify buyer
-                    try:
-                        from services.notification_service import notify_order_confirmed
-                        _total_qty_3ds = sum(i['quantity'] for i in _prepared_cart)
-                        notify_order_confirmed(
-                            buyer_id=user_id,
-                            order_id=_new_order_id,
-                            item_description='Your order',
-                            quantity_purchased=_total_qty_3ds,
-                            price_per_unit=_prepared_sub / _total_qty_3ds if _total_qty_3ds else 0,
-                            total_amount=round(_prepared_sub + _prepared_tax + _prepared_fee, 2),
-                        )
-                    except Exception:
-                        pass
-                    order = conn.execute(
-                        "SELECT id, total_price, status FROM orders WHERE id = ?",
-                        (_new_order_id,),
-                    ).fetchone()
-            except Exception as _3ds_exc:
-                import logging as _3ds_log_m
-                _3ds_log_m.getLogger(__name__).error(
-                    '[ORDER-SUCCESS] 3DS order creation failed for PI %s: %s',
-                    payment_intent_id, _3ds_exc,
-                )
-
+            import logging; logging.getLogger(__name__).exception('Payment recovery is awaiting webhook replay')
     conn.close()
-
     if not order:
-        flash('Order not found. Please check your orders page.', 'error')
+        flash('Your payment is still being verified. Your order will appear automatically; do not pay again.','info')
         return redirect(url_for('account.account'))
-
-    # Check Stripe PI status to show confirmed vs processing state.
-    # Non-fatal: if Stripe is unavailable, fall back to DB order status.
-    pi_succeeded = False
-    try:
-        pi = stripe.PaymentIntent.retrieve(payment_intent_id)
-        pi_succeeded = (pi.status == 'succeeded')
-    except Exception:
-        pass
-
-    # Green checkmark if Stripe confirmed payment OR webhook already marked order paid.
-    payment_received = pi_succeeded or (order['status'] == 'paid')
-
-    return render_template(
-        'order_success.html',
-        order=dict(order),
-        payment_received=payment_received,
-    )
+    return render_template('order_success.html',order=dict(order),payment_received=True)

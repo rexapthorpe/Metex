@@ -213,7 +213,7 @@ async function fetchAndDisplayProceeds(prefix, grossPrice, quantity) {
         feeIndicatorRow.style.display = 'none';
       }
     } else {
-      // Fallback: calculate with default 2.5% fee
+      // Fallback: calculate with default 5% fee
       const defaultFeePercent = 2.5;
       const feeAmount = Math.round(grossPrice * (defaultFeePercent / 100) * 100) / 100;
       const netAmount = grossPrice - feeAmount;
@@ -226,7 +226,7 @@ async function fetchAndDisplayProceeds(prefix, grossPrice, quantity) {
     }
   } catch (error) {
     console.error('Error fetching fee preview:', error);
-    // Fallback: calculate with default 2.5% fee
+    // Fallback: calculate with default 5% fee
     const defaultFeePercent = 2.5;
     const feeAmount = Math.round(grossPrice * (defaultFeePercent / 100) * 100) / 100;
     const netAmount = grossPrice - feeAmount;

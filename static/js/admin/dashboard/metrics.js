@@ -330,7 +330,7 @@ function renderAdditionalDetails(metricType, details) {
       </div>
       <div class="metrics-detail-item">
         <span class="metrics-detail-label">Platform Fee Rate</span>
-        <span class="metrics-detail-value">${details.fee_rate || '2.5%'}</span>
+        <span class="metrics-detail-value">${details.fee_rate || '5%'}</span>
       </div>
       <div class="metrics-detail-item">
         <span class="metrics-detail-label">Total Volume Processed</span>

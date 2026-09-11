@@ -1375,6 +1375,10 @@ class SchemaManager:
                     ('default_platform_fee', 'percent', 5.0,
                      'Default platform fee applied to all transactions')
                 )
+            self.cursor.execute("""UPDATE fee_config SET fee_type='percent',fee_value=5.0,
+              description='Seller-funded marketplace fee',active=1,updated_at=CURRENT_TIMESTAMP
+              WHERE config_key='default_platform_fee'""")
+            self.cursor.execute("UPDATE categories SET platform_fee_type=NULL,platform_fee_value=NULL WHERE platform_fee_type IS NOT NULL OR platform_fee_value IS NOT NULL")
             self.log_change("Ensured default_platform_fee row in fee_config")
         except Exception as e:
             self.log_error(f"Failed to seed default fee_config row: {e}")
@@ -1841,6 +1845,13 @@ class SchemaManager:
             self.create_standard_buckets_table()
             self.create_bucket_image_assets_table()
             self.create_bucket_image_ingestion_runs_table()
+
+            # Canonical integer-cent flow-of-funds schema.  This additive schema
+            # is the authoritative write path; legacy order tables remain UI
+            # projections until their readers have been migrated.
+            from services.flow_of_funds import ensure_flow_schema
+            ensure_flow_schema(self.conn)
+            self.log_change("Verified canonical flow-of-funds tables")
 
             # Add cancellation columns to orders table (idempotent — also in create_orders_table)
             self.add_column('orders', 'canceled_at', 'TIMESTAMP')

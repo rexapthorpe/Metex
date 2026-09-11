@@ -58,10 +58,19 @@ async function initStripeElements() {
     const postalCode = (document.getElementById('zipCode') || {}).value || '';
     const state      = (document.getElementById('state')   || {}).value || '';
     const countryRaw = (document.getElementById('country') || {}).value || 'US';
+    const city       = (document.getElementById('city') || {}).value || '';
+    const firstName  = (document.getElementById('firstName') || {}).value || '';
+    const lastName   = (document.getElementById('lastName') || {}).value || '';
+    const address1   = (document.getElementById('streetAddress') || {}).value || '';
+    const address2   = (document.getElementById('apartment') || {}).value || '';
+    const shippingAddress = [address1, address2, city + ', ' + state + ' ' + postalCode]
+      .filter(Boolean).join(' • ');
     const res = await fetch('/create-payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ zip_code: postalCode, state: state, country: countryRaw }),
+      body: JSON.stringify({ zip_code: postalCode, state: state, country: countryRaw,
+        city: city, shipping_address: shippingAddress,
+        recipient_first: firstName, recipient_last: lastName }),
     });
     console.log('[Stripe] create-payment-intent status:', res.status);
 
@@ -457,7 +466,7 @@ function loadUserInfo() {
  *
  * Pricing order:
  *   1. taxedSubtotal = window.checkoutTaxedSubtotal  (set by fetchAndUpdateTax)
- *   2. processingFee = isACH ? 0 : round(taxedSubtotal × 2.99% + $0.30)
+ *   2. processingFee = isACH ? 0 : round(taxedSubtotal × 2.99% / (1 − 2.99%))
  *   3. total         = taxedSubtotal + processingFee
  */
 function updateOrderSummary() {
@@ -469,7 +478,7 @@ function updateOrderSummary() {
   const taxedTotal = window.checkoutTaxedSubtotal || ((window.checkoutSubtotal || 0) + (window.checkoutGradingFee || 0));
 
   // Processing fee applied to taxed total (card only)
-  const processingFee = isACH ? 0 : Math.round((taxedTotal * 0.0299 + 0.30) * 100) / 100;
+  const processingFee = isACH ? 0 : Math.round((taxedTotal * 0.0299 / (1 - 0.0299)) * 100) / 100;
 
   // Final total charged
   const total = Math.round((taxedTotal + processingFee) * 100) / 100;

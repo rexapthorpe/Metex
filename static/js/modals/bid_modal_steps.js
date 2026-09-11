@@ -268,14 +268,14 @@
     const gradingFee = 0;
 
     const subtotal     = itemTotal;
-    // Tax is applied to subtotal first (8.25%)
-    const tax          = Math.round(subtotal * 0.0825 * 100) / 100;
+    // Tax is verified by Stripe at fill time; never show a hardcoded liability.
+    const tax          = 0;
     const taxedSubtotal = subtotal + tax;
 
-    // Card processing fee is applied to the taxed subtotal (2.99% + $0.30).
+    // Card processing surcharge uses gross-up against the final processed total.
     // ACH bank transfers have no processing fee.
     const isACH = selectedPmType === 'bank_account';
-    const fee   = isACH ? 0 : Math.round((taxedSubtotal * 0.0299 + 0.30) * 100) / 100;
+    const fee   = isACH ? 0 : Math.round((taxedSubtotal * 0.0299 / (1 - 0.0299)) * 100) / 100;
 
     const total = taxedSubtotal + fee;
 

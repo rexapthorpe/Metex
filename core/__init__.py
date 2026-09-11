@@ -270,6 +270,7 @@ def create_app(test_config=None):
     # Start background spot snapshot scheduler (skipped when TESTING=True)
     if not (test_config and test_config.get('TESTING')):
         _start_spot_scheduler(app)
+        _start_flow_worker(app)
 
     return app
 
@@ -284,6 +285,18 @@ def _start_spot_scheduler(app):
         import logging
         logging.getLogger(__name__).warning(
             "Could not start spot snapshot scheduler: %s", exc
+        )
+
+
+def _start_flow_worker(app):
+    """Start durable webhook recovery, expiry, outbox, and reconciliation work."""
+    try:
+        from services.flow_worker import start_worker
+        start_worker(app)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "Could not start flow-of-funds recovery worker: %s", exc
         )
 
 

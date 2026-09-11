@@ -300,13 +300,18 @@ def stripe_webhook():
 
     logger.info("[Stripe webhook] verified event type=%s id=%s", event['type'], event['id'])
 
-    # Dispatch to the appropriate handler.
-    if event['type'] == 'payment_intent.succeeded':
-        _handle_payment_intent_succeeded(event['data']['object'])
-
-    # Acknowledge all events we don't explicitly handle — Stripe will retry
-    # on non-2xx, so always return 200 for unhandled types.
-    return jsonify({'received': True}), 200
+    # Persist before processing.  A unique provider/event key makes replay safe;
+    # failures stay RETRY and return non-2xx so Stripe and the recovery worker can
+    # deliver them again.  The handler owns payment, failure, dispute and payout
+    # state transitions; browser redirects never own financial writes.
+    from services.flow_of_funds import record_webhook, process_webhook
+    try:
+        record_webhook(event)
+        result = process_webhook(event)
+        return jsonify({'received': True, 'result': result}), 200
+    except Exception:
+        logger.exception('[Stripe webhook] durable processing failed event=%s', event['id'])
+        return jsonify({'error': 'Event retained for retry'}), 500
 
 
 def _extract_payment_method_type(payment_intent):
