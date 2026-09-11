@@ -95,21 +95,25 @@ document.addEventListener('DOMContentLoaded', function() {
           'X-Requested-With': 'XMLHttpRequest'
         }
       })
-      .then(resp => {
-        // Check if response is JSON or plain text
+      .then(async resp => {
+        // Redirect only after an explicit successful JSON response. This keeps
+        // proxy, database, and application errors from looking like a login.
         const contentType = resp.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
-          return resp.json();
-        } else {
-          // Handle plain text error response
-          return resp.text().then(text => {
-            if (text.includes('Invalid')) {
-              throw new Error('Invalid username or password');
-            }
-            // If it's not an error, it might be a redirect page - reload to follow it
-            window.location.href = '/buy';
-          });
+          const data = await resp.json();
+          if (!resp.ok) {
+            throw new Error(data.message || data.error || 'Sign-in is temporarily unavailable.');
+          }
+          return data;
         }
+
+        const text = await resp.text();
+        if (!resp.ok) {
+          throw new Error(text.includes('Invalid')
+            ? 'Invalid username or password'
+            : 'Sign-in is temporarily unavailable. Please try again shortly.');
+        }
+        throw new Error('The sign-in service returned an unexpected response.');
       })
       .then(data => {
         if (data && data.success) {
