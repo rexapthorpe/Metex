@@ -40,7 +40,6 @@ function openGradingInstructionsModal(buttonElement) { /* grading deactivated */
 function submitGradingTracking() { /* grading deactivated */ }
 function closeGradingInstructionsModal() { /* grading deactivated */ }
 function closeGradingInstructionsModalOnOverlayClick(event) { /* grading deactivated */ }
-}
 
 /**
  * Parses the buyer address string into components

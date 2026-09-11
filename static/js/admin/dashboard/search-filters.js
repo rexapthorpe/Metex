@@ -132,28 +132,3 @@ function filterListingsByMetal(metal) {
     }
   });
 }
-
-// ============================================
-// USER ACTIONS
-// ============================================
-
-function viewUser(userId) {
-  console.log('[Admin] viewUser called with userId:', userId);
-  currentUserId = userId;
-  const modal = document.getElementById('userDetailModal');
-  const content = document.getElementById('userDetailContent');
-
-  console.log('[Admin] Modal element:', modal);
-  console.log('[Admin] Modal current display:', modal ? modal.style.display : 'not found');
-
-  // Show modal with loading state
-  modal.style.display = 'flex';
-  console.log('[Admin] Modal display set to flex, actual:', modal.style.display);
-  content.innerHTML = `
-    <div class="modal-loading">
-      <i class="fa-solid fa-spinner fa-spin"></i>
-      <span>Loading user details...</span>
-    </div>
-  `;
-
-  // Fetch user details
