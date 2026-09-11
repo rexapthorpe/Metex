@@ -14,34 +14,7 @@ from . import account_bp
 def my_orders():
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
-
-    conn = get_db_connection()
-
-    pending_orders = conn.execute(''' ... ''', (session['user_id'], session['user_id'])).fetchall()
-    completed_orders = conn.execute(''' ... ''', (session['user_id'], session['user_id'])).fetchall()
-
-    # NEW: attach seller lists to each order
-    def fetch_sellers_for_orders(conn, orders):
-        for order in orders:
-            sellers = conn.execute('''
-                SELECT DISTINCT users.username
-                FROM order_items
-                JOIN listings ON order_items.listing_id = listings.id
-                JOIN users ON listings.seller_id = users.id
-                WHERE order_items.order_id = ?
-            ''', (order['id'],)).fetchall()
-            order['sellers'] = sellers
-
-    fetch_sellers_for_orders(conn, pending_orders)
-    fetch_sellers_for_orders(conn, completed_orders)
-
-    conn.close()
-
-    return render_template(
-        'my_orders.html',
-        pending_orders=pending_orders,
-        completed_orders=completed_orders
-    )
+    return redirect(url_for('account.account') + '#orders')
 
 
 @account_bp.route('/order/<int:order_id>')
@@ -85,23 +58,4 @@ def view_order_details(order_id):
 def sold_orders():
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
-
-    conn = get_db_connection()
-
-    orders = conn.execute('''
-        SELECT orders.id,
-               orders.buyer_id,
-               orders.quantity,
-               orders.price_each,
-               orders.status,
-               orders.created_at,
-               categories.metal,
-               categories.product_type
-        FROM orders
-        JOIN categories ON orders.category_id = categories.id
-        WHERE orders.seller_id = ?
-        ORDER BY orders.created_at DESC
-    ''', (session['user_id'],)).fetchall()
-
-    conn.close()
-    return render_template('sold_orders.html', orders=orders)
+    return redirect(url_for('account.account') + '#sold')
