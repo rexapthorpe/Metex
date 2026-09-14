@@ -155,41 +155,11 @@
               <span class="status-badge status-{{ tx.status | lower }}">{{ tx.status }}</span>
             </div>
             {% else %}
-            <div class="activity-item">
-              <div class="activity-avatar"><span>I</span></div>
+            <div class="activity-item activity-empty">
               <div class="activity-info">
-                <span class="activity-title">investor_mike → goldtrader99</span>
-                <span class="activity-meta">2 items • 30 min ago</span>
+                <span class="activity-title">No transactions yet</span>
+                <span class="activity-meta">Completed and pending transactions will appear here.</span>
               </div>
-              <div class="activity-amount">$4,300</div>
-              <span class="status-badge status-completed">completed</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar"><span>S</span></div>
-              <div class="activity-info">
-                <span class="activity-title">silver_stacker → silverking</span>
-                <span class="activity-meta">3 items • 1 hour ago</span>
-              </div>
-              <div class="activity-amount">$855</div>
-              <span class="status-badge status-processing">processing</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar"><span>P</span></div>
-              <div class="activity-info">
-                <span class="activity-title">pm_collector → platinumpro</span>
-                <span class="activity-meta">2 items • 2 hours ago</span>
-              </div>
-              <div class="activity-amount">$2,100</div>
-              <span class="status-badge status-completed">completed</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar"><span>G</span></div>
-              <div class="activity-info">
-                <span class="activity-title">goldlover22 → bullionvault</span>
-                <span class="activity-meta">4 items • 3 hours ago</span>
-              </div>
-              <div class="activity-amount">$10,400</div>
-              <span class="status-badge status-disputed">disputed</span>
             </div>
             {% endfor %}
           </div>
@@ -202,10 +172,10 @@
           </div>
           <div class="under-construction-container">
             <div class="under-construction-icon">
-              <i class="fa-solid fa-helmet-safety"></i>
+              <i class="fa-solid fa-circle-check"></i>
             </div>
-            <h4 class="under-construction-title">Under Construction</h4>
-            <p class="under-construction-text">This feature is currently being developed and will be available soon.</p>
+            <h4 class="under-construction-title">No active system alerts</h4>
+            <p class="under-construction-text">Payment, reconciliation, and fulfillment exceptions will appear here.</p>
           </div>
         </div>
       </div>
@@ -231,45 +201,8 @@
               <span class="status-badge status-{{ user.status | lower }}">{{ user.status }}</span>
             </div>
             {% else %}
-            <div class="activity-item">
-              <div class="activity-avatar avatar-gold"><span>G</span></div>
-              <div class="activity-info">
-                <span class="activity-title">@goldtrader99 <i class="fa-solid fa-circle-check verified-icon"></i></span>
-                <span class="activity-meta">joined 2 hours ago</span>
-              </div>
-              <span class="status-badge status-active">active</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar avatar-silver"><span>S</span></div>
-              <div class="activity-info">
-                <span class="activity-title">@silverking</span>
-                <span class="activity-meta">joined 4 hours ago</span>
-              </div>
-              <span class="status-badge status-pending">pending</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar avatar-purple"><span>P</span></div>
-              <div class="activity-info">
-                <span class="activity-title">@platinumpro <i class="fa-solid fa-circle-check verified-icon"></i></span>
-                <span class="activity-meta">joined 5 hours ago</span>
-              </div>
-              <span class="status-badge status-active">active</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar avatar-orange"><span>B</span></div>
-              <div class="activity-info">
-                <span class="activity-title">@bullionvault <i class="fa-solid fa-circle-check verified-icon"></i></span>
-                <span class="activity-meta">joined 8 hours ago</span>
-              </div>
-              <span class="status-badge status-suspended">suspended</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar avatar-teal"><span>C</span></div>
-              <div class="activity-info">
-                <span class="activity-title">@coinmaster</span>
-                <span class="activity-meta">joined 12 hours ago</span>
-              </div>
-              <span class="status-badge status-active">active</span>
+            <div class="activity-item activity-empty">
+              <div class="activity-info"><span class="activity-title">No users yet</span></div>
             </div>
             {% endfor %}
           </div>
@@ -295,50 +228,11 @@
               <span class="status-badge status-{{ listing.status | lower }}">{{ listing.status }}</span>
             </div>
             {% else %}
-            <div class="activity-item">
-              <div class="activity-avatar avatar-gold"><i class="fa-solid fa-coins"></i></div>
+            <div class="activity-item activity-empty">
               <div class="activity-info">
-                <span class="activity-title">1oz Gold American Eagle 2024</span>
-                <span class="activity-meta">by @goldtrader99 • 1 hour ago</span>
+                <span class="activity-title">No listings yet</span>
+                <span class="activity-meta">New seller listings will appear here.</span>
               </div>
-              <span class="metal-badge metal-gold">Gold</span>
-              <span class="status-badge status-pending">pending</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar avatar-silver"><i class="fa-solid fa-coins"></i></div>
-              <div class="activity-info">
-                <span class="activity-title">10oz Silver Bar PAMP</span>
-                <span class="activity-meta">by @silverking • 2 hours ago</span>
-              </div>
-              <span class="metal-badge metal-silver">Silver</span>
-              <span class="status-badge status-approved">approved</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar avatar-platinum"><i class="fa-solid fa-coins"></i></div>
-              <div class="activity-info">
-                <span class="activity-title">1oz Platinum Maple Leaf</span>
-                <span class="activity-meta">by @platinumpro • 3 hours ago</span>
-              </div>
-              <span class="metal-badge metal-platinum">Platinum</span>
-              <span class="status-badge status-pending">pending</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar avatar-silver"><i class="fa-solid fa-coins"></i></div>
-              <div class="activity-info">
-                <span class="activity-title">100oz Silver Bar RCM</span>
-                <span class="activity-meta">by @bullionvault • 4 hours ago</span>
-              </div>
-              <span class="metal-badge metal-silver">Silver</span>
-              <span class="status-badge status-flagged">flagged</span>
-            </div>
-            <div class="activity-item">
-              <div class="activity-avatar avatar-gold"><i class="fa-solid fa-coins"></i></div>
-              <div class="activity-info">
-                <span class="activity-title">1/2oz Gold Krugerrand</span>
-                <span class="activity-meta">by @coinmaster • 5 hours ago</span>
-              </div>
-              <span class="metal-badge metal-gold">Gold</span>
-              <span class="status-badge status-approved">approved</span>
             </div>
             {% endfor %}
           </div>
