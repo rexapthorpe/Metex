@@ -518,7 +518,7 @@ def admin_refund_buyer_stripe(order_id):
 
     # Canonical orders use exact quantity/component allocation.
     import database as _flow_db
-    from services.flow_of_funds import FlowError, create_refund, complete_refund
+    from services.flow_of_funds import FlowError, create_refund, record_refund_provider_result
     _flow_conn = _flow_db.get_db_connection()
     try:
         _execution = _flow_conn.execute(
@@ -539,7 +539,7 @@ def admin_refund_buyer_stripe(order_id):
                 payment_intent=_execution['provider_payment_id'], amount=refund['total_cents'],
                 metadata={'flow_refund_id':refund['id'],'execution_id':_execution['id']},
                 idempotency_key=key)
-            complete_refund(refund['id'], provider.id)
+            record_refund_provider_result(refund['id'], provider)
             return jsonify({'success':True,'message':f'Stripe refund created: {provider.id}',
                             'refund_id':provider.id,'flow_refund_id':refund['id'],
                             'amount':refund['total_cents']/100})

@@ -587,7 +587,7 @@ def admin_resolve(dispute_id, admin_id, resolution, note):
         links = cursor.execute('SELECT seller_fill_id FROM dispute_fill_links WHERE dispute_id=?',
                                (dispute_id,)).fetchall() if execution else []
         if execution and links:
-            from services.flow_of_funds import create_refund, complete_refund
+            from services.flow_of_funds import create_refund, record_refund_provider_result
             quantities={}
             for link in links:
                 fill=cursor.execute('SELECT quantity,refunded_quantity FROM seller_fills WHERE id=?',(link['seller_fill_id'],)).fetchone()
@@ -596,7 +596,7 @@ def admin_resolve(dispute_id, admin_id, resolution, note):
             import stripe
             provider=stripe.Refund.create(payment_intent=execution['provider_payment_id'],amount=canonical['total_cents'],
                 metadata={'dispute_id':str(dispute_id),'flow_refund_id':canonical['id']},idempotency_key=f'dispute-refund-{dispute_id}')
-            complete_refund(canonical['id'],provider.id)
+            record_refund_provider_result(canonical['id'],provider)
             stripe_refund_id=provider.id; refund_amount=canonical['total_cents']/100
             refund_result={'success':True,'refund_id':provider.id,'amount':refund_amount}
         else:

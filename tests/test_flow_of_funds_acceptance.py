@@ -182,6 +182,20 @@ def test_partial_refund_exact_components(db):
     assert (a['seller_net_cents'],a['seller_fee_cents'],a['spread_cents'])==(38_000,2_000,400)
 
 
+def test_refund_posts_ledger_only_after_provider_success_webhook(db):
+    checkout,snapshot=prep(db,rail='card')
+    result,_=flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
+    c=db(); fill=c.execute('SELECT id FROM seller_fills').fetchone()[0]; before=c.execute('SELECT COUNT(*) FROM ledger_journals').fetchone()[0]; c.close()
+    refund,_=flow.create_refund(result['id'],{fill:1},'SELLER_FAULT','refund-provider-state')
+    assert not flow.record_refund_provider_result(refund['id'],{'id':'re_1','status':'pending'})
+    c=db(); assert c.execute('SELECT state FROM flow_refunds WHERE id=?',(refund['id'],)).fetchone()[0]=='PROCESSING'; assert c.execute('SELECT COUNT(*) FROM ledger_journals').fetchone()[0]==before; c.close()
+    event={'id':'evt_refund_1','type':'refund.updated','data':{'object':{
+        'id':'re_1','status':'succeeded','metadata':{'flow_refund_id':refund['id']}}}}
+    assert flow.record_webhook(event)
+    assert flow.process_webhook(event)=='processed'
+    c=db(); assert c.execute('SELECT state FROM flow_refunds WHERE id=?',(refund['id'],)).fetchone()[0]=='SUCCEEDED'; assert c.execute('SELECT COUNT(*) FROM ledger_journals').fetchone()[0]==before+1; c.close()
+
+
 def test_grading_fee_not_refunded_after_cost_incurred(db):
     checkout,snapshot=prep(db,[{'listing_id':10,'quantity':2,'price_each':100,'requires_grading':True}],grading=2000)
     result,_=flow.finalize_payment(checkout['id'],payment(checkout,snapshot))

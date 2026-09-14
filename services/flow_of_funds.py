@@ -840,6 +840,22 @@ def process_webhook(event):
                     for fill in conn.execute("SELECT id FROM seller_fills WHERE execution_id=?",(exe["id"],)).fetchall():
                         conn.execute("INSERT INTO holds VALUES (?,?,?,?,?,?,?,?)",(_id("hold"),fill["id"],"CHARGEBACK",did,"ACTIVE",did,_now(),None))
                         conn.execute("UPDATE seller_payables SET state='HELD',block_reason='CHARGEBACK',updated_at=? WHERE seller_fill_id=?",(_now(),fill["id"]))
+        elif typ in ("refund.created","refund.updated","refund.failed"):
+            refund_id=(obj.get("metadata") or {}).get("flow_refund_id")
+            if not refund_id:
+                row=conn.execute("SELECT id FROM flow_refunds WHERE provider_refund_id=?",(obj.get("id"),)).fetchone()
+                refund_id=row["id"] if row else None
+            if refund_id:
+                status=obj.get("status")
+                if status=="succeeded":
+                    complete_refund(refund_id,obj["id"],conn=conn)
+                else:
+                    state="FAILED" if status in ("failed","canceled") or typ=="refund.failed" else "PROCESSING"
+                    conn.execute("UPDATE flow_refunds SET state=?,provider_refund_id=?,updated_at=? WHERE id=?",
+                                 (state,obj.get("id"),_now(),refund_id))
+                    conn.execute("""UPDATE financial_operations SET state=?,provider_object_id=?,last_error=?,updated_at=?
+                      WHERE id=(SELECT financial_operation_id FROM flow_refunds WHERE id=?)""",
+                      (state,obj.get("id"),obj.get("failure_reason"),_now(),refund_id))
         elif typ in ("payout.created","payout.updated","payout.paid","payout.failed"):
             state={"payout.created":"BANK_PAYOUT_PENDING","payout.updated":"BANK_PAYOUT_PENDING",
                    "payout.paid":"BANK_PAYOUT_PAID","payout.failed":"BANK_PAYOUT_FAILED"}[typ]
@@ -1012,7 +1028,7 @@ def process_tracking_forfeiture_refunds():
               amount=refund["total_cents"],metadata={"flow_refund_id":refund["id"],
               "seller_fill_id":row["fill_id"],"reason":"tracking_forfeiture"},
               idempotency_key=key)
-            if complete_refund(refund["id"],provider.id):
+            if record_refund_provider_result(refund["id"],provider):
                 restore=get_db_connection()
                 restore.execute("UPDATE listings SET quantity=quantity+?,active=1 WHERE id=?",
                                 (row["quantity"]-row["refunded_quantity"],row["listing_id"]))
@@ -1141,10 +1157,14 @@ def create_refund(execution_id, quantities_by_fill, reason_code, idempotency_key
     return {"id":rid,"operation_id":op["id"],"total_cents":total},True
 
 
-def complete_refund(refund_id, provider_refund_id):
-    conn=get_db_connection(); ensure_flow_schema(conn); refund=conn.execute("SELECT * FROM flow_refunds WHERE id=?",(refund_id,)).fetchone()
-    if not refund: conn.close(); raise FlowError("Refund not found","REFUND_NOT_FOUND",404)
-    if refund["state"]=="SUCCEEDED": conn.close(); return False
+def complete_refund(refund_id, provider_refund_id, conn=None):
+    own=conn is None; conn=conn or get_db_connection(); ensure_flow_schema(conn); refund=conn.execute("SELECT * FROM flow_refunds WHERE id=?",(refund_id,)).fetchone()
+    if not refund:
+        if own: conn.close()
+        raise FlowError("Refund not found","REFUND_NOT_FOUND",404)
+    if refund["state"]=="SUCCEEDED":
+        if own: conn.close()
+        return False
     now=_now(); allocations=conn.execute("SELECT * FROM refund_allocations WHERE refund_id=?",(refund_id,)).fetchall()
     for a in allocations:
         _journal(conn,"refund",refund_id,"REFUND_SUCCEEDED",f"refund:{refund_id}:{a['seller_fill_id']}",[
@@ -1159,7 +1179,23 @@ def complete_refund(refund_id, provider_refund_id):
     conn.execute("UPDATE flow_refunds SET state='SUCCEEDED',provider_refund_id=?,updated_at=? WHERE id=?",(provider_refund_id,now,refund_id))
     conn.execute("UPDATE financial_operations SET state='SUCCEEDED',provider_object_id=?,updated_at=? WHERE id=?",(provider_refund_id,now,refund["financial_operation_id"]))
     _audit(conn,"refund",refund_id,"REFUND_SUCCEEDED","provider",metadata={"provider_refund_id":provider_refund_id})
-    conn.commit(); conn.close(); return True
+    if own: conn.commit(); conn.close()
+    return True
+
+
+def record_refund_provider_result(refund_id, provider_refund):
+    """Persist submission status and post money only after provider success."""
+    pdata=provider_refund.to_dict() if hasattr(provider_refund,"to_dict") else dict(provider_refund)
+    if pdata.get("status")=="succeeded":
+        return complete_refund(refund_id,pdata["id"])
+    state="FAILED" if pdata.get("status") in ("failed","canceled") else "PROCESSING"
+    conn=get_db_connection(); ensure_flow_schema(conn)
+    conn.execute("UPDATE flow_refunds SET state=?,provider_refund_id=?,updated_at=? WHERE id=?",
+                 (state,pdata.get("id"),_now(),refund_id))
+    conn.execute("""UPDATE financial_operations SET state=?,provider_object_id=?,last_error=?,updated_at=?
+      WHERE id=(SELECT financial_operation_id FROM flow_refunds WHERE id=?)""",
+      (state,pdata.get("id"),pdata.get("failure_reason"),_now(),refund_id))
+    conn.commit(); conn.close(); return False
 
 
 def claim_seller_transfer(payable_id, idempotency_key):
