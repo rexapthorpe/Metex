@@ -480,11 +480,6 @@ function _buildTransactionHTML(d) {
   });
 
   var gradingRow = '';
-  if (d.grading_fee_total > 0) {
-    gradingRow = '<tr class="txn-summary-row txn-summary-minor">'
-      + '<td colspan="3">3rd Party Grading</td><td>' + _fmt(d.grading_fee_total) + '</td>'
-      + '</tr>';
-  }
 
   var taxRow = '';
   if (d.tax_amount > 0) {

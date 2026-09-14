@@ -14,11 +14,6 @@
                 <p><strong>Mint:</strong> {{ bucket.category.mint }}</p>
                 <p><strong>Year:</strong> {{ bucket.category.year }}</p>
                 <p><strong>Finish:</strong> {{ bucket.category.finish }}</p>
-                {% if 'grading_preference' in bucket %}
-                    <p><strong>Grading Preference:</strong> {{ bucket['grading_preference'] }}</p>
-                    <p>DEBUG: {{ bucket }}</p>
-                {% endif %}
-
             </div>
 
             <h4 class="seller-breakdown-title">Seller Breakdown</h4>

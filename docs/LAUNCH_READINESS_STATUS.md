@@ -1,6 +1,6 @@
 # Metex Launch Readiness Status
 
-Last updated: 2026-09-11
+Last updated: 2026-09-14
 
 `FLOW_OF_FUNDS_IMPLEMENTATION_SPEC.md` is authoritative. This status file records implementation progress and the remaining launch decisions; it does not override the specification.
 
@@ -16,23 +16,24 @@ Last updated: 2026-09-11
 - Internal/provider reconciliation, audit events, notification outbox, worker retries, atomic spot-scheduler lease, and retired unsafe legacy refund paths.
 - Durable session revocation for bans, freezes, and password changes.
 - GitHub Actions checks for financial acceptance, security, routes, JavaScript syntax, Python compilation, spot scheduling, and reconciliation.
+- Third-party grading removed from the launch product at both the UI and server boundaries.
+- Spot-linked prices revalidated immediately before payment confirmation; changed prices require renewed consent.
 
 ## Deliberate production gates
 
 Transactions remain blocked for the affected scope until an Authorized Metex Administrator records and approves these policies:
 
 - Tracking upload deadline.
-- UPS coverage and claim handling, including whether separate graded custody legs require separate policies.
+- UPS coverage and claim handling for seller-to-buyer shipments.
 - ACH approval evidence and return handling.
 - Card-surcharge refund treatment by cancellation/fault reason.
 - Return rules and restocking conditions.
 - Chargeback liability allocation by reason.
-- Grading vendor, fee, integration, evidence, and destination requirements.
 
 ## External launch work
 
 - Confirm Stripe Connect, Tax, ACH, webhook, refund, transfer, dispute, and live-mode account approval.
-- Purchase/configure UPS insurance and the grading-vendor relationship.
+- Purchase/configure UPS insurance.
 - Obtain tax, marketplace, return-policy, privacy, and terms review.
 - Upgrade the Render free database before its expiration and configure tested backups and restore drills.
 - Configure production email/support ownership, monitoring alerts, and incident response.
@@ -40,7 +41,7 @@ Transactions remain blocked for the affected scope until an Authorized Metex Adm
 ## Launch order
 
 1. Approve the policy gates in the admin dashboard with reviewed values.
-2. Complete Stripe, UPS, grading, tax, and legal setup.
+2. Complete Stripe, UPS, tax, and legal setup.
 3. Upgrade the Render database and verify backup restoration.
 4. Run a live-mode penny-value transaction matrix with separate buyer and seller accounts.
 5. Reconcile the provider records to the Metex ledger, verify seller payout states, then enable public transactions.

@@ -19,7 +19,9 @@ from database import get_db_connection
 from utils.cart_utils import build_cart_summary
 from services.notification_service import notify_listing_sold, notify_order_confirmed
 from services.pricing_service import get_effective_price, create_price_lock
-from services.checkout_spot_service import SpotUnavailableError, SpotExpiredError
+from services.checkout_spot_service import (
+    SpotUnavailableError, SpotExpiredError, check_spot_map_freshness,
+)
 from utils.auth_utils import frozen_check
 from config import STRIPE_PUBLISHABLE_KEY
 
@@ -831,13 +833,13 @@ def create_payment_intent():
                                 'ups_coverage_and_claim_policy')
         session_items = session.get('checkout_items')
         if session_items:
-            cart_data = [dict(i, requires_grading=bool(i.get('requires_grading', False))) for i in session_items]
+            cart_data = [dict(i, requires_grading=False) for i in session_items]
         else:
             from services.reference_price_service import get_current_spots_from_snapshots
             summary = build_cart_summary(conn, user_id, spot_prices=get_current_spots_from_snapshots(conn))
             cart_data = [{'listing_id': x['listing_id'], 'quantity': x['quantity'],
                           'price_each': x['effective_price'],
-                          'requires_grading': bool(x.get('requires_grading'))}
+                          'requires_grading': False}
                          for b in summary['buckets'].values() for x in b['listings']]
         if not cart_data:
             return jsonify({'error': 'Cart is empty.'}), 400
@@ -903,7 +905,7 @@ def attach_order_to_payment():
 @frozen_check
 def prepare_payment():
     """Freeze the selected rail and update the bound unconfirmed PI."""
-    from services.flow_of_funds import FlowError, revise_payment_rail
+    from services.flow_of_funds import FlowError, revise_payment_rail, release_reservation
     if 'user_id' not in session:
         return jsonify({'success':False,'error':'Not authenticated'}), 401
     data=request.get_json(silent=True) or {}; checkout_id=session.get('canonical_checkout_id')
@@ -915,6 +917,34 @@ def prepare_payment():
         checkout=conn.execute('SELECT * FROM checkout_attempts WHERE id=? AND buyer_id=?',(checkout_id,session['user_id'])).fetchone()
         if not checkout or checkout['provider_payment_id'] != pi_id:
             raise FlowError('Payment is not bound to this checkout','PAYMENT_BINDING_MISMATCH',409)
+        # Reprice every spot-linked line immediately before Stripe confirmation.
+        # Any cent-level change invalidates the consented total and restores the
+        # reservation so the buyer can review a fresh checkout.
+        lines=conn.execute('''SELECT sl.buyer_unit_cents,l.*,c.metal
+          FROM snapshot_lines sl JOIN listings l ON l.id=sl.listing_id
+          JOIN categories c ON c.id=l.category_id
+          WHERE sl.snapshot_id=?''',(checkout['active_snapshot_id'],)).fetchall()
+        metals={(dict(line).get('pricing_metal') or dict(line).get('metal') or '').lower()
+                for line in lines if dict(line).get('pricing_mode')=='premium_to_spot'}
+        spots=check_spot_map_freshness(metals) if metals else {}
+        spot_values={metal:info['price_usd'] for metal,info in spots.items()}
+        price_changed=any(
+            int(round(get_effective_price(dict(line),spot_prices=spot_values or None)*100))
+            != int(line['buyer_unit_cents'])
+            for line in lines if dict(line).get('pricing_mode')=='premium_to_spot'
+        )
+        if price_changed:
+            release_reservation(checkout_id,'SPOT_PRICE_CHANGED',conn=conn)
+            conn.execute("UPDATE financial_operations SET state='CANCELLED',updated_at=CURRENT_TIMESTAMP WHERE aggregate_id=? AND operation_type='PAYMENT'",(checkout_id,))
+            conn.commit()
+            try:
+                stripe.PaymentIntent.cancel(pi_id)
+            except stripe.error.StripeError:
+                pass
+            session.pop('canonical_checkout_id',None)
+            session.pop('checkout_nonce',None)
+            return jsonify({'success':False,'error_code':'SPOT_EXPIRED',
+                            'message':'The spot-based price changed. Review the updated total before confirming.'}),409
         snapshot, changed=revise_payment_rail(checkout_id,rail,conn=conn)
         metadata={'checkout_id':checkout_id,'snapshot_hash':snapshot['snapshot_hash'],
                   'buyer_id':str(session['user_id']),'policy_version':'flow-of-funds-v1'}
@@ -926,6 +956,10 @@ def prepare_payment():
                         'buyer_card_fee':snapshot['card_surcharge_cents']/100,
                         'items_subtotal':snapshot['merchandise_cents']/100,
                         'total':snapshot['buyer_total_cents']/100,'total_cents':snapshot['buyer_total_cents']})
+    except SpotExpiredError as exc:
+        conn.rollback(); return jsonify({'success':False,'message':exc.USER_MESSAGE,'error_code':'SPOT_EXPIRED'}),409
+    except SpotUnavailableError as exc:
+        conn.rollback(); return jsonify({'success':False,'message':exc.USER_MESSAGE,'error_code':'SPOT_UNAVAILABLE'}),503
     except FlowError as exc:
         conn.rollback(); return jsonify({'success':False,'message':str(exc),'error_code':exc.code}),exc.status
     except stripe.error.StripeError:

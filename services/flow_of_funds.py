@@ -260,14 +260,24 @@ def ensure_flow_schema(conn):
         "refund_component_policy": "proportional_original_surcharge_sandbox_only",
         "ach_approval_policy": "manual_evidence_required",
         "ups_coverage_and_claim_policy": "adapter_and_coverage_evidence_required_per_leg",
-        "grading_vendor_policy": "vendor_and_incurrence_evidence_required",
+        "grading_vendor_policy": "disabled_for_launch",
         "chargeback_loss_liability": "reason_specific_admin_review",
     }
     for key, value in defaults.items():
         if not conn.execute("SELECT key FROM flow_policy_config WHERE key=?", (key,)).fetchone():
-            fixed = key in {"seller_fee_bps", "card_rate_bps", "card_formula"}
+            fixed = key in {"seller_fee_bps", "card_rate_bps", "card_formula", "grading_vendor_policy"}
             conn.execute("INSERT INTO flow_policy_config (key,value_json,approved) VALUES (?,?,?)",
                          (key, _canonical(value), 1 if fixed else 0))
+    # This product removal is an approved launch rule rather than a vendor
+    # configuration gate. Make existing databases converge idempotently.
+    grading_policy = conn.execute(
+        "SELECT value_json,approved FROM flow_policy_config WHERE key='grading_vendor_policy'"
+    ).fetchone()
+    disabled_value = _canonical("disabled_for_launch")
+    if (not grading_policy or grading_policy["value_json"] != disabled_value
+            or not grading_policy["approved"]):
+        conn.execute("""UPDATE flow_policy_config SET value_json=?, approved=1
+                        WHERE key='grading_vendor_policy'""", (disabled_value,))
 
 
 def require_approved_policy(conn, *keys):
@@ -361,7 +371,9 @@ def prepare_checkout(buyer_id, items, payment_rail, tax_cents, shipping, idempot
         "listing_id": int(i["listing_id"]), "quantity": int(i["quantity"]),
         "buyer_unit_cents": money_to_cents(i["price_each"]),
         "seller_unit_cents": money_to_cents(i.get("seller_price_each", i["price_each"])),
-        "grading_requested": bool(i.get("requires_grading")),
+        # Grading is absent from the launch product. Historical fields remain
+        # readable, but no new execution can request the removed service.
+        "grading_requested": False,
         "source_bid_id": i.get("source_bid_id"),
     } for i in items], key=lambda x: (x["listing_id"], x["seller_unit_cents"]))
     if not normalized or any(i["quantity"] <= 0 for i in normalized):

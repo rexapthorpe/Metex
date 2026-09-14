@@ -136,7 +136,7 @@ def secure_auto_match_bid(bid_id, only_listing_id=None):
             "listing_id": listing["id"], "quantity": quantity,
             "price_each": pricing["bid_effective_price"],
             "seller_price_each": pricing["listing_effective_price"],
-            "source_bid_id": bid_id, "requires_grading": bool(bid["requires_grading"]),
+            "source_bid_id": bid_id, "requires_grading": False,
         }
         try:
             subtotal_cents = int(

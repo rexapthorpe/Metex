@@ -1,5 +1,28 @@
 # Metex Flow of Funds Implementation Specification
 
+## Launch policy amendment — third-party grading removed
+
+Third-party grading is not part of the launch product. New carts, bids,
+checkouts, execution snapshots, charges, shipments, notifications, admin
+actions, and customer pages MUST NOT offer, request, price, or create a grading
+service or grading custody leg. Server endpoints MUST force grading to the
+disabled state even when an old or forged client submits legacy grading fields.
+Legacy grading columns may remain temporarily for schema compatibility and
+historical reads, but they are deprecated and MUST NOT drive new behavior.
+
+This amendment supersedes every grading-add-on requirement later in this
+document for launch. Those passages remain only as the specification for a
+future, separately approved reintroduction. No grading vendor, fee,
+incurrence rule, form, address, refund allocation, shipment leg, or payout
+gate is required for launch.
+
+Approved launch policy also requires a fresh server-side price comparison
+immediately before confirmation of every spot-linked purchase or bid fill. If
+the cent-denominated price changed, the operation MUST stop and present the
+new price for renewed buyer or seller consent. A quote or reservation may live
+for at most 900 seconds, but that time limit does not authorize execution at a
+price that has changed.
+
 Version: 1.0 · Date: 2026-09-11 · Status: authoritative implementation target; unresolved production configuration gates are explicitly identified below.
 
 ## 1. Scope, authority, and completion standard

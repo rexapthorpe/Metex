@@ -28,10 +28,9 @@ def auto_fill_bucket_purchase(bucket_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # TPG (Third-Party Grading) service add-on — canonical boolean source of truth.
-    third_party_grading = int(request.form.get('third_party_grading', 0) or 0)
-    # grading_preference is a derived text artifact; always derive it from the boolean.
-    grading_preference = 'ANY' if third_party_grading else 'NONE'
+    # Launch policy: third-party grading is disabled, including for old clients.
+    third_party_grading = 0
+    grading_preference = 'NONE'
 
     # Random Year mode and packaging filter
     random_year = request.form.get('random_year') == '1'
@@ -292,11 +291,9 @@ def replace_cart_grading(bucket_id):
     Supports both DB-backed (logged-in) and session (guest) carts.
     """
     user_id = session.get('user_id')
-    data = request.get_json(silent=True) or {}
-    # Canonical boolean: third_party_grading_requested (0/1 int).
-    new_tpg = int(data.get('third_party_grading_requested', 0) or 0)
-    # grading_preference is derived from the boolean for DB writes (backward compat artifact).
-    new_grading = 'ANY' if new_tpg else 'NONE'
+    # Compatibility endpoint: it may clear an old choice but cannot enable it.
+    new_tpg = 0
+    new_grading = 'NONE'
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -391,7 +388,7 @@ def preview_buy(bucket_id):
         # Get form data
         quantity = int(request.form.get('quantity', 1))
         random_year = request.form.get('random_year') == '1'
-        third_party_grading = request.form.get('third_party_grading') == '1'
+        third_party_grading = False
 
         # Get packaging filters (multi-select)
         packaging_styles = request.form.getlist('packaging_styles')
@@ -510,11 +507,12 @@ def preview_buy(bucket_id):
 
             total_filled += fill_qty
 
-        # Create price locks for premium-to-spot listings (30-second duration)
+        # Quotes expire after 15 minutes; confirmation also rejects any changed
+        # current spot-derived price and requires the buyer to review again.
         lock_expires_at = None
         if has_premium_to_spot and user_id and listings_to_lock:
             for item in listings_to_lock:
-                lock = create_price_lock(item['listing_id'], user_id, lock_duration_seconds=30)
+                lock = create_price_lock(item['listing_id'], user_id, lock_duration_seconds=900)
                 if lock:
                     price_locks.append({
                         'lock_id': lock['id'],

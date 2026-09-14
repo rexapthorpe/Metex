@@ -21,10 +21,11 @@ from . import buy_bp
 @frozen_check
 def add_to_cart(listing_id):
     quantity = int(request.form['quantity'])
-    third_party_grading = int(request.form.get('third_party_grading', 0))
+    # Third-party grading is not offered at launch. Ignore stale/forged fields.
+    third_party_grading = 0
 
     user_id = session.get('user_id')
-    grading_pref = 'ANY' if third_party_grading else 'NONE'
+    grading_pref = 'NONE'
 
     if user_id:
         # Authenticated: save to database cart.

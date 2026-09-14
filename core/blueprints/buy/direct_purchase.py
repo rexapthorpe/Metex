@@ -290,22 +290,27 @@ def direct_buy_item(bucket_id):
                     message=SpotUnavailableError.USER_MESSAGE,
                 ), 503
 
-        # Calculate effective prices for ALL listings
-        # Use locked prices when available, otherwise calculate current effective price
+        # Calculate current effective prices for every listing. A preview lock is
+        # evidence of what the buyer reviewed, not permission to execute after
+        # the spot-derived price changes.
         listings_with_prices = []
         for listing in listings_raw:
             listing_dict = dict(listing)
             listing_id = listing_dict['id']
-
-            # Use locked price if available, otherwise calculate effective price
-            if listing_id in price_lock_map:
-                listing_dict['effective_price'] = price_lock_map[listing_id]
-                listing_dict['price_was_locked'] = True
-            else:
-                listing_dict['effective_price'] = get_effective_price(
-                    listing_dict, spot_prices=spot_prices_dict or None
-                )
-                listing_dict['price_was_locked'] = False
+            current_price = get_effective_price(
+                listing_dict, spot_prices=spot_prices_dict or None
+            )
+            if (listing_dict.get('pricing_mode') == 'premium_to_spot' and
+                    listing_id in price_lock_map and
+                    round(float(price_lock_map[listing_id]), 2) != round(float(current_price), 2)):
+                conn.close()
+                return jsonify(
+                    success=False,
+                    error_code='SPOT_EXPIRED',
+                    message='The spot-based price changed. Review the updated total before confirming.',
+                ), 409
+            listing_dict['effective_price'] = current_price
+            listing_dict['price_was_locked'] = listing_id in price_lock_map
 
             listings_with_prices.append(listing_dict)
 

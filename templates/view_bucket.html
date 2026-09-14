@@ -553,7 +553,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="quantity_to_buy" id="cartQuantityInput">
             <input type="hidden" name="random_year" value="{{ '1' if random_year else '0' }}">
-            <button type="submit" class="btn add-cart-btn" onclick="syncQuantityAndTPG('cartQuantityInput', 'cartTPG')">Add to Cart</button>
+            <button type="submit" class="btn add-cart-btn" onclick="syncQuantity('cartQuantityInput')">Add to Cart</button>
           </form>
         {% endif %}
       </div>
@@ -992,24 +992,7 @@
   });
   {% endif %}
 
-  // Grading preference toggle – syncs TPG hidden inputs whenever toggle changes
   document.addEventListener('DOMContentLoaded', function() {
-    const tpgToggle = document.getElementById('tpgToggle');
-    if (tpgToggle) {
-      tpgToggle.addEventListener('change', function() {
-        const tpg = this.checked ? '1' : '0';
-        const gradPref = this.checked ? 'ANY' : 'NONE';
-        ['tpgInput', 'buyTPG', 'cartTPG'].forEach(function(id) {
-          const el = document.getElementById(id);
-          if (el) el.value = tpg;
-        });
-        const buyGrading = document.getElementById('buyGradingPref');
-        if (buyGrading) buyGrading.value = gradPref;
-        const cartGrading = document.getElementById('cartGradingPref');
-        if (cartGrading) cartGrading.value = gradPref;
-      });
-    }
-
     // Packaging filter panel toggle with animation
     const packagingToggleBtn = document.getElementById('packagingToggleBtn');
     const packagingPanel = document.getElementById('packagingPanel');
@@ -1142,24 +1125,6 @@
     }
   });
 
-  // Sync quantity, TPG, and grading preference to form hidden inputs
-  function syncQuantityAndTPG(quantityTargetId, tpgTargetId) {
-    const quantityValue = document.getElementById('buyQtyValue').textContent;
-    // Read from grading toggle
-    const tpgToggle = document.getElementById('tpgToggle');
-    const isTPG = tpgToggle && tpgToggle.checked;
-    const tpgValue = isTPG ? '1' : '0';
-    const gradingPref = isTPG ? 'ANY' : 'NONE';
-
-    document.getElementById(quantityTargetId).value = quantityValue;
-    document.getElementById(tpgTargetId).value = tpgValue;
-
-    // Sync grading_preference hidden inputs for both forms
-    const buyGrading = document.getElementById('buyGradingPref');
-    if (buyGrading) buyGrading.value = gradingPref;
-    const cartGrading = document.getElementById('cartGradingPref');
-    if (cartGrading) cartGrading.value = gradingPref;
-  }
 </script>
 <script src="{{ url_for('static', filename='js/modals/order_sellers_modal.js') }}?v=bucket-v1"></script>
 <script src="{{ url_for('static', filename='js/modals/bid_bidder_modal.js') }}?v=osm-style-1"></script>
@@ -1250,26 +1215,8 @@
       You already have the maximum available quantity from this listing in your cart.
     </p>
 
-    <!-- Grading comparison card -->
-    <div style="border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; margin-bottom:20px; font-size:0.875rem;">
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 16px;">
-        <span style="color:#6b7280;">3rd-party grading (cart):</span>
-        <span id="mrCurrentGrading" style="font-weight:700; color:#111827;">—</span>
-      </div>
-      <div style="height:1px; background:#f3f4f6; margin:0 16px;"></div>
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 16px;">
-        <span style="color:#6b7280;">3rd-party grading (new):</span>
-        <span id="mrNewGrading" style="font-weight:700; color:#059669;">—</span>
-      </div>
-    </div>
-
     <!-- Actions -->
     <div style="display:flex; flex-direction:column; gap:10px;">
-      <button type="button" id="mrReplaceBtn"
-              style="display:flex; align-items:center; justify-content:center; gap:8px; padding:13px 16px; background:#1a2744; color:#fff; border:none; border-radius:10px; font-size:0.9rem; font-weight:600; cursor:pointer; letter-spacing:0.01em;">
-        Replace Existing Selection
-        <i class="fa-solid fa-arrow-right" style="font-size:0.85rem;"></i>
-      </button>
       <a href="/view_cart" id="mrViewCartBtn"
          style="display:flex; align-items:center; justify-content:center; gap:8px; padding:13px 16px; background:#fff; color:#374151; border:1px solid #e5e7eb; border-radius:10px; font-size:0.9rem; font-weight:600; text-align:center; text-decoration:none;">
         <i class="fa-solid fa-cart-shopping" style="font-size:0.9rem;"></i>

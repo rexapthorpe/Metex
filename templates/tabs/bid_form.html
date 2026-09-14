@@ -13,8 +13,6 @@
 
   {# ── Hidden inputs (managed by JS) ── #}
   {% if bid %}<input type="hidden" name="bid_id" value="{{ bid.id }}">{% endif %}
-  {# Phase 0A: grading deactivated — always send 'no' #}
-  <input type="hidden" name="requires_grading" id="requires_grading" value="no">
   <input type="hidden" name="payment_method" id="payment_method" value="credit_card">
   <input type="hidden" name="selected_payment_method_id" id="selected-pm-id"
          value="{{ saved_cards[0].id if saved_cards else '' }}">

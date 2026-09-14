@@ -113,7 +113,7 @@ def update_bid():
         # May be empty string
         delivery_address = (request.form.get('delivery_address') or '').strip()
 
-        requires_grading = (request.form.get('requires_grading') == 'yes')
+        requires_grading = False
         random_year = 1 if request.form.get('random_year') == 'on' else 0
 
         # Extract pricing parameters based on mode

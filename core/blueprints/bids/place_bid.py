@@ -109,7 +109,7 @@ def place_bid(bucket_id):
         bid_quantity = int(request.form.get('bid_quantity', 1))
 
         delivery_address = request.form['delivery_address'].strip()
-        requires_grading = request.form.get('requires_grading') == 'yes'
+        requires_grading = False
         random_year = 1 if request.form.get('random_year') == 'on' else 0
 
         # Extract pricing parameters based on mode
@@ -297,7 +297,7 @@ def create_bid_unified(bucket_id):
         bid_quantity = int(bid_quantity_str) if bid_quantity_str else 0
 
         delivery_address = request.form.get('delivery_address', '').strip()
-        requires_grading = request.form.get('requires_grading') == 'yes'
+        requires_grading = False
         random_year = 1 if request.form.get('random_year') == 'on' else 0
 
         # Extract pricing parameters based on mode

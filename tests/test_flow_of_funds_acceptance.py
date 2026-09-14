@@ -210,18 +210,18 @@ def test_multi_seller_partial_refund_does_not_touch_other_fill(db):
     assert tuple(states[1])==(3,'FUNDED',0)
 
 
-def test_grading_is_all_or_none_per_line(db):
+def test_removed_grading_is_ignored_even_for_stale_clients(db):
     checkout,_=prep(db,[{'listing_id':10,'quantity':5,'price_each':100,'requires_grading':True}],grading=2000)
     c=db(); line=c.execute('SELECT quantity,grading_requested,grading_cents FROM snapshot_lines').fetchone(); c.close()
-    assert tuple(line)==(5,1,10000)
+    assert tuple(line)==(5,0,0)
 
 
-def test_each_graded_fill_has_separate_first_shipment_leg(db):
+def test_removed_grading_always_creates_direct_buyer_shipment(db):
     checkout,snapshot=prep(db,[{'listing_id':10,'quantity':1,'price_each':100,'requires_grading':True},
                                {'listing_id':11,'quantity':1,'price_each':200,'requires_grading':True}],grading=2000)
     flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
     c=db(); legs=c.execute('SELECT leg_type,destination_type FROM shipments ORDER BY id').fetchall(); c.close()
-    assert [tuple(x) for x in legs]==[('SELLER_TO_GRADER','GRADER'),('SELLER_TO_GRADER','GRADER')]
+    assert [tuple(x) for x in legs]==[('SELLER_TO_BUYER','BUYER'),('SELLER_TO_BUYER','BUYER')]
 
 
 def test_bid_fill_uses_canonical_payment_and_commits_quantity(db,monkeypatch):

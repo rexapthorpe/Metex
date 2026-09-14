@@ -186,17 +186,6 @@
               </div>
             </div>
 
-            {% if bid.accepted_graders %}
-            <div class="bid-detail-graders">
-              <span class="bid-detail-label">Accepted Graders</span>
-              <div class="bid-grader-tags">
-                {% for g in bid.accepted_graders.split(',') if bid.accepted_graders %}
-                  <span class="bid-grader-tag">{{ g.strip() }}</span>
-                {% endfor %}
-              </div>
-            </div>
-            {% endif %}
-
             {% if bid.bid_payment_failure_message %}
             <div class="bid-payment-failed-alert">
               <i class="fa-solid fa-triangle-exclamation"></i>

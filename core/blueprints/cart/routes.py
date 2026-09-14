@@ -372,7 +372,8 @@ def update_bucket_quantity(category_id):
 
     data = request.get_json()
     target_qty = data.get('quantity', 1)
-    requires_grading = int(data.get('requires_grading', 0))
+    # Launch policy: third-party grading is disabled server-side.
+    requires_grading = 0
 
     if not isinstance(target_qty, int) or target_qty < 1:
         return jsonify({'error': 'Invalid quantity'}), 400
@@ -431,7 +432,7 @@ def update_bucket_quantity(category_id):
     # 3) If we need to add more items
     if target_qty > current_qty:
         needed = target_qty - current_qty
-        grading_pref_str = 'ANY' if requires_grading else 'NONE'
+        grading_pref_str = 'NONE'
 
         # Get all available listings for this category (excluding user's own).
         # Fetch pricing fields so we can sort by effective_price.

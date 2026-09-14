@@ -121,10 +121,10 @@ def accept_bid(bucket_id):
             for listing in listings:
                 ask=get_effective_price(dict(listing),spot_prices=spots)
                 if ask>buyer_price or remaining<=0: continue
-                take=min(remaining,int(listing['quantity'])); items.append({'listing_id':listing['id'],'quantity':take,'price_each':buyer_price,'seller_price_each':ask,'source_bid_id':bid_id,'requires_grading':bool(bid['requires_grading'])}); remaining-=take
+                take=min(remaining,int(listing['quantity'])); items.append({'listing_id':listing['id'],'quantity':take,'price_each':buyer_price,'seller_price_each':ask,'source_bid_id':bid_id,'requires_grading':False}); remaining-=take
             if remaining:
                 cursor.execute('INSERT INTO listings (category_id,seller_id,quantity,price_per_coin,active) VALUES (?,?,?,?,1)',(bid['category_id'],seller_id,remaining,buyer_price))
-                items.append({'listing_id':cursor.lastrowid,'quantity':remaining,'price_each':buyer_price,'seller_price_each':buyer_price,'source_bid_id':bid_id,'requires_grading':bool(bid['requires_grading'])}); conn.commit()
+                items.append({'listing_id':cursor.lastrowid,'quantity':remaining,'price_each':buyer_price,'seller_price_each':buyer_price,'source_bid_id':bid_id,'requires_grading':False}); conn.commit()
             subtotal_cents=sum(round(i['price_each']*100)*i['quantity'] for i in items)
             postal,state=_parse_address_for_tax(bid['delivery_address']); tax_cents=_get_stripe_tax_for_bid(subtotal_cents,postal,state)
             shipping={'shipping_address':bid['delivery_address'],'recipient_first':bid['recipient_first_name'],'recipient_last':bid['recipient_last_name'],'postal_code':postal,'state':state,'country':'US'}

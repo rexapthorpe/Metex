@@ -118,11 +118,6 @@ function populateOrderSummary(buckets, cartTotal) {
           <span class="spec-label">Product Line:</span>
           <span class="spec-value">${category.product_line || '—'}</span>
         </div>
-        <div class="spec-row">
-          <span class="spec-label">Requires 3rd Party Grading:</span>
-          <span class="spec-value">${(category.graded === 1 || category.graded === '1') ? 'Yes' : 'No'}</span>
-        </div>
-        ${gradingServiceRow}
       </div>
 
       <div class="item-pricing-section">
