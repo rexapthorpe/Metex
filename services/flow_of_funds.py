@@ -257,17 +257,66 @@ def ensure_flow_schema(conn):
         "card_formula": "gross_up_final_charge",
         "tracking_upload_deadline_days": 3,
         "reservation_ttl_seconds": 900,
-        "refund_component_policy": "proportional_original_surcharge_sandbox_only",
-        "ach_approval_policy": "manual_evidence_required",
+        "refund_component_policy": {
+            "seller_or_metex_fault": "refund_allocated_original_card_surcharge",
+            "buyer_voluntary_after_processor_cost": "retain_allocated_original_card_surcharge",
+            "unmapped_reason": "admin_review",
+        },
+        "ach_approval_policy": "stripe_payment_intent_succeeded",
         "ups_coverage_and_claim_policy": "adapter_and_coverage_evidence_required_per_leg",
         "grading_vendor_policy": "disabled_for_launch",
         "chargeback_loss_liability": "reason_specific_admin_review",
+        "launch_scope": {"country": "US", "currency": "usd", "rails": ["card", "us_bank_account"]},
+        "shipping_postage_policy": "seller_pays",
+        "signature_required_threshold_cents": 50000,
+        "insurance_purchase_policy": {"carrier": "UPS", "required": True, "target_rate_bps": 100,
+                                      "paid_by": "metex"},
+        "shipping_loss_refund_trigger": "formal_carrier_or_insurer_loss_confirmation",
+        "seller_fault_return_window_days": 3,
+        "seller_fault_return_postage_policy": "seller_pays",
+        "buyer_remorse_returns_enabled": False,
+        "restocking_fee_enabled": False,
+        "payout_schedule": "daily",
+        "manual_payout_review_threshold_cents": 1000000,
+        "negative_balance_policy": "internal_recovery_ledger_immediate_future_proceeds_offset",
+        "spot_confirmation_policy": {"quote_ttl_seconds": 900, "recheck_immediately_before_confirmation": True,
+                                     "changed_price_requires_reconfirmation": True},
     }
     for key, value in defaults.items():
         if not conn.execute("SELECT key FROM flow_policy_config WHERE key=?", (key,)).fetchone():
-            fixed = key in {"seller_fee_bps", "card_rate_bps", "card_formula", "grading_vendor_policy"}
+            fixed = key in {
+                "seller_fee_bps", "card_rate_bps", "card_formula", "grading_vendor_policy",
+                "tracking_upload_deadline_days", "reservation_ttl_seconds", "chargeback_loss_liability",
+                "refund_component_policy", "ach_approval_policy",
+                "launch_scope", "shipping_postage_policy", "signature_required_threshold_cents",
+                "insurance_purchase_policy", "shipping_loss_refund_trigger",
+                "seller_fault_return_window_days", "seller_fault_return_postage_policy",
+                "buyer_remorse_returns_enabled", "restocking_fee_enabled", "payout_schedule",
+                "manual_payout_review_threshold_cents", "negative_balance_policy",
+                "spot_confirmation_policy",
+            }
             conn.execute("INSERT INTO flow_policy_config (key,value_json,approved) VALUES (?,?,?)",
                          (key, _canonical(value), 1 if fixed else 0))
+    # Apply the newly approved launch decisions to older databases once. An
+    # already-approved administrator value (for example a later tracking-day
+    # selection) is preserved.
+    approved_launch_keys = {
+        "tracking_upload_deadline_days", "reservation_ttl_seconds", "refund_component_policy",
+        "ach_approval_policy", "chargeback_loss_liability", "launch_scope",
+        "shipping_postage_policy", "signature_required_threshold_cents",
+        "insurance_purchase_policy", "shipping_loss_refund_trigger",
+        "seller_fault_return_window_days", "seller_fault_return_postage_policy",
+        "buyer_remorse_returns_enabled", "restocking_fee_enabled", "payout_schedule",
+        "manual_payout_review_threshold_cents", "negative_balance_policy",
+        "spot_confirmation_policy",
+    }
+    for key in approved_launch_keys:
+        policy_row = conn.execute(
+            "SELECT approved FROM flow_policy_config WHERE key=?", (key,)
+        ).fetchone()
+        if policy_row and not policy_row["approved"]:
+            conn.execute("""UPDATE flow_policy_config SET value_json=?,approved=1
+                            WHERE key=?""", (_canonical(defaults[key]), key))
     # This product removal is an approved launch rule rather than a vendor
     # configuration gate. Make existing databases converge idempotently.
     grading_policy = conn.execute(
@@ -295,6 +344,11 @@ def set_policy_config(key, value, approved, admin_id):
       "card_rate_bps","card_formula","tracking_upload_deadline_days","reservation_ttl_seconds",
       "refund_component_policy","ach_approval_policy","ups_coverage_and_claim_policy",
       "grading_vendor_policy","chargeback_loss_liability"
+      ,"launch_scope","shipping_postage_policy","signature_required_threshold_cents",
+      "insurance_purchase_policy","shipping_loss_refund_trigger","seller_fault_return_window_days",
+      "seller_fault_return_postage_policy","buyer_remorse_returns_enabled","restocking_fee_enabled",
+      "payout_schedule","manual_payout_review_threshold_cents","negative_balance_policy",
+      "spot_confirmation_policy"
     }
     if key not in allowed: raise FlowError("Unknown policy key","UNKNOWN_POLICY_KEY")
     if key=="tracking_upload_deadline_days" and (not isinstance(value,int) or value<=0):
@@ -522,14 +576,16 @@ def revise_payment_rail(checkout_id, payment_rail, conn=None):
     return result, True
 
 
-def verify_provider_payment(checkout_id, payment):
-    conn=get_db_connection(); ensure_flow_schema(conn)
+def verify_provider_payment(checkout_id, payment, conn=None):
+    own=conn is None; conn=conn or get_db_connection(); ensure_flow_schema(conn)
     checkout=conn.execute("SELECT * FROM checkout_attempts WHERE id=?",(checkout_id,)).fetchone()
-    if not checkout: conn.close(); raise FlowError("Checkout not found","CHECKOUT_NOT_FOUND",404)
+    if not checkout:
+        if own: conn.close()
+        raise FlowError("Checkout not found","CHECKOUT_NOT_FOUND",404)
     snap=conn.execute("SELECT * FROM execution_snapshots WHERE id=?",(checkout["active_snapshot_id"],)).fetchone()
     buyer=conn.execute("SELECT stripe_customer_id FROM users WHERE id=?",(snap["buyer_id"],)).fetchone()
     expected_customer=buyer["stripe_customer_id"] if buyer and "stripe_customer_id" in buyer.keys() else None
-    conn.close()
+    if own: conn.close()
     pdata = payment.to_dict() if hasattr(payment,"to_dict") else dict(payment)
     metadata = pdata.get("metadata") or {}
     expected = {"id":checkout["provider_payment_id"],"amount":snap["buyer_total_cents"],"currency":snap["currency"],
@@ -543,8 +599,75 @@ def verify_provider_payment(checkout_id, payment):
     return dict(checkout), dict(snap), pdata
 
 
+def record_ach_processing(checkout_id, payment, conn=None):
+    """Project an ACH sale while funds clear, without creating revenue/payables.
+
+    The held inventory remains unavailable and the seller can see that it sold,
+    but no execution, ledger journal, payable, or shipment authorization exists
+    until Stripe reports the same bound PaymentIntent as succeeded.
+    """
+    checkout, snap, pdata = verify_provider_payment(checkout_id, payment, conn=conn)
+    if snap["payment_rail"] != "us_bank_account" or pdata.get("status") != "processing":
+        raise FlowError("Payment is not a processing ACH payment", "ACH_NOT_PROCESSING", 409)
+    own = conn is None
+    conn = conn or get_db_connection()
+    ensure_flow_schema(conn)
+    if database_module.IS_POSTGRES:
+        conn.execute("SELECT id FROM checkout_attempts WHERE id=? FOR UPDATE", (checkout_id,)).fetchone()
+    existing_execution = conn.execute(
+        "SELECT id FROM executions WHERE checkout_id=?", (checkout_id,)
+    ).fetchone()
+    if existing_execution:
+        if own:
+            conn.close()
+        return {"execution_id": existing_execution["id"]}, False
+    existing_order = conn.execute(
+        "SELECT id FROM orders WHERE stripe_payment_intent_id=?", (pdata["id"],)
+    ).fetchone()
+    now = _now()
+    if existing_order:
+        order_id = existing_order["id"]
+    else:
+        shipping = json.loads(snap["shipping_json"])
+        cur = conn.execute("""INSERT INTO orders
+          (buyer_id,total_price,buyer_card_fee,tax_amount,tax_rate,shipping_address,recipient_first_name,
+           recipient_last_name,stripe_payment_intent_id,payment_method_type,requires_payment_clearance,
+           payment_status,status,payout_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+          (snap["buyer_id"], snap["buyer_total_cents"] / 100,
+           snap["card_surcharge_cents"] / 100, snap["tax_cents"] / 100, 0,
+           shipping.get("shipping_address", ""), shipping.get("recipient_first", ""),
+           shipping.get("recipient_last", ""), pdata["id"], "us_bank_account", 1,
+           "processing", "sold_pending_ach", "not_ready_for_payout"))
+        order_id = cur.lastrowid
+        if not order_id:
+            order_id = conn.execute(
+                "SELECT id FROM orders WHERE stripe_payment_intent_id=?", (pdata["id"],)
+            ).fetchone()["id"]
+        lines = conn.execute(
+            "SELECT * FROM snapshot_lines WHERE snapshot_id=? ORDER BY id", (snap["id"],)
+        ).fetchall()
+        for line in lines:
+            conn.execute("""INSERT INTO order_items
+              (order_id,listing_id,quantity,price_each,price_at_purchase,seller_price_each,
+               third_party_grading_requested,grading_fee_charged,grading_status)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+              (order_id, line["listing_id"], line["quantity"], line["buyer_unit_cents"] / 100,
+               line["buyer_unit_cents"] / 100, line["seller_unit_cents"] / 100,
+               0, 0, "not_requested"))
+    conn.execute(
+        "UPDATE checkout_attempts SET state='PAYMENT_PROCESSING',updated_at=? WHERE id=?",
+        (now, checkout_id),
+    )
+    _audit(conn, "checkout", checkout_id, "ACH_PROCESSING", "provider", None,
+           after={"legacy_order_id": order_id, "payment": pdata["id"]})
+    if own:
+        conn.commit()
+        conn.close()
+    return {"legacy_order_id": order_id, "payment_state": "PROCESSING"}, True
+
+
 def finalize_payment(checkout_id, payment, actor_type="provider", conn=None):
-    checkout,snap,pdata=verify_provider_payment(checkout_id,payment)
+    checkout,snap,pdata=verify_provider_payment(checkout_id,payment,conn=conn)
     status=pdata.get("status"); rail=snap["payment_rail"]
     if status != "succeeded":
         raise FlowError("Payment is not successful","PAYMENT_NOT_SUCCESSFUL",202 if status=="processing" else 402)
@@ -563,27 +686,35 @@ def finalize_payment(checkout_id, payment, actor_type="provider", conn=None):
     if not op: raise FlowError("Payment operation missing","PAYMENT_OPERATION_MISSING",500)
     lines=conn.execute("SELECT * FROM snapshot_lines WHERE snapshot_id=? ORDER BY id",(snap["id"],)).fetchall()
     shipping=json.loads(snap["shipping_json"]); execution_id=_id("exe")
-    # Legacy projection is inserted in this same transaction.
-    cur=conn.execute("""INSERT INTO orders
-      (buyer_id,total_price,buyer_card_fee,tax_amount,tax_rate,shipping_address,recipient_first_name,
-       recipient_last_name,stripe_payment_intent_id,paid_at,payment_method_type,requires_payment_clearance,
-       payment_status,status,payout_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-      (snap["buyer_id"],snap["buyer_total_cents"]/100,snap["card_surcharge_cents"]/100,snap["tax_cents"]/100,0,
-       shipping.get("shipping_address",""),shipping.get("recipient_first",""),shipping.get("recipient_last",""),
-       pdata["id"],now,rail,1 if rail=="us_bank_account" else 0,"paid","paid","not_ready_for_payout"))
-    order_id=cur.lastrowid
+    # Promote the ACH processing projection when present; otherwise create the
+    # legacy projection in this same transaction.
+    pending_order=conn.execute("SELECT id FROM orders WHERE stripe_payment_intent_id=?",(pdata["id"],)).fetchone()
+    if pending_order:
+        order_id=pending_order["id"]
+        conn.execute("""UPDATE orders SET paid_at=?,payment_status='paid',status='paid',
+          requires_payment_clearance=?,payout_status='not_ready_for_payout' WHERE id=?""",
+          (now,0,order_id))
+    else:
+        cur=conn.execute("""INSERT INTO orders
+          (buyer_id,total_price,buyer_card_fee,tax_amount,tax_rate,shipping_address,recipient_first_name,
+           recipient_last_name,stripe_payment_intent_id,paid_at,payment_method_type,requires_payment_clearance,
+           payment_status,status,payout_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+          (snap["buyer_id"],snap["buyer_total_cents"]/100,snap["card_surcharge_cents"]/100,snap["tax_cents"]/100,0,
+           shipping.get("shipping_address",""),shipping.get("recipient_first",""),shipping.get("recipient_last",""),
+           pdata["id"],now,rail,0,"paid","paid","not_ready_for_payout"))
+        order_id=cur.lastrowid
     conn.execute("""INSERT INTO executions
       (id,checkout_id,snapshot_id,payment_operation_id,provider_payment_id,buyer_id,legacy_order_id,state,
        payment_state,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-      (execution_id,checkout_id,snap["id"],op["id"],pdata["id"],snap["buyer_id"],order_id,"FUNDED","APPROVAL_PENDING" if rail=="us_bank_account" else "APPROVED",now,now))
+      (execution_id,checkout_id,snap["id"],op["id"],pdata["id"],snap["buyer_id"],order_id,"FUNDED","APPROVED",now,now))
     for line in lines:
-        item_cur=conn.execute("""INSERT INTO order_items
-          (order_id,listing_id,quantity,price_each,price_at_purchase,seller_price_each,
-           third_party_grading_requested,grading_fee_charged,grading_status)
-           VALUES (?,?,?,?,?,?,?,?,?)""",
-          (order_id,line["listing_id"],line["quantity"],line["buyer_unit_cents"]/100,
-           line["buyer_unit_cents"]/100,line["seller_unit_cents"]/100,line["grading_requested"],
-           line["grading_cents"]/100,"requested" if line["grading_requested"] else "not_requested"))
+        if not pending_order:
+            conn.execute("""INSERT INTO order_items
+              (order_id,listing_id,quantity,price_each,price_at_purchase,seller_price_each,
+               third_party_grading_requested,grading_fee_charged,grading_status)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+              (order_id,line["listing_id"],line["quantity"],line["buyer_unit_cents"]/100,
+               line["buyer_unit_cents"]/100,line["seller_unit_cents"]/100,0,0,"not_requested"))
         fill_id=_id("fill")
         conn.execute("""INSERT INTO seller_fills
           (id,execution_id,snapshot_line_id,seller_id,quantity,state,seller_gross_cents,seller_fee_cents,
@@ -591,7 +722,7 @@ def finalize_payment(checkout_id, payment, actor_type="provider", conn=None):
           (fill_id,execution_id,line["id"],line["seller_id"],line["quantity"],"FUNDED",line["seller_gross_cents"],
            line["seller_fee_cents"],line["seller_net_cents"],line["spread_cents"],now,now))
         payable_id=_id("payable")
-        block="ACH_APPROVAL_PENDING" if rail=="us_bank_account" else "FULFILLMENT_PENDING"
+        block="FULFILLMENT_PENDING"
         conn.execute("INSERT INTO seller_payables VALUES (?,?,?,?,?,?,?,?,?,?,?)",
           (payable_id,fill_id,line["seller_id"],line["seller_net_cents"],0,0,"HELD",block,None,now,now))
         destination="GRADER" if line["grading_requested"] else "BUYER"
@@ -636,7 +767,7 @@ def finalize_payment(checkout_id, payment, actor_type="provider", conn=None):
       (_id("evt"),"EXECUTION_FUNDED","execution",execution_id,_canonical({"order_id":order_id}),"PENDING",0,now,None))
     _audit(conn,"execution",execution_id,"PAYMENT_FINALIZED",actor_type,None,after={"order_id":order_id,"payment":pdata["id"]})
     if own: conn.commit(); conn.close()
-    return {"id":execution_id,"legacy_order_id":order_id,"payment_state":"APPROVAL_PENDING" if rail=="us_bank_account" else "APPROVED"}, True
+    return {"id":execution_id,"legacy_order_id":order_id,"payment_state":"APPROVED"}, True
 
 
 def release_reservation(checkout_id, reason, conn=None):
@@ -684,6 +815,9 @@ def process_webhook(event):
                             conn.execute("INSERT INTO holds VALUES (?,?,?,?,?,?,?,?)",(_id("hold"),fill["id"],"ACH_RETURN",typ,"ACTIVE",event_id,_now(),None))
                             conn.execute("UPDATE seller_payables SET state='HELD',block_reason='ACH_RETURN',updated_at=? WHERE seller_fill_id=?",(_now(),fill["id"]))
                     else:
+                        conn.execute("""UPDATE orders SET payment_status='failed',
+                          status='payment_failed',payout_status='not_ready_for_payout'
+                          WHERE stripe_payment_intent_id=?""",(obj.get("id"),))
                         bid_line=conn.execute("""SELECT l.id FROM snapshot_lines l JOIN checkout_attempts c ON c.active_snapshot_id=l.snapshot_id
                           WHERE c.id=? AND l.source_bid_id IS NOT NULL LIMIT 1""",(checkout_id,)).fetchone()
                         if bid_line:
@@ -693,7 +827,7 @@ def process_webhook(event):
                         else:
                             release_reservation(checkout_id,typ,conn=conn)
                 elif typ=="payment_intent.processing":
-                    conn.execute("UPDATE checkout_attempts SET state='PAYMENT_PROCESSING',updated_at=? WHERE id=?",(_now(),checkout_id))
+                    record_ach_processing(checkout_id,obj,conn=conn)
         elif typ.startswith("charge.dispute."):
             charge=obj; pi=charge.get("payment_intent")
             exe=conn.execute("SELECT * FROM executions WHERE provider_payment_id=?",(pi,)).fetchone()

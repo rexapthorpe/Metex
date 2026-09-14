@@ -121,18 +121,39 @@ def test_multi_seller_independent_fills(db):
     assert [(x['seller_id'],x['seller_net_cents']) for x in fills]==[(2,19000),(3,19000)]
 
 
-def test_ach_success_does_not_authorize_shipping(db):
+def test_ach_success_approves_payment_but_does_not_authorize_shipping(db):
     checkout,snapshot=prep(db)
     result,_=flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
     c=db(); exe=c.execute('SELECT payment_state FROM executions WHERE id=?',(result['id'],)).fetchone(); ship=c.execute('SELECT state FROM shipments').fetchone(); c.close()
-    assert exe[0]=='APPROVAL_PENDING'; assert ship[0]=='NOT_AUTHORIZED'
+    assert exe[0]=='APPROVED'; assert ship[0]=='NOT_AUTHORIZED'
 
 
-def test_ach_approval_requires_approved_policy_and_evidence(db):
+def test_ach_processing_marks_sold_without_payable_then_promotes_same_order(db):
+    checkout,snapshot=prep(db)
+    pending=payment(checkout,snapshot,status='processing')
+    projected,created=flow.record_ach_processing(checkout['id'],pending)
+    assert created and projected['payment_state']=='PROCESSING'
+    c=db()
+    row=c.execute('SELECT id,status,payment_status FROM orders').fetchone()
+    order_id=row['id']
+    assert (row['status'],row['payment_status'])==('sold_pending_ach','processing')
+    assert c.execute('SELECT COUNT(*) FROM order_items').fetchone()[0]==1
+    assert c.execute('SELECT COUNT(*) FROM executions').fetchone()[0]==0
+    assert c.execute('SELECT COUNT(*) FROM seller_payables').fetchone()[0]==0
+    assert c.execute('SELECT COUNT(*) FROM ledger_entries').fetchone()[0]==0
+    c.close()
+    result,created=flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
+    assert created and result['legacy_order_id']==order_id
+    c=db()
+    assert c.execute('SELECT COUNT(*) FROM orders').fetchone()[0]==1
+    assert c.execute('SELECT COUNT(*) FROM order_items').fetchone()[0]==1
+    assert c.execute('SELECT COUNT(*) FROM seller_payables').fetchone()[0]==1
+    assert c.execute('SELECT payment_state FROM executions').fetchone()[0]=='APPROVED'
+    c.close()
+
+
+def test_manual_ach_approval_fallback_requires_evidence(db):
     checkout,snapshot=prep(db); result,_=flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
-    with pytest.raises(flow.FlowError) as e: flow.approve_ach_payment(result['id'],9,{'settled':True})
-    assert e.value.code=='POLICY_CONFIGURATION_REQUIRED'
-    c=db(); approve(c,'ach_approval_policy'); c.close()
     with pytest.raises(flow.FlowError): flow.approve_ach_payment(result['id'],9,{})
     assert flow.approve_ach_payment(result['id'],9,{'settled':True})
 

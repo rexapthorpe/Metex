@@ -133,11 +133,11 @@ def register():
             if AUDIT_ENABLED:
                 log_registration(user_id, username, email)
 
-            # Merge guest cart — preserve grading preference per line item
+            # Grading add-on is disabled for launch; normalize stale guest data.
             guest_cart = session.pop('guest_cart', [])
             for item in guest_cart:
-                tpg = int(item.get('third_party_grading_requested', 0) or 0)
-                grading_pref = 'ANY' if tpg else 'NONE'
+                tpg = 0
+                grading_pref = 'NONE'
                 existing = conn.execute(
                     'SELECT id, quantity FROM cart WHERE user_id = ? AND listing_id = ? AND third_party_grading_requested = ?',
                     (user_id, item['listing_id'], tpg)
@@ -225,10 +225,10 @@ def login():
             except Exception as _risk_exc:
                 print(f'[RISK] login IP capture failed: {_risk_exc}')
 
-            # Merge guest cart after session setup — preserve grading preference per line item
+            # Grading add-on is disabled for launch; normalize stale guest data.
             for item in guest_cart:
-                tpg = int(item.get('third_party_grading_requested', 0) or 0)
-                grading_pref = 'ANY' if tpg else 'NONE'
+                tpg = 0
+                grading_pref = 'NONE'
                 existing = conn.execute(
                     'SELECT id, quantity FROM cart WHERE user_id = ? AND listing_id = ? AND third_party_grading_requested = ?',
                     (user_id, item['listing_id'], tpg)

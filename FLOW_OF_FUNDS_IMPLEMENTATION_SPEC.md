@@ -23,6 +23,16 @@ new price for renewed buyer or seller consent. A quote or reservation may live
 for at most 900 seconds, but that time limit does not authorize execution at a
 price that has changed.
 
+For launch ACH payments, Stripe `payment_intent.processing` creates only a
+customer/seller-facing `SOLD_PENDING_ACH` projection and continues the durable
+inventory hold. It MUST NOT create an execution, seller payable, fee/spread
+revenue, ledger journal, shipment authorization, or tracking deadline. The
+same bound PaymentIntent reaching `succeeded` promotes that projection to the
+funded execution. Only then may insurance and shipment authorization proceed,
+and only shipment authorization starts the three-calendar-day tracking clock.
+A later ACH return is a separate payment-risk event that immediately holds the
+affected funds and enters reason-specific recovery review.
+
 Version: 1.0 · Date: 2026-09-11 · Status: authoritative implementation target; unresolved production configuration gates are explicitly identified below.
 
 ## 1. Scope, authority, and completion standard
