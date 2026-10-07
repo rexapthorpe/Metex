@@ -1158,3 +1158,14 @@
 
   #bidModal .bm-step-label { display: none; }
 }
+
+/* Rounded pricing menu and full-height amount controls. */
+#bidModal #bid-pricing-mode[hidden] { display:none; }
+#bidModal .bm-pricing-dropdown { position:relative; }
+#bidModal .bm-pricing-dropdown summary { padding:12px 14px; border:1.5px solid #1a2744; border-radius:12px; background:white; cursor:pointer; font-size:15px; }
+#bidModal .bm-pricing-options { position:absolute; top:calc(100% + 6px); left:0; right:0; padding:6px; background:white; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px #1a274422; z-index:5; }
+#bidModal .bm-pricing-options button { display:block; width:100%; text-align:left; border:0; border-radius:8px; background:white; color:#111827; padding:12px; cursor:pointer; }
+#bidModal .bm-pricing-options button:hover,#bidModal .bm-pricing-options button:focus-visible { background:#eff6ff; }
+#bidModal .bm-price-box { height:56px; align-items:stretch; }
+#bidModal .bm-price-box input { height:100%; min-width:0; box-sizing:border-box; margin:0; padding:0 14px; line-height:normal; align-self:stretch; }
+#bidModal .bm-continue-btn:disabled { opacity:.55; filter:blur(.5px); }

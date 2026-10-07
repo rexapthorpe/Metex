@@ -64,6 +64,20 @@
 
     /* ── Pricing mode switcher ── */
     initPricingModeToggle();
+    const pricingSelect = document.getElementById('bid-pricing-mode');
+    const pricingDropdown = document.getElementById('bm-pricing-dropdown');
+    if (pricingSelect && pricingDropdown) {
+      pricingSelect.hidden = true;
+      const syncPricingChoice = () => { document.getElementById('bm-pricing-choice').textContent = pricingSelect.options[pricingSelect.selectedIndex].textContent; };
+      syncPricingChoice();
+      pricingSelect.addEventListener('change', syncPricingChoice);
+      pricingDropdown.querySelectorAll('[data-pricing-choice]').forEach(button => button.addEventListener('click', () => {
+        pricingSelect.value = button.dataset.pricingChoice;
+        pricingSelect.dispatchEvent(new Event('change', {bubbles:true}));
+        pricingDropdown.open = false;
+        pricingDropdown.querySelector('summary').focus();
+      }));
+    }
 
     /* ── Payment option selection ── */
     initPaymentOptions();
@@ -112,6 +126,7 @@
     if (n === TOTAL_STEPS) await populateReview();
 
     currentStep = n;
+    updatePaymentContinue();
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -172,6 +187,11 @@
     }
     clearHint('address-hint');
     return true;
+  }
+
+  function updatePaymentContinue() {
+    const button = document.getElementById('bm-continue');
+    if (button) button.disabled = currentStep === 4 && (!!document.getElementById('bm-no-card-block') || !document.getElementById('selected-pm-id')?.value);
   }
 
   function validatePayment() {
@@ -385,6 +405,7 @@
         selectedPmType = opt.dataset.pmType || 'card';
         selectedPaymentMethod = selectedPmType === 'bank_account' ? 'bank_transfer' : 'credit_card';
 
+        updatePaymentContinue();
         const hint = document.getElementById('payment-hint');
         if (hint) {
           hint.style.color = '#9ca3af';

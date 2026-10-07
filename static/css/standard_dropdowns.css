@@ -1,0 +1,16 @@
+.metex-select { position:relative; min-width:0; width:100%; }
+select.metex-native-select { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:0 !important; clip-path:inset(50%); overflow:hidden; }
+.metex-dropdown { position:relative; font-size:15px; color:#111827; }
+.metex-dropdown summary { display:flex; align-items:center; justify-content:space-between; gap:12px; list-style:none; padding:12px 14px; border:1.5px solid #cbd5e1; border-radius:12px; background:white; cursor:pointer; }
+.metex-dropdown summary::-webkit-details-marker { display:none; }
+.metex-dropdown summary::after { content:'⌄'; font-size:18px; }
+.metex-dropdown summary:focus-visible { outline:2px solid #1266d8; outline-offset:2px; }
+.metex-dropdown summary[aria-disabled=true] { opacity:.55; cursor:not-allowed; }
+.metex-dropdown-options { position:absolute; top:calc(100% + 6px); left:0; right:0; max-height:260px; overflow:auto; padding:6px; background:white; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px #1a274422; z-index:100; }
+.metex-dropdown-options button { display:block; width:100%; text-align:left; border:0; border-radius:8px; background:white; color:#111827; padding:12px; cursor:pointer; font:inherit; font-weight:600; }
+.metex-dropdown-options button:hover,.metex-dropdown-options button:focus-visible,.metex-dropdown-options button.selected { background:#eff6ff; }
+.metex-dropdown-options button:disabled { opacity:.5; cursor:not-allowed; }
+
+.metex-dropdown-options[popover] { position:fixed; inset:auto; margin:0; box-sizing:border-box; }
+.metex-dropdown-options[popover]:not(:popover-open) { display:none; }
+#bidModal .bm-addr-row .metex-state-select { width:auto; min-width:90px; flex:0 0 90px; }
