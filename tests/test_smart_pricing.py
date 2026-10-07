@@ -123,12 +123,13 @@ def test_insufficient_comps_and_own_seller_inventory_excluded(market):
     assert state(market)['settings']['estimate_cents'] is None
 
 
-def test_duplicate_jobs_concurrent_single_adjustment(market):
+@pytest.mark.parametrize('workers',[2,4,8,16])
+def test_duplicate_jobs_concurrent_single_adjustment(market,workers):
     conn=market(); smart.configure(conn,10,('fast',1000)); conn.commit(); conn.close()
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        results=list(pool.map(lambda _: smart.evaluate(10),range(4)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results=list(pool.map(lambda _: smart.evaluate(10),range(workers)))
     assert results.count('adjusted')==1
-    assert results.count('cooldown')==3
+    assert results.count('cooldown')==workers-1
     assert len(state(market)['settings']['history'])==1
 
 
@@ -1041,3 +1042,81 @@ def test_spot_cache_freshness_uses_utc_and_rejects_future_times(hierarchy_market
     conn.execute('INSERT INTO spot_prices VALUES(?,?,?,?)',('gold',4197.8,stamp,'fixture'));conn.commit();conn.close()
     monkeypatch.setattr(spot,'get_db_connection',hierarchy_market)
     assert spot.is_cache_fresh()[0]==fresh
+
+# Multi-cycle stress scenarios: isolated SQL fixtures, deterministic time and market paths.
+@pytest.mark.parametrize('strategy', ['fast','balanced','big'])
+@pytest.mark.parametrize('weight', ['1 oz','1/2 oz','1/10 oz','1 g','10 oz'])
+@pytest.mark.parametrize('metal,base',[('Gold',4000),('Silver',40),('Platinum',1500),('Palladium',1200)])
+def test_stress_spot_reversals_preserve_premium_and_cent_rounding(market,strategy,weight,metal,base):
+    from decimal import ROUND_HALF_UP
+    conn=market(); smart.configure(conn,10,(strategy,0));conn.commit();conn.close()
+    item=dict(state(market),metal=metal,pricing_metal=metal,weight=weight)
+    paths=[base,base*1.05,base*.95,base*1.125,base*.75,base+.01,base-.01,base*1.25,base*.25,base]
+    old_premium=smart.cents(item['spot_premium'])
+    for spot in paths:
+        expected=int((Decimal(str(spot))*smart.weight_ounces(weight)*100).quantize(Decimal(1),rounding=ROUND_HALF_UP))+old_premium
+        assert smart.cents(get_effective_price(item,{metal.lower():spot}))==expected
+        assert smart.cents(item['spot_premium'])==old_premium
+    assert state(market)['settings']['history']==[]
+
+@pytest.mark.parametrize('strategy', ['fast','balanced','big'])
+def test_stress_twenty_four_worker_cycles_market_reversal_replay_and_outage(market,strategy,monkeypatch):
+    start=smart.now_utc()
+    conn=market();smart.configure(conn,10,(strategy,1000));conn.commit();conn.close()
+    hours=smart.STRATEGIES[strategy]['hours']
+    for cycle in range(24):
+        now=start+timedelta(hours=hours*cycle)
+        monkeypatch.setattr(smart,'now_utc',lambda:now)
+        conn=market()
+        spot=4000+(150 if cycle%2==0 else -200)
+        conn.execute('UPDATE spot_price_snapshots SET price_usd=?,as_of=?',(spot,now.isoformat()))
+        premium=60 if cycle<8 or cycle>=16 else 12
+        conn.execute('UPDATE listings SET spot_premium=? WHERE id<>10',(premium,))
+        if cycle in (5,13): conn.execute('UPDATE spot_price_snapshots SET as_of=?',((now-timedelta(days=3)).isoformat(),))
+        conn.commit();conn.close()
+        before=state(market);old=smart.cents(before['spot_premium'])
+        conn=market();before_count=conn.execute('SELECT COUNT(*) FROM smart_pricing_history WHERE listing_id=10').fetchone()[0];conn.close()
+        results=smart.run_due()
+        assert results.get('error',0)==0 and sum(results.values())==1
+        after=state(market);new=smart.cents(after['spot_premium']);review=after['settings']['review']
+        assert new>=1000
+        if cycle in (5,13): assert new==old
+        elif review['confidence_label']!='insufficient':
+            assert abs(new-old)<=review['step_limit_cents']
+            target=review['target_cents']
+            assert min(old,target)<=new<=max(old,target)
+            assert abs(new-target)<=abs(old-target)
+        assert smart.run_due()=={}
+        assert state(market)['spot_premium']==after['spot_premium']
+        history=after['settings']['history']
+        conn=market();after_count=conn.execute('SELECT COUNT(*) FROM smart_pricing_history WHERE listing_id=10').fetchone()[0];conn.close()
+        assert after_count==before_count+(new!=old)
+        assert len(history)==min(20,after_count)
+    assert state(market)['settings']['history']
+
+@pytest.mark.parametrize('strategy', ['fast','balanced','big'])
+def test_stress_api_quotes_spot_reversals_reject_previous_and_recover(preview_client,hierarchy_market,strategy):
+    conn=hierarchy_market();item=smart.product(conn,10)
+    for n,p in enumerate((1000,2000,3000)): add_completed(conn,item,p,n)
+    conn.commit();conn.close()
+    data=preview_data();data['smart_pricing_strategy']=strategy
+    previous=None
+    from services.flow_of_funds import seller_fee_cents
+    for spot in (4000,4200,3800,4000.01,3999.99,4500,3000,4000):
+        conn=hierarchy_market();conn.execute('UPDATE spot_price_snapshots SET price_usd=?,as_of=?',(spot,smart.now_utc().isoformat()));conn.commit();conn.close()
+        response=preview_client.post('/sell/smart-pricing-preview',data=data)
+        assert response.status_code==200
+        quote=response.json
+        for key in ('metal_value_cents','initial_premium_cents','initial_price_cents','seller_fee_cents','estimated_net_cents','range_lower_cents','range_upper_cents'):
+            assert type(quote[key]) is int
+        assert quote['initial_price_cents']==quote['metal_value_cents']+quote['initial_premium_cents']
+        assert quote['estimated_net_cents']+quote['seller_fee_cents']==quote['initial_price_cents']
+        assert quote['seller_fee_cents']==seller_fee_cents(quote['initial_price_cents'])
+        with preview_client.application.app_context():
+            conn=hierarchy_market()
+            if previous:
+                with pytest.raises(smart.PreviewChanged): smart.validate_preview(conn,smart.product(conn,10),(strategy,1000),dict(data,smart_preview_token=previous['token']))
+            approved=smart.validate_preview(conn,smart.product(conn,10),(strategy,1000),dict(data,smart_preview_token=quote['token']))
+            assert approved['initial_price_cents']==quote['initial_price_cents']
+            conn.close()
+        previous=quote

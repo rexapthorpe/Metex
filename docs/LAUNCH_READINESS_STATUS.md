@@ -171,3 +171,20 @@ Shared rounded option menus enhance single-choice native selects, including dyna
 
 ### 2026-10-07 — saved website version
 Current visual refinements, shared dropdowns, empty-cart alignment and isolated simulation seeder are being saved together from baseline b8cb4f5. Info control now has equal fixed 28px bounds overriding phone button sizing; verified 28×28 at 390px viewport. Verification: 145 Smart Pricing backend tests and 22 UI/payment-navigation tests pass, plus syntax/diff checks. Simulation inventory and auto-login remain only in the temporary preview, not production data or application authentication. GitHub main update is the requested source version; hosted deployment completion is not yet verified.
+
+### 2026-10-07 — rigorous Smart Pricing stress verification
+Baseline: c030f42. Added regression tests in tests/test_smart_pricing.py; no production algorithm changes were required by this run.
+
+| Check | Result |
+| --- | --- |
+| Smart Pricing backend, including expanded stress scenarios | 214 passed |
+| Interface, stale-response handling and payment navigation | 22 passed |
+| Canonical financial acceptance and launch safety | 84 passed |
+| Related cart, checkout spot, scheduler, quantity and direct-buy suites | 84 passed, 9 failed |
+| PostgreSQL concurrency | 8 skipped: no test PostgreSQL connection configured |
+
+Stress coverage: 600 spot movement/rounding calculations across Gold, Silver, Platinum and Palladium, three strategies and five weights (1 oz, half oz, tenth oz, 1 g, 10 oz); 72 time-controlled scheduled worker cycles spanning rising/falling comparable premiums, spot reversals, stale-price holds and recovery; 24 authenticated preview quotes through spot reversals, preserving integer-cent amounts and canonical seller-fee identities, rejecting each old price-bound token and accepting the refreshed quote. Concurrent evaluation with 2/4/8/16 threads produces exactly one adjustment and the remaining calls hold under cooldown. Worker checks enforce seller minimum, bounded movement toward target, replay safety and complete persisted audit history (dashboard intentionally shows only 20 events). Existing tests also exercise held inventory, suspended sellers, settings changes, insufficient/contaminated comparisons, expiry/tampering and history-write failure rollback.
+
+The nine related-suite failures are in unchanged legacy checkout-route fixtures/assertions: missing users.session_version causes authentication to fail; routes also require current checkout identity instead of the prior direct-finalization contract. They do not constitute a clean checkout certification and remain unresolved. The canonical current financial acceptance suite passes. Initial new-test failures were corrected test assumptions (weight spelling 'gram' versus supported 'g', and treating the dashboard's 20-row history cap as the full audit table); no production failure was hidden by relaxing the algorithm assertions.
+
+Limits: SQLite fixtures and simulated time/data do not prove PostgreSQL concurrency, live feed uptime, hosted scheduler configuration or actual sale-speed/price optimization. This run placed no real orders/bids and used no live payments. Overall 404 passing tests, 9 legacy failures and 8 PostgreSQL skips across the executed groups.
