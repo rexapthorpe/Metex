@@ -103,3 +103,10 @@ main.container:has(.lp-hero) { position: relative; isolation: isolate; }
 .lp-hero { overflow: visible; isolation: auto; }
 .lp-hero-art { position: fixed; inset: 64px 0 0; z-index: -1; }
 @media(max-width:768px) { .lp-hero-art { top: 120px; } }
+
+/* A centered, concise marketplace introduction. */
+.lp-hero-copy { max-width:760px; margin-inline:auto; text-align:center; }
+.lp-hero .lp-cta-row { justify-content:center; }
+.lp-dealer-message { display:inline-block; margin-top:7px; font-size:.85em; font-weight:500; }
+.lp-cta-btn i { font-size:1.1em; }
+@media(max-width:600px) { .lp-hero-copy { max-width:100%; } .lp-hero .lp-cta-btn { flex:0 1 auto; } }

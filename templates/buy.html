@@ -11,13 +11,11 @@
 
 <section class="lp-hero" aria-labelledby="marketplace-heading">
   <div class="lp-hero-copy">
-    <p class="lp-eyebrow">METEX / PHYSICAL PRECIOUS METALS</p>
     <h1 id="marketplace-heading">A marketplace for<br>physical bullion.</h1>
-    <p class="lp-market-message">Market prices. Set by buyers and sellers.</p>
-    <p class="lp-description">Buy and sell gold, silver, and platinum coins, bars, and rounds on METEX. Compare offers and name your price through marketplace bids.</p>
+    <p class="lp-market-message">Market prices. Set by buyers and sellers.<br><span class="lp-dealer-message">No dealer-set prices.</span></p>
     <div class="lp-cta-row">
-      <a href="#listings" class="lp-cta-btn lp-cta-btn--primary">Browse Bullion <span aria-hidden="true">↓</span></a>
-      <a href="{{ url_for('sell.sell') }}" class="lp-cta-btn lp-cta-btn--outline">Sell Bullion <span aria-hidden="true">↗</span></a>
+      <a href="#listings" class="lp-cta-btn lp-cta-btn--primary">Browse Bullion <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></a>
+      <a href="{{ url_for('sell.sell') }}" class="lp-cta-btn lp-cta-btn--outline">Sell Bullion <i class="fa-solid fa-dollar-sign" aria-hidden="true"></i></a>
     </div>
   </div>
   <div class="lp-hero-art" aria-hidden="true">
@@ -38,12 +36,6 @@
     </div>
     {% if request.args %}<a class="lp-clear-filters" href="{{ url_for('buy.buy') }}#listings">View all bullion</a>{% endif %}
   </div>
-  <nav class="lp-catalog-filters" aria-label="Filter listings by metal">
-    <a href="{{ url_for('buy.buy') }}#listings"{% if not metal_filter %} aria-current="page"{% endif %}>All metals</a>
-    {% for metal in ['Gold', 'Silver', 'Platinum', 'Palladium'] %}
-    <a href="{{ url_for('buy.buy', metal=metal) }}#listings"{% if metal_filter == metal %} aria-current="page"{% endif %}>{{ metal }}</a>
-    {% endfor %}
-  </nav>
   {% if search_query %}<p class="lp-search-summary">Results for “{{ search_query }}”</p>{% endif %}
 
   <!-- One-of-a-Kind & Numismatic Listings -->
