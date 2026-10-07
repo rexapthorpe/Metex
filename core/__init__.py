@@ -270,8 +270,16 @@ def create_app(test_config=None):
             if conn is not None:
                 conn.close()
 
+    if os.getenv('UPLOADS_ROOT'):
+        @app.route('/static/uploads/<path:filename>')
+        def persistent_upload(filename):
+            from flask import send_from_directory
+            root=os.path.join(os.environ['UPLOADS_ROOT'],'public')
+            # Private evidence is never served by this endpoint.
+            return send_from_directory(root,filename)
+
     # Start background spot snapshot scheduler (skipped when TESTING=True)
-    if not (test_config and test_config.get('TESTING')):
+    if not (test_config and test_config.get('TESTING')) and os.getenv('EMBEDDED_FLOW_WORKER','true')=='true':
         _start_spot_scheduler(app)
         _start_flow_worker(app)
 
@@ -390,6 +398,8 @@ def _register_session_validation(app):
             conn.close()
         except Exception:
             app.logger.exception('Unable to validate authenticated session')
+            if not app.config.get('TESTING'):
+                return jsonify({'error':'Account verification is temporarily unavailable'}),503
             return None
         current_version = int(user['session_version'] or 0) if user else -1
         # Test clients historically create sessions directly. Bind those

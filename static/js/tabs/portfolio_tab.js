@@ -554,8 +554,11 @@ function renderAllocationChart(allocationData) {
 
     if (!ctx || !legendContainer) return;
 
-    if (allocationData.length === 0) {
-        legendContainer.innerHTML = '<div class="empty-message">No allocation data available</div>';
+    const empty = allocationData.length === 0;
+    ctx.closest('.portfolio-allocation-card').classList.toggle('allocation-is-empty',empty);
+    if (empty) {
+        if (portfolioAllocationChart) { portfolioAllocationChart.destroy(); portfolioAllocationChart = null; }
+        legendContainer.innerHTML = '<div class="tab-empty-state"><i class="fa-solid fa-chart-pie tab-empty-icon" aria-hidden="true"></i><h3>No allocation yet</h3><p>Your bullion holdings will appear here.</p></div>';
         return;
     }
 

@@ -1,0 +1,58 @@
+.manual-pricing-controls { display: contents; }
+.manual-pricing-controls[hidden], .smart-pricing-panel[hidden], .smart-pricing-launch[hidden] { display: none !important; }
+.smart-pricing-launch { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.smart-pricing-launch button, .smart-pricing-heading button { background:white; border:1px solid #cbd5e1; border-radius:6px; padding:10px 16px; color:#1266d8; cursor:pointer; }
+.smart-pricing-panel { display:grid; gap:14px; border:1px solid #cbd5e1; border-radius:8px; padding:24px; background:white; }
+.smart-pricing-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.smart-pricing-heading h3 { margin:0; }
+.smart-strategies { display:flex; gap:0; border:0; padding:0; margin:0; min-width:0; }
+.smart-strategies legend { font-size:.85rem; color:#64748b; margin-bottom:8px; }
+.smart-strategies label { flex:1; position:relative; cursor:pointer; }
+.smart-strategies input { position:absolute; opacity:0; }
+.smart-strategies span { display:block; padding:14px 6px; text-align:center; border:1px solid #cbd5e1; background:#f8fafc; font-weight:600; }
+.smart-strategies input:checked + span { background:#1266d8; color:white; border-color:#1266d8; }
+.smart-strategies input:focus-visible + span { outline:3px solid #80bbff; outline-offset:3px; }
+.smart-description { padding:16px; border-left:3px solid #1266d8; background:#f1f6fc; }
+.smart-pricing-panel p, .smart-listing-summary p { margin:4px 0; line-height:1.55; }
+.smart-minimum-input { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.smart-minimum-input input { width:140px; padding:10px; border:1px solid #cbd5e1; border-radius:6px; }
+.smart-fallback-note { font-size:.875rem; color:#526278; }
+#smart-pricing-use, .smart-dashboard-form button { justify-self:start; padding:12px 18px; color:white; background:#1266d8; border:0; border-radius:6px; cursor:pointer; }
+.smart-listing-summary { margin:16px 0; padding-top:14px; border-top:1px solid #e2e8f0; font-size:.85rem; }
+.smart-dashboard-form { display:grid; gap:12px; padding:12px 0; }
+.smart-dashboard-form label { display:grid; gap:4px; }
+.smart-dashboard-form input, .smart-dashboard-form select { padding:8px; max-width:100%; border:1px solid #cbd5e1; border-radius:4px; }
+@media(max-width:480px) { .smart-pricing-panel { padding:16px; } .smart-strategies span { font-size:.85rem; } }
+
+.smart-warning[hidden], #smart-preview[hidden], #smart-starting-row[hidden], #smart-fair-row[hidden], #smart-range-row[hidden] { display:none !important; }
+.smart-warning { border-left:3px solid #1266d8; }
+.smart-warning h3 { margin:0; }
+.smart-warning-actions, .smart-preview-actions { display:flex; gap:12px; flex-wrap:wrap; }
+.smart-warning-actions button, #smart-preview-refresh { background:white; border:1px solid #cbd5e1; border-radius:6px; padding:10px 16px; color:#1266d8; cursor:pointer; }
+#smart-warning-continue { background:#1266d8; color:white; border-color:#1266d8; }
+#smart-pricing-use:disabled { opacity:.5; cursor:not-allowed; }
+.smart-preview { border-top:1px solid #dbe4ef; padding-top:18px; }
+.smart-preview h4 { margin:0 0 16px; font-size:1.05rem; }
+.smart-preview-details { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:0; }
+.smart-preview-details dt { color:#526278; font-size:.85rem; }
+.smart-preview-details dd { margin:5px 0 0; font-weight:600; }
+.smart-initial-price { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:20px 0 16px; padding:18px 0; border-top:1px solid #dbe4ef; border-bottom:1px solid #dbe4ef; }
+.smart-initial-price strong { color:#1266d8; font-size:1.8rem; letter-spacing:-.03em; }
+#smart-market-message { line-height:1.6; color:#526278; }
+@media(max-width:480px) { .smart-preview-details { gap:12px; } .smart-initial-price { align-items:start; flex-direction:column; gap:6px; } }
+
+.input-grid:has(#smart-warning:not([hidden])) .manual-pricing-controls,
+.input-grid:has(#smart-warning:not([hidden])) .smart-pricing-launch,
+#smart-warning:not([hidden]) ~ #smart-pricing-panel { display:none !important; }
+
+#smart-availability[hidden] { display:none !important; }
+#smart-availability { display:grid; gap:12px; padding:18px; border-left:3px solid #1266d8; background:#f1f6fc; }
+#smart-availability h3 { margin:0; font-size:1.05rem; line-height:1.4; }
+#smart-availability button { background:white; border:1px solid #cbd5e1; border-radius:6px; padding:10px 16px; color:#1266d8; font-weight:600; cursor:pointer; }
+#smart-availability-retry { background:#1266d8 !important; color:white !important; border-color:#1266d8 !important; }
+.smart-pricing-panel:has(#smart-availability:not([hidden])) > .smart-preview-actions { display:none; }
+
+.smart-proceeds { padding:18px; border-left:3px solid #07956b; background:#f0fdf7; }
+.smart-proceeds > span { display:block; font-weight:600; }
+.smart-proceeds > strong { display:block; margin:8px 0; color:#087a58; font-size:1.8rem; letter-spacing:-.03em; }
+.smart-proceeds p { color:#526278; font-size:.875rem; }

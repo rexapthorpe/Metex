@@ -12,7 +12,7 @@ import os
 
 # Setup Jinja2 for email templates
 template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates', 'emails')
-jinja_env = Environment(loader=FileSystemLoader(template_dir))
+jinja_env = Environment(loader=FileSystemLoader(template_dir), autoescape=True)
 
 
 def send_html_email(to_email, subject, template_name, **template_vars):
@@ -28,6 +28,8 @@ def send_html_email(to_email, subject, template_name, **template_vars):
     Returns:
         bool: True if sent successfully, False otherwise
     """
+    if os.getenv("EMAIL_DELIVERY_ENABLED") != "true":
+        return False
     from_email = config.EMAIL_ADDRESS
     from_password = config.EMAIL_PASSWORD
 
@@ -47,16 +49,16 @@ def send_html_email(to_email, subject, template_name, **template_vars):
         message.attach(html_part)
 
         # Send email via Gmail SMTP
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=20)
         server.login(from_email, from_password)
         server.sendmail(from_email, to_email, message.as_string())
         server.close()
 
-        print(f"[EMAIL] Sent '{subject}' to {to_email}")
+        print('[EMAIL] Delivered transactional message')
         return True
 
     except Exception as e:
-        print(f"[EMAIL ERROR] Failed to send email to {to_email}: {e}")
+        print('[EMAIL ERROR] Transactional delivery failed')
         return False
 
 

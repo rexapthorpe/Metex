@@ -9,168 +9,47 @@
 
 {% block content %}
 
-<!-- ═══════════════════════════════════════════════════════════
-     Hero Section
-     ═══════════════════════════════════════════════════════════ -->
-<div class="lp-hero-band">
-
-  <!-- Main Hero Content -->
-  <div class="lp-hero-inner">
-
-    <!-- Left: Value Proposition -->
-    <div class="lp-hero-left">
-
-      <div class="lp-eyebrow-pill">
-        <i class="fa-solid fa-bolt"></i> The People's Marketplace
-      </div>
-
-      <h1 class="lp-headline">
-        No More Dealer<br>
-        <span class="lp-headline-accent">Price&#8209;Gouging.</span>
-      </h1>
-      <h2 class="lp-subheadline">
-        Trade for <span class="lp-subheadline-green">Real Market Value.</span>
-      </h2>
-
-      <p class="lp-description">
-        Cut out the middlemen. Buy and sell precious metals directly &mdash;
-        peer-to-peer, at spot-linked prices. <strong>You keep more. Period.</strong>
-      </p>
-
-      <div class="lp-trust-pills">
-        <span class="lp-trust-pill"><i class="fa-solid fa-circle-check"></i> Zero hidden markups</span>
-        <span class="lp-trust-pill"><i class="fa-solid fa-circle-check"></i> Transparent fees</span>
-        <span class="lp-trust-pill"><i class="fa-solid fa-circle-check"></i> Verified sellers only</span>
-      </div>
-
-      <div class="lp-cta-row">
-        <a href="#listings" class="lp-cta-btn lp-cta-btn--primary">
-          <i class="fa-solid fa-chart-line"></i> View Markets
-        </a>
-        <a href="{{ url_for('sell.sell') }}" class="lp-cta-btn lp-cta-btn--outline">
-          <i class="fa-solid fa-tag"></i> List an Item
-        </a>
-      </div>
-
-    </div><!-- /lp-hero-left -->
-
-    <!-- Right: Feature Cards + Spot Prices -->
-    <div class="lp-hero-right">
-
-      <div class="lp-feat-card">
-        <div class="lp-feat-card-icon lp-feat-icon--red">
-          <i class="fa-solid fa-ban"></i>
-        </div>
-        <div>
-          <div class="lp-feat-card-title">No Dealer Markups</div>
-          <div class="lp-feat-card-text">Buy at real spot-linked prices &mdash; not inflated dealer spreads.</div>
-        </div>
-      </div>
-
-      <div class="lp-feat-card">
-        <div class="lp-feat-card-icon lp-feat-icon--amber">
-          <i class="fa-solid fa-arrow-right-arrow-left"></i>
-        </div>
-        <div>
-          <div class="lp-feat-card-title">Peer-to-Peer Trading</div>
-          <div class="lp-feat-card-text">Trade directly with verified buyers and sellers. No middlemen.</div>
-        </div>
-      </div>
-
-      <div class="lp-feat-card">
-        <div class="lp-feat-card-icon lp-feat-icon--slate">
-          <i class="fa-solid fa-shield-halved"></i>
-        </div>
-        <div>
-          <div class="lp-feat-card-title">Escrow-Protected</div>
-          <div class="lp-feat-card-text">Every transaction is secured. Your money, your metal, guaranteed.</div>
-        </div>
-      </div>
-
-      <!-- Live Spot Prices -->
-      <div class="lp-spot-card">
-        <div class="lp-spot-card-header">
-          <i class="fa-solid fa-arrow-trend-up" style="color:#16a34a;"></i> Live Spot Prices
-        </div>
-        <div class="lp-spot-grid">
-          <div class="lp-spot-col">
-            <div class="lp-spot-metal-name">Gold</div>
-            <div class="lp-spot-metal-price" id="lp-spot-gold">—</div>
-            <div class="lp-spot-metal-change" id="lp-spot-gold-change"></div>
-          </div>
-          <div class="lp-spot-col">
-            <div class="lp-spot-metal-name">Silver</div>
-            <div class="lp-spot-metal-price" id="lp-spot-silver">—</div>
-            <div class="lp-spot-metal-change" id="lp-spot-silver-change"></div>
-          </div>
-          <div class="lp-spot-col">
-            <div class="lp-spot-metal-name">Platinum</div>
-            <div class="lp-spot-metal-price" id="lp-spot-platinum">—</div>
-            <div class="lp-spot-metal-change" id="lp-spot-platinum-change"></div>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /lp-hero-right -->
-
-  </div><!-- /lp-hero-inner -->
-
-  <!-- Trust Strip -->
-  <div class="lp-trust-strip">
-    <div class="lp-trust-strip-inner">
-      <div class="lp-trust-item">
-        <div class="lp-trust-item-icon"><i class="fa-solid fa-shield-halved"></i></div>
-        <div>
-          <div class="lp-trust-item-title">Verified Sellers</div>
-          <div class="lp-trust-item-sub">Every seller is vetted</div>
-        </div>
-      </div>
-      <div class="lp-trust-item">
-        <div class="lp-trust-item-icon"><i class="fa-solid fa-lock"></i></div>
-        <div>
-          <div class="lp-trust-item-title">Secure Payments</div>
-          <div class="lp-trust-item-sub">Escrow-protected</div>
-        </div>
-      </div>
-      <div class="lp-trust-item">
-        <div class="lp-trust-item-icon"><i class="fa-solid fa-truck"></i></div>
-        <div>
-          <div class="lp-trust-item-title">Insured Shipping</div>
-          <div class="lp-trust-item-sub">Full coverage included</div>
-        </div>
-      </div>
-      <div class="lp-trust-item">
-        <div class="lp-trust-item-icon"><i class="fa-solid fa-rotate-left"></i></div>
-        <div>
-          <div class="lp-trust-item-title">Easy Returns</div>
-          <div class="lp-trust-item-sub">Hassle-free process</div>
-        </div>
-      </div>
+<section class="lp-hero" aria-labelledby="marketplace-heading">
+  <div class="lp-hero-copy">
+    <p class="lp-eyebrow">METEX / PHYSICAL PRECIOUS METALS</p>
+    <h1 id="marketplace-heading">A marketplace for<br>physical bullion.</h1>
+    <p class="lp-market-message">Market prices. Set by buyers and sellers.</p>
+    <p class="lp-description">Buy and sell gold, silver, and platinum coins, bars, and rounds on METEX. Compare offers and name your price through marketplace bids.</p>
+    <div class="lp-cta-row">
+      <a href="#listings" class="lp-cta-btn lp-cta-btn--primary">Browse Bullion <span aria-hidden="true">↓</span></a>
+      <a href="{{ url_for('sell.sell') }}" class="lp-cta-btn lp-cta-btn--outline">Sell Bullion <span aria-hidden="true">↗</span></a>
     </div>
-  </div><!-- /lp-trust-strip -->
-
-</div><!-- /lp-hero-band -->
-
+  </div>
+  <div class="lp-hero-art" aria-hidden="true">
+    <span class="lp-curve lp-curve--light"></span>
+    <span class="lp-curve lp-curve--blue"></span>
+    <span class="lp-curve lp-curve--pale"></span>
+  </div>
+</section>
 
 <!-- ═══════════════════════════════════════════════════════════
      SECTION 2: ACTIVE MARKETS (Listings Grid)
      ═══════════════════════════════════════════════════════════ -->
-<div class="container" id="listings">
-
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
-      <div class="flash-message card">
-        {% for message in messages %}
-          <p>{{ message }}</p>
-        {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
+<section class="lp-catalog" id="listings" aria-labelledby="catalog-heading" tabindex="-1">
+  <div class="lp-catalog-heading">
+    <div>
+      <p class="lp-eyebrow">THE MARKETPLACE</p>
+      <h2 id="catalog-heading">{{ metal_filter or 'Bullion' }} listings</h2>
+    </div>
+    {% if request.args %}<a class="lp-clear-filters" href="{{ url_for('buy.buy') }}#listings">View all bullion</a>{% endif %}
+  </div>
+  <nav class="lp-catalog-filters" aria-label="Filter listings by metal">
+    <a href="{{ url_for('buy.buy') }}#listings"{% if not metal_filter %} aria-current="page"{% endif %}>All metals</a>
+    {% for metal in ['Gold', 'Silver', 'Platinum', 'Palladium'] %}
+    <a href="{{ url_for('buy.buy', metal=metal) }}#listings"{% if metal_filter == metal %} aria-current="page"{% endif %}>{{ metal }}</a>
+    {% endfor %}
+  </nav>
+  {% if search_query %}<p class="lp-search-summary">Results for “{{ search_query }}”</p>{% endif %}
 
   <!-- One-of-a-Kind & Numismatic Listings -->
   {% if one_of_a_kind_buckets %}
     <div class="lp-markets-header">
-      <h2 class="lp-markets-title">One-of-a-Kind &amp; Numismatic</h2>
+      <h2 class="lp-markets-title">Individual &amp; collectible pieces</h2>
       <span class="lp-markets-sub">{{ one_of_a_kind_buckets|length }} market{{ 's' if one_of_a_kind_buckets|length != 1 }}</span>
     </div>
     <div class="grid">
@@ -185,9 +64,9 @@
         </div>
         <div class="image-box">
           {% if bucket.get('tile_image_url') %}
-            <img src="{{ bucket.tile_image_url }}" alt="Item" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
+            <img src="{{ bucket.tile_image_url }}" alt="{{ bucket.get('listing_title') or (bucket['metal'] ~ ' ' ~ bucket['product_type']) }}" loading="lazy" decoding="async">
           {% else %}
-            <span>Item image</span>
+            <span class="lp-image-unavailable">Photo unavailable</span>
           {% endif %}
         </div>
         <div class="product-text">
@@ -196,7 +75,7 @@
           </p>
           <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
           {% if bucket['lowest_price'] is not none %}
-            <p class="price">${{ bucket['lowest_price']|commas }}</p>
+            <p class="price"><span class="lp-price-label">From</span> ${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
               <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
             {% endif %}
@@ -212,10 +91,10 @@
     <hr class="lp-markets-divider">
   {% endif %}
 
-  <!-- Set Listings -->
+  <!-- Bullion sets -->
   {% if set_buckets %}
     <div class="lp-markets-header">
-      <h2 class="lp-markets-title">Set Listings</h2>
+      <h2 class="lp-markets-title">Bullion sets</h2>
       <span class="lp-markets-sub">{{ set_buckets|length }} set{{ 's' if set_buckets|length != 1 }}</span>
     </div>
     <div class="grid">
@@ -226,9 +105,9 @@
         </div>
         <div class="image-box">
           {% if bucket.get('tile_image_url') %}
-            <img src="{{ bucket.tile_image_url }}" alt="Item" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
+            <img src="{{ bucket.tile_image_url }}" alt="{{ bucket.get('listing_title') or (bucket['metal'] ~ ' ' ~ bucket['product_type']) }}" loading="lazy" decoding="async">
           {% else %}
-            <span>Item image</span>
+            <span class="lp-image-unavailable">Photo unavailable</span>
           {% endif %}
         </div>
         <div class="product-text">
@@ -237,7 +116,7 @@
           </p>
           <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
           {% if bucket['lowest_price'] is not none %}
-            <p class="price">${{ bucket['lowest_price']|commas }}</p>
+            <p class="price"><span class="lp-price-label">From</span> ${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
               <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
             {% endif %}
@@ -256,7 +135,7 @@
   <!-- Standard Listings -->
   {% if standard_buckets %}
     <div class="lp-markets-header">
-      <h2 class="lp-markets-title">Explore Active Markets</h2>
+      <h2 class="lp-markets-title">Coins, bars &amp; rounds</h2>
     </div>
     <div class="grid">
       {% for bucket in standard_buckets %}
@@ -264,9 +143,9 @@
         <div class="image-box">
           {% set _cover = bucket_cover_url(bucket['bucket_id']) %}
           {% if _cover %}
-            <img src="{{ _cover }}" alt="{{ bucket['metal'] }} {{ bucket['product_type'] or '' }}" style="width:100%;height:100%;object-fit:cover;border-radius:20px;">
+            <img src="{{ _cover }}" alt="{{ bucket['metal'] }} {{ bucket['product_type'] or '' }}" loading="lazy" decoding="async">
           {% else %}
-            <span>Item image</span>
+            <span class="lp-image-unavailable">Photo unavailable</span>
           {% endif %}
         </div>
         <div class="product-text">
@@ -275,7 +154,7 @@
           </p>
           <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
           {% if bucket['lowest_price'] is not none %}
-            <p class="price">${{ bucket['lowest_price']|commas }}</p>
+            <p class="price"><span class="lp-price-label">From</span> ${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
               <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
             {% endif %}
@@ -291,20 +170,13 @@
   {% endif %}
 
   {% if not standard_buckets and not one_of_a_kind_buckets and not set_buckets %}
-    <p class="empty-message">No active listings available right now.</p>
+    <div class="lp-empty-state">
+      <h3>{{ 'No matching listings' if request.args else 'No active listings right now' }}</h3>
+      <p>{{ ('No ' ~ metal_filter|lower ~ ' listings match these filters. Try another metal or view all bullion.') if metal_filter else 'Try another search term, or view all bullion.' if request.args else 'Available coins, bars, and rounds will appear here when sellers list them.' }}</p>
+      <a href="{{ url_for('buy.buy') if request.args else url_for('sell.sell') }}">{{ 'View all bullion' if request.args else 'Sell Bullion' }} <span aria-hidden="true">→</span></a>
+    </div>
   {% endif %}
 
-</div>
-<!-- /listings container -->
-
-
-<!-- ── Recent trades data for ticker (JSON, not rendered) ── -->
-{% if recent_trades %}
-<script id="lp-trades-data" type="application/json">
-{{ recent_trades | tojson }}
-</script>
-{% endif %}
-
-<script src="{{ url_for('static', filename='js/landing.js') }}"></script>
+</section>
 
 {% endblock %}

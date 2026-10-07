@@ -119,6 +119,10 @@
       }
     }
 
+    if (document.getElementById('smart-pricing-enabled')?.value === '1') {
+      const strategy = document.querySelector('[name="smart_pricing_strategy"]:checked')?.value || 'balanced';
+      priceText = window.smartCurrentPreview ? `${formatPrice(window.smartCurrentPreview.initial_price_cents / 100)} · ${{fast:'Sell Fast',balanced:'Balanced',big:'Sell Big'}[strategy]}` : 'Smart Pricing';
+    }
     summaryPrice.textContent = priceText;
     if (priceText === '—') {
       summaryPrice.classList.add('empty');

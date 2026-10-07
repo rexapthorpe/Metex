@@ -248,7 +248,7 @@ def get_table_columns(conn, table_name):
     """
     if IS_POSTGRES:
         rows = conn.execute(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = ?",
+            "SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = current_schema()",
             (table_name,)
         ).fetchall()
         return {row['column_name'] for row in rows}

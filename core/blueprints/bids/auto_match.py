@@ -36,19 +36,8 @@ def _spot_prices(conn):
 
 
 def _shipping(bid):
-    import re
-    address = bid["delivery_address"] or ""
-    match = re.search(r"\b([A-Z]{2})\s+(\d{5}(?:-\d{4})?)\s*$", address)
-    if not match:
-        raise ValueError("The bid delivery address is incomplete; automatic payment was not attempted.")
-    return {
-        "shipping_address": address,
-        "recipient_first": bid["recipient_first_name"],
-        "recipient_last": bid["recipient_last_name"],
-        "state": match.group(1),
-        "postal_code": match.group(2),
-        "country": "US",
-    }
+    from services.shipping_address_service import bid_shipping
+    return bid_shipping(bid)
 
 
 def _tax_cents(subtotal_cents, shipping):
@@ -144,7 +133,7 @@ def secure_auto_match_bid(bid_id, only_listing_id=None):
                     Decimal("1"), rounding=ROUND_HALF_UP
                 )
             ) * quantity
-            tax = _tax_cents(subtotal_cents, shipping)
+            tax = 0  # Canonical execute_bid_fill calculates per-item tax.
             outcome = execute_bid_fill(
                 bid_id, bid["buyer_id"], listing["seller_id"], [item], rail, tax,
                 shipping, bid["bid_payment_method_id"], bid["stripe_customer_id"],

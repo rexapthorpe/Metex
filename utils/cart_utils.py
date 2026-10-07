@@ -46,7 +46,7 @@ def validate_and_refill_cart(conn, user_id):
         if not active or available_qty == 0:
             # Listing is completely gone - remove from cart and track for refill
             cursor.execute('DELETE FROM cart WHERE id = ?', (entry['cart_id'],))
-            buckets_to_refill[bucket_id].append({
+            buckets_to_refill[(bucket_id,entry['category_id'])].append({
                 'lost_qty': cart_qty,
                 'old_listing_id': entry['listing_id'],
                 'seller_id': entry['seller_id'],
@@ -54,14 +54,14 @@ def validate_and_refill_cart(conn, user_id):
         elif available_qty < cart_qty:
             # Listing partially consumed - reduce cart qty and refill difference
             cursor.execute('UPDATE cart SET quantity = ? WHERE id = ?', (available_qty, entry['cart_id']))
-            buckets_to_refill[bucket_id].append({
+            buckets_to_refill[(bucket_id,entry['category_id'])].append({
                 'lost_qty': cart_qty - available_qty,
                 'old_listing_id': entry['listing_id'],
                 'seller_id': entry['seller_id'],
             })
 
     # Now refill from other listings in each affected bucket
-    for bucket_id, items_to_refill in buckets_to_refill.items():
+    for (bucket_id,category_id), items_to_refill in buckets_to_refill.items():
         total_lost = sum(item['lost_qty'] for item in items_to_refill)
         total_refilled = 0
 
@@ -74,6 +74,7 @@ def validate_and_refill_cart(conn, user_id):
             FROM listings l
             JOIN categories c ON l.category_id = c.id
             WHERE c.bucket_id = ?
+              AND l.category_id = ?
               AND l.active = 1
               AND l.quantity > 0
               AND l.seller_id != ?
@@ -81,7 +82,7 @@ def validate_and_refill_cart(conn, user_id):
             ORDER BY l.price_per_coin ASC
         '''
 
-        params = [bucket_id, user_id] + excluded_listing_ids
+        params = [bucket_id, category_id, user_id] + excluded_listing_ids
         available_listings = cursor.execute(query, params).fetchall()
 
         # Refill from cheapest available listings
@@ -115,11 +116,10 @@ def validate_and_refill_cart(conn, user_id):
                 remaining_to_fill -= take
                 total_refilled += take
 
-        refill_log[bucket_id] = {
-            'lost': total_lost,
-            'refilled': total_refilled,
-            'missing': total_lost - total_refilled
-        }
+        aggregate=refill_log.setdefault(bucket_id,{'lost':0,'refilled':0,'missing':0})
+        aggregate['lost']+=total_lost
+        aggregate['refilled']+=total_refilled
+        aggregate['missing']+=total_lost-total_refilled
 
     conn.commit()
     return refill_log

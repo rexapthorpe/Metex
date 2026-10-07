@@ -144,6 +144,14 @@ def update_set_items(conn, listing_id, set_items_data):
             new_ids.add(new_item_id)
             item_data['id'] = new_item_id  # Store for photo handling
 
+        # Persist exact configuration fields used in Smart preview and pricing.
+        resolved_id = item_id if item_id in existing_ids else new_item_id
+        quantity = int(item_data.get('quantity') or 1)
+        if not 1<=quantity<=100000:
+            raise ValueError('Set item quantities must be positive.')
+        conn.execute('UPDATE listing_set_items SET quantity=?,packaging_type=?,condition_notes=? WHERE id=? AND listing_id=?',
+                     (quantity,item_data.get('packaging_type'),item_data.get('condition_notes'),resolved_id,listing_id))
+
     # Delete items that were removed (in existing but not in new)
     items_to_delete = existing_ids - new_ids
     for item_id in items_to_delete:

@@ -37,6 +37,16 @@ def edit_listing(listing_id):
     # Always use context manager so the connection is closed even on error
     with get_db_connection() as conn:
         conn.row_factory = sqlite3.Row
+        from services.smart_pricing_service import parse_form, configure, lock, cents
+        smart_settings = None
+        if request.method == 'POST':
+            try:
+                smart_settings = parse_form(request.form)
+            except ValueError as exc:
+                return jsonify(success=False, message=str(exc)), 400
+            lock(conn)
+            if conn.execute("SELECT id FROM inventory_reservations WHERE listing_id=? AND state='HELD'", (listing_id,)).fetchone():
+                return jsonify(success=False, message='Pricing cannot change during a pending purchase.'), 409
 
         # ---- Load the listing (shared by GET and POST) ----
         query_start = time.time()
@@ -119,7 +129,7 @@ def edit_listing(listing_id):
                 grade        = request.form.get('grade', '').strip()
 
                 # Extract pricing mode
-                pricing_mode = request.form.get('pricing_mode', 'static').strip()
+                pricing_mode = 'premium_to_spot' if smart_settings else request.form.get('pricing_mode', 'static').strip()
 
                 # Extract pricing parameters based on mode
                 if pricing_mode == 'static':
@@ -142,14 +152,14 @@ def edit_listing(listing_id):
                     # Validate premium (can be 0 or positive)
                     if not spot_premium_str:
                         spot_premium_str = '0.00'
-                    spot_premium = float(spot_premium_str)
+                    spot_premium = max(cents(listing['spot_premium'] or 0), smart_settings[1]) / 100 if smart_settings else float(spot_premium_str)
 
                     # Validate floor price (must be positive)
-                    if not floor_price_str or floor_price_str == '0.00' or float(floor_price_str) <= 0:
+                    if not smart_settings and (not floor_price_str or floor_price_str == '0.00' or float(floor_price_str) <= 0):
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                             return jsonify({'message': 'Floor price must be greater than 0 for premium-to-spot pricing'}), 400
                         return 'Floor price must be greater than 0 for premium-to-spot pricing', 400
-                    floor_price = float(floor_price_str)
+                    floor_price = 0.01 if smart_settings else float(floor_price_str)
 
                     pricing_metal = request.form.get('pricing_metal', metal).strip()
                     # For premium-to-spot, price_per_coin will be calculated dynamically
@@ -198,7 +208,7 @@ def edit_listing(listing_id):
                         _m = _re.match(r'set_items\[(\d+)\]\[', _key)
                         if _m:
                             _set_item_indices.add(int(_m.group(1)))
-                    if len(_set_item_indices) >= 2:
+                    if len(_set_item_indices) >= 2 or request.form.get('set_items_json'):
                         _skip_main_validation = True
                         print(f"[EDIT VALIDATION] Skipping main form validation — {len(_set_item_indices)} set items present")
                 if not _skip_main_validation:
@@ -438,6 +448,48 @@ def edit_listing(listing_id):
                     )
                 )
 
+                # ---- Handle set items for set listings ----
+                if listing['is_isolated'] == 1 and listing['isolated_type'] == 'set':
+                    import json
+                    # Get set items data from form (sent as JSON string)
+                    set_items_json = request.form.get('set_items_json') or request.form.get('set_items_data')
+                    if set_items_json:
+                        try:
+                            set_items_data = json.loads(set_items_json)
+                            # Validate minimum 2 items for sets
+                            if len(set_items_data) < 2:
+                                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                                    raise ValueError('Set listings must have at least 2 items')
+                                raise ValueError('Set listings must have at least 2 items')
+
+                            # Update set items
+                            update_set_items(conn, listing_id, set_items_data)
+
+                            # Handle photos for each set item
+                            for item_data in set_items_data:
+                                item_id = item_data.get('id')
+                                if item_id:
+                                    # Collect photos for this item (up to 3)
+                                    photo_files = []
+                                    for i in range(1, 4):
+                                        photo_key = f'set_item_{item_id}_photo_{i}'
+                                        photo_file = request.files.get(photo_key)
+                                        if photo_file and photo_file.filename:
+                                            photo_files.append(photo_file)
+
+                                    if photo_files:
+                                        handle_set_item_photos(conn, item_id, photo_files)
+
+
+                        except json.JSONDecodeError as e:
+                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                                raise ValueError('Invalid set items data') from e
+                            raise ValueError('Invalid set items data') from e
+
+                from services.smart_pricing_service import product, validate_preview
+                approval=validate_preview(conn,product(conn,listing_id),smart_settings,request.form) if smart_settings else None
+                configure(conn,listing_id,smart_settings,approval=approval)
+
                 # Explicitly commit the transaction
                 conn.commit()
                 print(f"[DEBUG] ===== UPDATE COMPLETED =====")
@@ -525,44 +577,6 @@ def edit_listing(listing_id):
                                     )
                             except Exception as e:
                                 print(f"[WARNING] Failed to send bid cancellation notifications: {e}")
-
-                # ---- Handle set items for set listings ----
-                if listing['is_isolated'] == 1 and listing['isolated_type'] == 'set':
-                    import json
-                    # Get set items data from form (sent as JSON string)
-                    set_items_json = request.form.get('set_items_data')
-                    if set_items_json:
-                        try:
-                            set_items_data = json.loads(set_items_json)
-                            # Validate minimum 2 items for sets
-                            if len(set_items_data) < 2:
-                                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                                    return jsonify({'message': 'Set listings must have at least 2 items'}), 400
-                                return 'Set listings must have at least 2 items', 400
-
-                            # Update set items
-                            update_set_items(conn, listing_id, set_items_data)
-
-                            # Handle photos for each set item
-                            for item_data in set_items_data:
-                                item_id = item_data.get('id')
-                                if item_id:
-                                    # Collect photos for this item (up to 3)
-                                    photo_files = []
-                                    for i in range(1, 4):
-                                        photo_key = f'set_item_{item_id}_photo_{i}'
-                                        photo_file = request.files.get(photo_key)
-                                        if photo_file and photo_file.filename:
-                                            photo_files.append(photo_file)
-
-                                    if photo_files:
-                                        handle_set_item_photos(conn, item_id, photo_files)
-
-                            conn.commit()
-                        except json.JSONDecodeError as e:
-                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                                return jsonify({'message': f'Invalid set items data: {e}'}), 400
-                            return f'Invalid set items data: {e}', 400
 
                 # Update bucket price history after listing change
                 try:
@@ -734,9 +748,14 @@ def edit_listing(listing_id):
                     return jsonify(response_data), 200
                 return redirect(url_for('account.account'))
 
+            except ValueError as e:
+                conn.rollback()
+                from services.smart_pricing_service import seller_error
+                return jsonify(**seller_error(e)),400
             except Exception as e:
-                # context manager will roll back automatically on exception
-                msg = f'Error updating listing: {e}'
+                conn.rollback()  # Returning an error would otherwise commit the context manager.
+                # Roll back listing and Smart settings together.
+                msg = 'Your listing could not be updated. Please try again shortly.'
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'message': msg}), 500
                 return msg, 500
@@ -991,3 +1010,52 @@ def my_listings():
 
     conn.close()
     return render_template('my_listings.html', listings=listings, sales=sales)
+
+
+@listings_bp.route('/<int:listing_id>/smart-pricing', methods=['POST'])
+def manage_smart_pricing(listing_id):
+    """Owner-only, CSRF-protected seller control; commits premium/settings together."""
+    if 'user_id' not in session:
+        return jsonify(success=False, message='Sign in to manage pricing.'), 401
+    from services.smart_pricing_service import parse_form, configure, cents, lock
+    from decimal import Decimal
+    conn = get_db_connection()
+    try:
+        lock(conn)
+        listing = conn.execute('SELECT * FROM listings WHERE id=? AND seller_id=?', (listing_id, session['user_id'])).fetchone()
+        if not listing:
+            return jsonify(success=False, message='Listing not found.'), 404
+        if not listing['active'] or listing['quantity'] <= 0:
+            return jsonify(success=False, message='Only active unsold listings can be changed.'), 409
+        if conn.execute("SELECT id FROM inventory_reservations WHERE listing_id=? AND state='HELD'", (listing_id,)).fetchone():
+            return jsonify(success=False, message='Pricing cannot change during a pending purchase.'), 409
+        settings = parse_form(request.form)
+        if settings:
+            current=conn.execute('SELECT enabled FROM smart_pricing_settings WHERE listing_id=?',(listing_id,)).fetchone()
+            if not current or not current['enabled']:
+                raise ValueError('Open Edit Listing to preview and enable Smart Pricing.')
+            conn.execute("UPDATE listings SET pricing_mode='premium_to_spot',pricing_metal=(SELECT metal FROM categories WHERE id=listings.category_id),floor_price=0.01 WHERE id=?", (listing_id,))
+            configure(conn, listing_id, settings)
+        else:
+            mode = request.form.get('manual_mode', 'premium_to_spot')
+            if mode not in ('premium_to_spot', 'static'):
+                raise ValueError('Choose a manual pricing mode.')
+            if mode == 'static':
+                price = cents(request.form.get('manual_price', ''))
+                if price <= 0:
+                    raise ValueError('Fixed price must be positive.')
+                conn.execute("UPDATE listings SET pricing_mode='static',price_per_coin=?,spot_premium=NULL,floor_price=NULL WHERE id=?", (str(Decimal(price)/100), listing_id))
+            else:
+                # Retain the managed premium when returning to manual spot pricing.
+                conn.execute("UPDATE listings SET pricing_mode='premium_to_spot' WHERE id=?", (listing_id,))
+            configure(conn, listing_id, None)
+        conn.commit()
+        return redirect(url_for('account.account', _anchor='listings'))
+    except ValueError as exc:
+        conn.rollback()
+        return jsonify(success=False, message=str(exc)), 400
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

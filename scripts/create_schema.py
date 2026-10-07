@@ -231,6 +231,7 @@ class SchemaManager:
 
         sql = """
         CREATE TABLE IF NOT EXISTS listings (
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             seller_id INTEGER NOT NULL,
             category_id INTEGER NOT NULL,
@@ -267,6 +268,7 @@ class SchemaManager:
             self.log_skip("Table 'listings' already exists")
 
         # Ensure all columns exist (from various migrations)
+        self.add_column('listings', 'created_at', 'TIMESTAMP')
         self.add_column('listings', 'name', 'TEXT')
         self.add_column('listings', 'description', 'TEXT')
         self.add_column('listings', 'pricing_mode', "TEXT DEFAULT 'static' CHECK(pricing_mode IN ('static', 'premium_to_spot'))")
@@ -1852,6 +1854,8 @@ class SchemaManager:
             # projections until their readers have been migrated.
             from services.flow_of_funds import ensure_flow_schema
             ensure_flow_schema(self.conn)
+            from services.smart_pricing_service import ensure_schema as ensure_smart_schema
+            ensure_smart_schema(self.conn, create_indexes=True)
             self.log_change("Verified canonical flow-of-funds tables")
 
             # Add cancellation columns to orders table (idempotent — also in create_orders_table)

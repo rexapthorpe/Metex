@@ -15,11 +15,13 @@
   </div>
 </div>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/smart_pricing.css') }}">
 <div class="listings-tab">
   <!-- Header -->
   <div class="tab-page-header">
     <div>
       <h1 class="tab-page-title">My Active Listings</h1>
+      <p class="tab-page-subtitle">Manage the bullion you have listed for sale.</p>
     </div>
     <a href="{{ url_for('sell.sell') }}" class="tab-cta-btn tab-cta-btn--amber">
       <i class="fa-solid fa-plus"></i> New Listing
@@ -101,6 +103,28 @@
                   {% endif %}
                 </div>
 
+                {% if listing.smart_pricing and listing.smart_pricing.enabled %}
+                {% set smart = listing.smart_pricing %}
+                <div class="smart-listing-summary">
+                  <strong>Smart Pricing: {{ {'fast':'Sell Fast','balanced':'Balanced','big':'Sell Big'}[smart.strategy] }}</strong>
+                  <p>Current premium: +${{ '%.2f'|format(listing.spot_premium or 0) }} over spot · Minimum: +${{ '%.2f'|format(smart.minimum_cents / 100) }}</p>
+                  <p>Last review: {{ smart.last_review_label or 'Awaiting first review' }}</p>
+                  {% if smart.review.reason %}<p>{{ smart.review.reason }}</p>{% endif %}
+                  {% if smart.history %}<p>Previous premium: +${{ '%.2f'|format(smart.history[0].previous_cents / 100) }}</p>{% endif %}
+                  <details><summary>Pricing controls and history</summary>
+                    <form action="{{ url_for('listings.manage_smart_pricing', listing_id=listing.listing_id) }}" method="post" class="smart-dashboard-form">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <label>Strategy <select name="smart_pricing_strategy">{% for key,label in [('fast','Sell Fast'),('balanced','Balanced'),('big','Sell Big')] %}<option value="{{ key }}" {% if key==smart.strategy %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                      <label>Minimum premium ($)<input name="smart_minimum" type="number" min="0" step="0.01" value="{{ '%.2f'|format(smart.minimum_cents / 100) }}" required></label>
+                      <label>Pricing <select name="smart_pricing_enabled"><option value="1">Smart Pricing</option><option value="0">Manual pricing</option></select></label>
+                      <label>When disabling <select name="manual_mode"><option value="premium_to_spot">Keep current premium</option><option value="static">Fixed Price</option></select></label>
+                      <label>Fixed price ($, if selected)<input name="manual_price" type="number" min="0.01" step="0.01"></label>
+                      <button type="submit">Save pricing</button>
+                    </form>
+                    <ol>{% for event in smart.history %}<li>{{ event.time_label }}: +${{ '%.2f'|format(event.previous_cents / 100) }} → +${{ '%.2f'|format(event.new_cents / 100) }} over spot ({{ {'fast':'Sell Fast','balanced':'Balanced','big':'Sell Big'}[event.strategy] }})</li>{% else %}<li>No automated premium changes yet.</li>{% endfor %}</ol>
+                  </details>
+                </div>
+                {% endif %}
                 <span class="lc-qty-chip" id="listing-qty-{{ listing.listing_id }}">Qty: {{ listing.quantity }}</span>
               </div>
 

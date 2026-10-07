@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_admin             INTEGER DEFAULT 0,
     is_banned            INTEGER DEFAULT 0,
     is_frozen            INTEGER DEFAULT 0,
-    stripe_customer_id   TEXT
+    stripe_customer_id   TEXT,
+    session_version INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS cart (
     id                            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -236,6 +237,7 @@ class TestGetPaymentMethodsIncludesBankAccounts:
 
     def _mock_customer(self, default_pm_id=None):
         mock_customer = MagicMock()
+        mock_customer.to_dict.return_value={'invoice_settings':{'default_payment_method':default_pm_id}}
         mock_customer.get.side_effect = lambda key, *args: (
             {'default_payment_method': default_pm_id} if key == 'invoice_settings'
             else (args[0] if args else None)
@@ -247,6 +249,7 @@ class TestGetPaymentMethodsIncludesBankAccounts:
         pm = MagicMock()
         pm.id = pm_id
         pm.type = 'card'
+        pm.to_dict.return_value={'card':{'brand':brand,'last4':last4,'exp_month':exp_month,'exp_year':exp_year,'funding':'credit'}}
         pm.get.side_effect = lambda key, *args: (
             {'brand': brand, 'last4': last4,
              'exp_month': exp_month, 'exp_year': exp_year, 'funding': 'credit'}
@@ -258,6 +261,7 @@ class TestGetPaymentMethodsIncludesBankAccounts:
         pm = MagicMock()
         pm.id = pm_id
         pm.type = 'us_bank_account'
+        pm.to_dict.return_value={'us_bank_account':{'bank_name':bank_name,'last4':last4}}
         pm.get.side_effect = lambda key, *args: (
             {'bank_name': bank_name, 'last4': last4}
             if key == 'us_bank_account' else (args[0] if args else None)

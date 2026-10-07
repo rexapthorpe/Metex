@@ -304,3 +304,41 @@ main.container:has(.login-page){ padding-top: 0 !important; }
   .primary-btn { font-size: 14px; padding: 9px 12px; }
   .ghost { padding: 5px 8px; font-size: 12px; }
 }
+
+/* Auth page overrides: the shell aligns the card, but has no visual box. */
+main.container:has(.login-page) { width: 100%; padding-bottom: 0; }
+body:has(.login-page) { overflow-y: auto !important; }
+/* Keep the footer spacing inside the decorated region, not in an unpainted margin. */
+body:has(.login-page) .site-footer { margin-top: 0; }
+.login-page { position: relative; overflow: hidden !important; isolation: isolate; min-height: 0; padding-bottom: 60px; }
+.login-page .auth-shell { min-height: calc(100svh - 64px); padding: 100px 20px 40px; display: grid; place-items: center; background: none; box-shadow: none; }
+.login-page .auth-card { width: min(460px,100%); height: auto; transform: none; border-radius: 12px; border: 1px solid #e6e6e6; background: #fff; box-shadow: 0 12px 40px rgba(31,42,61,.10); backdrop-filter: none; }
+.login-page .mobile-auth-tabs { display: flex; background: #fff; border-bottom: 1px solid #e6e6e6; }
+.login-page .mobile-auth-tab { flex: 1; padding: 16px 8px; background: #fff; border: 0; border-bottom: 2px solid transparent; color: #667085; font-size: 14px; font-weight: 600; }
+.login-page .auth-card .mobile-auth-tab[aria-pressed="true"] { color: #0c63e7; border-bottom-color: #0c63e7; }
+.login-page .auth-card .mobile-auth-tab[aria-pressed="false"] { color: #667085; border-bottom-color: transparent; }
+.login-page .panes { display: grid; grid-template-columns: 1fr; background: #fff; }
+.login-page .pane { grid-area: 1 / 1; padding: 28px; justify-content: flex-start; display: flex; background: #fff; min-width: 0; }
+.login-page .pane[hidden] { display: flex !important; visibility: hidden; pointer-events: none; }
+.login-page .pane:not([hidden]) { display: flex; visibility: visible; }
+.login-page .subtitle { margin-bottom: 24px; }
+.login-page .form-row { margin: 0; }
+.login-page .primary-btn { background: #0c63e7; box-shadow: none; min-height: 44px; border-radius: 6px; }
+.login-page .auth-card input { min-height: 44px; border-radius: 6px; }
+.login-page .auth-card button:focus-visible { outline: 2px solid #0c63e7; outline-offset: 3px; }
+.auth-curves { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.auth-curve { position: absolute; border-radius: 48% 52% 63% 37% / 46% 43% 57% 54%; transition: transform 650ms ease-in-out; }
+.auth-curve--one { width: 420px; height: 390px; top: 30px; left: -200px; background: #dceeff; transform: rotate(25deg); }
+.auth-curve--two { width: 340px; height: 350px; right: -160px; bottom: -80px; background: #3da6ff; transform: rotate(-20deg); }
+.auth-curve--three { width: 270px; height: 220px; top: 90px; right: 6%; background: #edf5ff; transform: rotate(10deg); }
+.is-signup .auth-curve--one { transform: translate(40px,100px) rotate(65deg); }
+.is-signup .auth-curve--two { transform: translate(-30px,-90px) rotate(20deg); }
+.is-signup .auth-curve--three { transform: translate(-60px,80px) rotate(-30deg); }
+@media(max-width:768px) {
+  .login-page .auth-shell { min-height: calc(100svh - 120px); padding: 150px 16px 32px; }
+  .auth-curve--one { width: 240px; height: 300px; left: -170px; top: 130px; }
+  .auth-curve--two { width: 200px; height: 260px; right: -150px; bottom: 0; }
+  .auth-curve--three { width: 140px; height: 130px; top: 115px; right: -50px; }
+}
+@media(max-width:360px) { .login-page .pane { padding: 24px 18px; } }
+@media(prefers-reduced-motion:reduce) { .auth-curve { transition: none; } }

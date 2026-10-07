@@ -15,7 +15,7 @@ report_bp = Blueprint('reports', __name__)
 # Report attachments are stored OUTSIDE static/ so they are NOT publicly accessible.
 # The absolute path is constructed at runtime relative to this file.
 _APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPORT_ATTACH_DIR = os.path.join(_APP_ROOT, 'data', 'uploads', 'reports')
+REPORT_ATTACH_DIR = os.path.join(os.environ['UPLOADS_ROOT'],'private','reports') if os.getenv('UPLOADS_ROOT') else os.path.join(_APP_ROOT, 'data', 'uploads', 'reports')
 
 # Legacy constant kept for reference only — no longer used for new uploads.
 UPLOAD_FOLDER = 'static/uploads/reports'

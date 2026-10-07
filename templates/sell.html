@@ -457,6 +457,7 @@
           <small class="example-text">Number of items (whole numbers only)</small>
         </div>
 
+        <div id="manual-pricing-controls" class="manual-pricing-controls">
         <!-- Pricing Mode Selection -->
         <div class="input-group" style="grid-column: 1 / -1;">
           <label>Pricing Mode</label>
@@ -541,6 +542,49 @@
           </div>
         </div>
 
+        </div><!-- /manual-pricing-controls -->
+        <div class="smart-pricing-launch" style="grid-column:1 / -1">
+          <button type="button" id="smart-pricing-enter">Smart Pricing <span aria-hidden="true">→</span></button>
+          <small>Optional automatic premium management</small><span id="smart-launch-status" role="status"></span>
+        </div>
+        <section id="smart-warning" class="smart-pricing-panel smart-warning" hidden aria-labelledby="smart-warning-title" style="grid-column:1 / -1">
+          <h3 id="smart-warning-title">Smart Pricing may be less accurate for this item</h3>
+          <p>This item appears to be a rare item, set, or non-standard listing. Comparable METEX sales may be limited, so Smart Pricing may price this item less accurately than standardized bullion.</p>
+          <p>METEX may periodically adjust your listing based on the limited market information available. Review the suggested starting price carefully before enabling Smart Pricing.</p>
+          <div class="smart-warning-actions"><button type="button" id="smart-warning-continue">Continue with Smart Pricing</button><button type="button" id="smart-warning-cancel">Use Manual Pricing</button></div>
+        </section>
+        <section id="smart-pricing-panel" class="smart-pricing-panel" hidden aria-labelledby="smart-pricing-title" style="grid-column:1 / -1">
+          <div class="smart-pricing-heading"><h3 id="smart-pricing-title">Smart Pricing</h3><button type="button" id="smart-pricing-exit">Back to manual pricing</button></div>
+          <input type="hidden" id="smart-pricing-enabled" name="smart_pricing_enabled" value="0">
+          <input type="hidden" id="smart-preview-token" name="smart_preview_token" value="">
+          <input type="hidden" id="smart-warning-acknowledged" name="smart_warning_acknowledged" value="0">
+          <fieldset class="smart-strategies"><legend>Selling strategy</legend>
+            <label><input type="radio" name="smart_pricing_strategy" value="fast"><span>Sell Fast</span></label>
+            <label><input type="radio" name="smart_pricing_strategy" value="balanced" checked><span>Balanced</span></label>
+            <label><input type="radio" name="smart_pricing_strategy" value="big"><span>Sell Big</span></label>
+          </fieldset>
+          <div class="smart-description" aria-live="polite"><strong id="smart-description-title"></strong><p id="smart-description-copy"></p></div>
+          <input type="hidden" name="smart_minimum" id="smart-minimum" value="0.00">
+          <input type="hidden" name="smart_starting" id="smart-starting" value="">
+          <div id="smart-starting-row" hidden></div>
+          <div id="smart-market-message" role="status"></div>
+          <section id="smart-preview" class="smart-preview" hidden aria-labelledby="smart-preview-title" aria-live="polite">
+            <h4 id="smart-preview-title">Smart Pricing Preview</h4>
+            <dl class="smart-preview-details">
+              <div><dt>Strategy</dt><dd id="smart-preview-strategy"></dd></div>
+              <div id="smart-fair-row"><dt>Estimated Fair Market Premium</dt><dd id="smart-preview-fair"></dd></div>
+              <div id="smart-range-row"><dt>Market Premium Range</dt><dd id="smart-preview-range"></dd></div>
+              <div><dt id="smart-premium-label">Initial Premium</dt><dd id="smart-preview-premium"></dd></div>
+              <div><dt>Current Metal Value</dt><dd id="smart-preview-metal"></dd></div>
+              <div hidden><dt>Protected minimum premium</dt><dd id="smart-preview-minimum"></dd></div>
+            </dl>
+            <div class="smart-initial-price"><span>Initial Listing Price</span><strong id="smart-preview-price"></strong></div>
+            <div class="smart-proceeds"><span>Estimated amount you receive</span><strong id="smart-preview-net"></strong><p id="smart-preview-net-note">Per item, after METEX’s 5% fee and before your shipping costs.</p><p id="smart-preview-total-net" hidden></p></div>
+            <p>Your listing price will continue to move with the underlying metal spot price. Smart Pricing may periodically adjust the premium above spot in an effort to achieve your selected selling goal.</p>
+          </section>
+          <section id="smart-availability" hidden role="status"><h3 id="smart-availability-title">Current metal pricing is temporarily unavailable</h3><p id="smart-availability-copy"></p><div class="smart-preview-actions"><button type="button" id="smart-availability-retry">Try Again</button><button type="button" id="smart-availability-manual">Use Manual Pricing</button></div></section>
+          <div class="smart-preview-actions"><button type="button" id="smart-preview-refresh">Refresh preview</button><button type="button" id="smart-pricing-use" disabled>Use Smart Pricing</button></div><span id="smart-pricing-status" role="status"></span>
+        </section>
         <!-- Final Divider -->
         <div class="row-divider"></div>
 
@@ -954,7 +998,9 @@
 </script>
 
 <!-- Core sell JS (custom dropdowns, pricing mode toggle) -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/smart_pricing.css') }}">
 <script src="{{ url_for('static', filename='js/sell.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/smart_pricing.js') }}"></script>
 
 <!-- Mode controller (3-mode switching logic) -->
 <script src="{{ url_for('static', filename='js/sell/mode_controller.js') }}?v=5"></script>

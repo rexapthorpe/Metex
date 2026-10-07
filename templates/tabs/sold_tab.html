@@ -1,7 +1,8 @@
 <div class="sold-tab">
   <!-- Header -->
   <div class="tab-page-header">
-    <h1 class="tab-page-title">Sold Items</h1>
+    <div><h1 class="tab-page-title">Sold Items</h1>
+      <p class="tab-page-subtitle">Manage sold items and fulfillment.</p></div>
   </div>
 
   <!-- Summary Stats -->
@@ -114,7 +115,7 @@
                 <div class="sold-buyer-avatar">{{ buyer_initials }}</div>
                 <div class="sold-buyer-info">
                   <div class="sold-buyer-name">
-                    {% if sale.get('buyer_is_metex_guaranteed') %}
+                    {% if false and (sale.get('buyer_is_metex_guaranteed')) %}
                       <span class="metex-guaranteed-badge">
                         <span class="metex-guaranteed-icon">M</span>
                         <span class="metex-guaranteed-text">Metex Guaranteed</span>
@@ -153,6 +154,12 @@
             </div>
           </div>
 
+          {% if sale.canonical_state %}
+          <div role="status" style="overflow-wrap:anywhere;padding:.75rem">
+            {{ sale.canonical_state.payout_label }}. Bank payout is a separate provider event.
+            {% for shipment in sale.canonical_state.shipments %}<div>{{ shipment.state | replace('_',' ') | lower }}{% if shipment.tracking_number %} · {{ shipment.carrier }} {{ shipment.tracking_number }}{% endif %}</div>{% endfor %}
+          </div>
+          {% endif %}
           <!-- Payout Status Bar -->
           {% if sale.payout_user_state and sale.payout_user_state != 'cancelled' %}
           <div class="payout-status-bar payout-status-bar--{{ sale.payout_user_state }}">
@@ -457,6 +464,7 @@
       <i class="fa-solid fa-circle-check tab-empty-icon"></i>
       <h3>No sold items yet</h3>
       <p>Your sold orders will appear here once buyers purchase your listings.</p>
+      <a href="{{ url_for('sell.sell') }}" class="tab-cta-btn tab-cta-btn--amber"><i class="fa-solid fa-plus" aria-hidden="true"></i> Sell an Item</a>
     </div>
   {% endif %}
 </div>

@@ -66,6 +66,30 @@ def get_effective_price(listing, spot_prices=None):
         if spot_prices is None:
             spot_prices = get_current_spot_prices()
 
+        if listing.get('isolated_type') == 'set':
+            # A set's spot component is its actual contained metal, never summed
+            # individual-item premiums or the first item's category weight.
+            from services.smart_pricing_service import metal_value_cents, cents
+            from decimal import Decimal
+            parts = listing.get('set_items')
+            if parts is None:
+                conn = get_db_connection()
+                try:
+                    parts = [dict(p) for p in conn.execute('SELECT * FROM listing_set_items WHERE listing_id=? ORDER BY position_index',
+                             (listing.get('listing_id') or listing.get('id'),))]
+                finally:
+                    conn.close()
+            if len(parts)<2:
+                raise ValueError('Set metal contents are unavailable.')
+            metal_value = 0
+            for part in parts:
+                spot = spot_prices.get(str(part.get('metal') or '').lower())
+                quantity = int(part.get('quantity') or 1)
+                if not spot or quantity<=0:
+                    raise ValueError('Set metal value is unavailable.')
+                metal_value += metal_value_cents(part,spot)*quantity
+            return float(Decimal(max(metal_value+cents(listing.get('spot_premium') or 0),cents(listing.get('floor_price') or 0)))/100)
+
         # Determine which metal to use for pricing
         # Use pricing_metal if specified, otherwise fall back to category metal
         pricing_metal = listing.get('pricing_metal') or listing.get('metal')
@@ -109,7 +133,14 @@ def get_effective_price(listing, spot_prices=None):
         if spot_premium is None:
             spot_premium = 0.0
 
-        computed_price = (spot_price_per_oz * weight_oz) + spot_premium
+        # Match Smart Pricing preview's half-up, per-unit metal rounding.
+        from services.smart_pricing_service import metal_value_cents, cents
+        try:
+            metal_cents = metal_value_cents(listing, spot_price_per_oz)
+        except ValueError:
+            # Preserve the legacy fallback for unrecognized manual weight labels.
+            metal_cents = cents(spot_price_per_oz * weight_oz)
+        computed_price = (metal_cents + cents(spot_premium)) / 100
 
         # Enforce floor price (for listings)
         # Note: This is for LISTINGS. Bids use ceiling price instead (see get_effective_bid_price)
@@ -407,7 +438,14 @@ def get_effective_bid_price(bid, spot_prices=None):
         if spot_premium is None:
             spot_premium = 0.0
 
-        computed_price = (spot_price_per_oz * weight_oz) + spot_premium
+        # Match Smart Pricing preview's half-up, per-unit metal rounding.
+        from services.smart_pricing_service import metal_value_cents, cents
+        try:
+            metal_cents = metal_value_cents(dict(bid,weight=weight), spot_price_per_oz)
+        except ValueError:
+            # Preserve the legacy fallback for unrecognized manual weight labels.
+            metal_cents = cents(spot_price_per_oz * weight_oz)
+        computed_price = (metal_cents + cents(spot_premium)) / 100
 
         # Enforce ceiling price (MAXIMUM for bids)
         # Buyer won't pay more than ceiling_price

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Order Operations{% endblock %}
+{% block content %}
+<section style="max-width:960px;margin:2rem auto;padding:1rem">
+<h1>Order operations</h1>
+<p>Review source evidence before confirming carrier events. Order controls affect new operations.</p>
+<p id="operationsStatus" role="status"></p>
+<h2>Worker and accounting health</h2><div id="flowHealth"></div>
+<h2>Launch controls</h2><div id="controls"></div>
+<h2>Shipments</h2><div id="shipments"></div>
+<h2>Reviews requiring action</h2><div id="reviews"></div>
+</section>
+<script src="{{ url_for('static',filename='js/admin/operations.js') }}" defer></script>
+{% endblock %}

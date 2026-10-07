@@ -582,115 +582,9 @@ class TestPayoutRelease:
 class TestRefund:
     """Test refund functionality"""
 
-    def test_refund_full_success(self, mock_get_db):
-        """Test successful full refund"""
-        from services.ledger_service import LedgerService
 
-        order_id, ledger_id = create_test_ledger(mock_get_db, sellers=[(2, 100.00), (3, 200.00)])
 
-        result = LedgerService.process_refund(
-            order_id=order_id,
-            admin_id=4,
-            refund_type='full',
-            reason='Customer request'
-        )
 
-        assert result['refund_amount'] == 300.00  # 100 + 200
-        assert result['affected_items'] == 2
-        assert len(result['affected_payouts']) == 2
-
-        # Verify order status
-        conn = mock_get_db()
-        order = conn.execute('SELECT * FROM orders_ledger WHERE order_id = ?', (order_id,)).fetchone()
-        assert order['order_status'] == 'REFUNDED'
-
-        # Verify all payouts cancelled
-        payouts = conn.execute('SELECT * FROM order_payouts WHERE order_id = ?', (order_id,)).fetchall()
-        for payout in payouts:
-            assert payout['payout_status'] == 'PAYOUT_CANCELLED'
-
-        conn.close()
-
-    def test_refund_partial_by_seller(self, mock_get_db):
-        """Test partial refund targeting specific seller"""
-        from services.ledger_service import LedgerService
-
-        order_id, ledger_id = create_test_ledger(mock_get_db, sellers=[(2, 100.00), (3, 200.00)])
-
-        result = LedgerService.process_refund(
-            order_id=order_id,
-            admin_id=4,
-            refund_type='partial',
-            reason='Issue with seller 2 items',
-            seller_id=2
-        )
-
-        assert result['refund_amount'] == 100.00  # Only seller 2's items
-        assert len(result['affected_payouts']) == 1
-
-        # Verify order status
-        conn = mock_get_db()
-        order = conn.execute('SELECT * FROM orders_ledger WHERE order_id = ?', (order_id,)).fetchone()
-        assert order['order_status'] == 'PARTIALLY_REFUNDED'
-
-        # Verify seller 2 cancelled, seller 3 not
-        payouts = conn.execute('SELECT * FROM order_payouts WHERE order_id = ?', (order_id,)).fetchall()
-        for payout in payouts:
-            if payout['seller_id'] == 2:
-                assert payout['payout_status'] == 'PAYOUT_CANCELLED'
-            else:
-                assert payout['payout_status'] != 'PAYOUT_CANCELLED'
-
-        conn.close()
-
-    def test_refund_fails_if_payout_paid_out(self, mock_get_db):
-        """Test that refund fails if any affected payout is PAID_OUT"""
-        from services.ledger_service import LedgerService, EscrowControlError
-
-        order_id, ledger_id = create_test_ledger(mock_get_db)
-
-        # Mark payout as PAID_OUT
-        conn = mock_get_db()
-        conn.execute('''
-            UPDATE order_payouts SET payout_status = 'PAID_OUT' WHERE order_id = ?
-        ''', (order_id,))
-        conn.commit()
-        conn.close()
-
-        with pytest.raises(EscrowControlError) as exc_info:
-            LedgerService.process_refund(
-                order_id=order_id,
-                admin_id=4,
-                refund_type='full',
-                reason='Test'
-            )
-
-        assert 'PAID_OUT' in str(exc_info.value)
-
-    def test_refund_logs_both_events(self, mock_get_db):
-        """Test that REFUND_INITIATED and REFUND_COMPLETED are logged"""
-        from services.ledger_service import LedgerService
-
-        order_id, ledger_id = create_test_ledger(mock_get_db)
-
-        LedgerService.process_refund(
-            order_id=order_id,
-            admin_id=4,
-            refund_type='full',
-            reason='Test refund'
-        )
-
-        conn = mock_get_db()
-        events = conn.execute('''
-            SELECT event_type FROM order_events WHERE order_id = ?
-            AND event_type IN ('REFUND_INITIATED', 'REFUND_COMPLETED')
-        ''', (order_id,)).fetchall()
-
-        event_types = [e['event_type'] for e in events]
-        assert 'REFUND_INITIATED' in event_types
-        assert 'REFUND_COMPLETED' in event_types
-
-        conn.close()
 
 
 class TestReportAutoHold:
@@ -816,24 +710,6 @@ class TestStateSafety:
         with pytest.raises(EscrowControlError):
             LedgerService.release_payout(payout['id'], admin_id=4)
 
-    def test_refunded_order_blocks_payouts(self, mock_get_db):
-        """Test that REFUNDED status permanently blocks all payouts"""
-        from services.ledger_service import LedgerService, EscrowControlError
-
-        order_id, ledger_id = create_test_ledger(mock_get_db)
-
-        LedgerService.process_refund(
-            order_id=order_id,
-            admin_id=4,
-            refund_type='full',
-            reason='Test'
-        )
-
-        # Verify payouts are PAYOUT_CANCELLED
-        conn = mock_get_db()
-        payout = conn.execute('SELECT * FROM order_payouts WHERE order_id = ?', (order_id,)).fetchone()
-        assert payout['payout_status'] == 'PAYOUT_CANCELLED'
-        conn.close()
 
 
 class TestEventCorrectness:

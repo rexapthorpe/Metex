@@ -387,6 +387,8 @@ def process_refund(
         EscrowControlError: If rules are violated
         ValueError: If invalid parameters
     """
+    raise EscrowControlError('Legacy financial commands are retired; use the canonical order operations')
+
     if refund_type not in ('full', 'partial'):
         raise ValueError("refund_type must be 'full' or 'partial'")
 
@@ -784,6 +786,8 @@ def release_stripe_transfer(payout_id: int, admin_id: int) -> Dict[str, Any]:
         EscrowControlError: If any precondition fails or Stripe returns an error
         ValueError: If payout not found
     """
+    raise EscrowControlError('Legacy financial commands are retired; use the canonical order operations')
+
     import stripe
 
     conn = get_db_connection()
@@ -988,6 +992,8 @@ def attempt_payout_recovery(payout_id: int, admin_id: int, conn=None) -> Dict[st
         EscrowControlError: If preconditions fail (no retry should occur)
         ValueError: If payout not found
     """
+    raise EscrowControlError('Legacy financial commands are retired; use the canonical order operations')
+
     import stripe
 
     _owned_conn_recovery = conn is None
@@ -1239,6 +1245,8 @@ def refund_buyer_stripe(
         EscrowControlError: If preconditions fail or Stripe returns an error.
         ValueError:         If order not found.
     """
+    raise EscrowControlError('Legacy financial commands are retired; use the canonical order operations')
+
     import stripe
 
     if not reason:
@@ -1605,6 +1613,8 @@ def mark_ach_cleared(order_id: int, admin_id: int) -> Dict[str, Any]:
         ValueError: If order not found
         EscrowControlError: If order is not ACH-backed
     """
+    raise EscrowControlError('Legacy financial commands are retired; use the canonical order operations')
+
     conn = get_db_connection()
     try:
         order = conn.execute(

@@ -618,6 +618,8 @@ def set_session_user(user_id: int, username: str = None):
 
     # Set new session data
     session['user_id'] = user_id
+    import time
+    session['authenticated_at'] = time.time()
     if username:
         session['username'] = username
 

@@ -4,7 +4,7 @@ Fetches and caches live metal spot prices from MetalpriceAPI
 """
 
 from database import get_db_connection
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 import os
 import logging
@@ -179,11 +179,12 @@ def is_cache_fresh():
 
     # Parse timestamp
     try:
-        update_time = datetime.fromisoformat(oldest_update)
-        now = datetime.now()
+        update_time = datetime.fromisoformat(str(oldest_update).replace('Z','+00:00'))
+        if update_time.tzinfo is None: update_time=update_time.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
         age_minutes = (now - update_time).total_seconds() / 60
 
-        is_fresh = age_minutes < CACHE_TTL_MINUTES
+        is_fresh = 0 <= age_minutes < CACHE_TTL_MINUTES
 
         return is_fresh, update_time
 

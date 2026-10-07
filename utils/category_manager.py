@@ -3,6 +3,16 @@ Unified Category Management Module
 Handles category lookup, creation, and bucket assignment for both Sell and Edit flows
 """
 
+def lock_category_allocation(conn):
+    import database
+    if database.IS_POSTGRES:
+        # IF NOT EXISTS alone does not serialize concurrent PostgreSQL DDL.
+        conn.execute('SELECT pg_advisory_xact_lock(718644381)')
+    conn.execute("CREATE TABLE IF NOT EXISTS category_mutex (id INTEGER PRIMARY KEY,revision INTEGER NOT NULL)")
+    conn.execute("INSERT INTO category_mutex VALUES (1,0) ON CONFLICT(id) DO NOTHING")
+    conn.execute("UPDATE category_mutex SET revision=revision+1 WHERE id=1")
+
+
 def get_or_create_category(conn, category_spec):
     """
     Find existing category or create new one with proper bucket_id assignment.
@@ -15,6 +25,9 @@ def get_or_create_category(conn, category_spec):
     Returns:
         category_id: ID of existing or newly created category
     """
+    # Lock before lookup/allocation, in the caller transaction. Concurrent creators
+    # cannot choose the same MAX bucket ID or insert duplicate specifications.
+    lock_category_allocation(conn)
     cursor = conn.cursor()
 
     # Extract specifications
@@ -50,7 +63,7 @@ def get_or_create_category(conn, category_spec):
     if existing_cat:
         return existing_cat['id']
 
-    # 2. No exact match - check for existing bucket (same core attributes, different finish/grade)
+    # 2. Buckets share the complete specification, including finish and grade.
     #    Exclude isolated buckets to prevent non-isolated listings from joining isolated buckets
     #    Include condition_category and series_variant to ensure proper bucket grouping
     bucket_row = cursor.execute(
@@ -59,12 +72,13 @@ def get_or_create_category(conn, category_spec):
         FROM categories
         WHERE metal = ? AND product_line = ? AND product_type = ?
           AND weight = ? AND purity = ? AND mint = ? AND year = ?
+          AND finish = ? AND grade = ?
           AND condition_category IS NOT DISTINCT FROM ?
           AND series_variant IS NOT DISTINCT FROM ?
           AND is_isolated = 0
         LIMIT 1
         ''',
-        (metal, product_line, product_type, weight, purity, mint, year,
+        (metal, product_line, product_type, weight, purity, mint, year, finish, grade,
          condition_category, series_variant)
     ).fetchone()
 

@@ -521,6 +521,8 @@ def account():
     active_listings = []
     for listing in active_listings_raw:
         listing_dict = dict(listing)
+        from services.smart_pricing_service import dashboard
+        listing_dict['smart_pricing'] = dashboard(conn, listing_dict['listing_id'])
         # Calculate effective price if variable pricing
         if listing_dict.get('pricing_mode') == 'premium_to_spot':
             listing_dict['effective_price'] = get_effective_price(listing_dict, spot_prices)
@@ -753,6 +755,9 @@ def account():
 
         conversations.append(convo)
 
+    from services.order_state_service import attach_account_states
+    attach_account_states(conn,pending_orders+completed_orders,sales,user_id)
+    conn.commit()
     conn.close()
 
     # 8) Single return with _all_ context

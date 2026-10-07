@@ -180,9 +180,12 @@
             </a>
           {% else %}
             <p class="stripe-payout-sub">Connect a bank account to receive funds from your sales.</p>
-            <a href="{{ url_for('stripe_connect.create_account') }}" class="btn-stripe">
+            <form method="post" action="{{ url_for('stripe_connect.create_account') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-stripe">
               <i class="fa-solid fa-plus"></i> Set up payouts
-            </a>
+            </button>
+            </form>
           {% endif %}
         </div>
       </div>

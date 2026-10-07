@@ -126,8 +126,9 @@ def accept_bid(bucket_id):
                 cursor.execute('INSERT INTO listings (category_id,seller_id,quantity,price_per_coin,active) VALUES (?,?,?,?,1)',(bid['category_id'],seller_id,remaining,buyer_price))
                 items.append({'listing_id':cursor.lastrowid,'quantity':remaining,'price_each':buyer_price,'seller_price_each':buyer_price,'source_bid_id':bid_id,'requires_grading':False}); conn.commit()
             subtotal_cents=sum(round(i['price_each']*100)*i['quantity'] for i in items)
-            postal,state=_parse_address_for_tax(bid['delivery_address']); tax_cents=_get_stripe_tax_for_bid(subtotal_cents,postal,state)
-            shipping={'shipping_address':bid['delivery_address'],'recipient_first':bid['recipient_first_name'],'recipient_last':bid['recipient_last_name'],'postal_code':postal,'state':state,'country':'US'}
+            postal,state=_parse_address_for_tax(bid['delivery_address']); tax_cents=0
+            from services.shipping_address_service import bid_shipping
+            shipping=bid_shipping(bid)
             try:
                 outcome=execute_bid_fill(bid_id,bid['buyer_id'],seller_id,items,rail,tax_cents,shipping,bid['bid_payment_method_id'],buyer['stripe_customer_id'])
                 results.append({'bid_id':bid_id,**outcome})

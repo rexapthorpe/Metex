@@ -64,7 +64,7 @@ def is_stripe_ready(user) -> bool:
 # Routes
 # ---------------------------------------------------------------------------
 
-@stripe_bp.route('/create-account')
+@stripe_bp.route('/create-account', methods=['POST'])
 def create_account():
     """
     Create a Stripe Express account for the logged-in user (if they don't
@@ -88,22 +88,9 @@ def create_account():
             flash('User not found.', 'error')
             return redirect(url_for('account.account'))
 
-        # If user has an old account, clear it so a fresh one is created with correct config.
         if user['stripe_account_id']:
-            logger.info(
-                "[Stripe] Clearing old account %s for user %s to force re-onboarding.",
-                user['stripe_account_id'], user_id,
-            )
-            conn.execute(
-                """UPDATE users
-                      SET stripe_account_id          = NULL,
-                          stripe_onboarding_complete = 0,
-                          stripe_charges_enabled     = 0,
-                          stripe_payouts_enabled     = 0
-                    WHERE id = ?""",
-                (user_id,),
-            )
-            conn.commit()
+            conn.close()
+            return redirect(url_for('stripe_connect.create_account_link'))
 
         account = stripe.Account.create(
             type='express',
@@ -117,11 +104,12 @@ def create_account():
                 'transfers': {'requested': True},
             },
             metadata={'user_id': str(user_id)},
+            idempotency_key=f'metex-connect-user:{user_id}',
         )
 
         logger.info("[Stripe] Created new account %s for user %s.", account.id, user_id)
         conn.execute(
-            "UPDATE users SET stripe_account_id = ? WHERE id = ?",
+            "UPDATE users SET stripe_account_id = ? WHERE id = ? AND stripe_account_id IS NULL",
             (account.id, user_id),
         )
         conn.commit()
@@ -160,7 +148,8 @@ def create_account_link():
         conn.close()
 
         if not user or not user['stripe_account_id']:
-            return redirect(url_for('stripe_connect.create_account'))
+            flash('Start seller setup from your account page.', 'info')
+            return redirect(url_for('account.account'))
 
         # Pre-fill the website field on the onboarding form.
         site_url = current_app.config.get('SITE_URL', 'https://metex.com')
@@ -212,19 +201,8 @@ def stripe_return():
 
         if user and user['stripe_account_id']:
             account = stripe.Account.retrieve(user['stripe_account_id'])
-            conn.execute(
-                """UPDATE users
-                      SET stripe_onboarding_complete = ?,
-                          stripe_charges_enabled     = ?,
-                          stripe_payouts_enabled     = ?
-                    WHERE id = ?""",
-                (
-                    1 if account.details_submitted else 0,
-                    1 if account.charges_enabled else 0,
-                    1 if account.payouts_enabled else 0,
-                    user_id,
-                ),
-            )
+            from services.connect_service import apply_account_status
+            apply_account_status(conn,account)
             conn.commit()
 
         conn.close()

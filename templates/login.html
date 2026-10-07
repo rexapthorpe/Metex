@@ -4,36 +4,28 @@
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 
-<div class="login-page">
-  <!-- Background -->
-  <div id="bg-animated" class="bg-animated" aria-hidden="true">
-    <div class="blob b1"></div>
-    <div class="blob b2"></div>
-    <div class="blob b3"></div>
-  </div>
-
-  <div class="header-spacer"></div>
-
-  <main class="auth-shell" role="main">
-    <!-- auth-card gets class .signup-mode when user toggles -->
+{% set signup = request.args.get('mode') == 'signup' %}
+<div class="login-page{{ ' is-signup' if signup else '' }}">
+  <div class="auth-curves" aria-hidden="true"><span class="auth-curve auth-curve--one"></span><span class="auth-curve auth-curve--two"></span><span class="auth-curve auth-curve--three"></span></div>
+  <div class="auth-shell">
     <section class="auth-card" id="authCard">
-      <!-- MOBILE TAB BAR — visible only at ≤768px via CSS -->
+      <!-- Mode controls remain available at every viewport width. -->
       <div class="mobile-auth-tabs" aria-label="Switch between login and sign up">
-        <button class="mobile-auth-tab" data-swap="signup" type="button">Login</button>
-        <button class="mobile-auth-tab" data-swap="login" type="button">Create Account</button>
+        <button class="mobile-auth-tab" data-swap="login" type="button" aria-controls="login-pane" aria-pressed="{{ 'false' if signup else 'true' }}">Login</button>
+        <button class="mobile-auth-tab" data-swap="signup" type="button" aria-controls="signup-pane" aria-pressed="{{ 'true' if signup else 'false' }}">Create Account</button>
       </div>
 
       <!-- Fixed side-by-side panes -->
       <div class="panes">
         <!-- LOGIN PANE -->
-        <div class="pane pane-login" aria-labelledby="login-title">
+        <div class="pane pane-login" id="login-pane"{% if signup %} hidden inert{% endif %} aria-labelledby="login-title">
           <h1 id="login-title" class="title">Login</h1>
           <p class="subtitle">Sign in to your account</p>
 
-          <form class="login-form" method="POST" action="">
+          <form class="login-form" method="POST" action="{{ url_for('auth.login') }}">
             <div class="form-row">
               <label for="username">Username</label>
-              <input id="username" name="username" type="text" placeholder="Username" required
+              <input id="username" autocomplete="username" name="username" type="text" placeholder="Username" required
                      value="{{ request.form.get('username','') }}">
             </div>
 
@@ -44,7 +36,7 @@
                   Show
                 </button>
               </div>
-              <input id="password" name="password" type="password" placeholder="Password" required>
+              <input id="password" autocomplete="current-password" name="password" type="password" placeholder="Password" required>
             </div>
 
             <div class="form-meta">
@@ -57,7 +49,7 @@
         </div>
 
         <!-- SIGN-UP PANE (kept here so slide-over feels instant) -->
-        <div class="pane pane-signup" aria-labelledby="signup-title">
+        <div class="pane pane-signup" id="signup-pane"{% if not signup %} hidden inert{% endif %} aria-labelledby="signup-title">
           <h1 id="signup-title" class="title">Create Account</h1>
           <p class="subtitle">Get started in seconds</p>
 
@@ -65,12 +57,12 @@
           <form class="signup-form" method="POST" action="{{ url_for('auth.register') }}">
             <div class="form-row">
               <label for="new_username">Username</label>
-              <input id="new_username" name="username" type="text" placeholder="Choose a username" required>
+              <input id="new_username" autocomplete="username" name="username" type="text" placeholder="Choose a username" required>
             </div>
 
             <div class="form-row">
               <label for="email">Email</label>
-              <input id="email" name="email" type="email" placeholder="you@example.com" required>
+              <input id="email" autocomplete="email" name="email" type="email" placeholder="you@example.com" required>
             </div>
 
             <div class="form-row">
@@ -80,7 +72,7 @@
                   Show
                 </button>
               </div>
-              <input id="new_password" name="password" type="password" placeholder="Create a password" required>
+              <input id="new_password" autocomplete="new-password" name="password" type="password" placeholder="Create a password" required>
             </div>
 
             <button class="primary-btn" type="submit">Sign Up</button>
@@ -88,16 +80,8 @@
         </div>
       </div>
 
-      <!-- SLIDING OVERLAY (CTA always shows the opposite action) -->
-      <aside class="overlay" aria-hidden="true">
-        <div class="overlay-inner">
-          <h2 class="overlay-title" id="overlayTitle">Welcome Back!</h2>
-          <p class="overlay-text" id="overlayText">Enter your details to sign in.</p>
-          <button id="overlayToggle" class="overlay-btn" type="button">Sign Up</button>
-        </div>
-      </aside>
     </section>
-  </main>
+  </div>
 </div>
 
 <script src="{{ url_for('static', filename='js/login.js') }}"></script>

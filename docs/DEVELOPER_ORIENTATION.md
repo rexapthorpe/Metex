@@ -1,201 +1,74 @@
 # Metex Developer Orientation
 
-This document provides an overview of the Metex codebase structure after the maintainability refactor. Use this as your guide when navigating or modifying the code.
+Reviewed against local checkout `d152b52` and existing working changes on 2026-09-30. This is a navigation guide, not production certification. Start with [agent instructions](../AGENTS.md) and [launch readiness](LAUNCH_READINESS_STATUS.md).
 
-## Project Structure Overview
+## Product and authority
 
-```
-metex/
-├── app.py                    # Entry point - imports create_app from core
-├── core/                     # Main application code (NEW)
-│   ├── __init__.py           # create_app() factory, blueprint registration
-│   ├── blueprints/           # Route modules organized by domain
-│   │   ├── admin/            # Admin dashboard routes
-│   │   ├── buy/              # Buy/purchase routes (split into 5 modules)
-│   │   ├── bids/             # Bid management routes
-│   │   ├── account/          # User account routes
-│   │   ├── auth/             # Authentication routes
-│   │   ├── cart/             # Cart routes (split into 2 modules)
-│   │   ├── checkout/         # Checkout routes
-│   │   ├── sell/             # Sell/listing routes (split into 3 modules)
-│   │   ├── api/              # General API routes
-│   │   ├── listings/         # Listing management routes
-│   │   ├── messages/         # Messaging routes
-│   │   ├── ratings/          # Rating routes
-│   │   └── notifications/    # Notification routes
-│   └── services/             # Business logic services
-├── routes/                   # Backward-compatibility re-exports ONLY
-├── services/                 # Service modules (some split)
-├── utils/                    # Utility functions
-├── templates/                # Jinja2 templates (partials in subfolders)
-│   ├── admin/partials/       # Admin dashboard tab partials
-│   └── partials/account/     # Account page partials
-├── static/
-│   ├── css/                  # Stylesheets
-│   └── js/                   # JavaScript
-│       ├── sell/             # Sell page JS modules (extracted)
-│       └── bucket/           # Bucket page JS modules (extracted)
-└── tests/                    # Test files
-```
+Metex is a Flask/Jinja marketplace for precious-metal coins and bullion, with listings grouped into specification buckets, bids, carts, Stripe card/ACH checkout, seller fulfillment and Connect payouts. Launch is US/USD; the optional third-party grading service is removed. Item grade/certification attributes remain distinct from that removed service.
 
-## Key Architectural Decisions
+The [repository financial specification](../FLOW_OF_FUNDS_IMPLEMENTATION_SPEC.md), including its launch amendment, owns financial requirements. [Approved launch policies](APPROVED_LAUNCH_POLICIES.md) records business decisions. Older copies outside this repository and historical reports must not override them.
 
-### 1. Blueprint Organization
+## Repository map
 
-Routes are organized into domain-specific blueprints under `core/blueprints/`. Each domain has its own folder with an `__init__.py` that creates and exports the blueprint.
+| Location | Responsibility |
+|---|---|
+| `app.py`, `core/__init__.py` | Entry point, app factory, configuration, blueprint registration, session validation, workers and error handling |
+| `core/blueprints/` | Most domain routes: auth, account, buy, sell, bids, cart, checkout, admin, Stripe Connect, disputes, messages, ratings, notifications and API |
+| `routes/` | Compatibility exports **and some active modules**; follow registration/imports before editing |
+| `services/flow_of_funds.py` | Canonical schema/policy registry, checkout snapshots/reservations, provider binding, executions, journal, refunds, holds, recovery, shipment and payable commands |
+| `services/flow_worker.py`, `scripts/run_flow_worker.py` | Leased recovery cycle, embedded fallback and dedicated worker entry point |
+| `services/` | Active pricing, spot feeds/scheduling, risk, notifications, email, orders, disputes and supporting services |
+| `core/services/ledger/`, `core/services/analytics/` | Modular legacy ledger/display functionality and analytics; do not assume legacy ledger rows are canonical financial authority |
+| `database.py` | PostgreSQL adapter when `DATABASE_URL` is set; SQLite fallback at `data/database.db` |
+| `scripts/create_schema.py`, `migrations/` | Schema bootstrap and historical/versioned schema changes; verify fresh and upgrade behavior separately |
+| `utils/`, `auth_utils.py` | Security, auth, CSRF, rate limits, uploads, category and cart helpers |
+| `templates/`, `static/` | Jinja pages/partials, CSS and browser JavaScript |
+| `tests/` | Financial, route, security, pricing and browser regression tests |
+| `render.yaml`, `.github/workflows/flow-of-funds-ci.yml` | Deployment recipe and automated safety checks |
+| `bucket_image_acquisition/` | Catalog/image acquisition subsystem with its own README and manifests |
+| `CLAUDE/`, `Claude Code Reports/` | Historical implementation reports; no current-state authority |
 
-**Pattern:**
-```python
-# core/blueprints/sell/__init__.py
-from flask import Blueprint
-sell_bp = Blueprint('sell', __name__)
+## Follow a transaction
 
-from . import routes  # Imports register routes with sell_bp
-```
+1. Browser checkout lives in `templates/checkout_page.html` and `static/js/checkout_page.js`; server checkout is `core/blueprints/checkout/routes.py`.
+2. `prepare_checkout` freezes cents, identities, component allocations and inventory reservations. Provider payment is bound to that checkout; method changes use `revise_payment_rail`.
+3. Provider verification and `finalize_payment` enforce binding and create funded executions, fills, payables, journal entries and legacy-facing order projections. `record_ach_processing` creates only `SOLD_PENDING_ACH` visibility and keeps inventory held.
+4. `core/blueprints/stripe_connect/routes.py` verifies webhook signatures and calls durable `record_webhook` / `process_webhook`. Recovery retries stored events independently of browser return.
+5. Insurance evidence and `authorize_shipment` gate fulfillment; tracking ownership, carrier acceptance and delivery evidence affect eligibility. Pending ACH does not authorize shipment.
+6. Refunds allocate original components per fill/unit, remain pending until provider confirmation and hold affected funds. Transfers to connected accounts and bank payout events are separate states.
+7. `flow_worker.py` and the reconciliation script recover/reconcile work. Consult the [runbook](../FLOW_OF_FUNDS_RUNBOOK.md) before operating them.
 
-### 2. Large Route File Splitting
+## Find the right implementation
 
-Large route files have been split into focused modules:
+| Task | Start here |
+|---|---|
+| Route is live or duplicated | `core/__init__.py::_register_blueprints`, then the imported blueprint's `__init__.py` |
+| Checkout / tax / payment setup | `core/blueprints/checkout/routes.py`, `static/js/checkout_page.js` |
+| Payment event / Connect onboarding | `core/blueprints/stripe_connect/routes.py` |
+| Bids / automatic matches | `core/blueprints/bids/`, `routes/auto_fill_bid.py`, `services/flow_of_funds.py::execute_bid_fill` |
+| Sell / tracking | `core/blueprints/sell/`, canonical shipment commands |
+| Admin refund / reconciliation | `core/blueprints/admin/refunds.py`, `reconciliation.py`, canonical financial commands |
+| Ban/freeze session behavior | `core/__init__.py::_register_session_validation`, auth/account/admin modules |
+| Smart Pricing / seller-managed premium | `services/smart_pricing_service.py`, sell/listings creation and edit routes, `static/js/smart_pricing.js`; due reviews run in the existing flow worker. Central structured item/year classification with audited reasons, strict completed-sales→safe year→capped adjacent-grade corroboration→identified family→active-asks evidence, deterministic confidence, seller seed hold/transition, exact set metal valuation, bounded age/demand target and 24/48/72-hour V1 parameters are centralized in the service. `/sell/smart-pricing-preview` refreshes the existing normal spot cache when needed, bridges fresh observations preserving UTC timestamps into canonical snapshots, and issues seller/product/price-bound 900-second confirmation tokens; create/edit validate them atomically before activation; new listing creation timestamps support age, with conservative enable-time fallback for legacy rows. Schema/history are in the service; current premium remains `listings.spot_premium`. |
+| Spot price / quote freshness | `services/checkout_spot_service.py`, `spot_snapshot_service.py`, `spot_scheduler.py`, canonical snapshot validation |
+| Database shape | `scripts/create_schema.py`, `services/flow_of_funds.py::ensure_flow_schema`, relevant migrations |
 
-| Blueprint | Modules | Purpose |
-|-----------|---------|---------|
-| `sell/` | `routes.py` | Main dispatcher, tracking upload |
-| | `listing_creation.py` | POST handling for new listings |
-| | `accept_bid.py` | Bid acceptance route |
-| `buy/` | `purchase.py` | Cart add, preview operations |
-| | `direct_purchase.py` | Direct buy, price lock refresh |
-| `cart/` | `routes.py` | Cart mutation operations |
-| | `api.py` | Cart API endpoints |
+## Development and verification
 
-### 3. Service Layer Splitting
+Use the existing environment or install `requirements.txt` in an isolated environment. Local `python app.py` starts a debug server on port 5002 and may start background work; use test credentials and an isolated database. Required Stripe configuration is enforced outside `FLASK_TESTING`. Never apply test bypasses to production.
 
-Large service files have been split while maintaining backward compatibility:
+`python -m scripts.create_schema` changes the selected database. Render runs it before `gunicorn "core:create_app()"`. Verify the target before running it. The surrounding workspace's `metex-preview/` uses an isolated read-only preview; it cannot prove payment readiness.
 
-| Service | Modules | Purpose |
-|---------|---------|---------|
-| `notification_service.py` | Core | create_notification, get/mark/delete |
-| `notification_types.py` | Types | notify_bid_filled, notify_listing_sold, etc. |
+Run task-relevant tests with `python -m pytest`; the CI workflow names the financial/security acceptance subset. Run `node --test tests/test_checkout_payment_setup.cjs` for the existing local payment-setup regression and `node --check static/js/checkout_page.js` for syntax. Do not copy historical test counts as a current baseline. PostgreSQL concurrency, browser/Stripe lifecycles and restore drills need separate evidence in the [staging matrix](STAGING_PAYMENT_TEST_CHECKLIST.md).
 
-**Backward Compatibility:** `notification_service.py` re-exports all functions from `notification_types.py`, so existing imports continue to work.
+## Placement and maintenance
 
-### 4. Template Partials
+Add route behavior to the owning domain blueprint and import new modules so they register. Extend the active service owning a capability: both `services/` and `core/services/` contain implementations. Preserve public imports/URLs and keep compatibility wrappers thin where they already are wrappers. Prefer focused modules; do not undertake an unrelated mass relocation to satisfy old line-count targets.
 
-Large templates have been split into partials using Jinja2 includes:
+Patch actual connection/provider boundaries in tests; use `database.get_db_connection()` through a module-level wrapper when late binding is needed. Keep money and transaction correctness centralized rather than adding a second checkout/refund path.
 
-| Template | Partials Location | Contents |
-|----------|-------------------|----------|
-| `admin/dashboard.html` | `admin/partials/` | 10 tab partials + modals |
-| `account.html` | `partials/account/` | Mobile nav partial |
+Update this map when ownership or registration changes. Record decisions in approved policies, operating instructions in the runbook, scenarios in the staging matrix, and evidence/blockers in readiness. January refactor/security inventories and old ledger documentation are historical references.
 
-### 5. JavaScript Extraction
+## September 30 implementation additions
 
-Inline JavaScript has been extracted to external files:
-
-| Template | Extracted To | Lines |
-|----------|--------------|-------|
-| `sell.html` | `js/sell/mode_controller.js` | 1,103 |
-| | `js/sell/sidebar_controller.js` | 1,012 |
-| `view_bucket.html` | `js/bucket/page_controller.js` | 274 |
-
-## Adding New Code
-
-### Adding a New Route
-
-1. **Add to the appropriate blueprint** in `core/blueprints/[domain]/`
-2. **Create a new module** if adding significant functionality
-3. **Import in the blueprint's routes.py** to register the route
-
-```python
-# core/blueprints/buy/new_feature.py
-from . import buy_bp
-
-@buy_bp.route('/new_feature')
-def new_feature():
-    pass
-
-# Then in core/blueprints/buy/routes.py (or __init__.py):
-from . import new_feature  # Registers the route
-```
-
-### Adding a New Service
-
-1. **Add to `services/`** directory
-2. **Use late binding** for database connections:
-
-```python
-from database import get_db_connection
-
-def my_service_function():
-    conn = get_db_connection()  # Late binding
-    # ...
-```
-
-### Adding Template Partials
-
-1. **Create partial** in `templates/partials/[domain]/` or `templates/[domain]/partials/`
-2. **Include in parent** using `{% include 'path/to/partial.html' %}`
-
-## File Size Guidelines
-
-| File Type | Target Size | Max Size |
-|-----------|-------------|----------|
-| Route modules | < 300 lines | 500 lines |
-| Service modules | < 400 lines | 600 lines |
-| Templates | < 500 lines | 800 lines |
-| JS modules | < 500 lines | 800 lines |
-
-## Backward Compatibility
-
-The `routes/` directory contains **re-export wrappers** for backward compatibility. These should NOT contain route logic - only imports.
-
-```python
-# routes/sell_routes.py - Example wrapper
-from core.blueprints.sell import sell_bp
-from core.blueprints.sell.listing_creation import allowed_file
-__all__ = ['sell_bp', 'allowed_file']
-```
-
-## Testing
-
-Run tests after any changes:
-```bash
-python -m pytest tests/ -v
-```
-
-Core business logic tests (ledger, fees, escrow) should always pass.
-
-## Quick Reference
-
-### Finding Code
-
-| To find... | Look in... |
-|------------|------------|
-| Sell page routes | `core/blueprints/sell/` |
-| Buy/purchase routes | `core/blueprints/buy/` |
-| Cart operations | `core/blueprints/cart/` |
-| Notification logic | `services/notification_service.py` |
-| Admin dashboard | `core/blueprints/admin/` |
-| Template partials | `templates/*/partials/` |
-
-### Key Files
-
-| Purpose | File |
-|---------|------|
-| App factory | `core/__init__.py` |
-| Database connection | `database.py` |
-| Category options | `routes/category_options.py` |
-| Auth decorators | `utils/auth_utils.py` |
-| Pricing calculations | `services/pricing_service.py` |
-
-## Refactor History
-
-This codebase underwent a maintainability refactor with these phases:
-
-1. **Phase A**: Inventory and mapping of large files
-2. **Phase B**: Test baseline establishment
-3. **Phase C-1**: JavaScript extraction from templates
-4. **Phase C-2**: Template partial extraction
-5. **Phase C-3**: Python route module splitting
-6. **Phase C-4**: Documentation and cleanup
-
-**Key Principle**: Zero behavior change - all refactoring was structural only.
+`flow_safety.py` serializes canonical financial mutations in caller-owned transactions. `payout_service.py` dispatches provider transfers with stable operation identity and daily controls. `recovery_service.py` owns evidence-reviewed reversals and future-proceeds offsets; its remaining operational verification is recorded in readiness. `compensation_service.py` refunds late successful payments without selling already-released inventory. `tax_service.py` calculates per listing and records sale/reversal tasks. `delivery_service.py` fans durable financial events into in-app and email queues. `admin_flow_service.py` preserves canonical review holds and delivery; `flow_projection_service.py` projects confirmed refunds without counting pending allocations as returned money. The admin operations page is `/admin/operations`. Upload migration is `python -m scripts.migrate_upload_storage --destination PATH` (dry run); `--apply` copies with checksum verification and never deletes source files.

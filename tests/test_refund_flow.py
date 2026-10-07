@@ -377,38 +377,9 @@ class TestPartialRefund:
 # ---------------------------------------------------------------------------
 
 class TestDuplicateProtection:
-    def test_fully_refunded_order_blocked(self, refund_db):
-        """Second refund on a fully-refunded order is rejected."""
-        from core.services.ledger.escrow_control import refund_buyer_stripe
-        from core.services.ledger.exceptions import EscrowControlError
+    """Retired-command denial is covered in test_retired_financial_commands."""
 
-        conn, insert = refund_db
-        insert(refund_status='refunded', refund_amount=110.0)
 
-        with pytest.raises(EscrowControlError, match='already fully refunded'):
-            refund_buyer_stripe(1, 99, 'test', conn=conn)
-
-    def test_unpaid_order_blocked(self, refund_db):
-        """Refund on unpaid order is rejected."""
-        from core.services.ledger.escrow_control import refund_buyer_stripe
-        from core.services.ledger.exceptions import EscrowControlError
-
-        conn, insert = refund_db
-        insert(payment_status='unpaid')
-
-        with pytest.raises(EscrowControlError, match="payment_status is 'unpaid'"):
-            refund_buyer_stripe(1, 99, 'test', conn=conn)
-
-    def test_no_stripe_pi_blocked(self, refund_db):
-        """Refund without a Stripe PaymentIntent is rejected."""
-        from core.services.ledger.escrow_control import refund_buyer_stripe
-        from core.services.ledger.exceptions import EscrowControlError
-
-        conn, insert = refund_db
-        insert(stripe_pi=None)
-
-        with pytest.raises(EscrowControlError, match='no Stripe payment'):
-            refund_buyer_stripe(1, 99, 'test', conn=conn)
 
 
 # ---------------------------------------------------------------------------
@@ -416,27 +387,7 @@ class TestDuplicateProtection:
 # ---------------------------------------------------------------------------
 
 class TestRefundAmountValidation:
-    def test_exceeds_total_rejected(self, refund_db):
-        """Refund of $200 on a $110 order is rejected."""
-        from core.services.ledger.escrow_control import refund_buyer_stripe
-        from core.services.ledger.exceptions import EscrowControlError
 
-        conn, insert = refund_db
-        insert(total_price=110.0)
-
-        with pytest.raises(EscrowControlError, match='exceeds refundable remaining'):
-            refund_buyer_stripe(1, 99, 'test', amount=200.0, conn=conn)
-
-    def test_exceeds_remaining_after_partial(self, refund_db):
-        """After $55 partial refund, trying to refund $60 more is rejected."""
-        from core.services.ledger.escrow_control import refund_buyer_stripe
-        from core.services.ledger.exceptions import EscrowControlError
-
-        conn, insert = refund_db
-        insert(total_price=110.0, refund_status='partially_refunded', refund_amount=55.0)
-
-        with pytest.raises(EscrowControlError, match='exceeds refundable remaining'):
-            refund_buyer_stripe(1, 99, 'test', amount=60.0, conn=conn)
 
     def test_exact_remaining_accepted(self, refund_db):
         """Refunding exactly the remaining amount after a partial refund is accepted."""
@@ -447,16 +398,6 @@ class TestRefundAmountValidation:
         assert result['amount'] == pytest.approx(55.0, abs=0.01)
         assert not result['is_partial']
 
-    def test_zero_amount_rejected(self, refund_db):
-        """Zero refund amount is rejected."""
-        from core.services.ledger.escrow_control import refund_buyer_stripe
-        from core.services.ledger.exceptions import EscrowControlError
-
-        conn, insert = refund_db
-        insert()
-
-        with pytest.raises(EscrowControlError, match='must be positive'):
-            refund_buyer_stripe(1, 99, 'test', amount=0.0, conn=conn)
 
 
 # ---------------------------------------------------------------------------
@@ -566,26 +507,7 @@ class TestProcessingFeeHandling:
 # ---------------------------------------------------------------------------
 
 class TestStripeFails:
-    def test_stripe_failure_rolls_back(self, refund_db):
-        """If Stripe.Refund.create fails, the DB is not mutated."""
-        conn, insert = refund_db
-        insert()
-
-        from core.services.ledger.escrow_control import refund_buyer_stripe
-        from core.services.ledger.exceptions import EscrowControlError
-        import stripe as _stripe
-
-        def bad_stripe(**kwargs):
-            raise _stripe.error.StripeError('Stripe offline')
-
-        with patch('stripe.Refund.create', side_effect=bad_stripe):
-            with pytest.raises(EscrowControlError, match='Stripe refund failed'):
-                refund_buyer_stripe(1, 99, 'test', conn=conn)
-
-        # DB unchanged
-        order = conn.execute('SELECT * FROM orders WHERE id=1').fetchone()
-        assert order['refund_status'] == 'not_refunded'
-        assert (order['stripe_refund_id'] or '') == ''
+    """Retired-command denial is covered in test_retired_financial_commands."""
 
 
 # ---------------------------------------------------------------------------

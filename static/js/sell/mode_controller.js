@@ -502,6 +502,7 @@
 
   // Render set items list
   function renderSetItems() {
+    document.dispatchEvent(new CustomEvent('metex:set-items-changed'));
     setItemsList.innerHTML = '';
 
     if (setItems.length === 0) {

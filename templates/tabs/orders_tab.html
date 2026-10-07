@@ -1,7 +1,8 @@
 <div class="orders-tab">
   <!-- Header -->
   <div class="tab-page-header">
-    <h1 class="tab-page-title">Your Orders</h1>
+    <div><h1 class="tab-page-title">Your Orders</h1>
+      <p class="tab-page-subtitle">Track your purchases, shipping, and delivery.</p></div>
   </div>
 
   <!-- Filter Tabs -->
@@ -43,6 +44,14 @@
         {% elif s in ('awaiting shipment', 'pending shipment', 'awaiting-shipment') %}{% set step_idx = 2 %}
         {% else %}{% set step_idx = 1 %}{% endif %}
         <div class="order-card{% if is_canceled %} order-card--canceled{% endif %}" id="order-{{ order.id }}" data-order-filter="{{ order_filter }}">
+          {% if order.canonical_state %}
+          <div role="status" style="overflow-wrap:anywhere;padding:.75rem">
+            Payment: {{ order.canonical_state.payment_state | replace('_',' ') | lower }}
+            {% for shipment in order.canonical_state.shipments %}
+            <div>{{ shipment.state | replace('_',' ') | lower }}{% if shipment.tracking_number %} · {{ shipment.carrier }} {{ shipment.tracking_number }}{% endif %}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
           <!-- Left: Image -->
           <div class="order-card-image">
             <img src="{{ order.image_url or url_for('static', filename='img/placeholder.png') }}" alt="Order">

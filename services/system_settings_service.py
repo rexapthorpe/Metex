@@ -218,8 +218,8 @@ PAYMENTS_PAUSE_REASON_KEY = "payments_pause_reason"
 
 
 def get_checkout_enabled() -> bool:
-    """Return True if checkout/payments are open. Defaults to True."""
-    return get_setting(CHECKOUT_ENABLED_KEY, "1") == "1"
+    """Return True if checkout/payments are open. Defaults to False."""
+    return get_setting(CHECKOUT_ENABLED_KEY, "0") == "1"
 
 
 def set_checkout_enabled(enabled: bool) -> bool:
@@ -238,8 +238,8 @@ def set_auto_payouts_enabled(enabled: bool) -> bool:
 
 
 def get_manual_payouts_enabled() -> bool:
-    """Return True if admin manual payout releases are permitted. Defaults to True."""
-    return get_setting(MANUAL_PAYOUTS_ENABLED_KEY, "1") == "1"
+    """Return True if admin manual payout releases are permitted. Defaults to False."""
+    return get_setting(MANUAL_PAYOUTS_ENABLED_KEY, "0") == "1"
 
 
 def set_manual_payouts_enabled(enabled: bool) -> bool:

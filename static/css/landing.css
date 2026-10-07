@@ -1,473 +1,105 @@
-/* ================================================================
-   landing.css — Metex buy.html landing section
-   Light/neutral design with grid background
-================================================================ */
-
-/* ── Allow hero breakout from .container ──────────────────── */
-main.container:has(.lp-hero-band) {
-  overflow-x: visible;
+/* Marketplace landing: existing METEX theme, with a direct path to inventory. */
+main.container:has(.lp-hero) {
+  --text-primary: #222222; --text-secondary: #666666;
+  --border-primary: #e6e6e6; --border-light: #c0c0c0;
+  --bg-card: #ffffff; --bg-secondary: #f7f7f7;
+  --accent-dark: #0c63e7; --accent-hover: #1e74f0;
+  max-width: 1280px; padding-top: 90px;
+}
+.lp-hero { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 72px; padding: 44px 0 40px; border-bottom: 1px solid var(--border-primary); }
+.lp-eyebrow { margin: 0 0 18px; color: var(--text-secondary); font-size: 11px; font-weight: 600; letter-spacing: .12em; }
+.lp-hero h1 { margin: 0; font-size: clamp(34px, 4.1vw, 56px); line-height: 1.08; letter-spacing: -.035em; font-weight: 650; color: var(--text-primary); }
+.lp-description { max-width: 490px; margin: 20px 0 0; color: var(--text-secondary); font-size: 16px; line-height: 1.65; }
+.lp-cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+.lp-cta-btn { display: inline-flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 46px; padding: 12px 18px; border: 1px solid var(--border-light); border-radius: 5px; font-size: 14px; font-weight: 600; text-decoration: none; }
+.lp-cta-btn--primary { color: #fff; background: var(--accent-dark); border-color: var(--accent-dark); }
+.lp-cta-btn--primary:hover { background: var(--accent-hover); }
+.lp-cta-btn--outline { color: var(--text-primary); background: var(--bg-card); }
+.lp-cta-btn--outline:hover { background: var(--bg-secondary); }
+.lp-metal-directory { align-self: center; }
+.lp-directory-heading { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); }
+.lp-metal-directory a { display: flex; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--border-primary); color: var(--text-primary); text-decoration: none; font-size: 16px; }
+.lp-metal-directory a:hover { color: var(--accent-dark); }
+.lp-metal-directory a span:last-child { color: var(--text-secondary); }
+.lp-catalog { padding-top: 30px; scroll-margin-top: 112px; }
+.lp-catalog-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+.lp-catalog-heading .lp-eyebrow { margin-bottom: 8px; }
+.lp-catalog-heading h2 { margin: 0; font-size: 26px; letter-spacing: -.025em; font-weight: 600; color: var(--text-primary); }
+.lp-clear-filters,.lp-empty-state a { color: var(--accent-dark); font-size: 14px; }
+.lp-search-summary { color: var(--text-secondary); }
+.lp-markets-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.lp-markets-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.lp-markets-sub { font-size: 12px; color: var(--text-secondary); }
+.lp-markets-divider { margin: 30px 0; border: 0; border-top: 1px solid var(--border-primary); }
+.lp-catalog .grid { grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 28px 22px; }
+.lp-catalog .product-tile { min-width: 0; color: var(--text-primary); }
+.lp-catalog .product-tile:hover { transform: none; }
+.lp-catalog .image-box { border-radius: 6px; overflow: hidden; background: var(--bg-secondary); border: 1px solid var(--border-primary); }
+.lp-catalog .image-box img { width: 100%; height: 100%; object-fit: contain; }
+.lp-image-unavailable { color: var(--text-secondary); font-size: 12px; font-weight: 400; }
+.lp-catalog .product-text { padding-top: 12px; }
+.lp-catalog .product-title { color: var(--text-primary); font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; margin: 0 0 6px; }
+.lp-catalog .product-subtext { color: var(--text-secondary); line-height: 1.5; margin: 0 0 9px; }
+.lp-catalog .price { color: var(--text-primary); margin: 0; font-size: 16px; font-variant-numeric: tabular-nums; }
+.lp-price-label { font-size: 12px; font-weight: 400; color: var(--text-secondary); }
+.lp-empty-state { padding: 34px; border: 1px solid var(--border-primary); border-radius: 6px; background: var(--bg-secondary); }
+.lp-empty-state h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; color: var(--text-primary); }
+.lp-empty-state p { margin: 0 0 18px; color: var(--text-secondary); line-height: 1.6; }
+.lp-hero a:focus-visible,.lp-catalog a:focus-visible { outline: 2px solid var(--accent-dark); outline-offset: 5px; }
+@media (max-width: 850px) {
+  .lp-hero { grid-template-columns: minmax(0, 1fr) 210px; gap: 32px; }
+}
+@media (max-width: 600px) {
+  main.container:has(.lp-hero) { padding-top: 140px; }
+  .lp-hero { grid-template-columns: 1fr; gap: 24px; padding: 26px 0; }
+  .lp-eyebrow { font-size: 10px; margin-bottom: 14px; }
+  .lp-description { font-size: 15px; margin-top: 16px; }
+  .lp-cta-row { gap: 10px; margin-top: 20px; }
+  .lp-cta-btn { flex: 1; gap: 10px; padding: 12px; font-size: 13px; }
+  .lp-metal-directory { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .lp-directory-heading { grid-column: 1 / -1; margin: 0; }
+  .lp-metal-directory a { font-size: 12px; padding: 8px 0; }
+  .lp-metal-directory a span:last-child { display: none; }
+  .lp-catalog { padding-top: 24px; scroll-margin-top: 140px; }
+  .lp-catalog-heading { margin-bottom: 20px; }
+  .lp-catalog-heading h2 { font-size: 23px; }
+  .lp-catalog .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 14px; }
+  .lp-catalog .product-title { font-size: 13px; }
+  .lp-empty-state { padding: 24px; }
 }
 
-/* ════════════════════════════════════════════════════════════
-   HERO BAND — full-width light background with grid
-════════════════════════════════════════════════════════════ */
-.lp-hero-band {
-  width: 100vw;
-  margin-left: calc((100% - 100vw) / 2);
-  margin-top: -90px;
-  padding-top: 90px;
-  background-color: #f7f6f2;
-  background-image:
-    linear-gradient(rgba(0,0,0,0.042) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,0,0,0.042) 1px, transparent 1px);
-  background-size: 44px 44px;
-  margin-bottom: 52px;
-  position: relative;
+.lp-catalog-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 24px; }
+.lp-catalog-filters a { padding: 10px 14px; border: 1px solid var(--border-primary); border-radius: 5px; color: var(--text-secondary); font-size: 13px; text-decoration: none; }
+.lp-catalog-filters a[aria-current="page"], .lp-metal-directory a[aria-current="page"] { color: var(--accent-dark); font-weight: 600; }
+.lp-catalog-filters a[aria-current="page"] { border-color: var(--accent-dark); background: #edf5ff; }
+.lp-catalog-filters a:hover { border-color: var(--accent-dark); }
+
+/* Solid curves frame the hero without obscuring the marketplace actions. */
+.lp-hero { position: relative; display: block; overflow: hidden; isolation: isolate; }
+.lp-hero-copy { position: relative; z-index: 1; max-width: 670px; }
+.lp-market-message { margin: 20px 0 0; font-size: 19px; line-height: 1.4; font-weight: 600; color: var(--accent-dark); }
+.lp-hero .lp-description { margin-top: 12px; }
+.lp-hero-art { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.lp-curve { position: absolute; display: block; border-radius: 48% 52% 63% 37% / 46% 43% 57% 54%; }
+.lp-curve--light { width: 460px; height: 440px; right: -130px; top: -130px; background: #dceeff; transform: rotate(-24deg); }
+.lp-curve--blue { width: 290px; height: 370px; right: -135px; top: 135px; background: #3da6ff; transform: rotate(30deg); }
+.lp-curve--pale { width: 350px; height: 210px; right: 85px; bottom: -150px; background: #edf5ff; transform: rotate(-15deg); }
+@media (max-width: 1100px) {
+  .lp-hero-copy { max-width: 70%; }
+  .lp-curve--light { right: -250px; }
+  .lp-curve--blue { right: -220px; }
+  .lp-curve--pale { right: -30px; }
+}
+@media (max-width: 600px) {
+  .lp-hero-copy { max-width: 100%; }
+  .lp-market-message { font-size: 17px; }
+  .lp-curve--light { width: 180px; height: 140px; right: -100px; top: -95px; }
+  .lp-curve--blue { width: 150px; height: 170px; right: -145px; top: 140px; }
+  .lp-curve--pale { width: 200px; right: -100px; bottom: -185px; }
 }
 
-/* ── Hero Inner ──────────────────────────────────────────── */
-.lp-hero-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 72px 5vw 60px;
-  display: flex;
-  gap: 64px;
-  align-items: flex-start;
-}
-
-/* ── Left Column ─────────────────────────────────────────── */
-.lp-hero-left {
-  flex: 1;
-  min-width: 0;
-}
-
-/* Eyebrow Pill */
-.lp-eyebrow-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 18px;
-  border: 1.5px solid #C9A97E;
-  border-radius: 100px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: #A07040;
-  text-transform: uppercase;
-  margin-bottom: 26px;
-}
-
-/* Headline */
-.lp-headline {
-  font-size: clamp(2.5rem, 4.2vw, 3.5rem);
-  font-weight: 800;
-  line-height: 1.06;
-  color: #0d0d0d;
-  margin: 0 0 4px;
-  letter-spacing: -0.03em;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-}
-
-.lp-headline-accent {
-  color: #D4870A;
-  text-decoration: underline;
-  text-decoration-color: #D4870A;
-  text-underline-offset: 5px;
-  text-decoration-thickness: 3px;
-}
-
-/* Subheadline: "Trade for Real Market Value." */
-.lp-subheadline {
-  font-size: clamp(1.6rem, 2.6vw, 2.1rem);
-  font-weight: 800;
-  line-height: 1.15;
-  color: #0d0d0d;
-  margin: 0 0 22px;
-  letter-spacing: -0.025em;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-}
-
-.lp-subheadline-green {
-  color: #2A8C4A;
-}
-
-/* Description */
-.lp-description {
-  font-size: 1rem;
-  line-height: 1.72;
-  color: #4b5563;
-  margin: 0 0 28px;
-  max-width: 540px;
-}
-
-/* Trust Pills */
-.lp-trust-pills {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 32px;
-}
-
-.lp-trust-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 100px;
-  font-size: 13px;
-  color: #374151;
-  background: rgba(255,255,255,0.7);
-  white-space: nowrap;
-}
-
-.lp-trust-pill i {
-  color: #16a34a;
-  font-size: 12px;
-}
-
-/* CTA Buttons */
-.lp-cta-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 17px;
-  margin-bottom: 36px;
-}
-
-.lp-cta-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 28px;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.12s;
-  white-space: nowrap;
-}
-
-.lp-cta-btn:hover {
-  transform: translateY(-1px);
-}
-
-.lp-cta-btn--primary {
-  background: #D4870A;
-  color: #ffffff;
-  border: 2px solid #D4870A;
-}
-
-.lp-cta-btn--primary:hover {
-  background: #b8720a;
-  border-color: #b8720a;
-}
-
-.lp-cta-btn--outline {
-  background: transparent;
-  color: #374151;
-  border: 2px solid #d1d5db;
-}
-
-.lp-cta-btn--outline:hover {
-  border-color: #9ca3af;
-  color: #111827;
-}
-
-/* Stats Row */
-.lp-stats-row {
-  display: flex;
-  gap: 40px;
-}
-
-.lp-stat-num {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #0d0d0d;
-  line-height: 1;
-  margin-bottom: 5px;
-}
-
-.lp-stat-lbl {
-  font-size: 0.8rem;
-  color: #9ca3af;
-}
-
-
-/* ── Right Column ────────────────────────────────────────── */
-.lp-hero-right {
-  width: 400px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* Feature Cards */
-.lp-feat-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px 22px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
-}
-
-.lp-feat-card-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 17px;
-}
-
-.lp-feat-icon--red   { background: #fee2e2; color: #dc2626; }
-.lp-feat-icon--amber { background: #fef3c7; color: #d97706; }
-.lp-feat-icon--slate { background: #f1f5f9; color: #475569; }
-
-.lp-feat-card-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 5px;
-}
-
-.lp-feat-card-text {
-  font-size: 0.85rem;
-  line-height: 1.55;
-  color: #6b7280;
-}
-
-/* Live Spot Prices Card */
-.lp-spot-card {
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
-}
-
-.lp-spot-card-header {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: #374151;
-  text-transform: uppercase;
-  padding: 12px 18px 10px;
-  border-bottom: 1px solid #f3f4f6;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.lp-spot-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  padding: 14px 18px 16px;
-}
-
-.lp-spot-col {
-  text-align: center;
-}
-
-.lp-spot-col:not(:last-child) {
-  border-right: 1px solid #f3f4f6;
-}
-
-.lp-spot-metal-name {
-  font-size: 11px;
-  color: #9ca3af;
-  margin-bottom: 4px;
-}
-
-.lp-spot-metal-price {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0d0d0d;
-  margin-bottom: 3px;
-  font-variant-numeric: tabular-nums;
-}
-
-.lp-spot-metal-change {
-  font-size: 12px;
-  font-weight: 600;
-  min-height: 16px;
-}
-
-.lp-spot-metal-change.positive { color: #16a34a; }
-.lp-spot-metal-change.negative { color: #dc2626; }
-
-
-/* ════════════════════════════════════════════════════════════
-   TRUST STRIP
-════════════════════════════════════════════════════════════ */
-.lp-trust-strip {
-  border-top: 1px solid #e5e7eb;
-  background: #ffffff;
-  padding: 22px 0;
-}
-
-.lp-trust-strip-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 5vw;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.lp-trust-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 0 24px;
-}
-
-.lp-trust-item:not(:last-child) {
-  border-right: 1px solid #f3f4f6;
-}
-
-.lp-trust-item-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: #f3f4f6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 18px;
-  color: #6b7280;
-}
-
-.lp-trust-item-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 2px;
-}
-
-.lp-trust-item-sub {
-  font-size: 12px;
-  color: #9ca3af;
-}
-
-
-/* ════════════════════════════════════════════════════════════
-   MARKETS SECTION HEADER (below hero, listings grid)
-════════════════════════════════════════════════════════════ */
-.lp-markets-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  margin-top: 8px;
-  gap: 12px;
-}
-
-.lp-markets-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
-  letter-spacing: -0.01em;
-}
-
-.lp-markets-sub {
-  font-size: 0.8rem;
-  color: #9ca3af;
-}
-
-.lp-markets-divider {
-  border: none;
-  border-top: 1.5px solid #f3f4f6;
-  margin: 24px 0 20px;
-}
-
-
-/* ════════════════════════════════════════════════════════════
-   RESPONSIVE
-════════════════════════════════════════════════════════════ */
-@media (max-width: 960px) {
-  .lp-hero-inner {
-    flex-direction: column;
-    gap: 40px;
-  }
-
-  .lp-hero-right {
-    width: 100%;
-    max-width: 560px;
-  }
-
-  .lp-trust-strip-inner {
-    grid-template-columns: repeat(2, 1fr);
-    row-gap: 16px;
-  }
-
-  .lp-trust-item:nth-child(2) {
-    border-right: none;
-  }
-
-  .lp-trust-item:nth-child(3) {
-    border-right: 1px solid #f3f4f6;
-    padding-top: 0;
-  }
-}
-
-@media (max-width: 768px) {
-  .lp-hero-band {
-    margin-top: -120px;
-    padding-top: 120px;
-  }
-
-  .lp-hero-inner {
-    padding: 48px 5vw 44px;
-  }
-}
-
-@media (max-width: 640px) {
-  .lp-stats-row {
-    gap: 24px;
-  }
-
-  .lp-trust-pills {
-    gap: 6px;
-  }
-
-  .lp-trust-pill {
-    font-size: 12px;
-    padding: 5px 11px;
-  }
-
-  .lp-trust-strip-inner {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .lp-hero-band {
-    margin-top: -115px;
-    padding-top: 115px;
-  }
-
-  .lp-hero-inner {
-    padding: 36px 4vw 36px;
-  }
-
-  .lp-trust-strip-inner {
-    grid-template-columns: 1fr;
-    row-gap: 12px;
-  }
-
-  .lp-trust-item {
-    border-right: none !important;
-  }
-
-  .lp-search-row {
-    max-width: 100%;
-  }
-}
+/* Decorative curves belong to the page background, not the hero's rectangle. */
+main.container:has(.lp-hero) { position: relative; isolation: isolate; }
+.lp-hero { overflow: visible; isolation: auto; }
+.lp-hero-art { position: fixed; inset: 64px 0 0; z-index: -1; }
+@media(max-width:768px) { .lp-hero-art { top: 120px; } }

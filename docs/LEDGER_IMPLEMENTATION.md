@@ -1,3 +1,5 @@
+> **Historical reference — labeled 2026-09-30.** Past implementation/verification, not current financial authority. Follow repository `AGENTS.md`, current readiness and the amended repository specification. Original content follows unchanged.
+
 # Transaction Ledger & Escrow/Payout State Machine
 
 This document describes the implementation of the transaction ledger system for Metex.

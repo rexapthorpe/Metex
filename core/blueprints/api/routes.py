@@ -163,8 +163,11 @@ def api_spot_prices():
             # Old format: simple dict of {metal: price}
             prices = spot_data
             has_api_key = True
-            is_stale = False
-            age_minutes = None
+            from services.spot_price_service import is_cache_fresh
+            from datetime import datetime,timezone
+            fresh,updated=is_cache_fresh()
+            is_stale = not fresh
+            age_minutes = (datetime.now(timezone.utc)-updated).total_seconds()/60 if updated else None
             source = 'cache'
 
         return jsonify({

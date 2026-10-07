@@ -22,7 +22,9 @@ def buy():
 
     # Read category filters from GET parameters
     filter_type = request.args.get('filter')  # 'popular', 'new'
-    metal_filter = request.args.get('metal')  # 'Gold', 'Silver', 'Platinum'
+    metal_filter = request.args.get('metal', '').strip() or None
+    if metal_filter:
+        metal_filter = metal_filter.title()
     product_line_filter = request.args.get('product_line')  # 'American Eagle', etc.
     search_query = request.args.get('search', '').strip().lower()  # Free-text search
 
@@ -34,7 +36,7 @@ def buy():
     category_filter_params = []
 
     if metal_filter:
-        category_filter_clauses.append('categories.metal = ?')
+        category_filter_clauses.append('LOWER(TRIM(categories.metal)) = LOWER(?)')
         category_filter_params.append(metal_filter)
 
     if product_line_filter:
@@ -114,6 +116,10 @@ def buy():
 
     where_clauses = []
     params = []
+
+    if metal_filter:
+        where_clauses.append('LOWER(TRIM(c.metal)) = LOWER(?)')
+        params.append(metal_filter)
 
     # DO NOT exclude user's own listings - we need them for best ask calculation
 

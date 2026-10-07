@@ -30,7 +30,14 @@ def db(tmp_path, monkeypatch):
     ''')
     c.executemany('INSERT INTO users VALUES (?,?,?,?,?)',[(1,'b@x','x','b',None),(2,'s@x','x','s',None),(3,'s2@x','x','s2',None)])
     c.executemany('INSERT INTO listings VALUES (?,?,?,?,?,?)',[(10,2,1,20,1,100.0),(11,3,1,20,1,200.0)])
-    flow.ensure_flow_schema(c); c.commit(); c.close()
+    c.execute('ALTER TABLE users ADD COLUMN stripe_account_id TEXT')
+    c.execute('ALTER TABLE users ADD COLUMN stripe_charges_enabled INTEGER DEFAULT 1')
+    c.execute('ALTER TABLE users ADD COLUMN stripe_payouts_enabled INTEGER DEFAULT 1')
+    c.execute("UPDATE users SET stripe_account_id='acct_' || id")
+    flow.ensure_flow_schema(c)
+    for key in ('checkout_enabled','manual_payouts_enabled','shipments_enabled'):
+        c.execute("INSERT INTO system_settings(key,value) VALUES (?, '1')",(key,))
+    c.commit(); c.close()
     return connect
 
 
@@ -173,7 +180,7 @@ def test_t12_unit_rounding_conserves_cents():
 
 
 def test_partial_refund_exact_components(db):
-    checkout,snapshot=prep(db,[{'listing_id':10,'quantity':10,'price_each':101,'seller_price_each':100}])
+    checkout,snapshot=prep(db,[{'listing_id':10,'quantity':10,'price_each':101,'seller_price_each':100}],rail='card')
     result,_=flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
     c=db(); fill=c.execute('SELECT id FROM seller_fills').fetchone()[0]; c.close()
     refund,_=flow.create_refund(result['id'],{fill:4},'PARTIAL','refund-1',refund_card_surcharge=False)
@@ -190,7 +197,7 @@ def test_refund_posts_ledger_only_after_provider_success_webhook(db):
     assert not flow.record_refund_provider_result(refund['id'],{'id':'re_1','status':'pending'})
     c=db(); assert c.execute('SELECT state FROM flow_refunds WHERE id=?',(refund['id'],)).fetchone()[0]=='PROCESSING'; assert c.execute('SELECT COUNT(*) FROM ledger_journals').fetchone()[0]==before; c.close()
     event={'id':'evt_refund_1','type':'refund.updated','data':{'object':{
-        'id':'re_1','status':'succeeded','metadata':{'flow_refund_id':refund['id']}}}}
+        'id':'re_1','status':'succeeded','amount':refund['total_cents'],'payment_intent':'pi_1','metadata':{'flow_refund_id':refund['id']}}}}
     assert flow.record_webhook(event)
     assert flow.process_webhook(event)=='processed'
     c=db(); assert c.execute('SELECT state FROM flow_refunds WHERE id=?',(refund['id'],)).fetchone()[0]=='SUCCEEDED'; assert c.execute('SELECT COUNT(*) FROM ledger_journals').fetchone()[0]==before+1; c.close()
@@ -206,7 +213,9 @@ def test_grading_fee_not_refunded_after_cost_incurred(db):
 
 def test_non_graded_payout_waits_full_day_after_delivery(db):
     checkout,snapshot=prep(db,rail='card'); result,_=flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
-    c=db(); payable=c.execute('SELECT id,seller_fill_id FROM seller_payables').fetchone(); now=datetime.now(timezone.utc); c.execute("UPDATE shipments SET delivered_at=?,state='DELIVERED' WHERE seller_fill_id=?",((now-timedelta(hours=23)).isoformat(),payable['seller_fill_id'])); c.commit(); c.close()
+    c=db(); payable=c.execute('SELECT id,seller_fill_id FROM seller_payables').fetchone(); now=datetime.now(timezone.utc); c.execute("UPDATE shipments SET delivered_at=?,tracking_validated=1,state='DELIVERED' WHERE seller_fill_id=?",((now-timedelta(hours=23)).isoformat(),payable['seller_fill_id'])); c.commit(); c.close()
+    c=db(); ship=c.execute('SELECT id FROM shipments').fetchone()[0]
+    c.execute("INSERT INTO insurance_policies VALUES ('fixture',?,'UPS','policy',10000,100,'ACTIVE',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",(ship,'{"covered":true}')); c.commit(); c.close()
     assert flow.evaluate_payout(payable['id'],now)==(False,'DELIVERY_HOLD_24H')
     assert flow.evaluate_payout(payable['id'],now+timedelta(hours=2))==(True,'')
 
@@ -216,14 +225,16 @@ def test_tracking_requires_owner_authorization_real_ups_and_evidence(db):
     c=db(); approve(c,'tracking_upload_deadline_days','ups_coverage_and_claim_policy'); ship=c.execute('SELECT id FROM shipments').fetchone()[0]; c.close()
     flow.record_insurance(ship,9,'pol_1',10000,800,{'covered':True})
     flow.authorize_shipment(ship,9)
-    with pytest.raises(flow.FlowError): flow.record_tracking(ship,3,'UPS','hello',{'carrier_confirmed':True})
-    with pytest.raises(flow.FlowError): flow.record_tracking(ship,2,'UPS','hello',{'carrier_confirmed':True})
-    flow.record_tracking(ship,2,'UPS','1Z999AA10123456784',{'carrier_confirmed':True})
+    with pytest.raises(flow.FlowError): flow.record_tracking(ship,3,'UPS','hello',{'carrier_confirmed':True,'destination_matches':True,'reference':'UPS fixture'})
+    with pytest.raises(flow.FlowError): flow.record_tracking(ship,2,'UPS','hello',{'carrier_confirmed':True,'destination_matches':True,'reference':'UPS fixture'})
+    flow.record_tracking(ship,2,'UPS','1Z999AA10123456784',{'carrier_confirmed':True,'destination_matches':True,'reference':'UPS fixture'})
 
 
 def test_transfer_is_not_final_bank_payout(db):
     checkout,snapshot=prep(db,rail='card'); result,_=flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
-    c=db(); payable=c.execute('SELECT id,seller_fill_id FROM seller_payables').fetchone(); c.execute("UPDATE shipments SET delivered_at=?,state='DELIVERED' WHERE seller_fill_id=?",((datetime.now(timezone.utc)-timedelta(days=2)).isoformat(),payable['seller_fill_id'])); c.commit(); c.close()
+    c=db(); payable=c.execute('SELECT id,seller_fill_id FROM seller_payables').fetchone(); c.execute("UPDATE shipments SET delivered_at=?,tracking_validated=1,state='DELIVERED' WHERE seller_fill_id=?",((datetime.now(timezone.utc)-timedelta(days=2)).isoformat(),payable['seller_fill_id'])); c.commit(); c.close()
+    c=db(); ship=c.execute('SELECT id FROM shipments').fetchone()[0]
+    c.execute("INSERT INTO insurance_policies VALUES ('fixture',?,'UPS','policy',10000,100,'ACTIVE',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",(ship,'{"covered":true}')); c.commit(); c.close()
     tr,_=flow.claim_seller_transfer(payable['id'],'transfer-1'); flow.complete_seller_transfer(tr['id'],'tr_stripe')
     c=db(); state=c.execute('SELECT state FROM seller_payables WHERE id=?',(payable['id'],)).fetchone()[0]; assert state=='TRANSFERRED_TO_CONNECTED_ACCOUNT'; assert c.execute('SELECT COUNT(*) FROM bank_payouts').fetchone()[0]==0; c.close()
 
@@ -235,7 +246,7 @@ def test_idempotency_key_conflict_rejected(db):
 
 
 def test_multi_seller_partial_refund_does_not_touch_other_fill(db):
-    checkout,snapshot=prep(db,[{'listing_id':10,'quantity':2,'price_each':100},{'listing_id':11,'quantity':2,'price_each':200}])
+    checkout,snapshot=prep(db,[{'listing_id':10,'quantity':2,'price_each':100},{'listing_id':11,'quantity':2,'price_each':200}],rail='card')
     result,_=flow.finalize_payment(checkout['id'],payment(checkout,snapshot))
     c=db(); fills=c.execute('SELECT id,seller_id,state FROM seller_fills ORDER BY seller_id').fetchall(); c.close()
     refund,_=flow.create_refund(result['id'],{fills[0]['id']:1},'PARTIAL','isolate',refund_card_surcharge=False)
@@ -260,6 +271,7 @@ def test_removed_grading_always_creates_direct_buyer_shipment(db):
 
 
 def test_bid_fill_uses_canonical_payment_and_commits_quantity(db,monkeypatch):
+    monkeypatch.setattr("services.tax_service.calculate_items",lambda conn,items,shipping:(0,[]))
     class Payment:
         id='pi_bid_1'; status='succeeded'
         def __init__(self,kwargs): self.kwargs=kwargs
@@ -286,6 +298,7 @@ def test_bid_fill_uses_canonical_payment_and_commits_quantity(db,monkeypatch):
 
 
 def test_bid_fill_ach_without_verified_mandate_holds_correction_window(db,monkeypatch):
+    monkeypatch.setattr("services.tax_service.calculate_items",lambda conn,items,shipping:(0,[]))
     class SetupIntents:
         def auto_paging_iter(self): return iter([])
     monkeypatch.setitem(sys.modules,'stripe',SimpleNamespace(

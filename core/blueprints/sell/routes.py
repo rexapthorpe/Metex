@@ -69,6 +69,8 @@ def sell():
 
             if listing:
                 edit_prefill = {k: listing[k] for k in listing.keys()}
+                from services.smart_pricing_service import dashboard
+                edit_prefill['smart_pricing'] = dashboard(conn, int(edit_listing_id))
                 edit_prefill['existing_photos'] = [
                     {'id': p['id'], 'url': '/static/' + p['file_path']} for p in photos
                     if p['file_path'] is not None
@@ -80,7 +82,8 @@ def sell():
                         '''
                         SELECT lsi.id, lsi.position_index, lsi.metal, lsi.product_line,
                                lsi.product_type, lsi.weight, lsi.purity, lsi.mint,
-                               lsi.year, lsi.finish, lsi.grade, lsi.item_title,
+                               lsi.year, lsi.finish, lsi.grade, lsi.item_title, lsi.coin_series,
+                               lsi.special_designation, lsi.graded, lsi.grading_service,
                                lsi.packaging_type, lsi.packaging_notes, lsi.condition_notes,
                                lsi.edition_number, lsi.edition_total, lsi.quantity,
                                (SELECT lsip.file_path FROM listing_set_item_photos lsip
@@ -253,3 +256,38 @@ def sold_orders():
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     return redirect(url_for('account.account') + '#sold')
+
+
+@sell_bp.route('/sell/smart-pricing-preview', methods=['POST'])
+@frozen_check
+def smart_pricing_preview():
+    """Authenticated read-only recommendation; global CSRF covers this POST."""
+    from flask import jsonify
+    from services.smart_pricing_service import form_item, preview_quote, cents, product, STRATEGIES, refresh_preview_spot_prices
+    if 'user_id' not in session:
+        return jsonify(success=False,message='Sign in to preview pricing.'),401
+    conn=get_db_connection()
+    try:
+        listing_id=request.form.get('edit_listing_id',type=int)
+        base=product(conn,listing_id) if listing_id else None
+        if listing_id and (not base or base['seller_id']!=session['user_id']):
+            return jsonify(success=False,message='Listing not found.'),404
+        item=form_item(request.form,session['user_id'],base)
+        refresh_preview_spot_prices(conn,item)
+        strategy=request.form.get('smart_pricing_strategy','balanced')
+        if strategy not in STRATEGIES:
+            raise ValueError('Choose a selling strategy.')
+        minimum=cents(request.form.get('smart_minimum') or '0')
+        if minimum<0:
+            raise ValueError('Minimum premium must be nonnegative.')
+        quote=preview_quote(conn,item,strategy,minimum,request.form.get('smart_starting'),request.form.get('smart_warning_acknowledged')=='1',quantity=request.form.get('quantity') or (base or {}).get('quantity') or 1)
+        return jsonify(success=True,**quote)
+    except (ValueError,TypeError,ZeroDivisionError) as exc:
+        from services.smart_pricing_service import seller_error
+        return jsonify(**seller_error(exc)),400
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Smart Pricing preview failed')
+        return jsonify(success=False,code='SMART_PREVIEW_UNAVAILABLE',title='Pricing preview is temporarily unavailable',message='Please try again shortly or use manual pricing.'),503
+    finally:
+        conn.close()

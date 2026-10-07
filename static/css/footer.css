@@ -2,6 +2,8 @@
 
 .site-footer {
     /* Static footer - part of normal document flow */
+    position: relative;
+    z-index: 1; /* Cover the fixed decorative background as the footer scrolls into view. */
     width: 100%;
     background-color: #f8f9fa;
     border-top: 2px solid #e6e6e6;

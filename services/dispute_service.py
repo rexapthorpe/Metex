@@ -150,6 +150,7 @@ def open_dispute(order_id, buyer_id, dispute_type, description, seller_id=None):
     )
     dispute_id = cursor.lastrowid
 
+    cursor.execute("UPDATE flow_mutex SET revision=revision+1 WHERE id=1")
     for fill in canonical_fills:
         cursor.execute('INSERT INTO dispute_fill_links VALUES (?,?,?)',(dispute_id,fill['id'],now))
         cursor.execute('INSERT INTO holds VALUES (?,?,?,?,?,?,?,?)',
@@ -163,11 +164,14 @@ def open_dispute(order_id, buyer_id, dispute_type, description, seller_id=None):
         f'Dispute opened ({dispute_type})',
     )
 
+    if execution:
+        from services.flow_of_funds import _emit
+        _emit(conn,'INTERNAL_DISPUTE_OPENED','execution',execution['id'],{'seller_ids':[seller_id],'dispute_id':dispute_id},identity=str(dispute_id))
     conn.commit()
     conn.close()
 
     # Notify seller (best-effort — failure must not abort the dispute)
-    if seller_id:
+    if seller_id and not execution:
         try:
             from services.notification_types import notify_dispute_opened
             notify_dispute_opened(seller_id, dispute_id, order_id, dispute_type)
@@ -530,24 +534,7 @@ def admin_add_note(dispute_id, admin_id, note):
 
 
 def admin_resolve(dispute_id, admin_id, resolution, note):
-    """
-    Resolve a dispute as admin.
-
-    resolution must be one of: 'resolved_refund' | 'resolved_denied' | 'closed'
-
-    For 'resolved_refund':
-      - Looks up orders.stripe_payment_intent_id
-      - Calls stripe.Refund.create(payment_intent=pi_id) for a full refund
-      - Writes a row to the refunds table
-      - Updates disputes.stripe_refund_id + refund_amount
-      - If no PI or Stripe fails, still resolves dispute and warns in result dict
-
-    Phase 3 limitation: partial refunds are NOT implemented here.
-    Partial refund support requires an explicit amount UI — deferred to Phase 4.
-
-    Returns dict with refund details (may include 'warning' if Stripe unavailable).
-    Raises ValueError on invalid state or missing required fields.
-    """
+    """Resolve scoped holds; a submitted refund remains open until confirmed."""
     if resolution not in ADMIN_TERMINAL_OUTCOMES:
         raise ValueError(f'Invalid resolution: {resolution!r}. '
                          f'Must be one of: {sorted(ADMIN_TERMINAL_OUTCOMES)}')
@@ -587,22 +574,45 @@ def admin_resolve(dispute_id, admin_id, resolution, note):
         links = cursor.execute('SELECT seller_fill_id FROM dispute_fill_links WHERE dispute_id=?',
                                (dispute_id,)).fetchall() if execution else []
         if execution and links:
-            from services.flow_of_funds import create_refund, record_refund_provider_result
-            quantities={}
-            for link in links:
-                fill=cursor.execute('SELECT quantity,refunded_quantity FROM seller_fills WHERE id=?',(link['seller_fill_id'],)).fetchone()
-                quantities[link['seller_fill_id']]=fill['quantity']-fill['refunded_quantity']
-            canonical,_=create_refund(execution['id'],quantities,'INTERNAL_DISPUTE',f'dispute-refund-{dispute_id}')
+            from services.flow_of_funds import create_refund, submit_refund
+            existing=cursor.execute("SELECT r.* FROM flow_refunds r JOIN financial_operations o ON o.id=r.financial_operation_id WHERE o.idempotency_key=?",(f'dispute-refund-{dispute_id}',)).fetchone()
+            if existing:
+                canonical=dict(existing)
+            else:
+                quantities={}
+                for link in links:
+                    fill=cursor.execute('SELECT quantity,refunded_quantity FROM seller_fills WHERE id=?',(link['seller_fill_id'],)).fetchone()
+                    remaining=fill['quantity']-fill['refunded_quantity']
+                    if remaining>0: quantities[link['seller_fill_id']]=remaining
+                # End this read transaction before the separately serialized command.
+                conn.commit()
+                canonical,_=create_refund(execution['id'],quantities,'SELLER_FAULT',f'dispute-refund-{dispute_id}')
             import stripe
-            provider=stripe.Refund.create(payment_intent=execution['provider_payment_id'],amount=canonical['total_cents'],
-                metadata={'dispute_id':str(dispute_id),'flow_refund_id':canonical['id']},idempotency_key=f'dispute-refund-{dispute_id}')
-            record_refund_provider_result(canonical['id'],provider)
+            try:
+                provider=submit_refund(canonical['id'])
+            except Exception:
+                conn.close()
+                raise
             stripe_refund_id=provider.id; refund_amount=canonical['total_cents']/100
-            refund_result={'success':True,'refund_id':provider.id,'amount':refund_amount}
+            refund_result={'success':provider.status=='succeeded','refund_id':provider.id,'amount':refund_amount}
+            if not refund_result['success']: resolution='under_review'
         else:
             conn.close()
             raise ValueError('This dispute is not linked to canonical seller fills; refund is blocked for financial safety.')
 
+    cursor.execute("UPDATE flow_mutex SET revision=revision+1 WHERE id=1")
+    # A webhook may confirm the refund between dispatch and this transaction.
+    if refund_result:
+        confirmed=cursor.execute('SELECT state FROM flow_refunds WHERE id=?',(canonical['id'],)).fetchone()
+        if confirmed and confirmed['state']=='SUCCEEDED':
+            resolution='resolved_refund';refund_result['success']=True
+    current=cursor.execute('SELECT status FROM disputes WHERE id=?',(dispute_id,)).fetchone()
+    if current and current['status'] in ADMIN_TERMINAL_OUTCOMES and current['status']!=resolution:
+        conn.rollback();conn.close();raise ValueError('Dispute was resolved concurrently; review its current state.')
+    terminal=resolution in ADMIN_TERMINAL_OUTCOMES
+    if terminal:
+        from services.admin_flow_service import close_internal_dispute
+        close_internal_dispute(dispute_id,admin_id,conn=conn)
     event_note = note.strip()
     if refund_amount:
         event_note += f' (Refund: ${refund_amount:.2f})'
@@ -612,21 +622,25 @@ def admin_resolve(dispute_id, admin_id, resolution, note):
         SET status = ?, resolved_at = ?, resolved_by_admin_id = ?,
             resolution_note = ?, stripe_refund_id = ?, refund_amount = ?
         WHERE id = ?
-    ''', (resolution, now, admin_id, note.strip(),
+    ''', (resolution, now if terminal else None, admin_id, note.strip(),
           stripe_refund_id, refund_amount, dispute_id))
 
     _add_timeline_entry(cursor, dispute_id, 'admin', admin_id, 'status_changed',
-                        f'Resolved as {resolution}: {event_note}')
+                        f'{"Resolved" if terminal else "Refund pending"} as {resolution}: {event_note}')
 
     buyer_id = dispute['buyer_id']
     seller_id = dispute['seller_id']
     order_id = dispute['order_id']
 
+    notice_execution=cursor.execute('SELECT id FROM executions WHERE legacy_order_id=?',(order_id,)).fetchone()
+    if notice_execution:
+        from services.flow_of_funds import _emit
+        _emit(conn,'INTERNAL_DISPUTE_'+('RESOLVED' if terminal else 'REFUND_PENDING'),'execution',notice_execution['id'],{'seller_ids':[seller_id],'dispute_id':dispute_id,'status':resolution},identity=str(dispute_id))
     conn.commit()
     conn.close()
 
     # Notify both parties (best-effort)
-    for uid in [buyer_id, seller_id]:
+    for uid in ([buyer_id, seller_id] if terminal and not notice_execution else []):
         if uid:
             try:
                 from services.notification_types import notify_dispute_resolved
@@ -647,31 +661,4 @@ def admin_resolve(dispute_id, admin_id, resolution, note):
 
 
 def _attempt_stripe_refund(payment_intent_id, dispute_id):
-    """
-    Attempt a full Stripe refund against a PaymentIntent.
-
-    Returns {'success': True, 'refund_id': 're_xxx', 'amount': float}
-         or {'success': False, 'error': str}
-
-    Uses idempotency_key so re-running after a partial failure is safe.
-    Full refunds only — partial refunds deferred to Phase 4.
-    """
-    try:
-        import stripe
-        refund = stripe.Refund.create(
-            payment_intent=payment_intent_id,
-            reason='fraudulent',
-            metadata={'dispute_id': str(dispute_id)},
-            idempotency_key=f'dispute-refund-{dispute_id}',
-        )
-        return {
-            'success': True,
-            'refund_id': refund.id,
-            'amount': refund.amount / 100,
-        }
-    except Exception as exc:
-        import stripe
-        if isinstance(exc, stripe.error.InvalidRequestError):
-            # e.g., "This charge has already been fully refunded"
-            return {'success': False, 'error': str(exc)}
-        return {'success': False, 'error': str(exc)}
+    raise ValueError('Legacy unallocated refunds are retired; use a canonical refund')

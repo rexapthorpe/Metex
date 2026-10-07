@@ -148,13 +148,29 @@ def _fetch_listing_pricing_meta(conn, listing_ids):
     placeholders = ','.join('?' * len(listing_ids))
     rows = conn.execute(
         f"SELECT l.id, l.pricing_mode, l.spot_premium, l.pricing_metal, "
-        f"       l.price_per_coin, l.floor_price, "
+        f"       l.price_per_coin, l.floor_price, l.isolated_type, "
         f"       c.metal, c.weight "
         f"FROM listings l JOIN categories c ON l.category_id = c.id "
         f"WHERE l.id IN ({placeholders})",
         listing_ids,
     ).fetchall()
-    return {row['id']: dict(row) for row in rows}
+    return {row['id']: _with_set_contents(conn,dict(row)) for row in rows}
+
+
+def _with_set_contents(conn, item):
+    if item.get('isolated_type')=='set':
+        item['set_items']=[dict(p) for p in conn.execute('SELECT * FROM listing_set_items WHERE listing_id=? ORDER BY position_index',
+                          (item.get('listing_id') or item.get('id'),))]
+    return item
+
+
+def _pricing_metals(item):
+    if item.get('pricing_mode')!='premium_to_spot':
+        return set()
+    if item.get('isolated_type')=='set':
+        return {str(p.get('metal') or '').lower() for p in item.get('set_items',[]) if p.get('metal')}
+    metal=(item.get('pricing_metal') or item.get('metal') or '').lower()
+    return {metal} if metal else set()
 
 
 def _enrich_cart_data_with_spot_audit(cart_data, spot_map, listing_meta):
@@ -184,15 +200,9 @@ def _get_cart_metals_for_spot(conn, user_id):
     Return set of lower-case metal names needed for premium_to_spot listings
     in the user's cart.  Used to pre-fetch spot prices before pricing.
     """
-    rows = conn.execute(
-        "SELECT DISTINCT COALESCE(l.pricing_metal, c.metal) AS m "
-        "FROM cart ct "
-        "JOIN listings l ON ct.listing_id = l.id "
-        "JOIN categories c ON l.category_id = c.id "
-        "WHERE ct.user_id = ? AND l.pricing_mode = 'premium_to_spot'",
-        (user_id,),
-    ).fetchall()
-    return {row['m'].lower() for row in rows if row['m']}
+    ids=[r['listing_id'] for r in conn.execute('SELECT listing_id FROM cart WHERE user_id=?',(user_id,))]
+    meta=_fetch_listing_pricing_meta(conn,ids)
+    return set().union(*(_pricing_metals(item) for item in meta.values())) if meta else set()
 
 
 def _build_spot_prices_dict(spot_map):
@@ -266,7 +276,7 @@ def checkout():
             # IMPORTANT: Include ALL listings (including user's own) to detect when they're skipped
             query = f'''
                 SELECT l.id, l.quantity, l.price_per_coin, l.pricing_mode,
-                       l.spot_premium, l.floor_price, l.pricing_metal, l.seller_id,
+                       l.spot_premium, l.floor_price, l.pricing_metal, l.seller_id, l.isolated_type,
                        c.metal, c.weight, c.product_type, c.year
                 FROM listings l
                 JOIN categories c ON l.category_id = c.id
@@ -278,12 +288,8 @@ def checkout():
             # ── Checkout spot pricing (bounded staleness, single-flight refresh) ──
             # Collect metals needed for premium_to_spot listings; fetch once.
             from services.checkout_spot_service import get_spot_map_for_checkout
-            bucket_metals = set()
-            for listing in listings_raw:
-                if listing['pricing_mode'] == 'premium_to_spot':
-                    m = (listing['pricing_metal'] or listing['metal'] or '').lower()
-                    if m:
-                        bucket_metals.add(m)
+            listings_raw=[_with_set_contents(conn,dict(row)) for row in listings_raw]
+            bucket_metals=set().union(*(_pricing_metals(row) for row in listings_raw)) if listings_raw else set()
 
             # Policy A: block checkout if live pricing cannot be refreshed within SLA.
             try:
@@ -619,23 +625,30 @@ def tax_estimate():
         return jsonify({'error': 'Not authenticated'}), 401
 
     body = request.get_json(silent=True) or {}
-    subtotal     = float(body.get('subtotal') or 0)
-    postal_code  = str(body.get('postal_code') or body.get('zip_code') or '').strip()
-    state        = str(body.get('state') or '').strip()
-    country      = str(body.get('country') or 'US').strip() or 'US'
+    from services.tax_service import calculate_items
+    from services.flow_of_funds import FlowError,money_to_cents
+    conn=get_db_connection()
+    try:
+        items=session.get('checkout_items')
+        if not items:
+            if not conn.execute('SELECT id FROM cart WHERE user_id=? LIMIT 1',(session['user_id'],)).fetchone():
+                return jsonify(error='Cart is empty',tax_calculated=False),400
+            from services.reference_price_service import get_current_spots_from_snapshots
+            summary=build_cart_summary(conn,session['user_id'],spot_prices=get_current_spots_from_snapshots(conn))
+            items=[{'listing_id':x['listing_id'],'quantity':x['quantity'],'price_each':x['effective_price']}
+                   for bucket in summary['buckets'].values() for x in bucket['listings']]
+        if not items: return jsonify(error='Cart is empty',tax_calculated=False),400
+        shipping={key:body.get(key,'') for key in ('line1','line2','city','state')}
+        shipping.update(postal_code=body.get('postal_code') or body.get('zip_code',''),country=_normalize_country(body.get('country','US')))
+        tax_cents,_=calculate_items(conn,items,shipping)
+        subtotal=sum(money_to_cents(x['price_each'])*int(x['quantity']) for x in items)
+        return jsonify(tax_amount=tax_cents/100,taxed_subtotal=(subtotal+tax_cents)/100,tax_calculated=True)
+    except FlowError as exc:
+        return jsonify(error=str(exc),error_code=exc.code,tax_calculated=False),exc.status
+    except Exception:
+        return jsonify(error='Tax calculation is unavailable',tax_calculated=False),503
+    finally: conn.close()
 
-    if subtotal <= 0:
-        return jsonify({'error': 'subtotal must be positive'}), 400
-
-    tax_cents, calc_id = _get_stripe_tax(int(round(subtotal * 100)), postal_code, state, country)
-    tax_amount = round(tax_cents / 100, 2)
-    # tax_calculated=True only when Stripe actually returned a result (calc_id present).
-    # When no postal code or Stripe fails, calc_id is None and we report uncalculated.
-    return jsonify({
-        'tax_amount':     tax_amount,
-        'taxed_subtotal': round(subtotal + tax_amount, 2),
-        'tax_calculated': calc_id is not None,
-    })
 
 
 @checkout_bp.route('/checkout/api/recalculate-spot', methods=['POST'])
@@ -676,11 +689,7 @@ def recalculate_spot():
             listing_ids = [i['listing_id'] for i in session_items]
             listing_meta = _fetch_listing_pricing_meta(conn, listing_ids)
 
-            metals = {
-                (m.get('pricing_metal') or m.get('metal') or '').lower()
-                for m in listing_meta.values()
-                if m.get('pricing_mode') == 'premium_to_spot'
-            }
+            metals=set().union(*(_pricing_metals(meta) for meta in listing_meta.values())) if listing_meta else set()
             try:
                 spot_map = get_spot_map_for_checkout(metals) if metals else {}
             except SpotUnavailableError:
@@ -831,32 +840,40 @@ def create_payment_intent():
         ensure_flow_schema(conn)
         require_approved_policy(conn, 'tracking_upload_deadline_days',
                                 'ups_coverage_and_claim_policy')
-        session_items = session.get('checkout_items')
-        if session_items:
-            cart_data = [dict(i, requires_grading=False) for i in session_items]
-        else:
-            from services.reference_price_service import get_current_spots_from_snapshots
-            summary = build_cart_summary(conn, user_id, spot_prices=get_current_spots_from_snapshots(conn))
-            cart_data = [{'listing_id': x['listing_id'], 'quantity': x['quantity'],
-                          'price_each': x['effective_price'],
-                          'requires_grading': False}
-                         for b in summary['buckets'].values() for x in b['listings']]
-        if not cart_data:
-            return jsonify({'error': 'Cart is empty.'}), 400
-        subtotal_cents = sum(int(round(float(i['price_each'])*100))*int(i['quantity']) for i in cart_data)
-        tax_cents, tax_calc_id = _get_stripe_tax(
-            subtotal_cents, body.get('zip_code',''), body.get('state',''), body.get('country','US'))
-        if not tax_calc_id or tax_calc_id == 'fallback_rate':
-            return jsonify({'error': 'Tax could not be verified. Check the delivery address and try again.'}), 503
         shipping = {'shipping_address': body.get('shipping_address',''),
+                    'line1':body.get('address_line1') or body.get('shipping_address','').split('•')[0].split('\n')[0].strip(),
+                    'line2':body.get('address_line2',''),
                     'recipient_first': body.get('recipient_first',''),
                     'recipient_last': body.get('recipient_last',''),
                     'city': body.get('city',''), 'state': body.get('state',''),
-                    'postal_code': body.get('zip_code',''), 'country': body.get('country','US'),
-                    'tax_calculation_id': tax_calc_id}
-        checkout, snapshot, _ = prepare_checkout(
-            user_id, cart_data, 'card', tax_cents, shipping,
-            idempotency_key=f'browser:{user_id}:{nonce}', conn=conn)
+                    'postal_code': body.get('zip_code',''), 'country':_normalize_country(body.get('country','US'))}
+        checkout=conn.execute('SELECT * FROM checkout_attempts WHERE buyer_id=? AND idempotency_key=?',(user_id,f'browser:{user_id}:{nonce}')).fetchone()
+        if checkout:
+            if checkout['state'] not in ('RESERVED','PAYMENT_PENDING'):
+                raise FlowError('This checkout is no longer available for payment setup','CHECKOUT_NOT_MUTABLE',409)
+            snapshot=conn.execute('SELECT * FROM execution_snapshots WHERE id=?',(checkout['active_snapshot_id'],)).fetchone()
+            import json
+            original_shipping=json.loads(snapshot['shipping_json'])
+            if any(original_shipping.get(key,'')!=value for key,value in shipping.items()):
+                raise FlowError('Shipping changed; refresh checkout before continuing','IDEMPOTENCY_CONFLICT',409)
+        else:
+            session_items = session.get('checkout_items')
+            if session_items:
+                cart_data = [dict(i, requires_grading=False) for i in session_items]
+            else:
+                from services.reference_price_service import get_current_spots_from_snapshots
+                summary = build_cart_summary(conn, user_id, spot_prices=get_current_spots_from_snapshots(conn))
+                cart_data = [{'listing_id': x['listing_id'], 'quantity': x['quantity'],
+                              'price_each': x['effective_price'],
+                              'requires_grading': False}
+                             for b in summary['buckets'].values() for x in b['listings']]
+            if not cart_data:
+                return jsonify({'error': 'Cart is empty.'}), 400
+            from services.tax_service import calculate_items
+            tax_cents,calculations=calculate_items(conn,cart_data,shipping)
+            shipping['tax_calculations']=calculations
+            checkout,snapshot,_=prepare_checkout(user_id,cart_data,'card',tax_cents,shipping,
+              idempotency_key=f'browser:{user_id}:{nonce}',conn=conn)
         existing = conn.execute('SELECT * FROM financial_operations WHERE aggregate_id=? AND operation_type=\'PAYMENT\'',
                                 (checkout['id'],)).fetchone()
         if existing and existing['provider_object_id']:
@@ -920,12 +937,12 @@ def prepare_payment():
         # Reprice every spot-linked line immediately before Stripe confirmation.
         # Any cent-level change invalidates the consented total and restores the
         # reservation so the buyer can review a fresh checkout.
-        lines=conn.execute('''SELECT sl.buyer_unit_cents,l.*,c.metal
+        lines=conn.execute('''SELECT sl.buyer_unit_cents,l.*,c.metal,c.weight
           FROM snapshot_lines sl JOIN listings l ON l.id=sl.listing_id
           JOIN categories c ON c.id=l.category_id
           WHERE sl.snapshot_id=?''',(checkout['active_snapshot_id'],)).fetchall()
-        metals={(dict(line).get('pricing_metal') or dict(line).get('metal') or '').lower()
-                for line in lines if dict(line).get('pricing_mode')=='premium_to_spot'}
+        lines=[_with_set_contents(conn,dict(line)) for line in lines]
+        metals=set().union(*(_pricing_metals(line) for line in lines)) if lines else set()
         spots=check_spot_map_freshness(metals) if metals else {}
         spot_values={metal:info['price_usd'] for metal,info in spots.items()}
         price_changed=any(

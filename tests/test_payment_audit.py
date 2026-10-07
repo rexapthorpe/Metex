@@ -607,46 +607,7 @@ class TestPayoutReleaseGuards:
         """)
         return conn
 
-    def test_PA5_double_payout_guard(self):
-        """
-        PA5: release_stripe_transfer must raise EscrowControlError if
-        payout_status is already PAID_OUT.
-        """
-        from services.ledger_service import LedgerService, EscrowControlError
 
-        conn = self._make_ledger_db()
-        _seed(conn)
-
-        # Create an order + ledger + payout that's already PAID_OUT
-        conn.execute("INSERT INTO orders (id, buyer_id, total_price, payment_status, stripe_payment_intent_id, requires_payment_clearance) VALUES (1, 2, 100.0, 'paid', 'pi_test', 0)")
-        conn.execute("INSERT INTO orders_ledger (id, order_id, buyer_id, gross_amount, order_status) VALUES (1, 1, 2, 100.0, 'PAID_IN_ESCROW')")
-        conn.execute("INSERT INTO order_payouts (id, order_id, order_ledger_id, seller_id, seller_net_amount, payout_status) VALUES (1, 1, 1, 1, 95.0, 'PAID_OUT')")
-        conn.execute("UPDATE users SET stripe_account_id='acct_test', stripe_payouts_enabled=1 WHERE id=1")
-        conn.commit()
-
-        with patch('core.services.ledger.escrow_control.get_db_connection', return_value=conn):
-            with pytest.raises(EscrowControlError, match='already released'):
-                LedgerService.release_stripe_transfer(1, admin_id=99)
-
-    def test_PA6_ach_blocks_payout_release(self):
-        """
-        PA6: release_stripe_transfer must raise EscrowControlError if
-        requires_payment_clearance=1 (ACH not yet cleared).
-        """
-        from services.ledger_service import LedgerService, EscrowControlError
-
-        conn = self._make_ledger_db()
-        _seed(conn)
-
-        conn.execute("INSERT INTO orders (id, buyer_id, total_price, payment_status, stripe_payment_intent_id, requires_payment_clearance) VALUES (1, 2, 100.0, 'paid', 'pi_test', 1)")
-        conn.execute("INSERT INTO orders_ledger (id, order_id, buyer_id, gross_amount, order_status) VALUES (1, 1, 2, 100.0, 'PAID_IN_ESCROW')")
-        conn.execute("INSERT INTO order_payouts (id, order_id, order_ledger_id, seller_id, seller_net_amount, payout_status) VALUES (1, 1, 1, 1, 95.0, 'PAYOUT_READY')")
-        conn.execute("UPDATE users SET stripe_account_id='acct_test', stripe_payouts_enabled=1 WHERE id=1")
-        conn.commit()
-
-        with patch('core.services.ledger.escrow_control.get_db_connection', return_value=conn):
-            with pytest.raises(EscrowControlError, match='clearance'):
-                LedgerService.release_stripe_transfer(1, admin_id=99)
 
 
 # ---------------------------------------------------------------------------
@@ -784,52 +745,8 @@ class TestCancellationInventory:
 # ---------------------------------------------------------------------------
 
 class TestRefundBlocksPayout:
+    """Retired-command denial is covered in test_retired_financial_commands."""
 
-    def test_PA15_refund_fails_on_paid_out_payout(self):
-        """
-        PA15: process_refund must raise EscrowControlError if any affected
-        payout is already PAID_OUT. Money cannot be refunded from a paid-out order.
-        """
-        from services.ledger_service import LedgerService, EscrowControlError
-
-        # Use the real test fixture from test_ledger_phase2_escrow_control
-        conn = sqlite3.connect(':memory:')
-        conn.row_factory = sqlite3.Row
-
-        # Minimal ledger schema
-        conn.executescript("""
-            CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT);
-            CREATE TABLE orders (id INTEGER PRIMARY KEY, buyer_id INTEGER, total_price REAL,
-                payment_status TEXT DEFAULT 'paid', stripe_payment_intent_id TEXT);
-            CREATE TABLE order_items (id INTEGER PRIMARY KEY, order_id INTEGER,
-                listing_id INTEGER, quantity INTEGER, price_each REAL);
-            CREATE TABLE orders_ledger (id INTEGER PRIMARY KEY, order_id INTEGER,
-                buyer_id INTEGER, gross_amount REAL, platform_fee_amount REAL,
- spread_capture_amount REAL NOT NULL DEFAULT 0.0,
-                order_status TEXT DEFAULT 'PAID_IN_ESCROW', updated_at TIMESTAMP);
-            CREATE TABLE order_payouts (id INTEGER PRIMARY KEY, order_id INTEGER,
-                order_ledger_id INTEGER, seller_id INTEGER, seller_net_amount REAL,
-                payout_status TEXT DEFAULT 'PAYOUT_NOT_READY', updated_at TIMESTAMP);
-            CREATE TABLE order_items_ledger (id INTEGER PRIMARY KEY, order_id INTEGER,
-                order_ledger_id INTEGER, seller_id INTEGER, listing_id INTEGER,
-                quantity INTEGER, gross_amount REAL, platform_fee_amount REAL);
-            CREATE TABLE order_events (id INTEGER PRIMARY KEY, order_id INTEGER,
-                event_type TEXT, actor_type TEXT, actor_id INTEGER, payload_json TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-        """)
-        conn.execute("INSERT INTO users VALUES (1, 'buyer')")
-        conn.execute("INSERT INTO users VALUES (2, 'seller')")
-        conn.execute("INSERT INTO orders VALUES (1, 1, 100.0, 'paid', 'pi_test')")
-        conn.execute("INSERT INTO orders_ledger (id, order_id, buyer_id, gross_amount, platform_fee_amount, order_status) VALUES (1, 1, 1, 100.0, 5.0, 'PAID_IN_ESCROW')")
-        conn.execute("INSERT INTO order_payouts (id, order_ledger_id, order_id, seller_id, seller_net_amount, payout_status) VALUES (1, 1, 1, 2, 95.0, 'PAID_OUT')")
-        conn.execute("INSERT INTO order_items_ledger VALUES (1, 1, 1, 2, 1, 1, 100.0, 5.0)")
-        conn.commit()
-
-        with patch('core.services.ledger.escrow_control.get_db_connection', return_value=conn):
-            with pytest.raises(EscrowControlError, match='PAID_OUT'):
-                LedgerService.process_refund(
-                    order_id=1, admin_id=99, refund_type='full', reason='Test refund'
-                )
 
 
 # ---------------------------------------------------------------------------

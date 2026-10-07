@@ -14,6 +14,7 @@ let _selectedSavedPmId = null;      // null = new card; 'pm_xxx' = saved card se
 let _savedCardInfo = {};            // pm_id → {brand, last4, exp_month, exp_year}
 let _paymentElementMounted = false; // guard against double-mount
 let _taxKnown = false;              // true once a Stripe Tax estimate has been fetched
+let _paymentSetupError = '';
 
 function _showPaymentLoading(visible) {
   const el = document.getElementById('payment-loading-message');
@@ -21,6 +22,7 @@ function _showPaymentLoading(visible) {
 }
 
 function _showPaymentError(msg) {
+  _paymentSetupError = msg;
   _showPaymentLoading(false);
   const el = document.getElementById('payment-element-error');
   if (el) { el.textContent = msg; el.style.display = 'block'; }
@@ -35,24 +37,27 @@ function _showPaymentError(msg) {
 async function initStripeElements() {
   if (_stripeInitStarted) return;
   _stripeInitStarted = true;
-
-  console.log('[Stripe] initStripeElements starting');
-
-  const key = window.stripePublishableKey;
-  if (!key) {
-    _showPaymentError('Payment system configuration error. Please contact support.');
-    return;
-  }
-
-  if (typeof Stripe === 'undefined') {
-    _showPaymentError('Stripe.js failed to load. Please refresh the page.');
-    return;
-  }
-
-  _stripe = Stripe(key);
-  _showPaymentLoading(true);
+  _paymentSetupError = '';
+  const errorEl = document.getElementById('payment-element-error');
+  if (errorEl) { errorEl.textContent = ''; errorEl.style.display = 'none'; }
 
   try {
+    console.log('[Stripe] initStripeElements starting');
+
+    const key = window.stripePublishableKey;
+    if (!key) {
+      _showPaymentError('Payment system configuration error. Please contact support.');
+      return;
+    }
+
+    if (typeof Stripe === 'undefined') {
+      _showPaymentError('Stripe.js failed to load. Please refresh the page.');
+      return;
+    }
+
+    _stripe = Stripe(key);
+    _showPaymentLoading(true);
+
     // Send the buyer's address so the server can compute tax+fee and create
     // the PI with the full charge amount right away.
     const postalCode = (document.getElementById('zipCode') || {}).value || '';
@@ -69,26 +74,21 @@ async function initStripeElements() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ zip_code: postalCode, state: state, country: countryRaw,
-        city: city, shipping_address: shippingAddress,
+        city: city, shipping_address: shippingAddress, address_line1: address1, address_line2: address2,
         recipient_first: firstName, recipient_last: lastName }),
     });
     console.log('[Stripe] create-payment-intent status:', res.status);
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('[Stripe] server error body:', text);
-      _showPaymentError('Could not start payment session (HTTP ' + res.status + '). Please refresh.');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      const message = data.error_code === 'POLICY_CONFIGURATION_REQUIRED'
+        ? 'Checkout is unavailable while Metex completes its shipping coverage setup. No payment has been taken. Please contact support.'
+        : data.error || 'Could not start payment. Please try again.';
+      _showPaymentError(message);
       return;
     }
 
-    const data = await res.json();
-
-    if (data.error) {
-      _showPaymentError('Payment setup failed: ' + data.error);
-      return;
-    }
-
-    if (!data.clientSecret) {
+    if (!data.clientSecret || !data.paymentIntentId) {
       _showPaymentError('Payment setup returned no client secret. Please refresh.');
       return;
     }
@@ -109,6 +109,9 @@ async function initStripeElements() {
 
   } catch (err) {
     _showPaymentError('Payment form failed to load. Please refresh. (' + err.message + ')');
+  } finally {
+    // Failed setup must be retryable when the buyer returns to Payment.
+    if (!_clientSecret) _stripeInitStarted = false;
   }
 }
 
@@ -308,6 +311,12 @@ function validateShippingForm() {
  * For new-card mode, Stripe Elements handles its own validation — just check it loaded.
  */
 function validatePaymentForm() {
+  if (!_clientSecret || !_stripePaymentIntentId) {
+    if (!_paymentSetupError) {
+      _showPaymentError('Payment is still loading. Please wait a moment and try again.');
+    }
+    return false;
+  }
   if (_selectedSavedPmId) return true;
   if (!_stripeElements) {
     alert('Payment form is still loading. Please wait a moment and try again.');
@@ -529,6 +538,9 @@ async function fetchAndUpdateTax(subtotalOverride) {
   const postalCode = (document.getElementById('zipCode') || {}).value || '';
   const state      = (document.getElementById('state') || {}).value || '';
   const country    = (document.getElementById('country') || {}).value || 'US';
+  const line1 = (document.getElementById('streetAddress') || {}).value || '';
+  const line2 = (document.getElementById('apartment') || {}).value || '';
+  const city = (document.getElementById('city') || {}).value || '';
 
   // Address incomplete — mark tax as unknown and show placeholder
   if (!postalCode) {
@@ -541,7 +553,7 @@ async function fetchAndUpdateTax(subtotalOverride) {
     const resp = await fetch('/checkout/api/tax-estimate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subtotal, postal_code: postalCode, state, country }),
+      body: JSON.stringify({ subtotal, postal_code: postalCode, state, country, line1, line2, city }),
     });
     if (resp.ok) {
       const data = await resp.json();
