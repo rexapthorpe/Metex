@@ -198,3 +198,6 @@ Outcome data: local canonical executions/snapshots/fills/shipments/history count
 
 ### 2026-10-07 — marketplace hero simplification
 Baseline: 24764f9. Centered the /buy hero copy and CTA row across desktop and phone widths; removed the eyebrow, explanatory paragraph and metal filter row. Added “No dealer-set prices” beneath the market message and replaced CTA arrows with decorative search and dollar icons. Existing browse/sell destinations remain intact. Local browser verification at 1280px and 390px confirmed centered content, visible icons and no filter row; diff checks pass. Saved to the GitHub review branch; main merge and hosted deployment remain pending approval.
+
+### 2026-10-07 — equal hero button widths
+Baseline: 1f52af7. Browse Bullion and Sell Bullion now share responsive widths: 190px on desktop and 179px at a 390px phone viewport. Local browser measurement and visual checks confirmed equality and side-by-side phone layout; diff check passes. Saved on the existing GitHub review branch.

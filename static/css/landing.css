@@ -107,6 +107,7 @@ main.container:has(.lp-hero) { position: relative; isolation: isolate; }
 /* A centered, concise marketplace introduction. */
 .lp-hero-copy { max-width:760px; margin-inline:auto; text-align:center; }
 .lp-hero .lp-cta-row { justify-content:center; }
+.lp-hero .lp-cta-btn { box-sizing:border-box; width:min(190px, calc(50% - 6px)); }
 .lp-dealer-message { display:inline-block; margin-top:7px; font-size:.85em; font-weight:500; }
 .lp-cta-btn i { font-size:1.1em; }
 @media(max-width:600px) { .lp-hero-copy { max-width:100%; } .lp-hero .lp-cta-btn { flex:0 1 auto; } }
