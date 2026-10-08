@@ -567,3 +567,35 @@ main {
     font-size: 1.3rem;
   }
 }
+
+/* Keep document scrolling from turning the main wrapper into a sticky scroll container. */
+body:has(.account-layout) { overflow-x: clip; }
+main.container:has(.account-layout) { overflow: visible; }
+.account-layout .ratings-tab .rt-list:has(.rt-empty),
+.account-layout .messages-tab .conversation-list:has(.tab-empty-state) { border: 0; border-radius: 0; }
+.account-layout .portfolio-tab { padding: 0; margin: 0; max-width: none; }
+.account-layout .cart-tab-header { border-bottom: 1px solid #e2e8f0; padding-bottom: 20px; }
+.account-layout .portfolio-allocation-card.allocation-is-empty .allocation-chart-container { display: none; }
+.account-layout .portfolio-allocation-card.allocation-is-empty .allocation-legend { display: grid; place-items: center; min-height: 240px; width: 100%; }
+.account-layout .portfolio-allocation-card.allocation-is-empty .tab-empty-state { padding: 32px 16px; width: 100%; }
+
+/* Empty account tabs share a centered, border-box layout at every width. */
+.account-layout .tab-empty-state,
+.account-layout .tab-filter-empty,
+.account-layout .rt-empty {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
+  text-align: center;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .account-layout .cart-page-layout { align-items: stretch; }
+  .account-layout .cart-items-column { width: 100%; box-sizing: border-box; }
+}
+@media (max-width: 768px) {
+  .account-layout .tab-empty-state,
+  .account-layout .tab-filter-empty,
+  .account-layout .rt-empty { padding-inline: 16px; }
+}

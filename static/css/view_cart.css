@@ -492,3 +492,8 @@
     padding: 8px;
   }
 }
+
+/* Empty carts occupy the full page rather than the item column. */
+.cart-page-layout:has(.empty-cart-container) { display:block; width:100%; }
+.cart-page-layout:has(.empty-cart-container) .cart-items-column { width:100%; max-width:none; flex-basis:100%; }
+.empty-cart-container { width:100%; box-sizing:border-box; text-align:center; display:flex; flex-direction:column; align-items:center; }

@@ -34,6 +34,7 @@ from . import ledger
 from . import buckets
 from . import reports
 from . import orders
+from . import fulfillment
 from . import metrics
 from . import system
 from . import disputes  # Phase 3 — admin dispute adjudication

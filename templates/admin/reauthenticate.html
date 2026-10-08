@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Verify administrator access{% endblock %}
+{% block content %}
+<section style="max-width:480px;margin:2rem auto;padding:1rem">
+<h1>Verify administrator access</h1>
+<form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label for="adminPassword">Password</label>
+<input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+<button type="submit">Verify access</button>
+</form>
+<p>After verification, return to <a href="{{ url_for('admin.operations_page') }}">order operations</a>.</p>
+</section>
+{% endblock %}

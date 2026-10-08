@@ -40,8 +40,8 @@
   align-items: start;
 }
 
-.left-col  { display: flex; flex-direction: column; gap: 16px; min-width: 0; overflow: hidden; }
-.right-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; overflow: hidden; }
+.left-col  { display: flex; flex-direction: column; gap: 16px; min-width: 0; overflow: visible; }
+.right-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; overflow: visible; }
 
 /* Reusable inner white tiles */
 .content-tile {
@@ -145,7 +145,7 @@
   gap: 12px;
   flex-wrap: wrap;            /* sell-stack wraps below on very small screens */
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Right-side vertical stack: label above the circular button */
@@ -1082,3 +1082,6 @@
   margin-right: 12px;
 }
 
+
+/* Let card shadows fade into both page gutters rather than clipping at main. */
+main.container:has(.bucket-page) { overflow:visible; }

@@ -1,236 +1,42 @@
-# Metex Payments — Staging Test Checklist
+# Metex staging payment scenario matrix
 
-Use Stripe test mode keys and test card numbers throughout.
-Mark each scenario PASS / FAIL / BLOCKED in the result column.
+Reconciled with the repository launch amendment and current code on 2026-09-30. This is the single scenario source; [manual sign-off](FINAL_MANUAL_STAGING_CHECKLIST.md) records results, and [production rollout](PRODUCTION_ROLLOUT_CHECKLIST.md) covers deployment. The [repository specification](../FLOW_OF_FUNDS_IMPLEMENTATION_SPEC.md) and [approved policies](APPROVED_LAUNCH_POLICIES.md) govern expected behavior.
 
----
+## Prerequisites and evidence
 
-## Scenario 1 — Normal Checkout with New Card
+Use isolated staging, separate buyer/seller accounts, provider test credentials, production-equivalent PostgreSQL, a clean/upgrade-tested schema and controlled inventory. Record commit plus working changes, environment, date, operator, checkout/payment/event/fill IDs and exact cents. Retain screenshots, provider outcomes, journal/reservation checks and PASS/FAIL/BLOCKED per scenario. Blank checkboxes are not passing results.
 
-**Steps**
-1. Log in as a buyer with no saved cards.
-2. Add one or more listings to cart. Proceed to checkout.
-3. Confirm shipping address at Step 1.
-4. At Step 2 (Payment), verify the Stripe Payment Element renders (no saved-card picker shown).
-5. Enter Stripe test card `4242 4242 4242 4242`, any future expiry, any CVC.
-6. Advance to Step 3 (Review) and click Place Order.
-7. Confirm redirect to `/order-success`.
+Do not fabricate UPS approval to pass a test. Use explicit test fixtures/adapters in isolation and record real insurance/provider gates as BLOCKED until evidence exists. Mocks and SQLite unit tests do not substitute for the provider/browser/concurrency drills.
 
-**Expected Result**
-- Order created in DB with `payment_status = 'paid'`.
-- `stripe_payment_intent_id` stored on the order.
-- Seller sees order in Sold tab with payout state "Waiting for shipment".
-- Admin ledger shows order with Payment Method = "Card".
-- Webhook `payment_intent.succeeded` fires and is idempotent if replayed.
+## Scenarios
 
-**Result** `[ ] PASS  [ ] FAIL  [ ] BLOCKED`
-**Notes**
+| ID | Exercise | Required evidence / expected outcome |
+|---|---|---|
+| S1 | New card; double submit and refresh | One bound payment and funded execution; exact amount/customer/currency; balanced journal and inventory; 5% seller fee and total-base 2.99% gross-up |
+| S2 | Saved card; policy/tax/network setup failure then retry | Review blocked without client secret and payment ID; useful error; retry works; failed setup creates no funded execution |
+| S3 | 3DS success/failure, browser loss, late webhook | Recover same checkout/payment; no duplicate funding; unfinished authorization respects expiry; late events cannot reopen terminal states |
+| S4 | ACH processing, success, failure and later return | Processing projects `SOLD_PENDING_ACH` only; inventory held, no payable/revenue/shipping deadline; verified success funds the same payment; return holds funds and triggers reason-specific review |
+| S5 | Bid acceptance; failed/off-session authentication or mandate | Independent canonical payment per execution; correction window retained; no unpaid funded order; success/retry is idempotent |
+| S6 | Partial and multi-seller fills; simultaneous accepts | Remaining quantity and stock correct; independent payments/fills; no overselling or self-trade |
+| S7 | Spot price changes at confirmation; method switch; quote expiry | Cent-level change requires renewed consent; rail revision consistent; reservations/quotes limited to 900 seconds; unknown pending payments not blindly released |
+| S8 | Foreign, wrong-amount/currency, reused and missing payment | Rejected on every order-creation entry point; no unauthorized order or stock mutation |
+| S9 | Duplicate/early/late webhook, processing error and replay | Signature required; durable record; retryable error/replay; financial operation occurs once |
+| S10 | Insurance, ship authorization and tracking | Actual qualifying coverage gate; approved payment and active insurance required; three-day clock begins only at authorization; UPS acceptance/ownership/destination and uniqueness verified; signature threshold $500 |
+| S11 | Tracking deadline expiry, delivery and payout holds | Forfeiture/refund operates without page visits; delivery plus 24-hour canonical hold; disputes/refunds/restrictions block release; payout above $10,000 reviewed |
+| S12 | Seller transfer and bank payout success/failure | Stable transfer identity; correct net and gates; connected transfer and bank payout represented separately |
+| S13 | Partial multi-seller refund before transfer | Original unit components allocated once; unaffected fills remain correct; allocated surcharge follows cancellation reason; pending/failed/succeeded truthfully represented |
+| S14 | Refund/dispute/chargeback after transfer; ACH return | Exact affected recovery amount, holds, reviewed liability and recovery attempts; no blanket reversal of unrelated seller proceeds |
+| S15 | Ban/freeze/password change; unauthorized account mutations | Old session revoked and applicable financial boundaries restricted; foreign tracking/payment/order access rejected |
+| S16 | Crash/timeout after provider success; restart worker | Same operation recovered without second charge/refund/transfer; inventory and journal conserved; outbox not resent |
+| S17 | Internal and provider reconciliation | Compare charges, refunds, transfers and bank payouts to journal/components; unknown objects and discrepancies retained for review; do not infer full coverage from command exit |
+| S18 | PostgreSQL concurrency, clean/upgrade schema and backup restoration | Isolated drill, versioned schema evidence, lock/uniqueness checks, restored uploads/evidence and reconciled pending operations |
+| S19 | Mobile/browser checkout and fulfillment views | New/saved card and ACH, errors/retry, 3DS return, totals, pending/refund/payout labels, keyboard and narrow-screen usability |
+| S20 | Tax, grading removal and launch boundaries | Address/tax failure fails closed; tax records/reversals verified; optional grading absent and forged fields disabled; grade attributes preserved |
 
----
+## Automation references
 
-## Scenario 2 — Normal Checkout with Saved Card
+CI scope is defined in `.github/workflows/flow-of-funds-ci.yml`. Relevant tests include `test_flow_of_funds_acceptance.py`, `test_delivery_payout.py`, `test_refund_workflow.py`, `test_staging_blockers.py` and security suites. The existing local `test_checkout_payment_setup.cjs` covers S2 failures/retries. Record actual commands and results; do not claim CI includes the untracked browser test.
 
-**Steps**
-1. Log in as a buyer who has previously completed a checkout (saved card should exist).
-2. Navigate to `/account` → Payment Methods. Confirm at least one saved card is listed.
-3. Add items to cart. Proceed to checkout.
-4. At Step 2, verify the saved card picker renders and the saved card is pre-selected.
-5. Do NOT select "Use a new card". Click Continue.
-6. At Step 3, click Place Order.
-7. Confirm redirect to `/order-success`.
+For release, execute the specification's full penny-value matrix after the required provider/business gates and explicit authorization for real transactions. No provider or live test was run by this documentation refresh.
 
-**Expected Result**
-- Order completes without mounting the Stripe Payment Element.
-- Stripe `confirmPayment` is called with `payment_method: <pm_id>` and `redirect: 'if_required'`.
-- `payment_status = 'paid'` on the order.
-- If card requires 3DS: Stripe handles redirect automatically and buyer returns to `/order-success`.
-- If saved card is declined: error message appears in step 3 with a "Change payment method" link that returns to step 2.
-
-**Result** `[ ] PASS  [ ] FAIL  [ ] BLOCKED`
-**Notes**
-
----
-
-## Scenario 3 — ACH Checkout and Clearance
-
-**Steps**
-1. Log in as a buyer. Add items to cart. Proceed to checkout.
-2. At Step 2, select the "Bank account (ACH)" option in the Stripe Payment Element.
-3. Use Stripe test bank account credentials to authorize the transfer.
-4. Complete checkout. Confirm redirect to `/order-success`.
-5. In DB: verify `orders.payment_method_type = 'us_bank_account'` and `requires_payment_clearance = 1`.
-6. Check seller's Sold tab → payout bar should show **"Waiting for ACH clearance"** (blue).
-7. Check admin Ledger → order detail. Verify:
-   - Payment Method header shows **"ACH / Bank Transfer"** (not "card").
-   - Yellow ACH clearance banner is visible with "Mark ACH Cleared" button.
-8. Click "Mark ACH Cleared" as admin.
-9. Verify seller payout state transitions to "Waiting for shipment" or the delay window state.
-
-**Expected Result**
-- `payment_method_type` is set by webhook (not hardcoded).
-- Seller never sees "Processing" or "Card" for an ACH order.
-- Admin can clear ACH and unblock the payout pipeline.
-- Admin ledger list shows "ACH / Bank" in the Payment Method column.
-
-**Result** `[ ] PASS  [ ] FAIL  [ ] BLOCKED`
-**Notes**
-
----
-
-## Scenario 4 — Bid Placement and Seller Acceptance Payment
-
-**Steps**
-1. Log in as a buyer. Navigate to a listing's bucket page.
-2. Attempt to place a bid without a saved card. Confirm the UI shows a "Payment Method Required" message and blocks bid submission.
-3. Add a saved card (via `/account` → Payment Methods → Add Card).
-4. Place a bid with a fixed price below the current ask.
-5. Log in as the seller. Navigate to the matching bucket. Find the bid in the bid list.
-6. Click Accept on the bid. Confirm the acceptance modal flow.
-7. Confirm the acceptance POST succeeds and an order is created.
-8. Verify: `bid.bid_payment_status = 'charged'`, `bid.status = 'Filled'`, order exists.
-9. Verify: buyer receives a bid-accepted notification.
-
-**Expected Result**
-- Bid can only be placed with a saved card on file.
-- Seller acceptance charges the buyer's saved card via Stripe PaymentIntent.
-- Stripe idempotency key (`bid-accept-<bid_id>-<order_id>`) prevents double-charge.
-- Order appears in buyer's orders and seller's Sold tab.
-
-**Result** `[ ] PASS  [ ] FAIL  [ ] BLOCKED`
-**Notes**
-
----
-
-## Scenario 5 — Failed Bid Payment and Strike Enforcement
-
-**Steps**
-1. Log in as a buyer. Save Stripe test card `4000 0000 0000 0002` (always declines).
-2. Place a bid. Log in as seller and accept the bid.
-3. Verify acceptance fails with a payment declined message in the modal.
-4. Verify: `bid.status = 'Payment Failed'`, `bid.active = 0`, `bid.bid_payment_status = 'failed'`.
-5. Verify: buyer's account tab (Bids) shows the bid with a red "Payment Failed" badge.
-6. Verify: buyer receives a bid payment failed in-app notification.
-7. Verify: seller sees a styled "Payment Failed" modal (not a browser `alert()`), with a "Back to Bids" button.
-8. Check buyer's `bid_payment_strikes` incremented by 1.
-9. Repeat for a total of 3 card-decline failures on the same buyer account.
-10. Attempt a fourth bid. Confirm the UI shows "Bid Placement Restricted" and blocks submission.
-
-**Expected Result**
-- Each card decline: bid permanently closed, seller notified, buyer notified, strike incremented.
-- Network errors or non-card errors do NOT increment strikes.
-- At 3 strikes: bid placement is blocked with a clear message.
-- Failed bids cannot be re-accepted by the seller (guard in `accept_bid.py`).
-
-**Result** `[ ] PASS  [ ] FAIL  [ ] BLOCKED`
-**Notes**
-
----
-
-## Scenario 6 — Seller Tracking Upload and Payout Delay Timing
-
-**Steps**
-1. Complete a checkout as a buyer (card payment). Wait for order to appear in seller Sold tab.
-2. Verify initial payout state: "Waiting for shipment".
-3. As seller: click Add Tracking, enter a tracking number and carrier.
-4. Verify payout state changes to "Payout available in 2 days" (card = 2-day delay).
-5. In DB: verify `seller_order_tracking.updated_at` is set to now.
-6. In admin ledger: verify the Delay / Eligible At column shows correct eligible timestamp.
-7. Advance system time past the 2-day window (or update `updated_at` directly in test DB to 3 days ago).
-8. Run "Evaluate Readiness" in admin for the payout. Verify payout transitions to `PAYOUT_READY`.
-9. Verify seller payout state now shows "Ready for payout".
-
-**Expected Result**
-- Delay is enforced based on `seller_order_tracking.updated_at`, not order date.
-- Card orders: 2-day window. ACH orders: 5-day window.
-- Readiness correctly transitions from NOT_READY → READY after window passes.
-- Admin checklist shows all conditions green once window passes.
-
-**Result** `[ ] PASS  [ ] FAIL  [ ] BLOCKED`
-**Notes**
-
----
-
-## Scenario 7 — Manual Payout Release (Admin)
-
-**Steps**
-1. Ensure a payout exists in `PAYOUT_READY` state (all conditions met: tracking uploaded, delay passed, Stripe connected, no refund).
-2. Navigate to admin ledger → order detail.
-3. Verify the Readiness Checklist column shows all green checkmarks.
-4. Click "Release Payout". Verify the two-step confirmation strip appears (no browser `confirm()` dialog).
-5. Click "Confirm Release".
-6. Verify: Stripe transfer created, `payout_status = 'PAID_OUT'`, `provider_transfer_id` populated.
-7. Verify: seller Sold tab shows payout state "Paid".
-8. Now create a second payout that is blocked (e.g., tracking not uploaded). Verify "Release Payout" button does NOT appear — only a "Blocked: ..." message.
-
-**Expected Result**
-- Release button only appears when `get_payout_block_reason()` returns None (all conditions met).
-- Two-step confirmation prevents accidental release.
-- Backend independently re-validates before creating transfer.
-- Manual payout respects `manual_payouts_enabled` system setting.
-
-**Result** `[ ] PASS  [ ] FAIL  [ ] BLOCKED`
-**Notes**
-
----
-
-## Scenario 8 — Refund Before Payout / After Payout (Recovery)
-
-### Part A — Refund before payout released
-
-**Steps**
-1. Complete a checkout. Verify order has `payment_status = 'paid'`.
-2. Ensure payout is still in `PAYOUT_NOT_READY` or `PAYOUT_READY` (not yet PAID_OUT).
-3. Admin: navigate to ledger order detail → Buyer Refund section. Click "Refund Buyer".
-4. Enter a reason. Confirm.
-5. Verify: Stripe refund created, `orders.refund_status = 'refunded'`.
-6. Verify: payout transitions to `PAYOUT_CANCELLED`, `payout_recovery_status = 'not_needed'`.
-7. Verify: seller's payout state shows "Payout cancelled".
-
-**Expected Result**
-- Refund and payout cancellation happen atomically.
-- Seller never receives money for a refunded order.
-
-### Part B — Refund after payout released
-
-**Steps**
-1. Complete a checkout. Release the payout to `PAID_OUT` (Stripe transfer created).
-2. Admin: issue a refund for the same order.
-3. Verify: `payout_recovery_status = 'pending'`, yellow "Payout Recovery Required" banner appears.
-4. In admin Recovery cell: click "Attempt Recovery".
-5. Verify one of three outcomes:
-   - **Recovered**: `payout_recovery_status = 'recovered'`, `provider_reversal_id` stored.
-   - **Manual Review**: seller had insufficient funds; admin sees purple "Manual Review" state.
-   - **Failed**: red "Recovery Failed" state; retry button available.
-
-**Expected Result**
-- Recovery attempt uses `stripe.Transfer.create_reversal()`.
-- All three outcome states are correctly stored and displayed.
-- Manual review state surfaces a clear message that admin must follow up with seller.
-
-**Result** `[ ] PASS  [ ] FAIL  [ ] BLOCKED`
-**Notes**
-
----
-
-## Pre-Test Environment Checklist
-
-| Item | Status |
-|------|--------|
-| `STRIPE_PUBLISHABLE_KEY` set (test mode) | `[ ]` |
-| `STRIPE_SECRET_KEY` set (test mode) | `[ ]` |
-| `STRIPE_WEBHOOK_SECRET` set (test mode) | `[ ]` |
-| Stripe webhook endpoint registered for `/webhook` | `[ ]` |
-| At least one seller with `stripe_account_id` and `stripe_payouts_enabled=1` | `[ ]` |
-| `manual_payouts_enabled` system setting = true | `[ ]` |
-| `auto_payouts_enabled` system setting = true (for auto-run tests) | `[ ]` |
-| `checkout_enabled` system setting = true | `[ ]` |
-
-## Stripe Test Cards Reference
-
-| Card Number | Behavior |
-|-------------|----------|
-| `4242 4242 4242 4242` | Always succeeds |
-| `4000 0000 0000 0002` | Always declines (card_declined) |
-| `4000 0025 0000 3155` | Requires 3DS authentication |
-| `4000 0000 0000 9995` | Insufficient funds decline |
-| Use Stripe test bank account | ACH / us_bank_account |
+September 30 regression additions: `test_launch_safety.py`, `test_storage_migration.py` and the separate localhost PostgreSQL `test_postgres_launch_concurrency.py` job. Include ambiguous payment creation/cancellation, late compensation, failed refund unit reuse, partial ACH rejection, dispute terminal replay, account-mapped payouts, pending tracking acceptance, admin hold isolation, immutable repeated checkout/rail revision, transfer timeout/changed entitlement, reviewed reversal/offset caps and notification replay in provider acceptance. These tests use disposable data and do not certify provider or live acceptance.

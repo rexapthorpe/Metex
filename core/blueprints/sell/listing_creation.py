@@ -46,16 +46,12 @@ def handle_sell_post():
 
         # Enforce Stripe seller onboarding before allowing listing creation
         _stripe_check_conn = get_db_connection()
-        _stripe_user = _stripe_check_conn.execute(
-            'SELECT stripe_charges_enabled, stripe_payouts_enabled FROM users WHERE id = ?',
-            (session['user_id'],)
-        ).fetchone()
-        _stripe_check_conn.close()
-        _stripe_ready = (
-            _stripe_user is not None and
-            bool(_stripe_user['stripe_charges_enabled']) and
-            bool(_stripe_user['stripe_payouts_enabled'])
-        )
+        from services.connect_service import refresh_seller
+        try:
+            _stripe_ready=refresh_seller(_stripe_check_conn,session['user_id'])
+            _stripe_check_conn.commit()
+        finally:
+            _stripe_check_conn.close()
         if not _stripe_ready:
             error_msg = 'You must complete seller payment setup before listing items.'
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -138,6 +134,13 @@ def handle_sell_post():
 
         # Extract pricing mode
         pricing_mode = request.form.get('pricing_mode', 'static').strip()
+        from services.smart_pricing_service import parse_form, configure, lock, cents
+        try:
+            smart_settings = parse_form(request.form)
+            if smart_settings:
+                pricing_mode = 'premium_to_spot'
+        except ValueError as exc:
+            return jsonify(success=False, message=str(exc)), 400
 
         # Validate and extract pricing parameters based on mode
         try:
@@ -153,8 +156,8 @@ def handle_sell_post():
                 pricing_metal = None
             elif pricing_mode == 'premium_to_spot':
                 # Premium-to-spot mode: require premium and floor
-                spot_premium = float(request.form.get('spot_premium', 0))
-                floor_price = float(request.form.get('floor_price', 0))
+                spot_premium = max(smart_settings[1], cents(request.form.get('spot_premium') or '0')) / 100 if smart_settings else float(request.form.get('spot_premium', 0))
+                floor_price = 0.01 if smart_settings else float(request.form.get('floor_price', 0))
                 pricing_metal = request.form.get('pricing_metal', metal).strip()
 
                 # For premium-to-spot, price_per_coin is not set by user
@@ -209,6 +212,7 @@ def handle_sell_post():
             'year': year,
             'finish': finish,
             'grade': grade,
+            'coin_series': request.form.get('coin_series','').strip(),
             'condition_category': condition_category,
             'series_variant': series_variant
         }
@@ -353,6 +357,8 @@ def handle_sell_post():
         cursor = conn.cursor()
 
         if is_isolated:
+            from utils.category_manager import lock_category_allocation
+            lock_category_allocation(conn)
             # ISOLATED LISTING: Always create a new isolated bucket
             # Generate unique integer bucket_id (MAX + 1, same as standard buckets)
             new_bucket = cursor.execute(
@@ -376,15 +382,15 @@ def handle_sell_post():
                 # Get specs from first set item if main form is blank/minimal
                 if not metal or not product_line:
                     first_idx = sorted(set_item_indices)[0]
-                    category_metal = request.form.get(f'set_items[{first_idx}][metal]', '').strip() or metal
-                    category_product_line = request.form.get(f'set_items[{first_idx}][product_line]', '').strip() or product_line
-                    category_product_type = request.form.get(f'set_items[{first_idx}][product_type]', '').strip() or product_type
-                    category_weight = request.form.get(f'set_items[{first_idx}][weight]', '').strip() or weight
-                    category_purity = request.form.get(f'set_items[{first_idx}][purity]', '').strip() or purity
-                    category_mint = request.form.get(f'set_items[{first_idx}][mint]', '').strip() or mint
-                    category_year = request.form.get(f'set_items[{first_idx}][year]', '').strip() or year
-                    category_finish = request.form.get(f'set_items[{first_idx}][finish]', '').strip() or finish
-                    category_grade = request.form.get(f'set_items[{first_idx}][grade]', '').strip() or grade
+                    category_metal = str((set_items_json_data[0].get('metal') if set_items_json_data else request.form.get(f'set_items[{first_idx}][metal]', '')) or metal).strip()
+                    category_product_line = str((set_items_json_data[0].get('product_line') if set_items_json_data else request.form.get(f'set_items[{first_idx}][product_line]', '')) or product_line).strip()
+                    category_product_type = str((set_items_json_data[0].get('product_type') if set_items_json_data else request.form.get(f'set_items[{first_idx}][product_type]', '')) or product_type).strip()
+                    category_weight = str((set_items_json_data[0].get('weight') if set_items_json_data else request.form.get(f'set_items[{first_idx}][weight]', '')) or weight).strip()
+                    category_purity = str((set_items_json_data[0].get('purity') if set_items_json_data else request.form.get(f'set_items[{first_idx}][purity]', '')) or purity).strip()
+                    category_mint = str((set_items_json_data[0].get('mint') if set_items_json_data else request.form.get(f'set_items[{first_idx}][mint]', '')) or mint).strip()
+                    category_year = str((set_items_json_data[0].get('year') if set_items_json_data else request.form.get(f'set_items[{first_idx}][year]', '')) or year).strip()
+                    category_finish = str((set_items_json_data[0].get('finish') if set_items_json_data else request.form.get(f'set_items[{first_idx}][finish]', '')) or finish).strip()
+                    category_grade = str((set_items_json_data[0].get('grade') if set_items_json_data else request.form.get(f'set_items[{first_idx}][grade]', '')) or grade).strip()
 
             # Create new isolated category
             cursor.execute('''
@@ -453,7 +459,11 @@ def handle_sell_post():
 
         # Get the newly created listing ID
         listing_id = cursor.lastrowid
-
+        from database import get_table_columns
+        if 'created_at' in get_table_columns(conn, 'listings'):
+            from services.smart_pricing_service import now_utc
+            conn.execute('UPDATE listings SET created_at=? WHERE id=?', (now_utc().isoformat(), listing_id))
+        lock(conn)
         # Insert photo(s) into listing_photos table
         # For standard mode with multiple photos, insert all photos
         # For other modes, insert the single main photo
@@ -494,6 +504,17 @@ def handle_sell_post():
             if result is not None:
                 return result  # Error response
 
+        # Set contents must exist before exact configuration matching/valuation.
+        from services.smart_pricing_service import product, validate_preview
+        conn.execute('UPDATE listings SET graded=?,grading_service=?,actual_year=? WHERE id=?',
+                     (1 if request.form.get('graded')=='yes' else 0,
+                      request.form.get('grading_service') if request.form.get('graded')=='yes' else None,
+                      request.form.get('actual_year') or None,listing_id))
+        approval = validate_preview(conn,product(conn,listing_id),smart_settings,request.form) if smart_settings else None
+        configure(conn,listing_id,smart_settings,initial=True,approval=approval)
+        if smart_settings:
+            initialized=conn.execute('SELECT spot_premium,price_per_coin FROM listings WHERE id=?',(listing_id,)).fetchone()
+            spot_premium,price_per_coin=initialized['spot_premium'],initialized['price_per_coin']
         conn.commit()
 
         # Match only after the listing is durable. Every fill then enters the
@@ -610,7 +631,16 @@ def handle_sell_post():
 
         return "Your item was successfully listed!"
 
+    except ValueError as e:
+        if 'conn' in locals():
+            conn.rollback()
+            conn.close()
+        from services.smart_pricing_service import seller_error
+        return jsonify(**seller_error(e)), 400
     except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            conn.close()
         # Catch any unexpected errors and return proper JSON for AJAX requests
         import traceback
         import sys
@@ -622,7 +652,7 @@ def handle_sell_post():
         sys.stdout.flush()
         sys.stderr.flush()
 
-        error_msg = f"An error occurred while creating your listing: {str(e)}"
+        error_msg = "Your listing could not be saved. Please try again shortly."
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify(success=False, message=error_msg), 500
 
@@ -720,7 +750,7 @@ def _create_set_items(cursor, conn, listing_id, set_item_indices, options,
         set_packaging_notes = _fv('packaging_notes') or None
         set_condition_notes = _fv('condition_notes') or None
         set_edition_number = _fv('edition_number')
-        set_edition_total = request.form.get(f'set_items[{idx}][edition_total]', '').strip()
+        set_edition_total = _fv('edition_total')
         set_edition_number = int(set_edition_number) if set_edition_number else None
         set_edition_total = int(set_edition_total) if set_edition_total else None
 
@@ -772,6 +802,8 @@ def _create_set_items(cursor, conn, listing_id, set_item_indices, options,
 
             # Get the set_item_id for the newly created item
             set_item_id = cursor.lastrowid
+            cursor.execute('UPDATE listing_set_items SET graded=?,grading_service=?,special_designation=? WHERE id=?',
+                           (1 if _fv('graded').lower() in ('1','yes','true') else 0, _fv('grading_service') or None, _fv('special_designation') or None,set_item_id))
 
             # Save all photos for this set item to listing_set_item_photos table
             for photo_position, photo_file in enumerate(set_item_photos, start=1):

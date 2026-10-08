@@ -112,6 +112,7 @@
                     id="headerSearchInput"
                     class="header-search-input"
                     placeholder="Search metals, coins, bars…"
+                    aria-label="Search bullion"
                     autocomplete="off"
                     value="{{ request.args.get('search', '') }}"
                 >
@@ -133,6 +134,7 @@
             </button>
             {% endif %}
             <a href="{{ url_for('buy.view_cart') }}" class="btn-pill cart-pill" title="View Cart"><i class="fa-solid fa-cart-shopping"></i></a>
+            <a href="{{ url_for('buy.buy') }}" class="btn-pill marketplace-browse">Browse</a>
             <a href="{{ url_for('sell.sell') }}" class="btn-pill {% if request.endpoint == 'sell.sell' %}active{% endif %}">Sell</a>
             {% if session.get('user_id') %}
                 {% if is_user_admin %}
@@ -341,7 +343,7 @@
                 <div class="footer-logo">MetEx</div>
                 <p class="footer-tagline">
                     The premier marketplace for buying and selling precious metals.
-                    Connect with trusted buyers and sellers worldwide.
+                    A marketplace for buyers and sellers in the United States.
                 </p>
                 <p class="footer-copyright">
                     &copy; 2026 MetEx. All rights reserved.
@@ -406,6 +408,7 @@
 
     <!-- Header Search Autocomplete -->
     <script src="{{ url_for('static', filename='js/header_search.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/auth_navigation.js') }}"></script>
 
     <!-- Mobile Navigation JS -->
     <script>
@@ -803,5 +806,7 @@
     })();
     </script>
     {% endif %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/standard_dropdowns.css') }}">
+<script src="{{ url_for('static', filename='js/standard_dropdowns.js') }}" defer></script>
 </body>
 </html>

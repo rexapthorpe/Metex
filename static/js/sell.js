@@ -287,6 +287,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 Array.isArray(prefill.set_items) && prefill.set_items.length > 0) {
             prefill.set_items.forEach(function(item) {
                 var restoredItem = {
+                    id:             item.id,
+                    coin_series:    item.coin_series || '',
+                    special_designation: item.special_designation || '',
+                    graded:         item.graded || 0,
+                    grading_service: item.grading_service || '',
                     metal:          item.metal          || '',
                     product_line:   item.product_line   || '',
                     product_type:   item.product_type   || '',
@@ -603,7 +608,8 @@ async function loadSpotPricesForPreview() {
 
         if (data.success) {
             // Store spot prices globally for preview calculations
-            window.spotPrices = data.prices;
+            window.spotPrices = data.is_stale ? {} : data.prices;
+            window.sellSpotUnavailable = !!data.is_stale;
             updatePricePreview();
         } else {
             console.error('Failed to load spot prices:', data.message);
@@ -629,6 +635,12 @@ function updatePricePreview() {
 
     // Always make the preview container visible once premium mode is on
     previewDiv.style.display = 'block';
+
+    if (window.sellSpotUnavailable) {
+        if (loadedDiv) loadedDiv.style.display='none';
+        if (noMetalDiv) { noMetalDiv.style.display='block'; noMetalDiv.querySelector('small').textContent='Current metal pricing is temporarily unavailable. Try again shortly or choose Fixed Price.'; }
+        return;
+    }
 
     if (!window.spotPrices) {
         // Spot prices not yet loaded — show loading state

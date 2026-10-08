@@ -4,10 +4,11 @@ Fetches and caches live metal spot prices from MetalpriceAPI
 """
 
 from database import get_db_connection
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 import os
 import logging
+import math
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,6 +17,27 @@ logger = logging.getLogger(__name__)
 # MetalpriceAPI configuration
 API_BASE_URL = "https://api.metalpriceapi.com/v1"
 CACHE_TTL_MINUTES = 5  # How long to cache prices before refreshing
+
+
+class PriceQuotes(dict):
+    """Numeric prices with per-metal provider provenance, compatible with callers."""
+    def __init__(self, prices=None, metadata=None):
+        super().__init__(prices or {})
+        self.metadata = metadata or {}
+
+
+def quote_metadata(prices, metal, fallback_source='unknown'):
+    return getattr(prices, 'metadata', {}).get(metal, {'source': fallback_source, 'as_of': None})
+
+
+def _provider_time(value):
+    try:
+        dt = datetime.fromtimestamp(float(value), timezone.utc)
+        if dt > datetime.now(timezone.utc) + timedelta(seconds=60):
+            return None
+        return dt.isoformat()
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
 
 
 def get_api_key():
@@ -88,8 +110,13 @@ def fetch_spot_prices_from_api():
         if 'XPD' in rates:
             spot_prices['palladium'] = round(1 / rates['XPD'], 2)
 
-        logger.info(f"Successfully fetched spot prices: {spot_prices}")
-        return spot_prices
+        if not spot_prices or any(not math.isfinite(float(v)) or v <= 0 for v in spot_prices.values()):
+            return None
+        as_of = _provider_time(data.get('timestamp'))
+        if not as_of:
+            logger.warning('Primary quote has no valid provider timestamp')
+            return None
+        return PriceQuotes(spot_prices, {m: {'source': 'metalpriceapi', 'as_of': as_of} for m in spot_prices})
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Network error fetching spot prices: {e}")
@@ -111,14 +138,18 @@ def save_spot_prices_to_cache(spot_prices):
 
     try:
         for metal, price in spot_prices.items():
+            if not math.isfinite(float(price)) or float(price) <= 0:
+                raise ValueError('Invalid provider price')
+            meta = quote_metadata(spot_prices, metal)
+            as_of = meta['as_of'] or '1970-01-01T00:00:00+00:00'
             conn.execute("""
                 INSERT INTO spot_prices (metal, price_usd_per_oz, updated_at, source)
-                VALUES (?, ?, CURRENT_TIMESTAMP, 'metalpriceapi')
+                VALUES (?, ?, ?, ?)
                 ON CONFLICT(metal) DO UPDATE SET
                     price_usd_per_oz = excluded.price_usd_per_oz,
-                    updated_at = CURRENT_TIMESTAMP,
-                    source = 'metalpriceapi'
-            """, (metal, price))
+                    updated_at = excluded.updated_at,
+                    source = excluded.source
+            """, (metal, price, as_of, meta['source']))
 
         conn.commit()
         conn.close()
@@ -140,7 +171,7 @@ def get_cached_spot_prices():
     conn = get_db_connection()
 
     prices = conn.execute("""
-        SELECT metal, price_usd_per_oz, updated_at
+        SELECT metal, price_usd_per_oz, updated_at, source
         FROM spot_prices
         ORDER BY metal
     """).fetchall()
@@ -155,7 +186,7 @@ def get_cached_spot_prices():
     for row in prices:
         spot_prices[row['metal']] = row['price_usd_per_oz']
 
-    return spot_prices
+    return PriceQuotes(spot_prices, {r['metal']: {'source': r['source'], 'as_of': str(r['updated_at'])} for r in prices})
 
 
 def is_cache_fresh():
@@ -179,11 +210,12 @@ def is_cache_fresh():
 
     # Parse timestamp
     try:
-        update_time = datetime.fromisoformat(oldest_update)
-        now = datetime.now()
+        update_time = datetime.fromisoformat(str(oldest_update).replace('Z','+00:00'))
+        if update_time.tzinfo is None: update_time=update_time.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
         age_minutes = (now - update_time).total_seconds() / 60
 
-        is_fresh = age_minutes < CACHE_TTL_MINUTES
+        is_fresh = 0 <= age_minutes < CACHE_TTL_MINUTES
 
         return is_fresh, update_time
 
@@ -206,6 +238,7 @@ def fetch_spot_prices_from_yahoo():
         'palladium': 'PA=F',
     }
     results = {}
+    metadata = {}
     try:
         for metal, symbol in _SYMBOLS.items():
             url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
@@ -218,17 +251,16 @@ def fetch_spot_prices_from_yahoo():
                 logger.warning(f"[yahoo] HTTP {resp.status_code} for {symbol}")
                 continue
             data = resp.json()
-            price = (
-                data.get('chart', {})
-                    .get('result', [{}])[0]
-                    .get('meta', {})
-                    .get('regularMarketPrice')
-            )
-            if price:
+            rows = data.get('chart', {}).get('result') or []
+            meta = rows[0].get('meta', {}) if rows else {}
+            price = meta.get('regularMarketPrice')
+            as_of = _provider_time(meta.get('regularMarketTime'))
+            if price and math.isfinite(float(price)) and float(price) > 0 and as_of:
                 results[metal] = round(float(price), 2)
+                metadata[metal] = {'source': 'yahoo_futures', 'as_of': as_of}
         if results:
             logger.info(f"[yahoo] Fetched spot prices: {results}")
-            return results
+            return PriceQuotes(results, metadata)
     except Exception as exc:
         logger.warning(f"[yahoo] Fetch failed: {exc}")
     return None
@@ -324,7 +356,7 @@ def get_spot_price_age():
     if not last_update:
         return None
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     age_minutes = (now - last_update).total_seconds() / 60
 
     return round(age_minutes, 1)

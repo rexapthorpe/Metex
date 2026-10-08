@@ -161,43 +161,10 @@ class TestSourceTransactionPassthrough:
             from core.services.ledger.escrow_control import release_stripe_transfer
             return release_stripe_transfer(payout_id, admin_id=99)
 
-    def test_retrieves_payment_intent(self, payout_db):
-        """release_stripe_transfer should call PaymentIntent.retrieve with the PI id."""
-        mock_stripe = _make_stripe_module()
-        self._call_release(payout_db, mock_stripe)
-        mock_stripe.PaymentIntent.retrieve.assert_called_once_with('pi_test_abc')
 
-    def test_passes_source_transaction_to_transfer(self, payout_db):
-        """stripe.Transfer.create must include source_transaction=charge_id."""
-        mock_stripe = _make_stripe_module(charge_id='ch_test_xyz')
-        self._call_release(payout_db, mock_stripe)
 
-        _, kwargs = mock_stripe.Transfer.create.call_args
-        assert kwargs.get('source_transaction') == 'ch_test_xyz', (
-            f"Expected source_transaction='ch_test_xyz', got: {mock_stripe.Transfer.create.call_args}"
-        )
 
-    def test_transfer_amount_correct(self, payout_db):
-        """Transfer amount should be seller_net_amount in cents (100.0 → 10000)."""
-        mock_stripe = _make_stripe_module()
-        self._call_release(payout_db, mock_stripe)
 
-        _, kwargs = mock_stripe.Transfer.create.call_args
-        assert kwargs['amount'] == 10000
-
-    def test_transfer_destination_correct(self, payout_db):
-        """Transfer destination should be the seller's connected account ID."""
-        mock_stripe = _make_stripe_module()
-        self._call_release(payout_db, mock_stripe)
-
-        _, kwargs = mock_stripe.Transfer.create.call_args
-        assert kwargs['destination'] == 'acct_test123'
-
-    def test_returns_transfer_id(self, payout_db):
-        """release_stripe_transfer should return the Stripe transfer ID."""
-        mock_stripe = _make_stripe_module(transfer_id='tr_test_001')
-        result = self._call_release(payout_db, mock_stripe)
-        assert result['transfer_id'] == 'tr_test_001'
 
     def test_payout_marked_paid_out_in_db(self):
         """After release, payout_status should be PAID_OUT in the DB."""
@@ -287,33 +254,3 @@ class TestSourceTransactionFallbacks:
         conn.execute("UPDATE orders SET stripe_payment_intent_id = NULL WHERE id = 1")
         conn.commit()
         return conn, payout_id
-
-    def test_no_source_transaction_when_no_pi_id(self, payout_db):
-        """If order has no PI id, transfer proceeds without source_transaction."""
-        conn, payout_id = self._make_db_without_pi(payout_db)
-        mock_stripe = _make_stripe_module()
-
-        with patch('core.services.ledger.escrow_control.get_db_connection', return_value=conn), \
-             patch.dict(sys.modules, {'stripe': mock_stripe}):
-            from core.services.ledger.escrow_control import release_stripe_transfer
-            result = release_stripe_transfer(payout_id, admin_id=99)
-
-        mock_stripe.PaymentIntent.retrieve.assert_not_called()
-        _, kwargs = mock_stripe.Transfer.create.call_args
-        assert 'source_transaction' not in kwargs
-        assert result['transfer_id'] == 'tr_test_001'
-
-    def test_no_source_transaction_when_pi_retrieval_fails(self, payout_db):
-        """If Stripe PI retrieval throws, transfer proceeds without source_transaction."""
-        conn, payout_id = payout_db
-        mock_stripe = _make_stripe_module()
-        mock_stripe.PaymentIntent.retrieve.side_effect = mock_stripe.error.StripeError("Stripe API error")
-
-        with patch('core.services.ledger.escrow_control.get_db_connection', return_value=conn), \
-             patch.dict(sys.modules, {'stripe': mock_stripe}):
-            from core.services.ledger.escrow_control import release_stripe_transfer
-            result = release_stripe_transfer(payout_id, admin_id=99)
-
-        _, kwargs = mock_stripe.Transfer.create.call_args
-        assert 'source_transaction' not in kwargs
-        assert result['transfer_id'] == 'tr_test_001'

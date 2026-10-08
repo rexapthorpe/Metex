@@ -25,7 +25,7 @@ Stale-primary fallback:
   chart rendering.  Each snapshot row records its source in the `source` column.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import database as _db_module
 
@@ -155,7 +155,9 @@ def _should_insert(last_price, last_as_of, new_price):
             last_time = datetime.fromisoformat(last_as_of)
         else:
             last_time = last_as_of
-        age_mins = (datetime.now() - last_time).total_seconds() / 60
+        if last_time.tzinfo is None:
+            last_time = last_time.replace(tzinfo=timezone.utc)
+        age_mins = (datetime.now(timezone.utc) - last_time).total_seconds() / 60
     except Exception:
         return True  # can't parse — insert to be safe
 
@@ -225,7 +227,7 @@ def run_snapshot(use_lock=True, verbose=False, force=False):
     Returns:
         dict with keys: inserted (int), skipped (int), locked_out (bool), error (str|None)
     """
-    from services.spot_price_service import get_current_spot_prices
+    from services.spot_price_service import get_current_spot_prices, quote_metadata
 
     conn = _get_conn()
     now = datetime.now()
@@ -285,10 +287,12 @@ def run_snapshot(use_lock=True, verbose=False, force=False):
             # Use secondary when: primary is stale AND secondary has this metal
             if metal in stale_metals and secondary_prices and metal in secondary_prices:
                 use_price = secondary_prices[metal]
-                use_source = "metals_live"
+                meta = quote_metadata(secondary_prices, metal, "metals_live")
+                use_source = meta["source"]
             else:
                 use_price = primary_price
-                use_source = "metalpriceapi"
+                meta = quote_metadata(spot_prices, metal)
+                use_source = meta["source"]
 
             last_price, last_as_of = _get_last_snapshot(conn, metal)
 
@@ -296,7 +300,7 @@ def run_snapshot(use_lock=True, verbose=False, force=False):
                 conn.execute(
                     "INSERT INTO spot_price_snapshots (metal, price_usd, as_of, source) "
                     "VALUES (?, ?, ?, ?)",
-                    (metal, use_price, now.isoformat(), use_source),
+                    (metal, use_price, meta["as_of"] or (now.isoformat() if use_source == "metals_live" else "1970-01-01T00:00:00+00:00"), use_source),
                 )
                 if verbose:
                     delta = f" (Δ {use_price - last_price:+.4f})" if last_price else " (first)"

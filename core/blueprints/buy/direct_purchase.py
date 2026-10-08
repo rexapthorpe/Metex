@@ -265,11 +265,9 @@ def direct_buy_item(bucket_id):
         # Collect metals needed for premium_to_spot listings; check freshness
         # WITHOUT auto-refresh (check_spot_map_freshness).  If stale → 409
         # SPOT_EXPIRED so the frontend can show the recalculate prompt.
-        spot_metals = {
-            (dict(l).get('pricing_metal') or dict(l).get('metal') or '').lower()
-            for l in listings_raw
-            if dict(l).get('pricing_mode') == 'premium_to_spot'
-        }
+        from core.blueprints.checkout.routes import _with_set_contents, _pricing_metals
+        listings_raw=[_with_set_contents(conn,dict(row)) for row in listings_raw]
+        spot_metals=set().union(*(_pricing_metals(row) for row in listings_raw)) if listings_raw else set()
         spot_prices_dict = {}  # {metal: price_usd}
         if spot_metals:
             try:

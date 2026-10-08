@@ -1,3 +1,5 @@
+> **Historical reference — labeled 2026-09-30.** Past implementation/verification, not current financial authority. Follow repository `AGENTS.md`, current readiness and the amended repository specification. Original content follows unchanged.
+
 # PHASE 1 LEDGER VERIFICATION REPORT
 
 **Date:** 2026-01-12

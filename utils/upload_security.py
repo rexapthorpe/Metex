@@ -488,7 +488,15 @@ def save_secure_upload(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         'static'
     )
-    full_dir = os.path.join(static_dir, upload_dir)
+    persistent_root=os.getenv('UPLOADS_ROOT')
+    if persistent_root:
+        relative=os.path.relpath(upload_dir,'uploads')
+        full_dir=os.path.join(persistent_root,'public',relative)
+        if os.path.commonpath([os.path.abspath(full_dir),os.path.abspath(os.path.join(persistent_root,'public'))])!=os.path.abspath(os.path.join(persistent_root,'public')):
+            result['error']='Invalid upload directory'
+            return result
+    else:
+        full_dir = os.path.join(static_dir, upload_dir)
 
     # Ensure directory exists
     os.makedirs(full_dir, exist_ok=True)

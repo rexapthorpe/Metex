@@ -13,6 +13,7 @@ import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
+from services.flow_safety import serialized
 
 import database as database_module
 from database import get_db_connection
@@ -46,7 +47,12 @@ def assert_transition(machine, before, after):
 
 
 def money_to_cents(value) -> int:
-    return int((Decimal(str(value)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    try:
+        amount=Decimal(str(value))
+        if not amount.is_finite(): raise ValueError('Non-finite amount')
+        return int((amount * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    except (ArithmeticError,ValueError,TypeError):
+        raise FlowError('Amount must be a finite monetary value','INVALID_AMOUNT',400)
 
 
 def round_ratio(numerator: int, denominator: int) -> int:
@@ -251,6 +257,13 @@ def ensure_flow_schema(conn):
     ]
     for sql in statements:
         conn.execute(sql)
+    from services.smart_pricing_service import ensure_schema as ensure_smart_schema
+    ensure_smart_schema(conn)
+    conn.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY,value TEXT,updated_at TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS flow_mutex (id INTEGER PRIMARY KEY, revision INTEGER NOT NULL)")
+    conn.execute("INSERT INTO flow_mutex VALUES (1,0) ON CONFLICT(id) DO NOTHING")
+    conn.execute("""CREATE TABLE IF NOT EXISTS refund_units (seller_fill_id TEXT NOT NULL, unit_number INTEGER NOT NULL, refund_id TEXT NOT NULL, PRIMARY KEY(seller_fill_id,unit_number))""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS flow_reviews (id TEXT PRIMARY KEY, scope_type TEXT NOT NULL, scope_id TEXT NOT NULL, reason TEXT NOT NULL, state TEXT NOT NULL, evidence_json TEXT, created_at TIMESTAMP NOT NULL, UNIQUE(scope_type,scope_id,reason))""")
     defaults = {
         "seller_fee_bps": 500,
         "card_rate_bps": 299,
@@ -364,6 +377,12 @@ def set_policy_config(key, value, approved, admin_id):
            after={"value":value,"approved":bool(approved)})
     conn.commit(); conn.close()
 
+def _emit(conn,event_type,aggregate_type,aggregate_id,payload,identity=None):
+    # Some events repeat for an execution; event identity distinguishes outcomes.
+    typ=event_type if identity is None else event_type+':'+identity
+    conn.execute("INSERT INTO outbox_events VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(event_type,aggregate_type,aggregate_id) DO NOTHING",(_id('out'),typ,aggregate_type,aggregate_id,_canonical(payload),'PENDING',0,_now(),None))
+
+
 
 def _audit(conn, aggregate_type, aggregate_id, event_type, actor_type, actor_id=None,
            before=None, after=None, metadata=None, correlation_id=None):
@@ -415,12 +434,29 @@ def _journal(conn, aggregate_type, aggregate_id, event_type, key, entries, curre
     return journal_id
 
 
+def require_operation_enabled(conn, key):
+    row=conn.execute("SELECT value FROM system_settings WHERE key=?",(key,)).fetchone()
+    if not row or row["value"]!="1": raise FlowError("Operation is paused: "+key,"OPERATIONS_PAUSED",503)
+
+
+@serialized
 def prepare_checkout(buyer_id, items, payment_rail, tax_cents, shipping, idempotency_key,
                      grading_fee_per_unit_cents=0, other_buyer_charges_cents=0,
                      reservation_ttl_seconds=900, conn=None):
     own = conn is None
     conn = conn or get_db_connection()
     ensure_flow_schema(conn)
+    require_operation_enabled(conn,"checkout_enabled")
+    country=str(shipping.get("country","US")).strip().upper()
+    if country not in ("US","UNITED STATES","UNITED STATES OF AMERICA"):
+        raise FlowError("Launch shipping is restricted to the United States","UNSUPPORTED_COUNTRY",409)
+    if int(tax_cents)<0 or int(other_buyer_charges_cents)<0: raise FlowError("Negative checkout component","INVALID_AMOUNT",409)
+    for item in items:
+        try:
+            if isinstance(item['quantity'],bool) or str(item['quantity'])!=str(int(item['quantity'])):
+                raise ValueError('Fractional quantity')
+        except (ValueError,TypeError,KeyError,OverflowError):
+            raise FlowError('Checkout quantities must be whole units','INVALID_QUANTITY',400)
     normalized = sorted([{
         "listing_id": int(i["listing_id"]), "quantity": int(i["quantity"]),
         "buyer_unit_cents": money_to_cents(i["price_each"]),
@@ -430,7 +466,7 @@ def prepare_checkout(buyer_id, items, payment_rail, tax_cents, shipping, idempot
         "grading_requested": False,
         "source_bid_id": i.get("source_bid_id"),
     } for i in items], key=lambda x: (x["listing_id"], x["seller_unit_cents"]))
-    if not normalized or any(i["quantity"] <= 0 for i in normalized):
+    if not normalized or any(i["quantity"] <= 0 or i["buyer_unit_cents"]<=0 or i["seller_unit_cents"]<0 for i in normalized):
         raise FlowError("Checkout has no valid items", "EMPTY_CHECKOUT")
     if payment_rail not in ("card", "us_bank_account"):
         raise FlowError("Unsupported payment method", "UNSUPPORTED_PAYMENT_RAIL")
@@ -446,6 +482,7 @@ def prepare_checkout(buyer_id, items, payment_rail, tax_cents, shipping, idempot
         snapshot = conn.execute("SELECT * FROM execution_snapshots WHERE id=?", (existing["active_snapshot_id"],)).fetchone()
         if own: conn.commit(); conn.close()
         return dict(existing), dict(snapshot), False
+    if len({i["listing_id"] for i in normalized})!=len(normalized): raise FlowError("Duplicate listing lines","DUPLICATE_LISTING",409)
     checkout_id, snapshot_id, now = _id("chk"), _id("snap"), _now()
     expires = (datetime.now(timezone.utc)+timedelta(seconds=reservation_ttl_seconds)).isoformat()
     lines, merchandise, grading = [], 0, 0
@@ -453,6 +490,25 @@ def prepare_checkout(buyer_id, items, payment_rail, tax_cents, shipping, idempot
         listing = conn.execute("SELECT seller_id,quantity,active FROM listings WHERE id=?", (i["listing_id"],)).fetchone()
         if not listing or not listing["active"] or listing["quantity"] < i["quantity"]:
             raise FlowError("Inventory is no longer available", "INVENTORY_UNAVAILABLE", 409)
+        seller=conn.execute('SELECT * FROM users WHERE id=?',(listing['seller_id'],)).fetchone()
+        seller=dict(seller) if seller else {}
+        if not seller or seller.get('is_banned') or seller.get('is_frozen'):
+            raise FlowError('Seller is unavailable','SELLER_UNAVAILABLE',409)
+        if conn.execute("SELECT id FROM recovery_obligations WHERE seller_id=? AND state IN ('OPEN','PARTIAL')",(listing['seller_id'],)).fetchone():
+            raise FlowError('Seller recovery requires review','SELLER_RECOVERY_PENDING',409)
+        from services.catalog_identity_service import require_consistent_listing
+        require_consistent_listing(conn,i["listing_id"])
+        # A Smart premium may have changed after the browser computed its quote.
+        # Under the shared mutex, reject an old seller ask before reserving stock.
+        smart = conn.execute('SELECT enabled FROM smart_pricing_settings WHERE listing_id=?', (i['listing_id'],)).fetchone()
+        if smart and smart['enabled']:
+            from services.smart_pricing_service import capture_sale_basis, cents
+            basis = capture_sale_basis(conn, i['listing_id'])
+            premium = conn.execute('SELECT spot_premium FROM listings WHERE id=?', (i['listing_id'],)).fetchone()['spot_premium']
+            if not basis:
+                raise FlowError('Fresh spot pricing is required for this listing', 'SPOT_UNAVAILABLE', 409)
+            if i['seller_unit_cents'] != basis['metal_value_cents'] + cents(premium):
+                raise FlowError('The listing premium changed. Recalculate pricing.', 'SMART_PRICE_CHANGED', 409)
         # Quantity is reserved by decrementing immediately. Finalization changes only reservation state;
         # release restores it exactly once. This is safe across SQLite and PostgreSQL.
         changed = conn.execute("""UPDATE listings SET quantity=quantity-?,
@@ -462,6 +518,7 @@ def prepare_checkout(buyer_id, items, payment_rail, tax_cents, shipping, idempot
         if changed.rowcount != 1:
             raise FlowError("Inventory is no longer available", "INVENTORY_UNAVAILABLE", 409)
         seller_id = int(listing["seller_id"])
+        if seller_id==int(buyer_id): raise FlowError("Self trading is prohibited","SELF_TRADE",409)
         buyer_gross = i["buyer_unit_cents"]*i["quantity"]
         seller_gross = i["seller_unit_cents"]*i["quantity"]
         if buyer_gross < seller_gross:
@@ -472,15 +529,23 @@ def prepare_checkout(buyer_id, items, payment_rail, tax_cents, shipping, idempot
                     seller_gross_cents=seller_gross,seller_fee_cents=fee,
                     seller_net_cents=seller_gross-fee,spread_cents=max(0,buyer_gross-seller_gross),
                     grading_cents=line_grading)
+        from services.smart_pricing_service import capture_sale_basis
+        line['smart_pricing_basis'] = capture_sale_basis(conn, i['listing_id'])
         lines.append(line); merchandise += buyer_gross; grading += line_grading
     base = merchandise+int(tax_cents)+grading+int(other_buyer_charges_cents)
     surcharge = card_surcharge_cents(base) if payment_rail == "card" else 0
     total = base+surcharge
-    tax_alloc = allocate_largest_remainder(int(tax_cents), [x["buyer_gross_cents"] for x in lines])
+    tax_records=shipping.get('tax_calculations')
+    if tax_records:
+        per_listing={int(r['listing_id']):int(r['tax_cents']) for r in tax_records}
+        tax_alloc=[per_listing[x['listing_id']] for x in lines]
+        if sum(tax_alloc)!=int(tax_cents): raise FlowError('Tax allocation mismatch','TAX_BINDING_MISMATCH',409)
+    else:
+        tax_alloc = allocate_largest_remainder(int(tax_cents), [x["buyer_gross_cents"] for x in lines])
     surcharge_alloc = allocate_largest_remainder(surcharge, [x["buyer_gross_cents"]+tax_alloc[n]+x["grading_cents"] for n,x in enumerate(lines)])
     for n,line in enumerate(lines):
         line["tax_cents"], line["card_surcharge_cents"] = tax_alloc[n], surcharge_alloc[n]
-    snapshot_data = dict(request_body,policy_version=POLICY_VERSION,currency="usd",
+    snapshot_data = dict(request_body,checkout_id=checkout_id,snapshot_version=1,policy_version=POLICY_VERSION,currency="usd",
                          merchandise_cents=merchandise,grading_cents=grading,
                          card_surcharge_cents=surcharge,buyer_total_cents=total,lines=lines)
     snapshot_hash = _digest(snapshot_data)
@@ -514,6 +579,7 @@ def prepare_checkout(buyer_id, items, payment_rail, tax_cents, shipping, idempot
         "grading_cents":grading,"payment_rail":payment_rail}, True
 
 
+@serialized
 def bind_provider_payment(checkout_id, provider_payment_id, operation_id, conn=None):
     own = conn is None; conn = conn or get_db_connection(); ensure_flow_schema(conn)
     checkout = conn.execute("SELECT * FROM checkout_attempts WHERE id=?",(checkout_id,)).fetchone()
@@ -527,13 +593,14 @@ def bind_provider_payment(checkout_id, provider_payment_id, operation_id, conn=N
     if own: conn.commit(); conn.close()
 
 
+@serialized
 def revise_payment_rail(checkout_id, payment_rail, conn=None):
     """Create a new immutable snapshot version when the buyer selects a rail."""
     if payment_rail not in ("card", "us_bank_account"):
         raise FlowError("Unsupported payment method", "UNSUPPORTED_PAYMENT_RAIL")
     own=conn is None; conn=conn or get_db_connection(); ensure_flow_schema(conn)
     checkout=conn.execute("SELECT * FROM checkout_attempts WHERE id=?",(checkout_id,)).fetchone()
-    if not checkout or checkout["state"] not in ("RESERVED","PAYMENT_PENDING","PAYMENT_PROCESSING"):
+    if not checkout or checkout["state"] not in ("RESERVED","PAYMENT_PENDING"):
         raise FlowError("Checkout cannot be changed", "CHECKOUT_NOT_MUTABLE", 409)
     current=conn.execute("SELECT * FROM execution_snapshots WHERE id=?",(checkout["active_snapshot_id"],)).fetchone()
     if current["payment_rail"]==payment_rail:
@@ -546,6 +613,8 @@ def revise_payment_rail(checkout_id, payment_rail, conn=None):
     alloc=allocate_largest_remainder(surcharge,weights)
     version=current["version"]+1; sid=_id("snap"); now=_now()
     payload=json.loads(current["snapshot_json"])
+    payload['checkout_id']=checkout_id
+    payload['snapshot_version']=version
     payload["payment_rail"]=payment_rail; payload["card_surcharge_cents"]=surcharge
     payload["buyer_total_cents"]=base+surcharge
     for n,line in enumerate(payload["lines"]): line["card_surcharge_cents"]=alloc[n]
@@ -592,6 +661,10 @@ def verify_provider_payment(checkout_id, payment, conn=None):
                 "buyer":str(snap["buyer_id"]),"digest":snap["snapshot_hash"]}
     actual = {"id":pdata.get("id"),"amount":pdata.get("amount"),"currency":pdata.get("currency"),
               "buyer":str(metadata.get("buyer_id","")),"digest":metadata.get("snapshot_hash")}
+    if pdata.get('status')=='succeeded' and pdata.get('amount_received',pdata.get('amount'))!=snap['buyer_total_cents']:
+        raise FlowError('Received payment amount does not match checkout','PAYMENT_BINDING_MISMATCH',409)
+    if pdata.get('payment_method_types') and pdata['payment_method_types']!=[snap['payment_rail']]:
+        raise FlowError('Payment rail differs from confirmed snapshot','PAYMENT_RAIL_MISMATCH',409)
     if expected != actual:
         raise FlowError("Payment does not match its immutable checkout snapshot","PAYMENT_BINDING_MISMATCH",409)
     if expected_customer and pdata.get("customer") != expected_customer:
@@ -599,6 +672,7 @@ def verify_provider_payment(checkout_id, payment, conn=None):
     return dict(checkout), dict(snap), pdata
 
 
+@serialized
 def record_ach_processing(checkout_id, payment, conn=None):
     """Project an ACH sale while funds clear, without creating revenue/payables.
 
@@ -658,6 +732,7 @@ def record_ach_processing(checkout_id, payment, conn=None):
         "UPDATE checkout_attempts SET state='PAYMENT_PROCESSING',updated_at=? WHERE id=?",
         (now, checkout_id),
     )
+    _emit(conn,'ACH_PROCESSING','checkout',checkout_id,{})
     _audit(conn, "checkout", checkout_id, "ACH_PROCESSING", "provider", None,
            after={"legacy_order_id": order_id, "payment": pdata["id"]})
     if own:
@@ -666,6 +741,7 @@ def record_ach_processing(checkout_id, payment, conn=None):
     return {"legacy_order_id": order_id, "payment_state": "PROCESSING"}, True
 
 
+@serialized
 def finalize_payment(checkout_id, payment, actor_type="provider", conn=None):
     checkout,snap,pdata=verify_provider_payment(checkout_id,payment,conn=conn)
     status=pdata.get("status"); rail=snap["payment_rail"]
@@ -681,6 +757,10 @@ def finalize_payment(checkout_id, payment, actor_type="provider", conn=None):
     if existing:
         if own: conn.close()
         return dict(existing), False
+    if conn.execute("SELECT id FROM inventory_reservations WHERE checkout_id=? AND state='RELEASED'",(checkout_id,)).fetchone():
+        from services.compensation_service import record_late_payment
+        record_late_payment(conn,checkout,snap,pdata)
+        return {'state':'COMPENSATION_REQUIRED','checkout_id':checkout_id},False
     now=_now(); op=conn.execute("SELECT * FROM financial_operations WHERE aggregate_id=? AND operation_type='PAYMENT'",
                                (checkout_id,)).fetchone()
     if not op: raise FlowError("Payment operation missing","PAYMENT_OPERATION_MISSING",500)
@@ -770,6 +850,7 @@ def finalize_payment(checkout_id, payment, actor_type="provider", conn=None):
     return {"id":execution_id,"legacy_order_id":order_id,"payment_state":"APPROVED"}, True
 
 
+@serialized
 def release_reservation(checkout_id, reason, conn=None):
     own=conn is None; conn=conn or get_db_connection(); ensure_flow_schema(conn); now=_now()
     rows=conn.execute("SELECT * FROM inventory_reservations WHERE checkout_id=? AND state='HELD'",(checkout_id,)).fetchall()
@@ -791,7 +872,7 @@ def record_webhook(event):
     data=event.to_dict() if hasattr(event,"to_dict") else dict(event); conn=get_db_connection(); ensure_flow_schema(conn)
     existing=conn.execute("SELECT state FROM webhook_inbox WHERE provider='stripe' AND event_id=?",(data["id"],)).fetchone()
     if not existing:
-        conn.execute("INSERT INTO webhook_inbox VALUES (?,?,?,?,?,?,?,?,?)",
+        conn.execute("INSERT INTO webhook_inbox VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(provider,event_id) DO NOTHING",
           ("stripe",data["id"],data["type"],_canonical(data),"RECEIVED",0,None,_now(),None)); conn.commit()
     conn.close(); return existing is None
 
@@ -799,8 +880,9 @@ def record_webhook(event):
 def process_webhook(event):
     data=event.to_dict() if hasattr(event,"to_dict") else dict(event); event_id=data["id"]
     conn=get_db_connection(); ensure_flow_schema(conn)
+    conn.execute("UPDATE flow_mutex SET revision=revision+1 WHERE id=1")
     inbox=conn.execute("SELECT * FROM webhook_inbox WHERE provider='stripe' AND event_id=?",(event_id,)).fetchone()
-    if inbox and inbox["state"]=="PROCESSED": conn.close(); return "duplicate"
+    if inbox and inbox["state"]=="PROCESSED": conn.rollback(); conn.close(); return "duplicate"
     try:
         obj=data["data"]["object"]; typ=data["type"]
         if typ.startswith("payment_intent."):
@@ -810,11 +892,19 @@ def process_webhook(event):
                 elif typ in ("payment_intent.payment_failed","payment_intent.canceled"):
                     exe=conn.execute("SELECT * FROM executions WHERE checkout_id=?",(checkout_id,)).fetchone()
                     if exe:
+                        rail=conn.execute('SELECT payment_rail FROM execution_snapshots WHERE id=?',(exe['snapshot_id'],)).fetchone()[0]
+                        if rail!='us_bank_account':
+                            conn.execute("UPDATE webhook_inbox SET state='PROCESSED',processed_at=? WHERE event_id=?",(_now(),event_id)); conn.commit(); return 'stale_failure'
+                        _journal(conn,'execution',exe['id'],'ACH_RETURN',f"ach-return:{exe['id']}",[
+                          {'account':'PAYMENT_RETURN_LOSS','debit':int(obj['amount']),'component':'ach_return'},
+                          {'account':'PROCESSOR_CASH','credit':int(obj['amount']),'component':'ach_return'}])
                         conn.execute("UPDATE executions SET payment_state='RETURNED',state='PAYMENT_RISK',updated_at=? WHERE id=?",(_now(),exe["id"]))
+                        _emit(conn,"PAYMENT_RETURNED","execution",exe["id"],{})
                         for fill in conn.execute("SELECT id FROM seller_fills WHERE execution_id=?",(exe["id"],)).fetchall():
                             conn.execute("INSERT INTO holds VALUES (?,?,?,?,?,?,?,?)",(_id("hold"),fill["id"],"ACH_RETURN",typ,"ACTIVE",event_id,_now(),None))
                             conn.execute("UPDATE seller_payables SET state='HELD',block_reason='ACH_RETURN',updated_at=? WHERE seller_fill_id=?",(_now(),fill["id"]))
                     else:
+                        _emit(conn,"PAYMENT_FAILED","checkout",checkout_id,{},identity=event_id)
                         conn.execute("""UPDATE orders SET payment_status='failed',
                           status='payment_failed',payout_status='not_ready_for_payout'
                           WHERE stripe_payment_intent_id=?""",(obj.get("id"),))
@@ -828,42 +918,63 @@ def process_webhook(event):
                             release_reservation(checkout_id,typ,conn=conn)
                 elif typ=="payment_intent.processing":
                     record_ach_processing(checkout_id,obj,conn=conn)
+        elif typ=="account.updated":
+            from services.connect_service import apply_account_status
+            apply_account_status(conn,obj)
         elif typ.startswith("charge.dispute."):
-            charge=obj; pi=charge.get("payment_intent")
-            exe=conn.execute("SELECT * FROM executions WHERE provider_payment_id=?",(pi,)).fetchone()
+            exe=conn.execute("SELECT * FROM executions WHERE provider_payment_id=?",(obj.get("payment_intent"),)).fetchone()
             if exe:
-                did=charge["id"]; state="OPEN" if typ!="charge.dispute.closed" else ("WON" if charge.get("status")=="won" else "LOST")
-                found=conn.execute("SELECT id FROM processor_disputes WHERE provider_dispute_id=?",(did,)).fetchone()
-                if found: conn.execute("UPDATE processor_disputes SET state=?,updated_at=? WHERE id=?",(state,_now(),found["id"]))
-                else: conn.execute("INSERT INTO processor_disputes VALUES (?,?,?,?,?,?,?,?)",(_id("disp"),exe["id"],did,state,charge.get("amount",0),charge.get("reason"),_now(),_now()))
-                if state=="OPEN":
-                    for fill in conn.execute("SELECT id FROM seller_fills WHERE execution_id=?",(exe["id"],)).fetchall():
-                        conn.execute("INSERT INTO holds VALUES (?,?,?,?,?,?,?,?)",(_id("hold"),fill["id"],"CHARGEBACK",did,"ACTIVE",did,_now(),None))
+                did=obj["id"]
+                _emit(conn,"PROCESSOR_DISPUTE","execution",exe["id"],{"dispute_id":did,"status":obj.get("status")},identity=event_id)
+                old=conn.execute("SELECT * FROM processor_disputes WHERE provider_dispute_id=?",(did,)).fetchone()
+                state="WON" if obj.get("status")=="won" else "LOST" if obj.get("status")=="lost" else "OPEN"
+                if old and old["state"] in ("WON","LOST") and state=="OPEN": state=old["state"]
+                conn.execute("INSERT INTO processor_disputes VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(provider_dispute_id) DO UPDATE SET state=excluded.state,updated_at=excluded.updated_at",(_id("disp"),exe["id"],did,state,obj.get("amount",0),obj.get("reason"),_now(),_now()))
+                if typ in ("charge.dispute.funds_withdrawn","charge.dispute.funds_reinstated"):
+                    withdrawn=typ.endswith("withdrawn")
+                    amount=int(obj.get("amount",0))
+                    _journal(conn,"processor_dispute",did,typ,f"{typ}:{did}",[
+                        {"account":"DISPUTE_RECEIVABLE" if withdrawn else "PROCESSOR_CASH","debit":amount,"component":"dispute_cash"},
+                        {"account":"PROCESSOR_CASH" if withdrawn else "DISPUTE_RECEIVABLE","credit":amount,"component":"dispute_cash"}])
+                for fill in conn.execute("SELECT id FROM seller_fills WHERE execution_id=?",(exe["id"],)).fetchall():
+                    if state=="WON":
+                        conn.execute("UPDATE holds SET state='RELEASED',released_at=? WHERE seller_fill_id=? AND hold_type='CHARGEBACK' AND source_id=?",(_now(),fill["id"],did))
+                        conn.execute("UPDATE seller_payables SET state='HELD',block_reason='RELEASE_REVIEW' WHERE seller_fill_id=? AND released_cents<amount_cents",(fill["id"],))
+                    else:
+                        conn.execute("INSERT INTO holds VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(seller_fill_id,hold_type,source_id) DO NOTHING",(_id("hold"),fill["id"],"CHARGEBACK",did,"ACTIVE",did,_now(),None))
                         conn.execute("UPDATE seller_payables SET state='HELD',block_reason='CHARGEBACK',updated_at=? WHERE seller_fill_id=?",(_now(),fill["id"]))
+                if state=="LOST":
+                    _journal(conn,"processor_dispute",did,"DISPUTE_LOSS",f"dispute-loss:{did}",[
+                        {"account":"DISPUTE_LOSS_EXPENSE","debit":int(obj.get("amount",0)),"component":"dispute_loss"},
+                        {"account":"DISPUTE_RECEIVABLE","credit":int(obj.get("amount",0)),"component":"dispute_loss"}])
+                    conn.execute("INSERT INTO flow_reviews VALUES (?,?,?,?,?,?,?) ON CONFLICT(scope_type,scope_id,reason) DO NOTHING",(_id("review"),"execution",exe["id"],"CHARGEBACK_LIABILITY","OPEN",_canonical({"dispute_id":did,"reason":obj.get("reason"),"amount_cents":obj.get("amount",0)}),_now()))
         elif typ in ("refund.created","refund.updated","refund.failed"):
             refund_id=(obj.get("metadata") or {}).get("flow_refund_id")
             if not refund_id:
                 row=conn.execute("SELECT id FROM flow_refunds WHERE provider_refund_id=?",(obj.get("id"),)).fetchone()
                 refund_id=row["id"] if row else None
             if refund_id:
-                status=obj.get("status")
-                if status=="succeeded":
-                    complete_refund(refund_id,obj["id"],conn=conn)
-                else:
-                    state="FAILED" if status in ("failed","canceled") or typ=="refund.failed" else "PROCESSING"
-                    conn.execute("UPDATE flow_refunds SET state=?,provider_refund_id=?,updated_at=? WHERE id=?",
-                                 (state,obj.get("id"),_now(),refund_id))
-                    conn.execute("""UPDATE financial_operations SET state=?,provider_object_id=?,last_error=?,updated_at=?
-                      WHERE id=(SELECT financial_operation_id FROM flow_refunds WHERE id=?)""",
-                      (state,obj.get("id"),obj.get("failure_reason"),_now(),refund_id))
-        elif typ in ("payout.created","payout.updated","payout.paid","payout.failed"):
-            state={"payout.created":"BANK_PAYOUT_PENDING","payout.updated":"BANK_PAYOUT_PENDING",
-                   "payout.paid":"BANK_PAYOUT_PAID","payout.failed":"BANK_PAYOUT_FAILED"}[typ]
-            seller_id=(obj.get("metadata") or {}).get("seller_id")
+                expected_refund=conn.execute('SELECT total_cents FROM flow_refunds WHERE id=?',(refund_id,)).fetchone()
+                if not expected_refund or obj.get('amount')!=expected_refund['total_cents']:
+                    raise FlowError('Refund webhook amount differs from operation','REFUND_BINDING_MISMATCH',409)
+                record_refund_provider_result(refund_id,obj,conn=conn)
+        elif typ in ("payout.created","payout.updated","payout.paid","payout.failed","payout.canceled"):
+            from services.connect_service import seller_for_account
+            seller_id=seller_for_account(conn,data.get("account"))
             if seller_id:
-                row=conn.execute("SELECT id FROM bank_payouts WHERE provider_payout_id=?",(obj["id"],)).fetchone()
-                if row: conn.execute("UPDATE bank_payouts SET state=?,arrival_at=?,updated_at=? WHERE id=?",(state,obj.get("arrival_date"),_now(),row["id"]))
-                else: conn.execute("INSERT INTO bank_payouts VALUES (?,?,?,?,?,?,?,?)",(_id("bp"),seller_id,obj["id"],state,obj.get("amount",0),obj.get("arrival_date"),_now(),_now()))
+                _emit(conn,"BANK_PAYOUT","seller",str(seller_id),{"payout_id":obj["id"],"status":obj.get("status")},identity=event_id)
+                state={"paid":"BANK_PAYOUT_PAID","failed":"BANK_PAYOUT_FAILED","canceled":"BANK_PAYOUT_FAILED"}.get(obj.get("status"),"BANK_PAYOUT_PENDING")
+                if typ=="payout.paid": state="BANK_PAYOUT_PAID"
+                if typ in ("payout.failed","payout.canceled"): state="BANK_PAYOUT_FAILED"
+                row=conn.execute("SELECT * FROM bank_payouts WHERE provider_payout_id=?",(obj["id"],)).fetchone()
+                arrival=obj.get("arrival_date")
+                arrival=datetime.fromtimestamp(arrival,timezone.utc).isoformat() if isinstance(arrival,(int,float)) else arrival
+                if row:
+                    if row["state"] in ("BANK_PAYOUT_PAID","BANK_PAYOUT_FAILED") and state=="BANK_PAYOUT_PENDING": state=row["state"]
+                    conn.execute("UPDATE bank_payouts SET state=?,arrival_at=?,updated_at=? WHERE id=?",(state,arrival,_now(),row["id"]))
+                else: conn.execute("INSERT INTO bank_payouts VALUES (?,?,?,?,?,?,?,?)",(_id("bp"),seller_id,obj["id"],state,obj.get("amount",0),arrival,_now(),_now()))
+            elif data.get("account"):
+                conn.execute("INSERT INTO flow_reviews VALUES (?,?,?,?,?,?,?) ON CONFLICT(scope_type,scope_id,reason) DO NOTHING",(_id("review"),"payout",obj["id"],"UNMAPPED_CONNECTED_ACCOUNT","OPEN",_canonical({"account":data.get("account")}),_now()))
         conn.execute("UPDATE webhook_inbox SET state='PROCESSED',attempts=attempts+1,processed_at=?,last_error=NULL WHERE provider='stripe' AND event_id=?",(_now(),event_id))
         conn.commit(); return "processed"
     except Exception as exc:
@@ -888,31 +999,52 @@ def replay_retry_webhooks(limit=100):
     return processed
 
 
-def evaluate_payout(payable_id, now=None):
-    conn=get_db_connection(); ensure_flow_schema(conn); now=now or datetime.now(timezone.utc)
-    row=conn.execute("""SELECT p.*,f.execution_id,e.payment_state,l.grading_requested
-      FROM seller_payables p JOIN seller_fills f ON f.id=p.seller_fill_id
-      JOIN executions e ON e.id=f.execution_id JOIN snapshot_lines l ON l.id=f.snapshot_line_id WHERE p.id=?""",(payable_id,)).fetchone()
-    if not row: conn.close(); return False,"PAYABLE_NOT_FOUND"
-    if row["payment_state"]!="APPROVED": conn.close(); return False,"PAYMENT_NOT_APPROVED"
-    if conn.execute("SELECT id FROM holds WHERE seller_fill_id=? AND state='ACTIVE'",(row["seller_fill_id"],)).fetchone(): conn.close(); return False,"ACTIVE_HOLD"
-    shipment=conn.execute("SELECT * FROM shipments WHERE seller_fill_id=? ORDER BY leg_type DESC LIMIT 1",(row["seller_fill_id"],)).fetchone()
-    if row["grading_requested"]:
-        grade=conn.execute("SELECT * FROM grading_legs WHERE seller_fill_id=?",(row["seller_fill_id"],)).fetchone()
-        ok=bool(grade and grade["state"]=="AUTHENTICATED")
-        conn.close(); return ok,"" if ok else "GRADING_NOT_AUTHENTICATED"
-    if not shipment or not shipment["delivered_at"]: conn.close(); return False,"DELIVERY_NOT_CONFIRMED"
-    delivered=datetime.fromisoformat(str(shipment["delivered_at"]).replace("Z","+00:00"))
-    ok=now>=delivered+timedelta(days=1); conn.close(); return ok,"" if ok else "DELIVERY_HOLD_24H"
+def evaluate_payout(payable_id, now=None, conn=None):
+    own=conn is None; conn=conn or get_db_connection()
+    try:
+        ensure_flow_schema(conn); now=now or datetime.now(timezone.utc)
+        row=conn.execute("""SELECT p.*,f.execution_id,e.payment_state,l.grading_requested,l.buyer_gross_cents
+          FROM seller_payables p JOIN seller_fills f ON f.id=p.seller_fill_id
+          JOIN executions e ON e.id=f.execution_id JOIN snapshot_lines l ON l.id=f.snapshot_line_id WHERE p.id=?""",(payable_id,)).fetchone()
+        if not row: return False,"PAYABLE_NOT_FOUND"
+        if row["amount_cents"]<=row["released_cents"]: return False,"NO_REMAINING_ENTITLEMENT"
+        if row["payment_state"]!="APPROVED": return False,"PAYMENT_NOT_APPROVED"
+        if conn.execute("SELECT id FROM holds WHERE seller_fill_id=? AND state='ACTIVE'",(row["seller_fill_id"],)).fetchone(): return False,"ACTIVE_HOLD"
+        if conn.execute("SELECT id FROM flow_refunds WHERE execution_id=? AND state IN ('CLAIMED','PROCESSING','SUBMITTED','UNKNOWN')",(row["execution_id"],)).fetchone(): return False,"REFUND_PENDING"
+        if conn.execute("SELECT id FROM recovery_obligations WHERE seller_id=? AND state IN ('OPEN','PARTIAL','SUSPENDED')",(row["seller_id"],)).fetchone(): return False,"SELLER_RECOVERY_REQUIRED"
+        user=conn.execute("SELECT * FROM users WHERE id=?",(row["seller_id"],)).fetchone()
+        user=dict(user) if user else {}
+        if user.get('is_banned') or user.get('is_frozen'): return False,"SELLER_RESTRICTED"
+        if not user.get('stripe_account_id') or not user.get('stripe_charges_enabled') or not user.get('stripe_payouts_enabled'): return False,"SELLER_ACCOUNT_NOT_READY"
+        shipment=conn.execute("SELECT * FROM shipments WHERE seller_fill_id=? ORDER BY leg_type DESC LIMIT 1",(row["seller_fill_id"],)).fetchone()
+        if not shipment or not shipment["delivered_at"]: return False,"DELIVERY_NOT_CONFIRMED"
+        if shipment["state"]!="DELIVERED" or not shipment["tracking_validated"]: return False,"TRACKING_NOT_QUALIFIED"
+        insurance=conn.execute("SELECT * FROM insurance_policies WHERE shipment_id=?",(shipment['id'],)).fetchone()
+        if not insurance or insurance['state']!='ACTIVE' or insurance['insured_value_cents']<row['buyer_gross_cents']: return False,"INSURANCE_REQUIRED"
+        evidence=json.loads(insurance['evidence_json'] or '{}')
+        if row['buyer_gross_cents']>=50000 and not evidence.get('signature_required'): return False,"SIGNATURE_REQUIRED"
+        if row['amount_cents']>1000000 and not conn.execute("SELECT id FROM flow_reviews WHERE scope_type='payable' AND scope_id=? AND reason='HIGH_VALUE_RELEASE' AND state='APPROVED'",(payable_id,)).fetchone(): return False,"MANUAL_REVIEW_REQUIRED"
+        if row["grading_requested"]: return False,"GRADING_DISABLED_FOR_LAUNCH"
+        delivered=datetime.fromisoformat(str(shipment["delivered_at"]).replace("Z","+00:00"))
+        if delivered.tzinfo is None: delivered=delivered.replace(tzinfo=timezone.utc)
+        ok=now>=delivered+timedelta(days=1)
+        return ok,"" if ok else "DELIVERY_HOLD_24H"
+    finally:
+        if own: conn.close()
 
 
-def approve_ach_payment(execution_id, admin_id, evidence):
+@serialized
+def approve_ach_payment(execution_id, admin_id, evidence, conn=None):
     """Approve ACH shipment eligibility only after configured evidence review."""
-    conn=get_db_connection(); ensure_flow_schema(conn); require_approved_policy(conn,"ach_approval_policy")
+    require_approved_policy(conn,"ach_approval_policy")
     if not evidence:
-        conn.close(); raise FlowError("ACH approval evidence is required","ACH_EVIDENCE_REQUIRED")
+        raise FlowError("ACH approval evidence is required","ACH_EVIDENCE_REQUIRED")
     exe=conn.execute("SELECT * FROM executions WHERE id=?",(execution_id,)).fetchone()
-    if not exe: conn.close(); raise FlowError("Execution not found","EXECUTION_NOT_FOUND",404)
+    if not exe: raise FlowError("Execution not found","EXECUTION_NOT_FOUND",404)
+    if exe["payment_state"]=="RETURNED": raise FlowError("Returned payments cannot be approved","INVALID_STATE_TRANSITION",409)
+    # Only provider-verified finalization can approve money. Administrative evidence
+    # is an audit annotation, never a substitute for provider success.
+    if exe["payment_state"]!="APPROVED": raise FlowError("Verify Stripe success through canonical payment recovery","PAYMENT_NOT_APPROVED",409)
     before=dict(exe); now=_now()
     conn.execute("UPDATE executions SET payment_state='APPROVED',payment_approved_at=?,updated_at=? WHERE id=?",
                  (now,now,execution_id))
@@ -920,18 +1052,30 @@ def approve_ach_payment(execution_id, admin_id, evidence):
                  (now,admin_id,exe["legacy_order_id"]))
     _audit(conn,"execution",execution_id,"ACH_APPROVED","admin",admin_id,before=before,
            after={"payment_state":"APPROVED"},metadata={"evidence":evidence})
-    conn.commit(); conn.close(); return True
+    return True
 
 
+@serialized
 def record_insurance(shipment_id, admin_id, policy_number, insured_value_cents,
-                     premium_cents, evidence):
-    conn=get_db_connection(); ensure_flow_schema(conn); require_approved_policy(conn,"ups_coverage_and_claim_policy")
+                     premium_cents, evidence, conn=None):
+    for amount in (insured_value_cents,premium_cents):
+        try:
+            if isinstance(amount,bool) or str(amount)!=str(int(amount)): raise ValueError()
+        except (ValueError,TypeError,OverflowError):
+            raise FlowError('Insurance amounts must be whole cents','INVALID_AMOUNT',400)
+    insured_value_cents=int(insured_value_cents);premium_cents=int(premium_cents)
+    require_approved_policy(conn,"ups_coverage_and_claim_policy")
     ship=conn.execute("SELECT * FROM shipments WHERE id=?",(shipment_id,)).fetchone()
-    if not ship: conn.close(); raise FlowError("Shipment not found","SHIPMENT_NOT_FOUND",404)
-    if not policy_number or not evidence:
-        conn.close(); raise FlowError("Qualifying insurance evidence is required","INSURANCE_EVIDENCE_REQUIRED")
-    now=_now(); existing=conn.execute("SELECT id FROM insurance_policies WHERE shipment_id=?",(shipment_id,)).fetchone()
+    if not ship: raise FlowError("Shipment not found","SHIPMENT_NOT_FOUND",404)
+    if not policy_number or not isinstance(evidence,dict) or evidence.get("covered") is not True or premium_cents<0 or insured_value_cents<=0:
+        raise FlowError("Qualifying insurance evidence is required","INSURANCE_EVIDENCE_REQUIRED")
+    value=conn.execute("SELECT l.buyer_gross_cents FROM snapshot_lines l JOIN seller_fills f ON f.snapshot_line_id=l.id WHERE f.id=?",(ship["seller_fill_id"],)).fetchone()[0]
+    if insured_value_cents<value: raise FlowError("Insurance must cover full merchandise value","INSURANCE_UNDERFUNDED",409)
+    if value>=50000 and not evidence.get("signature_required"): raise FlowError("Signature evidence required for this value","SIGNATURE_REQUIRED",409)
+    now=_now(); existing=conn.execute("SELECT * FROM insurance_policies WHERE shipment_id=?",(shipment_id,)).fetchone()
     if existing:
+        if existing['policy_number']!=policy_number or existing['insured_value_cents']!=insured_value_cents or existing['premium_cents']!=premium_cents:
+            raise FlowError('Recorded insurance cost and coverage are immutable; reconcile a replacement policy separately','INSURANCE_RECORD_IMMUTABLE',409)
         conn.execute("""UPDATE insurance_policies SET policy_number=?,insured_value_cents=?,premium_cents=?,
           state='ACTIVE',evidence_json=?,updated_at=? WHERE id=?""",
           (policy_number,insured_value_cents,premium_cents,_canonical(evidence),now,existing["id"]))
@@ -942,64 +1086,75 @@ def record_insurance(shipment_id, admin_id, policy_number, insured_value_cents,
       {"account":"SHIPPING_INSURANCE_EXPENSE","debit":premium_cents,"component":"ups_insurance"},
       {"account":"PROCESSOR_CASH","credit":premium_cents,"component":"ups_insurance"}])
     _audit(conn,"shipment",shipment_id,"INSURANCE_ACTIVATED","admin",admin_id,after={"policy_number":policy_number})
-    conn.commit(); conn.close()
 
 
-def authorize_shipment(shipment_id, admin_id):
+
+@serialized
+def authorize_shipment(shipment_id, admin_id, conn=None):
     """Start the seller's X-day tracking clock after every funding/coverage gate."""
-    conn=get_db_connection(); ensure_flow_schema(conn)
+
+    require_operation_enabled(conn,"shipments_enabled")
     require_approved_policy(conn,"tracking_upload_deadline_days","ups_coverage_and_claim_policy")
     row=conn.execute("""SELECT s.*,f.execution_id,e.payment_state FROM shipments s
       JOIN seller_fills f ON f.id=s.seller_fill_id JOIN executions e ON e.id=f.execution_id WHERE s.id=?""",(shipment_id,)).fetchone()
-    if not row: conn.close(); raise FlowError("Shipment not found","SHIPMENT_NOT_FOUND",404)
-    if row["payment_state"]!="APPROVED": conn.close(); raise FlowError("Payment is not approved","PAYMENT_NOT_APPROVED",409)
+    if not row: raise FlowError("Shipment not found","SHIPMENT_NOT_FOUND",404)
+    if row["payment_state"]!="APPROVED": raise FlowError("Payment is not approved","PAYMENT_NOT_APPROVED",409)
+    if row["state"]!="NOT_AUTHORIZED": return row["tracking_due_at"]
+    if conn.execute("SELECT id FROM holds WHERE seller_fill_id=? AND state='ACTIVE'",(row["seller_fill_id"],)).fetchone(): raise FlowError("Shipment is held","ACTIVE_HOLD",409)
+    if conn.execute("SELECT r.id FROM flow_refunds r JOIN refund_allocations a ON a.refund_id=r.id WHERE a.seller_fill_id=? AND r.state IN ('CLAIMED','PROCESSING','SUBMITTED','SUCCEEDED')",(row["seller_fill_id"],)).fetchone(): raise FlowError("Refund requires shipment review","REFUND_PENDING",409)
     ins=conn.execute("SELECT state FROM insurance_policies WHERE shipment_id=?",(shipment_id,)).fetchone()
-    if not ins or ins["state"]!="ACTIVE": conn.close(); raise FlowError("UPS insurance is not active","INSURANCE_REQUIRED",409)
+    if not ins or ins["state"]!="ACTIVE": raise FlowError("UPS insurance is not active","INSURANCE_REQUIRED",409)
     cfg=conn.execute("SELECT value_json FROM flow_policy_config WHERE key='tracking_upload_deadline_days'").fetchone()
     days=int(json.loads(cfg["value_json"])); nowdt=datetime.now(timezone.utc); due=(nowdt+timedelta(days=days)).isoformat()
     conn.execute("UPDATE shipments SET state='AWAITING_TRACKING',ship_authorized_at=?,tracking_due_at=?,updated_at=? WHERE id=?",
                  (nowdt.isoformat(),due,nowdt.isoformat(),shipment_id))
     conn.execute("UPDATE seller_payables SET block_reason='FULFILLMENT_PENDING',updated_at=? WHERE seller_fill_id=?",
                  (nowdt.isoformat(),row["seller_fill_id"]))
+    _emit(conn,"SHIPMENT_AUTHORIZED","shipment",shipment_id,{})
     _audit(conn,"shipment",shipment_id,"SHIPMENT_AUTHORIZED","admin",admin_id,after={"tracking_due_at":due})
-    conn.commit(); conn.close(); return due
+    return due
 
 
-def record_tracking(shipment_id, seller_id, carrier, tracking_number, carrier_evidence):
-    conn=get_db_connection(); ensure_flow_schema(conn); require_approved_policy(conn,"tracking_upload_deadline_days")
+@serialized
+def record_tracking(shipment_id, seller_id, carrier, tracking_number, carrier_evidence, conn=None):
+    require_approved_policy(conn,"tracking_upload_deadline_days")
     row=conn.execute("""SELECT s.*,f.seller_id FROM shipments s JOIN seller_fills f ON f.id=s.seller_fill_id
       WHERE s.id=?""",(shipment_id,)).fetchone()
-    if not row or int(row["seller_id"])!=int(seller_id): conn.close(); raise FlowError("Shipment not found or access denied","TRACKING_FORBIDDEN",403)
-    if row["state"]!="AWAITING_TRACKING": conn.close(); raise FlowError("Shipment is not authorized","SHIPMENT_NOT_AUTHORIZED",409)
+    if not row or int(row["seller_id"])!=int(seller_id): raise FlowError("Shipment not found or access denied","TRACKING_FORBIDDEN",403)
+    if row["state"] not in ("AWAITING_TRACKING","TRACKING_VERIFICATION_PENDING","IN_TRANSIT"): raise FlowError("Shipment is not authorized","SHIPMENT_NOT_AUTHORIZED",409)
     evidence=carrier_evidence or {}; normalized="".join(str(tracking_number).split()).upper()
-    valid=carrier.upper()=="UPS" and normalized.startswith("1Z") and len(normalized)==18 and evidence.get("carrier_confirmed") is True
+    valid=carrier.upper()=="UPS" and normalized.startswith("1Z") and len(normalized)==18 and evidence.get("carrier_confirmed") is True and evidence.get("destination_matches") is True and bool(evidence.get("reference"))
     reused=conn.execute("SELECT id FROM shipments WHERE carrier=? AND tracking_number=? AND id<>?",(carrier,normalized,shipment_id)).fetchone()
-    if not valid or reused: conn.close(); raise FlowError("Tracking did not pass carrier qualification","TRACKING_NOT_QUALIFIED",409)
+    if not valid or reused: raise FlowError("Tracking did not pass carrier qualification","TRACKING_NOT_QUALIFIED",409)
+    if row["state"]=="IN_TRANSIT":
+        if row["carrier"]!=carrier.upper() or row["tracking_number"]!=normalized: raise FlowError("Confirmed tracking cannot be replaced","TRACKING_IMMUTABLE",409)
+        return False
     now=_now(); conn.execute("UPDATE shipments SET carrier=?,tracking_number=?,tracking_validated=1,state='IN_TRANSIT',updated_at=? WHERE id=?",
-                             (carrier,normalized,now,shipment_id))
+                             (carrier.upper(),normalized,now,shipment_id))
     _audit(conn,"shipment",shipment_id,"TRACKING_ACCEPTED","seller",seller_id,after={"carrier":carrier,"tracking":normalized},metadata=evidence)
-    conn.commit(); conn.close()
 
 
-def submit_tracking_for_verification(shipment_id, seller_id, carrier, tracking_number):
+
+@serialized
+def submit_tracking_for_verification(shipment_id, seller_id, carrier, tracking_number, conn=None):
     """Accept seller input as pending evidence; arbitrary text never satisfies tracking."""
-    conn=get_db_connection(); ensure_flow_schema(conn)
+
     row=conn.execute("""SELECT s.*,f.seller_id FROM shipments s JOIN seller_fills f ON f.id=s.seller_fill_id
       WHERE s.id=?""",(shipment_id,)).fetchone()
-    if not row or int(row["seller_id"])!=int(seller_id): conn.close(); raise FlowError("Shipment not found or access denied","TRACKING_FORBIDDEN",403)
-    if row["state"]!="AWAITING_TRACKING": conn.close(); raise FlowError("Shipment is not authorized","SHIPMENT_NOT_AUTHORIZED",409)
+    if not row or int(row["seller_id"])!=int(seller_id): raise FlowError("Shipment not found or access denied","TRACKING_FORBIDDEN",403)
+    if row["state"]!="AWAITING_TRACKING": raise FlowError("Shipment is not authorized","SHIPMENT_NOT_AUTHORIZED",409)
     normalized="".join(str(tracking_number).split()).upper()
     if carrier.upper()!="UPS" or not normalized.startswith("1Z") or len(normalized)!=18:
-        conn.close(); raise FlowError("Enter a valid UPS tracking format","TRACKING_FORMAT_INVALID",400)
+        raise FlowError("Enter a valid UPS tracking format","TRACKING_FORMAT_INVALID",400)
     now=_now(); conn.execute("UPDATE shipments SET carrier=?,tracking_number=?,tracking_validated=0,state='TRACKING_VERIFICATION_PENDING',updated_at=? WHERE id=?",
                              (carrier,normalized,now,shipment_id))
     _audit(conn,"shipment",shipment_id,"TRACKING_SUBMITTED","seller",seller_id,after={"carrier":carrier,"tracking":normalized})
-    conn.commit(); conn.close(); return True
+    return True
 
 
 def mark_tracking_forfeitures(now=None):
     now=(now or datetime.now(timezone.utc)).isoformat(); conn=get_db_connection(); ensure_flow_schema(conn)
-    due=conn.execute("SELECT * FROM shipments WHERE state='AWAITING_TRACKING' AND tracking_due_at<?",(now,)).fetchall(); ids=[]
+    due=conn.execute("SELECT * FROM shipments WHERE state IN ('AWAITING_TRACKING','TRACKING_VERIFICATION_PENDING') AND tracking_due_at<?",(now,)).fetchall(); ids=[]
     for ship in due:
         conn.execute("UPDATE shipments SET state='FORFEITED',updated_at=? WHERE id=?",(now,ship["id"]))
         conn.execute("UPDATE seller_fills SET state='FORFEITED',updated_at=? WHERE id=?",(now,ship["seller_fill_id"]))
@@ -1024,15 +1179,7 @@ def process_tracking_forfeiture_refunds():
             refund,_=create_refund(row["execution_id"],
               {row["fill_id"]:row["quantity"]-row["refunded_quantity"]},
               "TRACKING_FORFEITURE",key)
-            provider=stripe.Refund.create(payment_intent=row["provider_payment_id"],
-              amount=refund["total_cents"],metadata={"flow_refund_id":refund["id"],
-              "seller_fill_id":row["fill_id"],"reason":"tracking_forfeiture"},
-              idempotency_key=key)
-            if record_refund_provider_result(refund["id"],provider):
-                restore=get_db_connection()
-                restore.execute("UPDATE listings SET quantity=quantity+?,active=1 WHERE id=?",
-                                (row["quantity"]-row["refunded_quantity"],row["listing_id"]))
-                restore.commit(); restore.close()
+            submit_refund(refund['id'])
             completed.append(row["fill_id"])
         except FlowError:
             # An unresolved refund-component policy intentionally leaves the
@@ -1044,21 +1191,28 @@ def process_tracking_forfeiture_refunds():
     return completed
 
 
-def record_shipment_event(shipment_id, state, evidence):
+@serialized
+def record_shipment_event(shipment_id, state, evidence, conn=None):
     if state not in ("IN_TRANSIT","DELIVERED","LOST","DAMAGED","RETURNED"):
         raise FlowError("Invalid shipment state","INVALID_SHIPMENT_STATE")
-    conn=get_db_connection(); ensure_flow_schema(conn)
+
     ship=conn.execute("SELECT * FROM shipments WHERE id=?",(shipment_id,)).fetchone()
-    if not ship: conn.close(); raise FlowError("Shipment not found","SHIPMENT_NOT_FOUND",404)
-    if not evidence: conn.close(); raise FlowError("Carrier evidence is required","SHIPMENT_EVIDENCE_REQUIRED")
+    if not ship: raise FlowError("Shipment not found","SHIPMENT_NOT_FOUND",404)
+    if not evidence or not evidence.get("reference") or not evidence.get("carrier_confirmed"):
+        raise FlowError("Carrier evidence is required","SHIPMENT_EVIDENCE_REQUIRED")
+    if ship["state"]==state: return False
+    if state=="DELIVERED" and (ship["state"]!="IN_TRANSIT" or not ship["tracking_validated"]): raise FlowError("Delivery needs validated in-transit tracking","INVALID_STATE_TRANSITION",409)
+    if ship["state"] in ("NOT_AUTHORIZED","AWAITING_TRACKING","TRACKING_VERIFICATION_PENDING","FORFEITED","DELIVERED"):
+        raise FlowError("Invalid shipment transition","INVALID_STATE_TRANSITION",409)
     now=_now(); delivered=now if state=="DELIVERED" else ship["delivered_at"]
     conn.execute("UPDATE shipments SET state=?,delivered_at=?,updated_at=? WHERE id=?",(state,delivered,now,shipment_id))
     if state in ("LOST","DAMAGED","RETURNED"):
         if not conn.execute("SELECT id FROM holds WHERE seller_fill_id=? AND hold_type='SHIPPING_FAILURE' AND source_id=?",(ship["seller_fill_id"],shipment_id)).fetchone():
             conn.execute("INSERT INTO holds VALUES (?,?,?,?,?,?,?,?)",(_id("hold"),ship["seller_fill_id"],"SHIPPING_FAILURE",state,"ACTIVE",shipment_id,now,None))
         conn.execute("UPDATE seller_payables SET state='HELD',block_reason='SHIPPING_FAILURE',updated_at=? WHERE seller_fill_id=?",(now,ship["seller_fill_id"]))
+    _emit(conn,"SHIPMENT_"+state,"shipment",shipment_id,{})
     _audit(conn,"shipment",shipment_id,"SHIPMENT_"+state,"carrier",metadata=evidence)
-    conn.commit(); conn.close()
+
 
 
 def record_insurance_claim(shipment_id, provider_claim_id, state, claimed_cents,
@@ -1110,6 +1264,7 @@ def record_grading_result(seller_fill_id, actor_id, result, evidence, cost_incur
     conn.commit(); conn.close()
 
 
+@serialized
 def create_refund(execution_id, quantities_by_fill, reason_code, idempotency_key,
                   refund_card_surcharge=None, conn=None):
     """Create exact component allocations and a claimed provider refund operation."""
@@ -1117,36 +1272,71 @@ def create_refund(execution_id, quantities_by_fill, reason_code, idempotency_key
     if refund_card_surcharge is None:
         require_approved_policy(conn,"refund_component_policy")
         cfg=conn.execute("SELECT value_json FROM flow_policy_config WHERE key='refund_component_policy'").fetchone()
-        refund_card_surcharge=json.loads(cfg["value_json"])=="proportional_original_surcharge"
+        policy=json.loads(cfg["value_json"])
+        reason=str(reason_code).upper()
+        if isinstance(policy,dict):
+            fault={"SELLER_FAULT","SELLER_OR_METEX_FAULT","METEX_FAULT","TRACKING_FORFEITURE","GRADING_FAILURE","COUNTERFEIT","WRONG_ITEM","MISDESCRIPTION","DAMAGE","FAILURE_TO_FULFILL"}
+            voluntary={"BUYER_CANCELLATION","BUYER_VOLUNTARY_AFTER_PROCESSOR_COST"}
+            category="seller_or_metex_fault" if reason in fault else "buyer_voluntary_after_processor_cost" if reason in voluntary else None
+            action=policy.get(category) if category else None
+            if action not in ("refund_allocated_original_card_surcharge","retain_allocated_original_card_surcharge"):
+                raise FlowError("Select an approved refund reason before submitting a refund", "REFUND_REASON_REVIEW_REQUIRED",409)
+            refund_card_surcharge=action=="refund_allocated_original_card_surcharge"
+        else:
+            refund_card_surcharge=policy=="proportional_original_surcharge"
     request_payload={"quantities":quantities_by_fill,"reason":reason_code,"card":refund_card_surcharge}
     existing=conn.execute("""SELECT r.*,o.request_hash FROM flow_refunds r JOIN financial_operations o ON o.id=r.financial_operation_id
       WHERE o.idempotency_key=?""",(idempotency_key,)).fetchone()
     if existing:
+        if existing["state"]=="FAILED": raise FlowError("Failed provider refund requires a new reviewed operation key","REFUND_TERMINAL",409)
         if existing["request_hash"]!=_digest(request_payload):
             raise FlowError("Refund idempotency key was reused with different inputs","IDEMPOTENCY_CONFLICT",409)
         if own: conn.close()
         return dict(existing),False
     exe=conn.execute("SELECT * FROM executions WHERE id=?",(execution_id,)).fetchone()
     if not exe: raise FlowError("Execution not found","EXECUTION_NOT_FOUND",404)
+    if not quantities_by_fill:
+        raise FlowError("Refund must select at least one unit","INVALID_REFUND_QUANTITY",409)
+    if conn.execute("SELECT id FROM processor_disputes WHERE execution_id=? AND state IN ('OPEN','LOST')",(execution_id,)).fetchone():
+        raise FlowError("Processor dispute must be reconciled before another refund","REFUND_DISPUTE_OVERLAP",409)
+    if str(reason_code).upper() in ('BUYER_CANCELLATION','BUYER_VOLUNTARY_AFTER_PROCESSOR_COST'):
+        for fill_id in quantities_by_fill:
+            if conn.execute("SELECT id FROM shipments WHERE seller_fill_id=? AND state NOT IN ('NOT_AUTHORIZED','AWAITING_TRACKING','TRACKING_VERIFICATION_PENDING')",(fill_id,)).fetchone():
+                raise FlowError('Buyer cancellation cannot restore shipped goods','CANCELLATION_AFTER_SHIPMENT',409)
     allocations=[]; total=0
     for fill_id,qty in sorted(quantities_by_fill.items()):
         fill=conn.execute("""SELECT f.*,l.tax_cents,l.grading_cents,l.card_surcharge_cents,l.grading_cost_incurred
           FROM seller_fills f JOIN snapshot_lines l ON l.id=f.snapshot_line_id WHERE f.id=? AND f.execution_id=?""",(fill_id,execution_id)).fetchone()
+        if isinstance(qty,bool) or str(qty)!=str(int(qty)):
+            raise FlowError("Refund quantities must be whole units","INVALID_REFUND_QUANTITY",409)
         qty=int(qty)
         if not fill or qty<=0 or fill["refunded_quantity"]+qty>fill["quantity"]:
             raise FlowError("Invalid refund quantity","INVALID_REFUND_QUANTITY",409)
-        start=fill["refunded_quantity"]
-        def sl(component): return sum(allocate_largest_remainder(fill[component],[1]*fill["quantity"])[start:start+qty])
+        occupied={r["unit_number"] for r in conn.execute("SELECT unit_number FROM refund_units WHERE seller_fill_id=?",(fill_id,)).fetchall()}
+        # Older allocations have no unit rows; reserve their original leading slices.
+        if not occupied and fill["refunded_quantity"]:
+            for n in range(fill["refunded_quantity"]):
+                conn.execute("INSERT INTO refund_units VALUES (?,?,?)",(fill_id,n,"legacy"))
+                occupied.add(n)
+        units=[n for n in range(fill["quantity"]) if n not in occupied][:qty]
+        if len(units)!=qty: raise FlowError("Refund units are already reserved","INVALID_REFUND_QUANTITY",409)
+        def sl(component):
+            slices=allocate_largest_remainder(fill[component],[1]*fill["quantity"])
+            return sum(slices[n] for n in units)
         net,fee,spread,tax=sl("seller_net_cents"),sl("seller_fee_cents"),sl("spread_cents"),sl("tax_cents")
         grading=0 if fill["grading_cost_incurred"] else sl("grading_cents")
         card=sl("card_surcharge_cents") if refund_card_surcharge else 0
         amount=net+fee+spread+tax+grading+card; total+=amount
-        allocations.append((fill,qty,net,fee,spread,tax,grading,card,amount))
+        allocations.append((fill,qty,net,fee,spread,tax,grading,card,amount,units))
+    payment_snapshot=conn.execute('SELECT s.payment_rail,s.buyer_total_cents FROM executions e JOIN execution_snapshots s ON s.id=e.snapshot_id WHERE e.id=?',(execution_id,)).fetchone()
+    if payment_snapshot and payment_snapshot['payment_rail']=='us_bank_account' and total!=payment_snapshot['buyer_total_cents']:
+        raise FlowError('Partial ACH refunds require provider-supported resolution; no refund was submitted','ACH_PARTIAL_REFUND_UNSUPPORTED',409)
     op,_=claim_operation(conn,"REFUND",idempotency_key,"execution",execution_id,total,
                          request_payload)
     rid=_id("refund"); now=_now(); conn.execute("INSERT INTO flow_refunds VALUES (?,?,?,?,?,?,?,?,?)",
       (rid,execution_id,op["id"],reason_code,"CLAIMED",total,None,now,now))
-    for fill,qty,net,fee,spread,tax,grading,card,amount in allocations:
+    for fill,qty,net,fee,spread,tax,grading,card,amount,units in allocations:
+        for unit in units: conn.execute("INSERT INTO refund_units VALUES (?,?,?)",(fill["id"],unit,rid))
         conn.execute("INSERT INTO refund_allocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
           (_id("ra"),rid,fill["id"],qty,net,fee,spread,tax,grading,card,0,amount))
         conn.execute("UPDATE seller_fills SET refunded_quantity=refunded_quantity+?,state='REFUND_PENDING',updated_at=? WHERE id=?",
@@ -1157,11 +1347,16 @@ def create_refund(execution_id, quantities_by_fill, reason_code, idempotency_key
     return {"id":rid,"operation_id":op["id"],"total_cents":total},True
 
 
+@serialized
 def complete_refund(refund_id, provider_refund_id, conn=None):
     own=conn is None; conn=conn or get_db_connection(); ensure_flow_schema(conn); refund=conn.execute("SELECT * FROM flow_refunds WHERE id=?",(refund_id,)).fetchone()
     if not refund:
         if own: conn.close()
         raise FlowError("Refund not found","REFUND_NOT_FOUND",404)
+    if refund["state"]=="FAILED":
+        raise FlowError("Terminal failed refund cannot become successful without reconciliation","REFUND_TERMINAL_CONFLICT",409)
+    if refund["provider_refund_id"] and refund["provider_refund_id"]!=provider_refund_id:
+        raise FlowError("Refund provider identity changed","REFUND_BINDING_MISMATCH",409)
     if refund["state"]=="SUCCEEDED":
         if own: conn.close()
         return False
@@ -1175,62 +1370,144 @@ def complete_refund(refund_id, provider_refund_id, conn=None):
           {"account":"GRADING_PAYABLE","debit":a["grading_cents"],"component":"grading","fill_id":a["seller_fill_id"]},
           {"account":"CARD_SURCHARGE","debit":a["card_surcharge_cents"],"component":"card_surcharge","fill_id":a["seller_fill_id"]},
           {"account":"PROCESSOR_CASH","credit":a["total_cents"],"component":"buyer_refund","fill_id":a["seller_fill_id"]}])
+        if refund["reason_code"]=="BUYER_CANCELLATION":
+            listing=conn.execute("SELECT l.listing_id FROM snapshot_lines l JOIN seller_fills f ON f.snapshot_line_id=l.id WHERE f.id=?",(a["seller_fill_id"],)).fetchone()
+            conn.execute("UPDATE listings SET quantity=quantity+?,active=1 WHERE id=?",(a["quantity"],listing["listing_id"]))
+        conn.execute("UPDATE seller_payables SET amount_cents=amount_cents-?,state='HELD',block_reason='RELEASE_REVIEW',updated_at=? WHERE seller_fill_id=?",(a["seller_net_cents"],now,a["seller_fill_id"]))
+        p=conn.execute("SELECT * FROM seller_payables WHERE seller_fill_id=?",(a["seller_fill_id"],)).fetchone()
+        debt=max(0,p["released_cents"]-p["amount_cents"]-p["recovered_cents"])
+        if debt:
+            conn.execute("INSERT INTO flow_reviews VALUES (?,?,?,?,?,?,?) ON CONFLICT(scope_type,scope_id,reason) DO NOTHING",(_id("review"),"refund",refund_id,"POST_TRANSFER_RECOVERY","OPEN",_canonical({"fill_id":a["seller_fill_id"],"seller_net_cents":debt}),now))
+            conn.execute("UPDATE seller_payables SET state='RECOVERY_PENDING',block_reason='RECOVERY_REVIEW' WHERE id=?",(p["id"],))
         conn.execute("UPDATE seller_fills SET state=CASE WHEN refunded_quantity=quantity THEN 'REFUNDED' ELSE 'PARTIALLY_REFUNDED' END,updated_at=? WHERE id=?",(now,a["seller_fill_id"]))
     conn.execute("UPDATE flow_refunds SET state='SUCCEEDED',provider_refund_id=?,updated_at=? WHERE id=?",(provider_refund_id,now,refund_id))
     conn.execute("UPDATE financial_operations SET state='SUCCEEDED',provider_object_id=?,updated_at=? WHERE id=?",(provider_refund_id,now,refund["financial_operation_id"]))
+    from services.flow_projection_service import refresh_refunds
+    refresh_refunds(conn,refund["execution_id"])
+    from services.admin_flow_service import confirm_dispute_refund
+    confirm_dispute_refund(conn,refund)
+    _emit(conn,"REFUND_SUCCEEDED","refund",refund_id,{})
     _audit(conn,"refund",refund_id,"REFUND_SUCCEEDED","provider",metadata={"provider_refund_id":provider_refund_id})
     if own: conn.commit(); conn.close()
     return True
 
 
-def record_refund_provider_result(refund_id, provider_refund):
-    """Persist submission status and post money only after provider success."""
+@serialized
+def record_refund_provider_result(refund_id, provider_refund, conn=None):
+    """Terminal provider failure releases exact unit reservations once; unknown calls do not."""
     pdata=provider_refund.to_dict() if hasattr(provider_refund,"to_dict") else dict(provider_refund)
-    if pdata.get("status")=="succeeded":
-        return complete_refund(refund_id,pdata["id"])
+    row=conn.execute("SELECT * FROM flow_refunds WHERE id=?",(refund_id,)).fetchone()
+    if not row: raise FlowError("Refund not found","REFUND_NOT_FOUND",404)
+    funding=conn.execute('SELECT provider_payment_id FROM executions WHERE id=?',(row['execution_id'],)).fetchone()
+    if ('amount' in pdata and pdata['amount']!=row['total_cents']) or (pdata.get('payment_intent') and pdata['payment_intent']!=funding['provider_payment_id']):
+        raise FlowError('Refund provider binding differs from operation','REFUND_BINDING_MISMATCH',409)
+    if row["provider_refund_id"] and row["provider_refund_id"]!=pdata.get("id"):
+        raise FlowError("Refund provider identity changed","REFUND_BINDING_MISMATCH",409)
+    if pdata.get("status")=="succeeded": return complete_refund(refund_id,pdata["id"],conn=conn)
+    if row["state"] in ("SUCCEEDED","FAILED"): return False
     state="FAILED" if pdata.get("status") in ("failed","canceled") else "PROCESSING"
-    conn=get_db_connection(); ensure_flow_schema(conn)
-    conn.execute("UPDATE flow_refunds SET state=?,provider_refund_id=?,updated_at=? WHERE id=?",
-                 (state,pdata.get("id"),_now(),refund_id))
-    conn.execute("""UPDATE financial_operations SET state=?,provider_object_id=?,last_error=?,updated_at=?
-      WHERE id=(SELECT financial_operation_id FROM flow_refunds WHERE id=?)""",
-      (state,pdata.get("id"),pdata.get("failure_reason"),_now(),refund_id))
-    conn.commit(); conn.close(); return False
+    if state=="FAILED":
+        for a in conn.execute("SELECT * FROM refund_allocations WHERE refund_id=?",(refund_id,)).fetchall():
+            conn.execute("DELETE FROM refund_units WHERE seller_fill_id=? AND refund_id=?",(a["seller_fill_id"],refund_id))
+            conn.execute("UPDATE seller_fills SET refunded_quantity=refunded_quantity-?,state='FUNDED',updated_at=? WHERE id=?",(a["quantity"],_now(),a["seller_fill_id"]))
+            conn.execute("UPDATE seller_payables SET state='HELD',block_reason='RELEASE_REVIEW',updated_at=? WHERE seller_fill_id=?",(_now(),a["seller_fill_id"]))
+    conn.execute("UPDATE flow_refunds SET state=?,provider_refund_id=?,updated_at=? WHERE id=?",(state,pdata.get("id"),_now(),refund_id))
+    conn.execute("UPDATE financial_operations SET state=?,provider_object_id=?,last_error=?,updated_at=? WHERE id=?",(state,pdata.get("id"),pdata.get("failure_reason"),_now(),row["financial_operation_id"]))
+    from services.flow_projection_service import refresh_refunds
+    refresh_refunds(conn,row["execution_id"])
+    return False
 
 
-def claim_seller_transfer(payable_id, idempotency_key):
-    eligible,reason=evaluate_payout(payable_id)
+@serialized
+def claim_seller_transfer(payable_id, idempotency_key, conn=None):
+    require_operation_enabled(conn,"manual_payouts_enabled")
+    existing=conn.execute("SELECT t.*,o.idempotency_key FROM transfers t JOIN financial_operations o ON o.id=t.operation_id WHERE t.seller_payable_id=?",(payable_id,)).fetchone()
+    if existing:
+        if existing["idempotency_key"]!=idempotency_key: raise FlowError("A transfer already exists for this payable","TRANSFER_ALREADY_CLAIMED",409)
+        return {"id":existing["id"],"operation_id":existing["operation_id"],"amount_cents":existing["amount_cents"],"state":existing["state"],"provider_transfer_id":existing["provider_transfer_id"]},False
+    eligible,reason=evaluate_payout(payable_id,conn=conn)
     if not eligible: raise FlowError("Payout is blocked: "+reason,"PAYOUT_BLOCKED",409)
-    conn=get_db_connection(); ensure_flow_schema(conn)
     payable=conn.execute("SELECT * FROM seller_payables WHERE id=?",(payable_id,)).fetchone()
-    remaining=payable["amount_cents"]-payable["released_cents"]-payable["recovered_cents"]
-    op,created=claim_operation(conn,"SELLER_TRANSFER",idempotency_key,"seller_payable",payable_id,remaining,
-                               {"payable_id":payable_id,"amount_cents":remaining})
-    if created:
-        transfer_id=_id("tr"); now=_now()
-        conn.execute("INSERT INTO transfers VALUES (?,?,?,?,?,?,?,?)",
-          (transfer_id,payable_id,op["id"],None,remaining,"CLAIMED",now,now))
-        conn.execute("UPDATE seller_payables SET state='RELEASE_APPROVED',updated_at=? WHERE id=?",(now,payable_id))
-    else:
-        transfer_id=conn.execute("SELECT id FROM transfers WHERE operation_id=?",(op["id"],)).fetchone()["id"]
-    conn.commit(); conn.close(); return {"id":transfer_id,"operation_id":op["id"],"amount_cents":remaining},created
+    remaining=payable["amount_cents"]-payable["released_cents"]
+    if remaining<=0: raise FlowError("No remaining seller entitlement","PAYOUT_EMPTY",409)
+    op,_=claim_operation(conn,"SELLER_TRANSFER",idempotency_key,"seller_payable",payable_id,remaining,{"payable_id":payable_id,"amount_cents":remaining})
+    transfer_id=_id("tr"); now=_now()
+    conn.execute("INSERT INTO transfers VALUES (?,?,?,?,?,?,?,?)",(transfer_id,payable_id,op["id"],None,remaining,"CLAIMED",now,now))
+    conn.execute("UPDATE seller_payables SET state='RELEASE_APPROVED',updated_at=? WHERE id=?",(now,payable_id))
+    return {"id":transfer_id,"operation_id":op["id"],"amount_cents":remaining,"state":"CLAIMED"},True
 
 
-def complete_seller_transfer(transfer_id, provider_transfer_id):
-    """A connected-account transfer is explicitly not a final bank payout."""
-    conn=get_db_connection(); ensure_flow_schema(conn); row=conn.execute("SELECT * FROM transfers WHERE id=?",(transfer_id,)).fetchone()
-    if not row: conn.close(); raise FlowError("Transfer not found","TRANSFER_NOT_FOUND",404)
-    if row["state"]=="TRANSFER_CONFIRMED": conn.close(); return False
-    now=_now(); conn.execute("UPDATE transfers SET provider_transfer_id=?,state='TRANSFER_CONFIRMED',updated_at=? WHERE id=?",
-                             (provider_transfer_id,now,transfer_id))
-    conn.execute("UPDATE seller_payables SET state='TRANSFERRED_TO_CONNECTED_ACCOUNT',released_cents=released_cents+?,updated_at=? WHERE id=?",
-                 (row["amount_cents"],now,row["seller_payable_id"]))
-    conn.execute("UPDATE financial_operations SET provider_object_id=?,state='SUCCEEDED',updated_at=? WHERE id=?",
-                 (provider_transfer_id,now,row["operation_id"]))
+@serialized
+def begin_seller_transfer(transfer_id, conn=None):
+    require_operation_enabled(conn,"manual_payouts_enabled")
+    row=conn.execute("SELECT * FROM transfers WHERE id=?",(transfer_id,)).fetchone()
+    if not row: raise FlowError("Transfer not found","TRANSFER_NOT_FOUND",404)
+    if row["state"]=="TRANSFER_CONFIRMED": return dict(row)
+    eligible,reason=evaluate_payout(row["seller_payable_id"],conn=conn)
+    payable=conn.execute("SELECT * FROM seller_payables WHERE id=?",(row["seller_payable_id"],)).fetchone()
+    if not eligible or payable["amount_cents"]-payable["released_cents"]!=row["amount_cents"]:
+        raise FlowError("Transfer gates or entitlement changed: "+reason,"PAYOUT_BLOCKED",409)
+    conn.execute("UPDATE transfers SET state='SUBMITTED',updated_at=? WHERE id=?",(_now(),transfer_id))
+    return dict(row)
+
+
+@serialized
+def complete_seller_transfer(transfer_id, provider_transfer_id, conn=None):
+    """Provider confirmation is authoritative even if a hold opened after dispatch."""
+    row=conn.execute("SELECT * FROM transfers WHERE id=?",(transfer_id,)).fetchone()
+    if not row: raise FlowError("Transfer not found","TRANSFER_NOT_FOUND",404)
+    if row["provider_transfer_id"] and row["provider_transfer_id"]!=provider_transfer_id:
+        raise FlowError("Transfer identity changed","TRANSFER_BINDING_MISMATCH",409)
+    if row["state"]=="TRANSFER_CONFIRMED": return False
+    now=_now()
+    conn.execute("UPDATE transfers SET provider_transfer_id=?,state='TRANSFER_CONFIRMED',updated_at=? WHERE id=?",(provider_transfer_id,now,transfer_id))
+    conn.execute("UPDATE seller_payables SET state='TRANSFERRED_TO_CONNECTED_ACCOUNT',released_cents=released_cents+?,updated_at=? WHERE id=?",(row["amount_cents"],now,row["seller_payable_id"]))
+    conn.execute("UPDATE financial_operations SET provider_object_id=?,state='SUCCEEDED',updated_at=? WHERE id=?",(provider_transfer_id,now,row["operation_id"]))
     _journal(conn,"transfer",transfer_id,"TRANSFER_CONFIRMED",f"transfer:{provider_transfer_id}",[
       {"account":"SELLER_PAYABLE","debit":row["amount_cents"],"component":"seller_transfer"},
       {"account":"CONNECTED_ACCOUNT_FUNDS","credit":row["amount_cents"],"component":"seller_transfer"}])
-    conn.commit(); conn.close(); return True
+    payable=conn.execute("SELECT * FROM seller_payables WHERE id=?",(row["seller_payable_id"],)).fetchone()
+    if payable["released_cents"]>payable["amount_cents"] or conn.execute("SELECT id FROM holds WHERE seller_fill_id=? AND state='ACTIVE'",(payable["seller_fill_id"],)).fetchone():
+        conn.execute("INSERT INTO flow_reviews VALUES (?,?,?,?,?,?,?) ON CONFLICT(scope_type,scope_id,reason) DO NOTHING",(_id("review"),"transfer",transfer_id,"POST_DISPATCH_RISK","OPEN",_canonical({"seller_fill_id":payable["seller_fill_id"]}),now))
+    return True
+
+
+def submit_refund(refund_id):
+    """Retry unknown submissions with the original key; never manufacture success."""
+    import stripe
+    conn=get_db_connection()
+    row=conn.execute("""SELECT r.*,o.idempotency_key,e.provider_payment_id FROM flow_refunds r
+      JOIN financial_operations o ON o.id=r.financial_operation_id
+      JOIN executions e ON e.id=r.execution_id WHERE r.id=?""",(refund_id,)).fetchone()
+    conn.close()
+    if not row: raise FlowError("Refund not found","REFUND_NOT_FOUND",404)
+    if row['state']=='FAILED': raise FlowError("Terminal failed refund needs a new operation","REFUND_TERMINAL",409)
+    try:
+        if row['provider_refund_id']:
+            provider=stripe.Refund.retrieve(row['provider_refund_id'])
+        else:
+            provider=stripe.Refund.create(payment_intent=row['provider_payment_id'],amount=row['total_cents'],
+              metadata={'flow_refund_id':refund_id,'execution_id':row['execution_id']},idempotency_key=row['idempotency_key'])
+        if provider.amount!=row['total_cents'] or provider.payment_intent!=row['provider_payment_id']:
+            raise FlowError("Provider refund does not match the claimed amount/payment","REFUND_BINDING_MISMATCH",409)
+        record_refund_provider_result(refund_id,provider)
+        return provider
+    except Exception:
+        conn=get_db_connection()
+        conn.execute("UPDATE financial_operations SET state='UNKNOWN',attempts=attempts+1,last_error='Provider submission requires reconciliation',updated_at=? WHERE id=? AND state<>'SUCCEEDED'",(_now(),row['financial_operation_id']))
+        conn.commit(); conn.close()
+        raise
+
+
+def retry_pending_refunds(limit=25):
+    conn=get_db_connection(); ensure_flow_schema(conn)
+    rows=conn.execute("SELECT id FROM flow_refunds WHERE state IN ('CLAIMED','PROCESSING') ORDER BY created_at LIMIT ?",(limit,)).fetchall()
+    conn.commit(); conn.close()
+    for row in rows:
+        try: submit_refund(row['id'])
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception('Refund retry failed for %s',row['id'])
 
 
 def record_bank_payout_event(provider_payout_id, seller_id, amount_cents, state, arrival_at=None):
@@ -1245,36 +1522,12 @@ def record_bank_payout_event(provider_payout_id, seller_id, amount_cents, state,
 
 def create_recovery_obligation(seller_fill_id, source_type, source_id, amount_cents,
                                liability_policy_key=None):
-    """Create post-transfer debt only when a reason-specific policy authorizes it."""
-    if not liability_policy_key:
-        raise FlowError("Seller liability requires an approved reason mapping","LIABILITY_POLICY_REQUIRED",409)
-    conn=get_db_connection(); ensure_flow_schema(conn); require_approved_policy(conn,"chargeback_loss_liability")
-    fill=conn.execute("SELECT seller_id FROM seller_fills WHERE id=?",(seller_fill_id,)).fetchone()
-    if not fill: conn.close(); raise FlowError("Fill not found","FILL_NOT_FOUND",404)
-    existing=conn.execute("SELECT * FROM recovery_obligations WHERE source_type=? AND source_id=? AND seller_fill_id=?",
-                          (source_type,source_id,seller_fill_id)).fetchone()
-    if existing: conn.close(); return dict(existing),False
-    rid=_id("rec"); now=_now(); conn.execute("INSERT INTO recovery_obligations VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-      (rid,fill["seller_id"],seller_fill_id,source_type,source_id,amount_cents,0,"OPEN",liability_policy_key,now,now))
-    conn.execute("UPDATE seller_payables SET state='RECOVERY_PENDING',block_reason='RECOVERY_OBLIGATION',updated_at=? WHERE seller_fill_id=?",(now,seller_fill_id))
-    conn.commit(); conn.close(); return {"id":rid,"state":"OPEN"},True
+    raise FlowError("Use reviewed recovery approval with verified financial evidence", "LIABILITY_POLICY_REQUIRED",409)
 
 
 def record_recovery_attempt(recovery_id, method, amount_cents, state,
                             provider_object_id=None, evidence=None):
-    ladder=("PROVIDER_REVERSAL","CONNECTED_BALANCE","FUTURE_PAYOUT_OFFSET",
-            "NEGATIVE_SELLER_BALANCE","REPAYMENT","SUSPENSION")
-    if method not in ladder: raise FlowError("Invalid recovery method","INVALID_RECOVERY_METHOD")
-    conn=get_db_connection(); ensure_flow_schema(conn); rec=conn.execute("SELECT * FROM recovery_obligations WHERE id=?",(recovery_id,)).fetchone()
-    if not rec: conn.close(); raise FlowError("Recovery not found","RECOVERY_NOT_FOUND",404)
-    recovered=int(amount_cents) if state=="SUCCEEDED" else 0; now=_now()
-    conn.execute("INSERT INTO recovery_attempts VALUES (?,?,?,?,?,?,?,?)",
-      (_id("rat"),recovery_id,method,int(amount_cents),state,provider_object_id,_canonical(evidence or {}),now))
-    if recovered:
-        new=min(rec["amount_cents"],rec["recovered_cents"]+recovered)
-        conn.execute("UPDATE recovery_obligations SET recovered_cents=?,state=?,updated_at=? WHERE id=?",
-                     (new,"RECOVERED" if new>=rec["amount_cents"] else "PARTIAL",now,recovery_id))
-    conn.commit(); conn.close()
+    raise FlowError("Use verified provider reversal or reviewed future payout offset", "REVIEWED_RECOVERY_REQUIRED",409)
 
 
 def reconcile_internal():
@@ -1287,11 +1540,30 @@ def reconcile_internal():
 
 
 def expire_due_reservations(now=None):
-    """Release only unpaid expirations; pending/unknown ACH is never TTL-released."""
-    now=(now or datetime.now(timezone.utc)).isoformat(); conn=get_db_connection(); ensure_flow_schema(conn)
-    rows=conn.execute("""SELECT id FROM checkout_attempts WHERE expires_at<?
-      AND state IN ('RESERVED','FAILED','PAYMENT_CORRECTION')""",(now,)).fetchall(); conn.close()
-    return sum(release_reservation(r["id"],"RESERVATION_EXPIRED") for r in rows)
+    import stripe
+    now=(now or datetime.now(timezone.utc)).isoformat()
+    conn=get_db_connection(); ensure_flow_schema(conn)
+    rows=conn.execute("SELECT * FROM checkout_attempts WHERE expires_at<? AND state IN ('RESERVED','PAYMENT_PENDING','FAILED','PAYMENT_CORRECTION')",(now,)).fetchall()
+    conn.commit(); conn.close(); released=0
+    for row in rows:
+        if not row['provider_payment_id']:
+            conn=get_db_connection()
+            pending=conn.execute("SELECT id FROM financial_operations WHERE aggregate_id=? AND operation_type='PAYMENT' AND state NOT IN ('CANCELLED','FAILED')",(row['id'],)).fetchone()
+            conn.close()
+            if pending:
+                continue  # Creation may have reached Stripe before the binding was saved.
+        if row['provider_payment_id']:
+            try:
+                pi=stripe.PaymentIntent.retrieve(row['provider_payment_id'])
+                if pi.status=='succeeded': finalize_payment(row['id'],pi); continue
+                if pi.status=='processing': record_ach_processing(row['id'],pi); continue
+                if pi.status!='canceled':
+                    pi=stripe.PaymentIntent.cancel(pi.id,idempotency_key=f"expire:{row['id']}")
+                if pi.status!='canceled': continue
+            except Exception:
+                continue  # Unknown provider outcome retains inventory and requires review.
+        released+=release_reservation(row['id'],'RESERVATION_EXPIRED')
+    return released
 
 
 def reconcile_provider_payment(payment):
@@ -1335,6 +1607,12 @@ def execute_bid_fill(bid_id, buyer_id, seller_id, items, payment_rail, tax_cents
     quantity=sum(int(i["quantity"]) for i in items)
     if not quantity: raise FlowError("No bid quantity selected","EMPTY_BID_FILL")
     conn=get_db_connection(); ensure_flow_schema(conn)
+    from services.tax_service import calculate_items
+    try:
+        tax_cents,calculations=calculate_items(conn,items,shipping)
+        shipping=dict(shipping,tax_calculations=calculations)
+    except Exception:
+        conn.rollback(); conn.close(); raise
     require_approved_policy(conn,"tracking_upload_deadline_days","ups_coverage_and_claim_policy")
     if payment_rail=="us_bank_account": require_approved_policy(conn,"ach_approval_policy")
     if any(bool(item.get("requires_grading")) for item in items):
@@ -1396,21 +1674,5 @@ def execute_bid_fill(bid_id, buyer_id, seller_id, items, payment_rail, tax_cents
 
 
 def dispatch_outbox(limit=100):
-    """Deliver committed notifications; retries never repeat financial writes."""
-    from services.notification_service import create_notification
-    conn=get_db_connection(); ensure_flow_schema(conn)
-    rows=conn.execute("SELECT * FROM outbox_events WHERE state IN ('PENDING','RETRY') ORDER BY created_at LIMIT ?",(limit,)).fetchall()
-    sent=0
-    for row in rows:
-        try:
-            if row["event_type"]=="EXECUTION_FUNDED":
-                exe=conn.execute("SELECT buyer_id,legacy_order_id FROM executions WHERE id=?",(row["aggregate_id"],)).fetchone()
-                create_notification(user_id=exe["buyer_id"],notification_type="order_confirmed",
-                  title="Payment confirmed",message=f"Order #{exe['legacy_order_id']} has been created.",related_order_id=exe["legacy_order_id"])
-                for fill in conn.execute("SELECT DISTINCT seller_id FROM seller_fills WHERE execution_id=?",(row["aggregate_id"],)).fetchall():
-                    create_notification(user_id=fill["seller_id"],notification_type="listing_sold",
-                      title="Item sold",message=f"You have a funded fill on order #{exe['legacy_order_id']}. Wait for shipping authorization.",related_order_id=exe["legacy_order_id"])
-            conn.execute("UPDATE outbox_events SET state='SENT',sent_at=? WHERE id=?",(_now(),row["id"])); sent+=1
-        except Exception:
-            conn.execute("UPDATE outbox_events SET state='RETRY',attempts=attempts+1 WHERE id=?",(row["id"],))
-    conn.commit(); conn.close(); return sent
+    from services.delivery_service import dispatch_financial_notifications
+    return dispatch_financial_notifications(limit)

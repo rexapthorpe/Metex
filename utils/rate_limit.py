@@ -42,6 +42,9 @@ def init_rate_limiter(app):
     # Production should use Redis: redis://localhost:6379 or redis://:password@host:port/0
     # Development defaults to memory://
     storage_url = os.getenv('RATELIMIT_STORAGE_URL', 'memory://')
+    production=os.getenv('FLASK_ENV')=='production' and not app.testing
+    if production and storage_url=='memory://':
+        raise RuntimeError('Production rate limiting requires shared storage')
 
     # Try Redis if configured, fall back to memory
     actual_storage = storage_url
@@ -52,9 +55,10 @@ def init_rate_limiter(app):
             redis_url = storage_url
             client = redis.from_url(redis_url, socket_timeout=2)
             client.ping()
-            app.logger.info(f"Rate limiting using Redis: {redis_url.split('@')[-1] if '@' in redis_url else redis_url}")
-        except Exception as e:
-            app.logger.warning(f"Redis unavailable ({e}), falling back to memory storage")
+            app.logger.info('Rate limiting using shared Redis storage')
+        except Exception:
+            if production: raise RuntimeError("Shared rate-limit storage is unavailable")
+            app.logger.warning("Redis unavailable; using development memory storage")
             actual_storage = 'memory://'
 
     limiter = Limiter(

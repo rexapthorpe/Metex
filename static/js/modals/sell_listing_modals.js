@@ -21,6 +21,10 @@ function openSellConfirmModal(formData) {
   const modal = document.getElementById('sellListingConfirmModal');
   if (!modal) return;
 
+  if (!document.getElementById('smart-pricing-panel')?.hidden && document.getElementById('smart-pricing-panel') && formData.get('smart_pricing_enabled') !== '1') {
+    document.getElementById('smart-pricing-status').textContent = 'Choose Use Smart Pricing, or return to manual pricing.';
+    return;
+  }
   // Core field values
   const metal      = formData.get('metal') || '—';
   const productType = formData.get('product_type') || '—';
@@ -92,6 +96,12 @@ function openSellConfirmModal(formData) {
   } else {
     pricePerUnit = parseFloat(formData.get('price_per_coin')) || 0;
   }
+  if (formData.get('smart_pricing_enabled') === '1' && window.smartCurrentPreview) {
+    pricePerUnit = window.smartCurrentPreview.initial_price_cents / 100;
+    spotPremiumDisplay = `+${formatPrice(window.smartCurrentPreview.initial_premium_cents / 100)}`;
+    spotPriceDisplay = formatPrice(window.smartCurrentPreview.metal_value_cents / 100);
+    priceLabel = 'Smart Pricing Initial Price';
+  }
   const totalValue = pricePerUnit * qty;
 
   // Photo count
@@ -119,7 +129,7 @@ function openSellConfirmModal(formData) {
   set('confirm-photo-count',   photoCount === 1 ? '1 Photo Uploaded' : `${photoCount} Photos Uploaded`);
 
   const priceLabelEl = document.getElementById('confirm-price-label');
-  if (priceLabelEl) priceLabelEl.textContent = priceLabel;
+  if (priceLabelEl) priceLabelEl.textContent = formData.get('smart_pricing_enabled') === '1' ? `Smart Pricing · ${ {fast:'Sell Fast',balanced:'Balanced',big:'Sell Big'}[formData.get('smart_pricing_strategy')] || 'Balanced' }` : priceLabel;
 
   // Show/hide and populate premium-to-spot extra rows
   const premiumRowsEl = document.getElementById('confirm-premium-rows');
@@ -656,8 +666,10 @@ function handleConfirmListing() {
           confirmBtn.disabled = false;
           confirmBtn.textContent = isEditMode ? 'Update Listing \u2192' : 'Confirm Listing \u2192';
         }
-        alert(errMsg);
         closeSellConfirmModal();
+        if (['SMART_PREVIEW_CHANGED','SMART_SPOT_UNAVAILABLE'].includes(data.code)) {
+          document.dispatchEvent(new CustomEvent('metex:smart-preview-changed'));
+        } else { alert(errMsg); }
       }
     })
     .catch(err => {

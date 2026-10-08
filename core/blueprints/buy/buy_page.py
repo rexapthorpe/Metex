@@ -22,7 +22,9 @@ def buy():
 
     # Read category filters from GET parameters
     filter_type = request.args.get('filter')  # 'popular', 'new'
-    metal_filter = request.args.get('metal')  # 'Gold', 'Silver', 'Platinum'
+    metal_filter = request.args.get('metal', '').strip() or None
+    if metal_filter:
+        metal_filter = metal_filter.title()
     product_line_filter = request.args.get('product_line')  # 'American Eagle', etc.
     search_query = request.args.get('search', '').strip().lower()  # Free-text search
 
@@ -34,7 +36,7 @@ def buy():
     category_filter_params = []
 
     if metal_filter:
-        category_filter_clauses.append('categories.metal = ?')
+        category_filter_clauses.append('LOWER(TRIM(categories.metal)) = LOWER(?)')
         category_filter_params.append(metal_filter)
 
     if product_line_filter:
@@ -54,6 +56,7 @@ def buy():
             categories.metal,
             categories.product_type,
             categories.weight,
+            categories.purity,
             categories.mint,
             categories.year,
             categories.finish,
@@ -76,6 +79,7 @@ def buy():
             categories.metal,
             categories.product_type,
             categories.weight,
+            categories.purity,
             categories.mint,
             categories.year,
             categories.finish,
@@ -114,6 +118,10 @@ def buy():
 
     where_clauses = []
     params = []
+
+    if metal_filter:
+        where_clauses.append('LOWER(TRIM(c.metal)) = LOWER(?)')
+        params.append(metal_filter)
 
     # DO NOT exclude user's own listings - we need them for best ask calculation
 
@@ -345,7 +353,8 @@ def buy():
                 bucket.get('listing_title') or '',
                 bucket.get('weight') or '',
             ]
-            return any(search_query in str(f).lower() for f in fields)
+            haystack = ' '.join(str(f).lower() for f in fields)
+            return all(word in haystack for word in search_query.split())
 
         standard_buckets = [b for b in standard_buckets if _bucket_matches(b)]
         one_of_a_kind_buckets = [b for b in one_of_a_kind_buckets if _bucket_matches(b)]
@@ -447,6 +456,32 @@ def buy():
             })
     except Exception:
         recent_trades = []
+
+    # Read-only price context. Never present fallback futures or stale cache as spot.
+    from services.smart_pricing_service import metal_value_cents
+    from datetime import timezone
+    cached = {}
+    from database import get_table_columns
+    try:
+        for row in (conn.execute('SELECT metal, price_usd_per_oz, updated_at, source FROM spot_prices').fetchall() if get_table_columns(conn, 'spot_prices') else []):
+            stamp = datetime.fromisoformat(str(row['updated_at']).replace('Z', '+00:00'))
+            if stamp.tzinfo is None:
+                stamp = stamp.replace(tzinfo=timezone.utc)
+            age = (datetime.now(timezone.utc) - stamp).total_seconds()
+            if row['source'] == 'metalpriceapi' and 0 <= age < 300:
+                cached[str(row['metal']).lower()] = row
+    except (ValueError, TypeError):
+        pass
+    for bucket in standard_buckets:
+        bucket['premium_context'] = None
+        row = cached.get(str(bucket.get('metal') or '').lower())
+        if row and bucket.get('lowest_price') is not None and bucket.get('listing_count', 0) > 0:
+            try:
+                basis = metal_value_cents(bucket, row['price_usd_per_oz'])
+                premium = round(float(bucket['lowest_price']) - basis / 100, 2)
+                bucket['premium_context'] = {'amount': premium, 'as_of': str(row['updated_at'])}
+            except (ValueError, TypeError):
+                pass
 
     conn.close()
 

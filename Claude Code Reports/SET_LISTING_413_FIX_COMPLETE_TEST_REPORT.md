@@ -1,3 +1,5 @@
+> **Historical reference — labeled 2026-09-30.** This records past work, not current instructions, launch status or verification. Start with the repository `AGENTS.md` and `docs/LAUNCH_READINESS_STATUS.md`; `FLOW_OF_FUNDS_IMPLEMENTATION_SPEC.md`, including its launch amendment, is authoritative. Original content follows unchanged.
+
 # Set Listing 413 Fix - Complete End-to-End Test Report
 
 **Date:** 2026-01-05

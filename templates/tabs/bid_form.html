@@ -75,10 +75,17 @@
       {# Pricing Mode #}
       <div class="bm-field-group">
         <label class="bm-label">Pricing Mode</label>
-        <select id="bid-pricing-mode" name="bid_pricing_mode" class="bm-select">
+        <select aria-label="Pricing Mode" id="bid-pricing-mode" name="bid_pricing_mode" class="bm-select">
           <option value="static" {% if not bid or not bid.pricing_mode or bid.pricing_mode == 'static' %}selected{% endif %}>Fixed Price</option>
           <option value="premium_to_spot" {% if bid and bid.pricing_mode == 'premium_to_spot' %}selected{% endif %}>Variable (Premium to Spot)</option>
         </select>
+        <details class="bm-pricing-dropdown" id="bm-pricing-dropdown">
+          <summary id="bm-pricing-choice">Fixed Price</summary>
+          <div class="bm-pricing-options">
+            <button type="button" data-pricing-choice="static">Fixed Price</button>
+            <button type="button" data-pricing-choice="premium_to_spot">Variable (Premium to Spot)</button>
+          </div>
+        </details>
         <div id="pricing-mode-helper" class="bm-helper">Set a specific dollar amount for your bid.</div>
       </div>
 
@@ -270,7 +277,7 @@
 
       {# ── ACH free-fee callout ── #}
       <div class="bm-ach-info">
-        <i class="fa-solid fa-circle-check bm-ach-info-icon"></i>
+
         <div>
           <span class="bm-ach-info-label">ACH bank transfer has no processing fee.</span>
           <span class="bm-ach-info-sub">Save on fees by linking a bank account instead of a card.</span>

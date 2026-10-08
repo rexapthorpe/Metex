@@ -1,3 +1,5 @@
+> **Historical reference — labeled 2026-09-30.** This records past work, not current instructions, launch status or verification. Start with the repository `AGENTS.md` and `docs/LAUNCH_READINESS_STATUS.md`; `FLOW_OF_FUNDS_IMPLEMENTATION_SPEC.md`, including its launch amendment, is authoritative. Original content follows unchanged.
+
 # Security Hardening V4 - Diff Map
 
 Complete list of all files changed as part of the V4 final security hardening.

@@ -471,36 +471,23 @@ def respond_to_cancellation(order_id):
                 WHERE f.execution_id=? AND f.seller_id=?''',
                 (execution['id'], user_id)).fetchall()
             conn.commit()
-            from services.flow_of_funds import FlowError, create_refund, complete_refund
+            from services.flow_of_funds import FlowError, create_refund, submit_refund
             import stripe
             quantities = {f['id']: f['quantity'] - f['refunded_quantity'] for f in fills}
             try:
                 key = f'cancellation-refund:{cancel_request["id"]}:seller:{user_id}'
                 refund, _ = create_refund(execution['id'], quantities, 'BUYER_CANCELLATION', key)
-                provider = stripe.Refund.create(
-                    payment_intent=execution['provider_payment_id'], amount=refund['total_cents'],
-                    metadata={'flow_refund_id': refund['id'],
-                              'cancellation_request_id': str(cancel_request['id']),
-                              'seller_id': str(user_id)}, idempotency_key=key)
-                complete_refund(refund['id'], provider.id)
+                provider = submit_refund(refund['id'])
             except FlowError as exc:
                 conn.close()
                 return jsonify({'success': False, 'error': str(exc), 'error_code': exc.code}), exc.status
-            for fill in fills:
-                conn.execute('UPDATE listings SET quantity=quantity+?,active=1 WHERE id=?',
-                             (quantities[fill['id']], fill['listing_id']))
             final = ('partially_approved' if not all_done or any(r['response'] == 'denied' for r in responses)
                      else 'approved')
             conn.execute('UPDATE cancellation_requests SET status=?,resolved_at=CASE WHEN ?=1 THEN CURRENT_TIMESTAMP ELSE resolved_at END WHERE id=?',
                          (final, 1 if all_done else 0, cancel_request['id']))
-            remaining = conn.execute("SELECT COUNT(*) c FROM seller_fills WHERE execution_id=? AND state<>'REFUNDED'",
-                                     (execution['id'],)).fetchone()['c']
-            conn.execute('UPDATE orders SET status=?,cancellation_reason=? WHERE id=?',
-                         ('Canceled' if remaining == 0 else 'Partially Canceled',
-                          cancel_request['reason'], order_id))
             conn.commit(); conn.close()
-            return jsonify({'success': True, 'message': 'This seller fill was canceled and refunded.',
-                            'final_status': final, 'items_restored': sum(quantities.values()),
+            return jsonify({'success': True, 'message': 'Cancellation approved; refund status follows provider confirmation.',
+                            'final_status': final, 'items_restored': sum(quantities.values()) if provider.status=='succeeded' else 0,
                             'refund_id': provider.id})
 
         conn.close()

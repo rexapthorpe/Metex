@@ -385,7 +385,7 @@ const COL_INFO = {
     rows: [
       { badge: 'Checkout Initiated', cls: 'ci-gray',   desc: 'Buyer opened checkout but has not submitted a payment yet.' },
       { badge: 'Payment Pending',    cls: 'ci-amber',  desc: 'Payment has been submitted to Stripe and is being processed — not yet captured.' },
-      { badge: 'Paid In Escrow',     cls: 'ci-blue',   desc: 'Funds are captured and held securely. Sellers cannot access them until the order is fulfilled.' },
+      { badge: 'Payment Confirmed',     cls: 'ci-blue',   desc: 'Funds are captured and held securely. Sellers cannot access them until the order is fulfilled.' },
       { badge: 'Under Review',       cls: 'ci-red',    desc: 'The order has been flagged for admin review before it can proceed.' },
       { badge: 'Awaiting Shipment',  cls: 'ci-teal',   desc: 'Payment confirmed. Waiting for the seller(s) to upload tracking numbers.' },
       { badge: 'Partially Shipped',  cls: 'ci-teal',   desc: 'At least one seller has uploaded tracking, but others in the same order have not.' },
@@ -451,7 +451,7 @@ const COL_INFO = {
     title: 'Payment Status',
     intro: 'Whether Stripe has captured funds for this order.',
     rows: [
-      { badge: 'paid',    cls: 'ci-green',  desc: 'Payment successfully captured by Stripe. Funds are held in escrow.' },
+      { badge: 'paid',    cls: 'ci-green',  desc: 'Payment successfully captured by Stripe. Seller funds await eligible release.' },
       { badge: 'unpaid',  cls: 'ci-gray',   desc: 'No payment captured yet — order may be in checkout or abandoned.' },
     ]
   },

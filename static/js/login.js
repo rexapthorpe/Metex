@@ -1,81 +1,49 @@
-// Slide-over state & opposite CTA text
-(function(){
+// Show exactly one form at every width; reserve the height of the taller form.
+(function () {
   const card = document.getElementById('authCard');
-  const overlayBtn = document.getElementById('overlayToggle');
-  const overlayTitle = document.getElementById('overlayTitle');
-  const overlayText  = document.getElementById('overlayText');
-
-  // Guard if this page isn't the auth page
-  if (!card || !overlayBtn || !overlayTitle || !overlayText) return;
-
-  const swapLinks = document.querySelectorAll('[data-swap]');
-
-  // DEFAULT: show LOGIN (left) with overlay on the RIGHT
-  let isSignup = true;
-
-  // Open Sign-up side automatically when visiting /login?mode=signup
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if ((params.get('mode') || '').toLowerCase() === 'signup') {
-      isSignup = false;
+  if (!card) return;
+  const page = card.closest('.login-page');
+  const panes = {login: document.getElementById('login-pane'), signup: document.getElementById('signup-pane')};
+  const controls = card.querySelectorAll('[data-swap]');
+  let mode = page.classList.contains('is-signup') ? 'signup' : 'login';
+  let switching = false;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  async function change(next) {
+    if (next === mode || switching) return;
+    switching = true;
+    controls.forEach(button => { button.disabled = true; });
+    const previous = panes[mode];
+    previous.inert = true;
+    page.classList.toggle('is-signup', next === 'signup');
+    try {
+      if (!reduced.matches) await previous.animate([{transform:'translateX(0)',opacity:1},{transform:'translateX(-70px)',opacity:0}],{duration:180,easing:'ease-in',fill:'forwards'}).finished;
+      previous.hidden = true;
+      previous.getAnimations().forEach(animation => animation.cancel());
+      panes[next].hidden = false;
+      panes[next].inert = false;
+      mode = next;
+      controls.forEach(button => button.setAttribute('aria-pressed',String(button.dataset.swap === mode)));
+      const url = new URL(window.location.href);
+      if (mode === 'signup') url.searchParams.set('mode','signup'); else url.searchParams.delete('mode');
+      window.history.replaceState(null,'',url);
+      if (!reduced.matches) await panes[next].animate([{transform:'translateX(70px)',opacity:0},{transform:'translateX(0)',opacity:1}],{duration:240,easing:'ease-out'}).finished;
+    } finally {
+      switching = false;
+      controls.forEach(button => { button.disabled = false; });
+      card.querySelector(`[data-swap="${mode}"]`).focus({preventScroll:true});
     }
-  } catch (_) {}
-
-  function render(){
-    // When isSignup=true, we add .signup-mode (CSS moves overlay RIGHT to show login)
-    card.classList.toggle('signup-mode', isSignup);
-
-    // Opposite action on the overlay button
-    overlayBtn.textContent = isSignup ? 'Sign Up' : 'Log In';
-    overlayBtn.setAttribute('aria-label', isSignup ? 'Go to Sign Up' : 'Go to Login');
-
-    // Overlay copy
-    overlayTitle.textContent = isSignup ? 'Hello!' : 'Welcome Back!';
-    overlayText.textContent  = isSignup
-      ? 'Enter your details to create an account.'
-      : 'Enter your details to sign in.';
   }
-
-  function toggle(){
-    isSignup = !isSignup;
-    render();
-  }
-
-  overlayBtn.addEventListener('click', toggle);
-
-  swapLinks.forEach(el => el.addEventListener('click', (e)=>{
-    e.preventDefault();
-    const target = el.getAttribute('data-swap'); // 'signup' | 'login'
-    isSignup = (target === 'signup');
-    render();
-  }));
-
-  // Show/Hide password in Login pane
-  const togglePwd = document.getElementById('togglePassword');
-  const pwd = document.getElementById('password');
-  if (togglePwd && pwd){
-    togglePwd.addEventListener('click', ()=>{
-      const isPwd = pwd.type === 'password';
-      pwd.type = isPwd ? 'text' : 'password';
-      togglePwd.textContent = isPwd ? 'Hide' : 'Show';
-      togglePwd.setAttribute('aria-pressed', String(isPwd));
+  controls.forEach(button => button.addEventListener('click',() => change(button.dataset.swap)));
+  [['togglePassword','password'],['togglePasswordSignup','new_password']].forEach(([buttonId,inputId]) => {
+    const button = document.getElementById(buttonId), input = document.getElementById(inputId);
+    if (!button || !input) return;
+    button.addEventListener('click',() => {
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      button.textContent = show ? 'Hide' : 'Show';
+      button.setAttribute('aria-pressed',String(show));
     });
-  }
-
-  // Show/Hide password in Sign-up pane
-  const togglePwd2 = document.getElementById('togglePasswordSignup');
-  const pwd2 = document.getElementById('new_password');
-  if (togglePwd2 && pwd2){
-    togglePwd2.addEventListener('click', ()=>{
-      const isPwd = pwd2.type === 'password';
-      pwd2.type = isPwd ? 'text' : 'password';
-      togglePwd2.textContent = isPwd ? 'Hide' : 'Show';
-      togglePwd2.setAttribute('aria-pressed', String(isPwd));
-    });
-  }
-
-  // Initial paint
-  render();
+  });
 })();
 
 // Handle login form submission via AJAX

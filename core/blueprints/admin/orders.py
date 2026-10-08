@@ -36,29 +36,15 @@ def admin_flow_policy():
 @admin_required
 def admin_flow_transfer(payable_id):
     """Release an eligible payable to a connected account with one operation key."""
-    import stripe
-    import database as _db
-    from services.flow_of_funds import FlowError, claim_seller_transfer, complete_seller_transfer
+    from services.flow_of_funds import FlowError
+    from services.payout_service import release_payable
     key=request.headers.get('Idempotency-Key') or f'seller-transfer:{payable_id}'
     try:
-        transfer,_=claim_seller_transfer(payable_id,key)
-        conn=_db.get_db_connection()
-        row=conn.execute('''SELECT p.seller_id,u.stripe_account_id,u.stripe_payouts_enabled,f.execution_id,e.provider_payment_id
-          FROM seller_payables p JOIN seller_fills f ON f.id=p.seller_fill_id
-          JOIN executions e ON e.id=f.execution_id JOIN users u ON u.id=p.seller_id WHERE p.id=?''',(payable_id,)).fetchone()
-        conn.close()
-        if not row or not row['stripe_account_id'] or not row['stripe_payouts_enabled']:
-            raise FlowError('Seller payout account is not ready','SELLER_ACCOUNT_NOT_READY',409)
-        pi=stripe.PaymentIntent.retrieve(row['provider_payment_id'])
-        provider=stripe.Transfer.create(amount=transfer['amount_cents'],currency='usd',
-          destination=row['stripe_account_id'],source_transaction=pi.latest_charge,
-          metadata={'seller_payable_id':payable_id,'seller_id':str(row['seller_id'])},
-          idempotency_key=key)
-        complete_seller_transfer(transfer['id'],provider.id)
-        return jsonify({'success':True,'transfer_id':provider.id,
-                        'state':'TRANSFERRED_TO_CONNECTED_ACCOUNT'})
+        provider_id=release_payable(payable_id,key)
+        return jsonify(success=True,transfer_id=provider_id,state='TRANSFERRED_TO_CONNECTED_ACCOUNT')
     except FlowError as exc:
         return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
+
 
 
 @admin_bp.route('/api/flow-shipments/<shipment_id>/insurance', methods=['POST'])
@@ -68,7 +54,7 @@ def admin_flow_insurance(shipment_id):
     body=request.get_json(silent=True) or {}
     try:
         record_insurance(shipment_id,session.get('user_id'),body.get('policy_number'),
-          int(body.get('insured_value_cents') or 0),int(body.get('premium_cents') or 0),body.get('evidence'))
+          body.get('insured_value_cents'),body.get('premium_cents'),body.get('evidence'))
         return jsonify({'success':True})
     except FlowError as exc:
         return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
@@ -110,7 +96,9 @@ def admin_hold_order(order_id):
     admin_id = session.get('user_id')
 
     try:
-        LedgerService.hold_order(order_id, admin_id, reason)
+        from services.admin_flow_service import hold_order
+        if not hold_order(order_id,admin_id,reason):
+            LedgerService.hold_order(order_id, admin_id, reason)
         return jsonify({
             'success': True,
             'message': f'Order {order_id} placed under review',
@@ -146,7 +134,9 @@ def admin_approve_order(order_id):
     admin_id = session.get('user_id')
 
     try:
-        LedgerService.approve_order(order_id, admin_id)
+        from services.admin_flow_service import release_order_review
+        if not release_order_review(order_id,admin_id):
+            LedgerService.approve_order(order_id, admin_id)
         return jsonify({
             'success': True,
             'message': f'Order {order_id} approved and released from review',
@@ -188,7 +178,9 @@ def admin_hold_payout(payout_id):
     admin_id = session.get('user_id')
 
     try:
-        LedgerService.hold_payout(payout_id, admin_id, reason)
+        from services.admin_flow_service import hold_legacy_payout
+        if not hold_legacy_payout(payout_id,admin_id,reason):
+            LedgerService.hold_payout(payout_id, admin_id, reason)
         return jsonify({
             'success': True,
             'message': f'Payout {payout_id} placed on hold',
@@ -223,7 +215,9 @@ def admin_release_payout(payout_id):
     admin_id = session.get('user_id')
 
     try:
-        LedgerService.release_payout(payout_id, admin_id)
+        from services.admin_flow_service import hold_legacy_payout
+        if not hold_legacy_payout(payout_id,admin_id,'Review released',release=True):
+            LedgerService.release_payout(payout_id, admin_id)
         return jsonify({
             'success': True,
             'message': f'Payout {payout_id} released',
@@ -518,7 +512,7 @@ def admin_refund_buyer_stripe(order_id):
 
     # Canonical orders use exact quantity/component allocation.
     import database as _flow_db
-    from services.flow_of_funds import FlowError, create_refund, record_refund_provider_result
+    from services.flow_of_funds import FlowError, create_refund, submit_refund
     _flow_conn = _flow_db.get_db_connection()
     try:
         _execution = _flow_conn.execute(
@@ -534,12 +528,8 @@ def admin_refund_buyer_stripe(order_id):
                               _flow_conn.execute('SELECT id,quantity,refunded_quantity FROM seller_fills WHERE execution_id=?',
                                                  (_execution['id'],)).fetchall()}
             key = request.headers.get('Idempotency-Key') or f'admin-refund:{order_id}:{reason}:{sorted(quantities.items())}'
-            refund, _ = create_refund(_execution['id'], quantities, reason, key)
-            provider = stripe.Refund.create(
-                payment_intent=_execution['provider_payment_id'], amount=refund['total_cents'],
-                metadata={'flow_refund_id':refund['id'],'execution_id':_execution['id']},
-                idempotency_key=key)
-            record_refund_provider_result(refund['id'], provider)
+            refund, _ = create_refund(_execution['id'], quantities, data.get('reason_code',reason), key)
+            provider = submit_refund(refund['id'])
             return jsonify({'success':True,'message':f'Stripe refund created: {provider.id}',
                             'refund_id':provider.id,'flow_refund_id':refund['id'],
                             'amount':refund['total_cents']/100})
@@ -658,6 +648,13 @@ def admin_mark_delivered(order_id):
         return jsonify({'success': False, 'error': 'seller_id must be an integer'}), 400
 
     admin_id = session.get('user_id')
+    from services.admin_flow_service import deliver_order
+    from services.flow_of_funds import FlowError
+    try:
+        if deliver_order(order_id,seller_id,admin_id,data.get('evidence')):
+            return jsonify(success=True,message='Canonical shipment delivery recorded')
+    except FlowError as exc:
+        return jsonify(success=False,error=str(exc),error_code=exc.code),exc.status
     conn = _db_module.get_db_connection()
     try:
         row = conn.execute(
@@ -718,78 +715,17 @@ def admin_confirm_payment(order_id):
     }
     """
     import database as _db_module
-    from datetime import datetime
-
-    data = request.get_json(silent=True) or {}
-    payment_method_type = (data.get('payment_method_type') or 'card').lower()
-    pi_id = (data.get('payment_intent_id') or '').strip()
-
-    admin_id = session.get('user_id')
-    conn = _db_module.get_db_connection()
+    from services.flow_of_funds import FlowError, finalize_payment
+    import stripe
+    conn=_db_module.get_db_connection()
     try:
-        row = conn.execute(
-            'SELECT id, payment_status, stripe_payment_intent_id FROM orders WHERE id = ?',
-            (order_id,),
-        ).fetchone()
-
-        if not row:
-            return jsonify({'success': False, 'error': 'Order not found'}), 404
-
-        if row['payment_status'] == 'paid':
-            # Payment already recorded but the ledger may still be stuck in
-            # CHECKOUT_INITIATED (common when webhook didn't fire in local dev).
-            # Always attempt the ledger sync — it's a no-op if already correct.
-            conn.execute(
-                """UPDATE orders_ledger
-                      SET order_status = 'PAID_IN_ESCROW',
-                          updated_at   = CURRENT_TIMESTAMP
-                    WHERE order_id = ?
-                      AND order_status IN ('CHECKOUT_INITIATED', 'PAYMENT_PENDING')""",
-                (order_id,),
-            )
-            conn.commit()
-            logger.info(
-                "[AdminConfirmPayment] ledger sync (already paid)  order_id=%s", order_id
-            )
-            return jsonify({'success': True, 'already_paid': True,
-                            'message': f'Order {order_id} is already marked paid (ledger synced)'})
-
-        now_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        requires_clearance = 1 if payment_method_type == 'us_bank_account' else 0
-        effective_pi = pi_id or row['stripe_payment_intent_id'] or ''
-
-        conn.execute(
-            """UPDATE orders
-                  SET status                     = 'paid',
-                      payment_status             = 'paid',
-                      paid_at                    = ?,
-                      payment_method_type        = ?,
-                      requires_payment_clearance = ?,
-                      stripe_payment_intent_id   = COALESCE(NULLIF(?, ''), stripe_payment_intent_id)
-                WHERE id = ?""",
-            (now_str, payment_method_type, requires_clearance, effective_pi, order_id),
-        )
-        # Sync ledger: CHECKOUT_INITIATED / PAYMENT_PENDING → PAID_IN_ESCROW
-        conn.execute(
-            """UPDATE orders_ledger
-                  SET order_status = 'PAID_IN_ESCROW',
-                      updated_at   = CURRENT_TIMESTAMP
-                WHERE order_id = ?
-                  AND order_status IN ('CHECKOUT_INITIATED', 'PAYMENT_PENDING')""",
-            (order_id,),
-        )
-        conn.commit()
-
-        logger.info(
-            "[AdminConfirmPayment] admin=%s  order_id=%s  method=%s",
-            admin_id, order_id, payment_method_type,
-        )
-        return jsonify({'success': True, 'already_paid': False,
-                        'message': f'Order {order_id} marked as paid'})
-
-    except Exception:
-        logger.exception("[AdminConfirmPayment] Unexpected error  order_id=%s", order_id)
-        return jsonify({'success': False, 'error': 'Internal error. Check server logs.'}), 500
+        checkout=conn.execute("SELECT c.id,c.provider_payment_id FROM checkout_attempts c JOIN orders o ON o.stripe_payment_intent_id=c.provider_payment_id WHERE o.id=?",(order_id,)).fetchone()
+        if not checkout: return jsonify({'success':False,'error':'Order has no bound canonical payment'}),409
+        pi=stripe.PaymentIntent.retrieve(checkout['provider_payment_id'])
+        result,created=finalize_payment(checkout['id'],pi)
+        return jsonify({'success':True,'already_paid':not created,'execution_id':result['id']})
+    except FlowError as exc:
+        return jsonify({'success':False,'error':str(exc),'error_code':exc.code}),exc.status
     finally:
         conn.close()
 
@@ -966,7 +902,9 @@ def admin_run_auto_payouts():
         }), 403
 
     try:
-        summary = LedgerService.run_auto_payouts(admin_id=admin_id)
+        from services.payout_service import run_daily_releases
+        count=run_daily_releases()
+        summary={'processed':count,'successful':count,'skipped':0,'errors':0,'results':[]}
         return jsonify({'success': True, **summary})
 
     except Exception as e:

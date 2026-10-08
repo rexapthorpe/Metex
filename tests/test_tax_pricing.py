@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS transaction_snapshots (
 """
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture()
 def order_db():
     """In-memory SQLite database with orders schema for order_service tests."""
     tmpdir = tempfile.mkdtemp()
@@ -214,6 +214,7 @@ def order_db():
     raw.close()
 
     _orig_conn = database.get_db_connection
+    _orig_auth = _au.get_db_connection
 
     def _mock_conn():
         c = sqlite3.connect(db_path)
@@ -225,10 +226,11 @@ def order_db():
     import utils.auth_utils
     utils.auth_utils.get_db_connection = _mock_conn
 
-    yield _mock_conn
-
-    database.get_db_connection = _orig_conn
-    utils.auth_utils.get_db_connection = _orig_conn
+    try:
+        yield _mock_conn
+    finally:
+        database.get_db_connection = _orig_conn
+        utils.auth_utils.get_db_connection = _orig_auth
 
 
 def test_tax3_create_order_stores_tax(order_db):
@@ -491,41 +493,41 @@ def test_tax8_zero_subtotal_returns_zero():
 # TAX-9: /checkout/api/tax-estimate endpoint — correct amounts with address
 # ===========================================================================
 
-@pytest.fixture(scope='module')
+@pytest.fixture()
 def checkout_client():
-    """Flask test client for checkout blueprint endpoint tests."""
-    import os as _os
-    _os.environ.setdefault('FLASK_TESTING', '1')
+    """Authenticated route tests create their own disposable user."""
+    import uuid
     from core import create_app
-    test_app = create_app({'TESTING': True, 'WTF_CSRF_ENABLED': False,
-                           'SECRET_KEY': 'tax-test-secret'})
-    with test_app.test_client() as c:
-        with test_app.test_request_context():
-            from flask import session
-        yield c, test_app
+    from database import get_db_connection
+    test_app=create_app({'TESTING':True,'WTF_CSRF_ENABLED':False,'SECRET_KEY':'tax-test-secret'})
+    conn=get_db_connection(); unique=uuid.uuid4().hex
+    cursor=conn.execute('INSERT INTO users(username,email,password,is_banned,is_frozen,session_version) VALUES (?,?,?,0,0,0)',('tax_test_'+unique,unique+'@example.invalid','test-only'))
+    user_id=cursor.lastrowid
+    # Older fixtures leave orphan cart rows after resetting user sequences.
+    conn.execute('DELETE FROM cart WHERE user_id=?',(user_id,))
+    conn.commit();conn.close()
+    test_app.config['TAX_TEST_USER_ID']=user_id
+    try:
+        with test_app.test_client() as client: yield client,test_app
+    finally:
+        conn=get_db_connection();conn.execute('DELETE FROM users WHERE id=?',(user_id,));conn.commit();conn.close()
 
 
 def test_tax9_estimate_endpoint_with_postal_code(checkout_client):
-    """Tax estimate endpoint returns tax_amount and taxed_subtotal when postal code given."""
+    """Preview uses reviewed per-listing calculation and server-frozen prices."""
     client, app = checkout_client
-
     with client.session_transaction() as sess:
-        sess['user_id'] = 1
-
-    with patch('core.blueprints.checkout.routes._get_stripe_tax',
-               return_value=(825, 'taxcalc_test')):
-        resp = client.post('/checkout/api/tax-estimate',
-                           json={'subtotal': 100.00, 'postal_code': '90210',
-                                 'state': 'CA', 'country': 'US'})
-
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert 'tax_amount' in data
-    assert 'taxed_subtotal' in data
-    assert 'tax_calculated' in data
+        sess['user_id']=app.config['TAX_TEST_USER_ID']
+        sess['session_version']=0
+        sess['checkout_items']=[{'listing_id':10,'quantity':1,'price_each':100}]
+    with patch('services.tax_service.calculate_items',return_value=(825,[])) as calculate:
+        resp=client.post('/checkout/api/tax-estimate',json={'subtotal':99999,'postal_code':'90210','line1':'1 Main','city':'Beverly Hills','state':'CA','country':'US'})
+    assert resp.status_code==200
+    data=resp.get_json()
     assert data['tax_calculated'] is True
-    assert abs(data['tax_amount'] - 8.25) < 0.01
-    assert abs(data['taxed_subtotal'] - 108.25) < 0.01
+    assert data['tax_amount']==8.25 and data['taxed_subtotal']==108.25
+    assert calculate.call_args.args[1]==[{'listing_id':10,'quantity':1,'price_each':100}]
+    assert calculate.call_args.args[2]['line1']=='1 Main'
 
 
 def test_tax9_estimate_endpoint_no_subtotal_returns_400(checkout_client):
@@ -533,28 +535,27 @@ def test_tax9_estimate_endpoint_no_subtotal_returns_400(checkout_client):
     client, app = checkout_client
 
     with client.session_transaction() as sess:
-        sess['user_id'] = 1
+        sess['user_id'] = app.config['TAX_TEST_USER_ID']
+        sess['session_version']=0
 
     resp = client.post('/checkout/api/tax-estimate',
                        json={'subtotal': 0, 'postal_code': '90210'})
     assert resp.status_code == 400
 
 
-def test_tax9_estimate_endpoint_no_postal_returns_zero_tax(checkout_client):
-    """When postal code is missing, endpoint returns tax_amount=0 and tax_calculated=False."""
-    client, app = checkout_client
-
+def test_tax9_estimate_endpoint_no_postal_fails_closed(checkout_client,monkeypatch):
+    """Incomplete address never becomes an apparently tax-free purchase."""
+    client,app=checkout_client
+    monkeypatch.setenv('TAX_CONFIGURATION_APPROVED','true')
     with client.session_transaction() as sess:
-        sess['user_id'] = 1
-
-    # _get_stripe_tax returns (0, None) when no postal code — no mock needed
-    resp = client.post('/checkout/api/tax-estimate',
-                       json={'subtotal': 100.00, 'postal_code': ''})
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data['tax_amount'] == 0.0
-    assert abs(data['taxed_subtotal'] - 100.00) < 0.01
-    assert data['tax_calculated'] is False
+        sess['user_id']=app.config['TAX_TEST_USER_ID']
+        sess['session_version']=0
+        sess['checkout_items']=[{'listing_id':10,'quantity':1,'price_each':100}]
+    resp=client.post('/checkout/api/tax-estimate',json={'subtotal':100,'postal_code':''})
+    assert resp.status_code==400
+    data=resp.get_json()
+    assert data['tax_calculated'] is False and data['error_code']=='TAX_ADDRESS_REQUIRED'
+    assert 'tax_amount' not in data
 
 
 # ===========================================================================

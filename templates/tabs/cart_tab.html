@@ -5,15 +5,16 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modals/remove_listing_confirmation_modal.css') }}">
 
 <!-- Header -->
-<div class="cart-tab-header">
+<div class="cart-tab-header tab-page-header">
   <div>
     <h1 class="tab-page-title">Shopping Cart</h1>
     {% if buckets %}
       {% set total_units = namespace(n=0) %}
       {% for bid, bucket in buckets.items() %}{% set total_units.n = total_units.n + bucket.total_qty %}{% endfor %}
       <p class="tab-page-subtitle">{{ buckets|length }} item{{ 's' if buckets|length != 1 else '' }} • {{ total_units.n }} unit{{ 's' if total_units.n != 1 else '' }} selected</p>
-    {% endif %}
+    {% else %}<p class="tab-page-subtitle">Review your items before checkout.</p>{% endif %}
   </div>
+  <a href="{{ url_for('buy.buy') }}" class="tab-cta-btn tab-cta-btn--navy">Add Items to Cart</a>
 </div>
 
 <div class="cart-page-layout cart-tab">
@@ -108,7 +109,7 @@
           <i class="fa-solid fa-shield-halved"></i>
           <div>
             <div class="cart-trust-title">Buyer Protection</div>
-            <div class="cart-trust-sub">100% Guaranteed</div>
+            <div class="cart-trust-sub">Order tracking and support</div>
           </div>
         </div>
         <div class="cart-trust-badge">
@@ -121,7 +122,9 @@
 
       </div>
     {% else %}
-      <div class="empty-cart-container-car-tab">
+      <div class="empty-cart-container-car-tab tab-empty-state">
+        <i class="fa-solid fa-cart-shopping tab-empty-icon" aria-hidden="true"></i>
+        <h3>Your cart is empty</h3>
         <p class="empty-cart-message">Your cart is empty. Let's find some items!</p>
         <a href="{{ url_for('buy.buy') }}">
           <button class="add-items-to-cart-given-empty-cart-btn-cart-tab">Add Items to Cart</button>
@@ -201,8 +204,8 @@
     <div class="summary-savings-banner">
       <i class="fa-solid fa-sparkles"></i>
       <div>
-        <strong>You're saving!</strong>
-        <span> Free shipping &amp; insurance on this order</span>
+        <strong>Fulfillment</strong>
+        <span> Shipping authorization follows payment and coverage verification.</span>
       </div>
     </div>
   </div>
