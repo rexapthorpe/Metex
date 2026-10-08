@@ -27,28 +27,11 @@
 <section class="lp-hero" aria-labelledby="marketplace-heading">
   <div class="lp-hero-copy">
     <h1 id="marketplace-heading">Buy and sell bullion.<br>Set your price.</h1>
-    <p class="lp-market-message">Compare listings, make offers, and trade directly with buyers and sellers.</p>
+    <p class="lp-market-message">Buy at the asking price or place a bid. Compare offers from independent sellers.</p>
     <div class="lp-cta-row">
       <a href="#listings" class="lp-cta-btn lp-cta-btn--primary">Browse Bullion <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></a>
       <a href="{{ url_for('sell.sell') }}" class="lp-cta-btn lp-cta-btn--outline">Sell Bullion <i class="fa-solid fa-dollar-sign" aria-hidden="true"></i></a>
     </div>
-  </div>
-  <div class="lp-how-it-works">
-    <ol aria-label="How buying works">
-      <li><span>1</span> Browse bullion</li>
-      <li><span>2</span> Buy or make an offer</li>
-      <li><span>3</span> Track your order</li>
-    </ol>
-    <details>
-      <summary>How buying works</summary>
-      <div class="lp-buying-details">
-        <ol class="lp-buying-timeline">
-        <li><span class="lp-step-number" aria-hidden="true">1</span><div><h3>Before you buy</h3><p> Compare product specifications, seller offers, shipping terms and the total at checkout.</p></div></li>
-        <li><span class="lp-step-number" aria-hidden="true">2</span><div><h3>Payment and delivery</h3><p> Buy at the listed price or submit a bid. Review the payment terms before confirming, then follow your purchase in your account.</p></div></li>
-        <li><span class="lp-step-number" aria-hidden="true">3</span><div><h3>If there is a problem</h3><p> Keep the order details and delivery evidence, and contact support about the purchase.</p></div></li>
-              </ol>
-      </div>
-    </details>
   </div>
   <div class="lp-hero-art" aria-hidden="true">
     <span class="lp-curve lp-curve--light"></span>
@@ -61,13 +44,31 @@
      SECTION 2: ACTIVE MARKETS (Listings Grid)
      ═══════════════════════════════════════════════════════════ -->
 <section class="lp-catalog" id="listings" aria-labelledby="catalog-heading" tabindex="-1">
+  <div class="lp-discovery">
+    <form action="{{ url_for('buy.buy') }}" method="get" role="search">
+      <label for="catalog-search">Find your bullion</label>
+      <div class="lp-search-controls"><input id="catalog-search" name="search" value="{{ request.args.get('search', '') }}" placeholder="Product, mint or weight" type="search"><button type="submit">Search</button></div>
+    </form>
+    <nav aria-label="Explore inventory" class="lp-discovery-links">
+      <a href="{{ url_for('buy.buy', search='gold bar') }}#listings">Gold bars</a>
+      <a href="{{ url_for('buy.buy', search='silver coin') }}#listings">Silver coins</a>
+      <a href="{{ url_for('buy.buy', filter='new') }}#listings">Recently listed</a>
+    </nav>
+    <div class="lp-saved-tools" hidden>
+      <button type="button" id="lp-save-search">Save this search</button>
+      <button type="button" id="lp-show-saved" aria-pressed="false">Saved products <span id="lp-saved-count">0</span></button>
+    </div>
+    <div id="lp-returning" hidden aria-label="Your saved searches"></div>
+    <p id="lp-save-status" role="status" class="lp-save-status"></p>
+  </div>
   <div class="lp-catalog-heading">
     <div>
-      <p class="lp-eyebrow">THE MARKETPLACE</p>
+
       <h2 id="catalog-heading">{{ metal_filter or 'Bullion' }} listings</h2>
     </div>
     {% if request.args %}<a class="lp-clear-filters" href="{{ url_for('buy.buy') }}#listings">View all bullion</a>{% endif %}
   </div>
+  <p class="lp-market-note">Offers may change. Checkout confirms the current total.</p>
   {% if search_query %}<p class="lp-search-summary">Results for “{{ search_query }}”</p>{% endif %}
 
   <!-- One-of-a-Kind & Numismatic Listings -->
@@ -78,6 +79,7 @@
     </div>
     <div class="grid">
       {% for bucket in one_of_a_kind_buckets %}
+      <article class="lp-market-card" data-bucket="{{ bucket['bucket_id'] }}" data-title="{{ product_name(bucket)|striptags|trim }}" data-price="{{ bucket['lowest_price'] if bucket.get('total_available', 0) > 0 and bucket['lowest_price'] is not none else '' }}">
       <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
         <div style="position: absolute; top: 10px; left: 10px; z-index: 10;">
           {% if bucket.get('issue_number') and bucket.get('issue_total') %}
@@ -98,8 +100,9 @@
             {{ product_name(bucket) }}
           </p>
           <p class="product-subtext">{{ product_specs(bucket) }}</p>
+          {% if bucket.get('premium_context') %}<p class="lp-premium" title="Reference as of {{ bucket.premium_context.as_of }} UTC">{{ '+' if bucket.premium_context.amount >= 0 else '−' }}${{ '%.2f'|format(bucket.premium_context.amount|abs) }} {{ 'above' if bucket.premium_context.amount >= 0 else 'below' }} spot <span>· per item</span></p>{% endif %}
           {% if bucket['lowest_price'] is not none %}
-            <p class="price"><span class="lp-price-label">From</span> ${{ bucket['lowest_price']|commas }}</p>
+            <p class="price"><span class="lp-price-label">{{ 'From' if bucket.get('total_available', 0) > 0 else 'Last recorded' }}</span> ${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
               <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
             {% endif %}
@@ -110,6 +113,12 @@
           {% endif %}
         </div>
       </a>
+      <div class="lp-follow-controls" hidden>
+        <button type="button" class="lp-save-product" aria-pressed="false">Save product</button>
+        <label class="lp-target-label" hidden>Target price ($)<input class="lp-target-price" type="number" min="0.01" step="0.01" inputmode="decimal" aria-label="Target price in dollars"></label>
+        <span class="lp-price-notice" role="status"></span>
+      </div>
+      </article>
       {% endfor %}
     </div>
     <hr class="lp-markets-divider">
@@ -123,6 +132,7 @@
     </div>
     <div class="grid">
       {% for bucket in set_buckets %}
+      <article class="lp-market-card" data-bucket="{{ bucket['bucket_id'] }}" data-title="{{ product_name(bucket)|striptags|trim }}" data-price="{{ bucket['lowest_price'] if bucket.get('total_available', 0) > 0 and bucket['lowest_price'] is not none else '' }}">
       <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
         <div style="position: absolute; top: 10px; left: 10px; z-index: 10;">
           <span style="background-color: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">SET</span>
@@ -139,8 +149,9 @@
             {{ product_name(bucket) }}
           </p>
           <p class="product-subtext">{{ product_specs(bucket) }}</p>
+          {% if bucket.get('premium_context') %}<p class="lp-premium" title="Reference as of {{ bucket.premium_context.as_of }} UTC">{{ '+' if bucket.premium_context.amount >= 0 else '−' }}${{ '%.2f'|format(bucket.premium_context.amount|abs) }} {{ 'above' if bucket.premium_context.amount >= 0 else 'below' }} spot <span>· per item</span></p>{% endif %}
           {% if bucket['lowest_price'] is not none %}
-            <p class="price"><span class="lp-price-label">From</span> ${{ bucket['lowest_price']|commas }}</p>
+            <p class="price"><span class="lp-price-label">{{ 'From' if bucket.get('total_available', 0) > 0 else 'Last recorded' }}</span> ${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
               <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
             {% endif %}
@@ -151,6 +162,12 @@
           {% endif %}
         </div>
       </a>
+      <div class="lp-follow-controls" hidden>
+        <button type="button" class="lp-save-product" aria-pressed="false">Save product</button>
+        <label class="lp-target-label" hidden>Target price ($)<input class="lp-target-price" type="number" min="0.01" step="0.01" inputmode="decimal" aria-label="Target price in dollars"></label>
+        <span class="lp-price-notice" role="status"></span>
+      </div>
+      </article>
       {% endfor %}
     </div>
     <hr class="lp-markets-divider">
@@ -158,11 +175,9 @@
 
   <!-- Standard Listings -->
   {% if standard_buckets %}
-    <div class="lp-markets-header">
-      <h2 class="lp-markets-title">Coins, bars &amp; rounds</h2>
-    </div>
     <div class="grid">
       {% for bucket in standard_buckets %}
+      <article class="lp-market-card" data-bucket="{{ bucket['bucket_id'] }}" data-title="{{ product_name(bucket)|striptags|trim }}" data-price="{{ bucket['lowest_price'] if bucket.get('total_available', 0) > 0 and bucket['lowest_price'] is not none else '' }}">
       <a href="{{ url_for('buy.view_bucket', bucket_id=bucket['bucket_id']) }}" class="product-tile">
         <div class="image-box">
           {% set _cover = bucket_cover_url(bucket['bucket_id']) %}
@@ -177,8 +192,9 @@
             {{ product_name(bucket) }}
           </p>
           <p class="product-subtext">{{ product_specs(bucket) }}</p>
+          {% if bucket.get('premium_context') %}<p class="lp-premium" title="Reference as of {{ bucket.premium_context.as_of }} UTC">{{ '+' if bucket.premium_context.amount >= 0 else '−' }}${{ '%.2f'|format(bucket.premium_context.amount|abs) }} {{ 'above' if bucket.premium_context.amount >= 0 else 'below' }} spot <span>· per item</span></p>{% endif %}
           {% if bucket['lowest_price'] is not none %}
-            <p class="price"><span class="lp-price-label">From</span> ${{ bucket['lowest_price']|commas }}</p>
+            <p class="price"><span class="lp-price-label">{{ 'From' if bucket.get('total_available', 0) > 0 else 'Last recorded' }}</span> ${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
               <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
             {% endif %}
@@ -189,6 +205,12 @@
           {% endif %}
         </div>
       </a>
+      <div class="lp-follow-controls" hidden>
+        <button type="button" class="lp-save-product" aria-pressed="false">Save product</button>
+        <label class="lp-target-label" hidden>Target price ($)<input class="lp-target-price" type="number" min="0.01" step="0.01" inputmode="decimal" aria-label="Target price in dollars"></label>
+        <span class="lp-price-notice" role="status"></span>
+      </div>
+      </article>
       {% endfor %}
     </div>
   {% endif %}
@@ -203,8 +225,27 @@
 
 </section>
 
+  <div class="lp-how-it-works">
+    <ol aria-label="How buying works">
+      <li><span>1</span> Browse bullion</li>
+      <li><span>2</span> Buy or make an offer</li>
+      <li><span>3</span> Track your order</li>
+    </ol>
+    <details>
+      <summary>How buying works</summary>
+      <div class="lp-buying-details">
+        <ol class="lp-buying-timeline">
+        <li><span class="lp-step-number" aria-hidden="true">1</span><div><h3>Before you buy</h3><p> Compare product specifications, seller offers, shipping terms and the total at checkout.</p></div></li>
+        <li><span class="lp-step-number" aria-hidden="true">2</span><div><h3>Payment and delivery</h3><p> Buy at the listed price or submit a bid. Review the payment terms before confirming, then follow your purchase in your account. Card and ACH payment terms and fees are shown at checkout.</p></div></li>
+        <li><span class="lp-step-number" aria-hidden="true">3</span><div><h3>If there is a problem</h3><p> Report a wrong, damaged or materially misdescribed item within three calendar days after delivery. Keep the order details and delivery evidence. Buyer-remorse returns are not allowed.</p></div></li>
+              </ol>
+      </div>
+    </details>
+  </div>
+
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/buying_guide.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/marketplace_saved.js') }}" defer></script>
 {% endblock %}

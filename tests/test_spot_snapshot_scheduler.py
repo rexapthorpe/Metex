@@ -21,8 +21,14 @@ import sqlite3
 import tempfile
 import shutil
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+from services.spot_price_service import PriceQuotes
+
+
+def provider_quotes(prices):
+    # Explicit fixture provenance; bare dictionaries no longer certify freshness.
+    return PriceQuotes(prices, {m: {'source': 'metalpriceapi', 'as_of': datetime.now(timezone.utc).isoformat()} for m in prices})
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -283,7 +289,7 @@ class TestSpotSnapshotService:
         self._clear_snapshots(get_conn)
 
         fake_prices = {FAKE_METAL: 2050.00}
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=fake_prices):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(fake_prices)):
             from services.spot_snapshot_service import run_snapshot
             result = run_snapshot(use_lock=False, verbose=False)
 
@@ -309,7 +315,7 @@ class TestSpotSnapshotService:
         self._clear_snapshots(get_conn)
 
         fake_prices = {FAKE_METAL: 2050.00}
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=fake_prices):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(fake_prices)):
             from services.spot_snapshot_service import run_snapshot
             r1 = run_snapshot(use_lock=False, verbose=False, force=False)
             r2 = run_snapshot(use_lock=False, verbose=False, force=False)
@@ -333,7 +339,7 @@ class TestSpotSnapshotService:
         conn.close()
 
         fake_prices = {FAKE_METAL: 2050.00}
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=fake_prices):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(fake_prices)):
             from services.spot_snapshot_service import run_snapshot
             result = run_snapshot(use_lock=False, verbose=False)
 
@@ -355,7 +361,7 @@ class TestSpotSnapshotService:
 
         # 2.5% change → must insert
         fake_prices = {FAKE_METAL: 2050.00}
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=fake_prices):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(fake_prices)):
             from services.spot_snapshot_service import run_snapshot
             result = run_snapshot(use_lock=False, verbose=False)
 
@@ -445,7 +451,7 @@ class TestSchedulerForceMode:
         fake_prices = {self.TICK_METAL: 3000.00}
         from services.spot_snapshot_service import run_snapshot
 
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=fake_prices):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(fake_prices)):
             r1 = run_snapshot(use_lock=False, verbose=False, force=True)
             r2 = run_snapshot(use_lock=False, verbose=False, force=True)
             r3 = run_snapshot(use_lock=False, verbose=False, force=True)
@@ -477,7 +483,7 @@ class TestSchedulerForceMode:
         fake_prices = {self.TICK_METAL: 3000.00}
         from services.spot_snapshot_service import run_snapshot
 
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=fake_prices):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(fake_prices)):
             r1 = run_snapshot(use_lock=False, verbose=False, force=False)
             r2 = run_snapshot(use_lock=False, verbose=False, force=False)
 
@@ -539,7 +545,7 @@ class TestSchedulerForceMode:
         fake_prices = {self.TICK_METAL: 5000.00}
         from services.spot_snapshot_service import run_snapshot
 
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=fake_prices):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(fake_prices)):
             for i in range(3):
                 r = run_snapshot(use_lock=False, verbose=False, force=True)
                 assert r["inserted"] == 1, f"Tick {i+1} failed to insert: {r}"
@@ -577,13 +583,8 @@ class TestSchedulerForceMode:
         assert reported is not None, "latest_spot_as_of must not be None"
 
         def _parse(ts):
-            ts = str(ts).replace("T", " ")
-            for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
-                try:
-                    return _dt.strptime(ts, fmt)
-                except ValueError:
-                    continue
-            raise ValueError(f"Cannot parse: {ts!r}")
+            value = _dt.fromisoformat(str(ts).replace('Z', '+00:00'))
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
         delta_secs = abs((_parse(reported) - _parse(str(newest_as_of))).total_seconds())
         assert delta_secs < 1.0, (
@@ -651,7 +652,7 @@ class TestSecondarySpotSource:
         secondary = {metal: 3050.0}    # secondary sees price has moved
 
         from services.spot_snapshot_service import run_snapshot
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=primary):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(primary)):
             with patch("services.spot_snapshot_service._fetch_secondary_prices",
                        return_value=secondary) as mock_sec:
                 result = run_snapshot(use_lock=False, verbose=False, force=False)
@@ -683,7 +684,7 @@ class TestSecondarySpotSource:
         primary = {metal: 3000.0}
 
         from services.spot_snapshot_service import run_snapshot
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=primary):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(primary)):
             with patch("services.spot_snapshot_service._fetch_secondary_prices") as mock_sec:
                 run_snapshot(use_lock=False, verbose=False, force=True)
 
@@ -701,7 +702,7 @@ class TestSecondarySpotSource:
         primary = {metal: 3000.0}
 
         from services.spot_snapshot_service import run_snapshot
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=primary):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(primary)):
             with patch("services.spot_snapshot_service._fetch_secondary_prices",
                        return_value=None) as mock_sec:
                 result = run_snapshot(use_lock=False, verbose=False, force=True)
@@ -732,7 +733,7 @@ class TestSecondarySpotSource:
         primary = {metal: 3100.0}
 
         from services.spot_snapshot_service import run_snapshot
-        with patch("services.spot_price_service.get_current_spot_prices", return_value=primary):
+        with patch("services.spot_price_service.get_current_spot_prices", side_effect=lambda **_: provider_quotes(primary)):
             with patch("services.spot_snapshot_service._fetch_secondary_prices") as mock_sec:
                 result = run_snapshot(use_lock=False, verbose=False, force=True)
 
