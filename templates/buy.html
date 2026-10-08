@@ -85,7 +85,7 @@
           <p class="product-subtext">{{ product_specs(bucket) }}</p>
           {% if bucket.get('premium_context') %}<p class="lp-premium" title="Reference as of {{ bucket.premium_context.as_of }} UTC">{{ '+' if bucket.premium_context.amount >= 0 else '−' }}${{ '%.2f'|format(bucket.premium_context.amount|abs) }} {{ 'above' if bucket.premium_context.amount >= 0 else 'below' }} spot <span>· per item</span></p>{% endif %}
           {% if bucket['lowest_price'] is not none %}
-            <p class="price"><span class="lp-price-label">{{ 'From' if bucket.get('total_available', 0) > 0 else 'Last recorded' }}</span> ${{ bucket['lowest_price']|commas }}</p>
+            <p class="price">{% if bucket.get('total_available', 0) <= 0 %}<span class="lp-price-label">Last recorded</span> {% endif %}${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
               <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
             {% endif %}
@@ -134,7 +134,7 @@
           <p class="product-subtext">{{ product_specs(bucket) }}</p>
           {% if bucket.get('premium_context') %}<p class="lp-premium" title="Reference as of {{ bucket.premium_context.as_of }} UTC">{{ '+' if bucket.premium_context.amount >= 0 else '−' }}${{ '%.2f'|format(bucket.premium_context.amount|abs) }} {{ 'above' if bucket.premium_context.amount >= 0 else 'below' }} spot <span>· per item</span></p>{% endif %}
           {% if bucket['lowest_price'] is not none %}
-            <p class="price"><span class="lp-price-label">{{ 'From' if bucket.get('total_available', 0) > 0 else 'Last recorded' }}</span> ${{ bucket['lowest_price']|commas }}</p>
+            <p class="price">{% if bucket.get('total_available', 0) <= 0 %}<span class="lp-price-label">Last recorded</span> {% endif %}${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
               <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
             {% endif %}
@@ -177,7 +177,7 @@
           <p class="product-subtext">{{ product_specs(bucket) }}</p>
           {% if bucket.get('premium_context') %}<p class="lp-premium" title="Reference as of {{ bucket.premium_context.as_of }} UTC">{{ '+' if bucket.premium_context.amount >= 0 else '−' }}${{ '%.2f'|format(bucket.premium_context.amount|abs) }} {{ 'above' if bucket.premium_context.amount >= 0 else 'below' }} spot <span>· per item</span></p>{% endif %}
           {% if bucket['lowest_price'] is not none %}
-            <p class="price"><span class="lp-price-label">{{ 'From' if bucket.get('total_available', 0) > 0 else 'Last recorded' }}</span> ${{ bucket['lowest_price']|commas }}</p>
+            <p class="price">{% if bucket.get('total_available', 0) <= 0 %}<span class="lp-price-label">Last recorded</span> {% endif %}${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
               <p class="price no-listings" style="font-size: 11px; margin-top: 4px; color: #f59e0b;">Only your own listings</p>
             {% endif %}

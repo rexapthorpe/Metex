@@ -240,3 +240,6 @@ Baseline: db501c3. Removed the entire requested discovery row: catalog search/la
 
 ### 2026-10-08 — round marketplace photo corners
 Baseline: a79de49. Homepage product image containers use an 18px corner radius instead of 6px, with overflow clipping retained for actual photos and placeholders across screen sizes. Diff check passes; local preview stylesheet updated.
+
+### 2026-10-08 — simplify listing price typography
+Baseline: cca4ef3. Removed “From” from active homepage listing prices across all card types and changed price weight from 650 to 400. Historical prices retain their “Last recorded” label. Template parsing and diff checks pass.
