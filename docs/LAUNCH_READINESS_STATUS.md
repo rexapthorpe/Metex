@@ -207,3 +207,6 @@ Baseline: 7b4b7bf. Hero headline displays in uppercase with adjusted sizing. Equ
 
 ### 2026-10-07 — catalog hover lift
 Baseline: 9cdb3c2. Mouse hover lifts the complete product link (image and details) by 6px with a 220ms transform transition. Limited to fine-pointer hover devices; reduced-motion preference removes movement. Browser inspection confirmed the loaded transform transition and desktop hover capability; diff check passes.
+
+### 2026-10-07 — product-first marketplace introduction
+Baseline: 3d9fc20. Updated hero to “Buy and sell bullion. Set your price.” with plain supporting copy, smaller pale background curves and a three-step buying row. Native disclosure explains checking product/payment/shipping terms, tracking purchases and contacting support, without unsupported escrow or verification claims. Shared template macros preserve custom listing titles, avoid repeated mint/line prefixes, add product type where absent, omit missing year values and show purity where supplied. Prices are more prominent. Browser checks confirmed cleaned PAMP Suisse Bar titles, mobile disclosure expansion and no overflow at 390px; diff check passes. Saved to existing review branch.

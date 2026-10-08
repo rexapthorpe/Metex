@@ -134,3 +134,31 @@ main.container:has(.lp-hero) { position: relative; isolation: isolate; }
   .lp-hero-art::after { width:150px; height:170px; left:-145px; top:140px; }
   .lp-hero .lp-cta-btn { gap:9px; letter-spacing:0; }
 }
+
+/* Product-first introduction with a concise buying guide. */
+.lp-hero .lp-market-message { max-width:560px; margin:20px auto 0; color:#536174; font-size:17px; font-weight:400; line-height:1.6; }
+.lp-how-it-works { max-width:760px; margin:32px auto 0; text-align:center; }
+.lp-how-it-works ol { display:flex; justify-content:center; gap:28px; padding:0; margin:0; list-style:none; color:#435268; font-size:13px; }
+.lp-how-it-works li { display:flex; align-items:center; gap:8px; }
+.lp-how-it-works li span { color:#7b8899; font-size:11px; }
+.lp-how-it-works details { margin-top:16px; font-size:13px; color:#536174; }
+.lp-how-it-works summary { cursor:pointer; width:fit-content; margin:auto; text-decoration:underline; text-underline-offset:3px; }
+.lp-buying-details { text-align:left; max-width:620px; margin:16px auto 0; padding:16px 20px; border:1px solid #e1e7ef; border-radius:4px; background:#fff; line-height:1.6; }
+.lp-buying-details p { margin:0 0 10px; }
+.lp-buying-details p:last-child { margin-bottom:0; }
+.lp-curve--light { width:300px; height:300px; right:-175px; top:-90px; background:#edf5fc; }
+.lp-curve--blue { width:200px; height:260px; right:-145px; top:200px; background:#e5f1fc; }
+.lp-hero-art::before { width:290px; height:290px; left:-185px; top:-90px; background:#edf5fc; }
+.lp-hero-art::after { width:180px; height:230px; left:-140px; top:250px; background:#e5f1fc; }
+.lp-catalog .price { font-size:18px; font-weight:650; }
+@media(max-width:600px) {
+  .lp-hero .lp-market-message { font-size:15px; }
+  .lp-how-it-works ol { flex-direction:column; align-items:center; gap:10px; }
+  .lp-how-it-works { margin-top:26px; }
+  .lp-curve--light, .lp-hero-art::before { width:140px; height:140px; top:-95px; }
+  .lp-curve--light { right:-100px; }
+  .lp-hero-art::before { left:-100px; }
+  .lp-curve--blue, .lp-hero-art::after { width:130px; height:160px; top:250px; }
+  .lp-curve--blue { right:-120px; }
+  .lp-hero-art::after { left:-120px; }
+}

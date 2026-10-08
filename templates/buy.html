@@ -7,16 +7,46 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
 {% endblock %}
 
+{% macro product_name(bucket) -%}
+  {%- if bucket.get('listing_title') -%}{{ bucket.get('listing_title') }}
+  {%- else -%}
+    {%- set mint = (bucket.get('mint') or '')|trim -%}
+    {%- set line = (bucket.get('product_line') or bucket.get('coin_series') or '')|trim -%}
+    {%- set kind = (bucket.get('product_type') or '')|trim -%}
+    {%- if mint and not line.lower().startswith(mint.lower()) -%}{{ mint }} {% endif -%}
+    {{- line -}}
+    {%- if kind and kind.lower() not in line.lower() %} {{ kind }}{% endif -%}
+  {%- endif -%}
+{%- endmacro %}
+{% macro product_specs(bucket) -%}
+  {{ bucket.get('weight') or '' }}{% if bucket.get('metal') %} · {{ bucket.get('metal') }}{% endif %}{% if bucket.get('purity') %} · {{ bucket.get('purity') }} purity{% endif %}{% if bucket.get('year') %} · {{ bucket.get('year') }}{% endif %}
+{%- endmacro %}
+
 {% block content %}
 
 <section class="lp-hero" aria-labelledby="marketplace-heading">
   <div class="lp-hero-copy">
-    <h1 id="marketplace-heading">A marketplace for<br>physical bullion.</h1>
-    <p class="lp-market-message">Market prices. Set by buyers and sellers.<br><span class="lp-dealer-message">No dealer-set prices.</span></p>
+    <h1 id="marketplace-heading">Buy and sell bullion.<br>Set your price.</h1>
+    <p class="lp-market-message">Compare listings, make offers, and trade directly with buyers and sellers.</p>
     <div class="lp-cta-row">
       <a href="#listings" class="lp-cta-btn lp-cta-btn--primary">Browse Bullion <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></a>
       <a href="{{ url_for('sell.sell') }}" class="lp-cta-btn lp-cta-btn--outline">Sell Bullion <i class="fa-solid fa-dollar-sign" aria-hidden="true"></i></a>
     </div>
+  </div>
+  <div class="lp-how-it-works">
+    <ol aria-label="How buying works">
+      <li><span>1</span> Browse bullion</li>
+      <li><span>2</span> Buy or make an offer</li>
+      <li><span>3</span> Track your order</li>
+    </ol>
+    <details>
+      <summary>How buying works</summary>
+      <div class="lp-buying-details">
+        <p><strong>Before you buy.</strong> Compare product specifications, seller offers, shipping terms and the total at checkout.</p>
+        <p><strong>Payment and delivery.</strong> Buy at the listed price or submit a bid. Review the payment terms before confirming, then follow your purchase in your account.</p>
+        <p><strong>If there is a problem.</strong> Keep the order details and delivery evidence, and contact support about the purchase.</p>
+      </div>
+    </details>
   </div>
   <div class="lp-hero-art" aria-hidden="true">
     <span class="lp-curve lp-curve--light"></span>
@@ -63,9 +93,9 @@
         </div>
         <div class="product-text">
           <p class="product-title">
-            {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
+            {{ product_name(bucket) }}
           </p>
-          <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
+          <p class="product-subtext">{{ product_specs(bucket) }}</p>
           {% if bucket['lowest_price'] is not none %}
             <p class="price"><span class="lp-price-label">From</span> ${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
@@ -104,9 +134,9 @@
         </div>
         <div class="product-text">
           <p class="product-title">
-            {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
+            {{ product_name(bucket) }}
           </p>
-          <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
+          <p class="product-subtext">{{ product_specs(bucket) }}</p>
           {% if bucket['lowest_price'] is not none %}
             <p class="price"><span class="lp-price-label">From</span> ${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
@@ -142,9 +172,9 @@
         </div>
         <div class="product-text">
           <p class="product-title">
-            {{ bucket.get('listing_title') if bucket.get('listing_title') else (bucket['mint'] ~ ' ' ~ (bucket['product_line'] or bucket['coin_series'] or bucket['product_type'])) }}
+            {{ product_name(bucket) }}
           </p>
-          <p class="product-subtext">{{ bucket['weight'] }}, {{ bucket['metal'] }} {{ bucket['year'] }}</p>
+          <p class="product-subtext">{{ product_specs(bucket) }}</p>
           {% if bucket['lowest_price'] is not none %}
             <p class="price"><span class="lp-price-label">From</span> ${{ bucket['lowest_price']|commas }}</p>
             {% if bucket.get('all_listings_are_users', False) and session.get('user_id') %}
