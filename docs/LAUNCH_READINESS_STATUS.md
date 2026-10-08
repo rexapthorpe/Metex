@@ -252,3 +252,6 @@ Baseline: f2e613f. Dynamic checkout tax, processing fee, summary total and Place
 
 ### 2026-10-08 — center compressed account empty states
 Baseline: 2c3540e. Shared account empty states use border-box sizing, full parent width, centered text/items and narrow-screen padding. Cart columns stretch when the layout stacks below 900px, removing the shrink-to-content column that shifted the empty panel left. Covers standard tab, filter-empty and ratings states. Diff check passes.
+
+### 2026-10-08 — align password recovery with login design
+Baseline: fee44ac. Forgot/reset pages reuse login’s pale curved background, white card, shared form spacing, type and buttons. Removed old animated dark blobs, duplicate M badge, extra header spacer and inline card sizing. Kept recovery fields, IDs and submission logic unchanged. Template parsing and diff checks pass.
