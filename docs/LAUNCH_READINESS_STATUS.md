@@ -219,3 +219,6 @@ Baseline: fc576de. Sell Bullion uses a light blue fill and dark blue label/icon 
 
 ### 2026-10-07 — numbered buying timeline
 Baseline: 32e75af. Expanded buying guide uses a semantic ordered list, numbered circular markers, a vertical connector and separate headings. Existing disclosure and explanatory copy remain. Browser verified expanded content and visual timeline; diff check passes.
+
+### 2026-10-07 — smooth buying guide expansion
+Baseline: 14ff248. Native buying disclosure opens with a 280ms height animation, moving following content down smoothly. Cancels previous animation on toggles; reduced-motion preferences skip animation. Browser expansion check showed complete content and no page errors; JavaScript syntax and diff checks pass.
