@@ -209,27 +209,8 @@
   <p id="lp-save-status" role="status" class="lp-save-status"></p>
 </section>
 
-  <div class="lp-how-it-works">
-    <ol aria-label="How buying works">
-      <li><span>1</span> Browse bullion</li>
-      <li><span>2</span> Buy or make an offer</li>
-      <li><span>3</span> Track your order</li>
-    </ol>
-    <details>
-      <summary>How buying works</summary>
-      <div class="lp-buying-details">
-        <ol class="lp-buying-timeline">
-        <li><span class="lp-step-number" aria-hidden="true">1</span><div><h3>Before you buy</h3><p> Compare product specifications, seller offers, shipping terms and the total at checkout.</p></div></li>
-        <li><span class="lp-step-number" aria-hidden="true">2</span><div><h3>Payment and delivery</h3><p> Buy at the listed price or submit a bid. Review the payment terms before confirming, then follow your purchase in your account. Card and ACH payment terms and fees are shown at checkout.</p></div></li>
-        <li><span class="lp-step-number" aria-hidden="true">3</span><div><h3>If there is a problem</h3><p> Report a wrong, damaged or materially misdescribed item within three calendar days after delivery. Keep the order details and delivery evidence. Buyer-remorse returns are not allowed.</p></div></li>
-              </ol>
-      </div>
-    </details>
-  </div>
-
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/buying_guide.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/marketplace_saved.js') }}" defer></script>
 {% endblock %}

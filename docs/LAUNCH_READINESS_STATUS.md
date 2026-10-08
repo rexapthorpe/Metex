@@ -255,3 +255,6 @@ Baseline: 2c3540e. Shared account empty states use border-box sizing, full paren
 
 ### 2026-10-08 — align password recovery with login design
 Baseline: fee44ac. Forgot/reset pages reuse login’s pale curved background, white card, shared form spacing, type and buttons. Removed old animated dark blobs, duplicate M badge, extra header spacer and inline card sizing. Kept recovery fields, IDs and submission logic unchanged. Template parsing and diff checks pass.
+
+### 2026-10-08 — remove homepage buying guide
+Baseline: c589edb. Removed the entire homepage buying guide, three-step row and expanded timeline at user request, and stopped loading its unused animation script on this page. Template parsing and diff checks pass.
