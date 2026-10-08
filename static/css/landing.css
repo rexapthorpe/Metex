@@ -111,3 +111,20 @@ main.container:has(.lp-hero) { position: relative; isolation: isolate; }
 .lp-dealer-message { display:inline-block; margin-top:7px; font-size:.85em; font-weight:500; }
 .lp-cta-btn i { font-size:1.1em; }
 @media(max-width:600px) { .lp-hero-copy { max-width:100%; } .lp-hero .lp-cta-btn { flex:0 1 auto; } }
+
+/* Balanced framing and restrained marketplace actions. */
+.lp-hero h1 { text-transform:uppercase; font-size:clamp(30px, 3.7vw, 50px); letter-spacing:-.025em; line-height:1.12; }
+.lp-hero .lp-cta-btn { min-height:50px; justify-content:center; gap:12px; border-radius:4px; font-weight:600; letter-spacing:.01em; transition:background-color .15s ease, border-color .15s ease; }
+.lp-hero .lp-cta-btn--primary { background:#1458c7; border-color:#1458c7; }
+.lp-hero .lp-cta-btn--primary:hover { background:#104baa; border-color:#104baa; }
+.lp-hero .lp-cta-btn--outline { border-color:#9da9ba; color:#24344b; background:#fff; }
+.lp-hero .lp-cta-btn--outline:hover { background:#f4f7fb; border-color:#63758e; }
+.lp-hero .lp-cta-btn i { font-size:14px; }
+.lp-hero-art::before, .lp-hero-art::after { content:""; position:absolute; display:block; border-radius:48% 52% 63% 37% / 46% 43% 57% 54%; }
+.lp-hero-art::before { width:420px; height:410px; left:-230px; top:-110px; background:#dceeff; transform:rotate(24deg); }
+.lp-hero-art::after { width:250px; height:320px; left:-185px; top:230px; background:#3da6ff; transform:rotate(-30deg); }
+@media(max-width:600px) {
+  .lp-hero-art::before { width:180px; height:140px; left:-120px; top:-95px; }
+  .lp-hero-art::after { width:150px; height:170px; left:-145px; top:140px; }
+  .lp-hero .lp-cta-btn { gap:9px; letter-spacing:0; }
+}

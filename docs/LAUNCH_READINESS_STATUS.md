@@ -201,3 +201,6 @@ Baseline: 24764f9. Centered the /buy hero copy and CTA row across desktop and ph
 
 ### 2026-10-07 — equal hero button widths
 Baseline: 1f52af7. Browse Bullion and Sell Bullion now share responsive widths: 190px on desktop and 179px at a 390px phone viewport. Local browser measurement and visual checks confirmed equality and side-by-side phone layout; diff check passes. Saved on the existing GitHub review branch.
+
+### 2026-10-07 — uppercase hero and balanced framing
+Baseline: 7b4b7bf. Hero headline displays in uppercase with adjusted sizing. Equal-width actions now use centered labels/icons, restrained blue, consistent 50px height and refined borders. Matching decorative curves frame the left side, with smaller phone shapes. Browser verification at desktop and 390px confirmed visible uppercase text, equal 179px phone buttons and no horizontal overflow. Diff check passes; saved to the review branch.
