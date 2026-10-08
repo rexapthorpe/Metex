@@ -162,3 +162,7 @@ main.container:has(.lp-hero) { position: relative; isolation: isolate; }
   .lp-curve--blue { right:-120px; }
   .lp-hero-art::after { left:-120px; }
 }
+
+/* Give selling the same visual weight as browsing. */
+.lp-hero .lp-cta-btn--outline { color:#fff; background:#1458c7; border-color:#1458c7; }
+.lp-hero .lp-cta-btn--outline:hover { color:#fff; background:#104baa; border-color:#104baa; }
