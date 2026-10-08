@@ -237,3 +237,6 @@ Remaining limits: no live primary credential/uptime certification, no real sale-
 
 ### 2026-10-07 — remove duplicate catalog discovery row
 Baseline: db501c3. Removed the entire requested discovery row: catalog search/label/button, browsing shortcuts, saved-products toggle, saved-search controls and panel. Shared navigation search remains; catalog listings now follow the hero directly. Per-product saving, target prices and return-visit notices remain, with their status below the catalog. Removed unused row styles and script dependencies to avoid null-element failures. Jinja template parsing, JavaScript syntax and diff checks pass. No financial behavior changes; production deployment remains outside this review-branch update.
+
+### 2026-10-08 — round marketplace photo corners
+Baseline: a79de49. Homepage product image containers use an 18px corner radius instead of 6px, with overflow clipping retained for actual photos and placeholders across screen sizes. Diff check passes; local preview stylesheet updated.
