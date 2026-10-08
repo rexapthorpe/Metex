@@ -501,7 +501,7 @@ function updateOrderSummary() {
       taxEl.style.color = '#9ca3af';
       taxEl.style.fontSize = '13px';
     } else {
-      taxEl.textContent = '$' + tax.toFixed(2);
+      taxEl.textContent = tax.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
       taxEl.style.fontStyle = '';
       taxEl.style.color = '';
       taxEl.style.fontSize = '';
@@ -510,15 +510,15 @@ function updateOrderSummary() {
 
   const feeEl = document.getElementById('summary-processing-fee');
   if (feeEl) {
-    feeEl.textContent = isACH ? 'Free' : '$' + processingFee.toFixed(2);
+    feeEl.textContent = isACH ? 'Free' : processingFee.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     feeEl.classList.toggle('summary-value-free', isACH);
   }
 
   const totalEl = document.getElementById('summary-total');
-  if (totalEl) totalEl.textContent = '$' + total.toFixed(2);
+  if (totalEl) totalEl.textContent = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
   const placeOrderTotal = document.getElementById('place-order-total');
-  if (placeOrderTotal) placeOrderTotal.textContent = '$' + total.toFixed(2);
+  if (placeOrderTotal) placeOrderTotal.textContent = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 window.updateOrderSummary = updateOrderSummary;
 

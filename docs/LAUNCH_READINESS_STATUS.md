@@ -246,3 +246,6 @@ Baseline: cca4ef3. Removed “From” from active homepage listing prices across
 
 ### 2026-10-08 — restore consistent price font weight
 Baseline: af837e9. Restored the previous 650 weight for all homepage listing prices at user request; the removal of “From” remains. Diff check passes; local preview stylesheet updated.
+
+### 2026-10-08 — grouped checkout currency display
+Baseline: f2e613f. Dynamic checkout tax, processing fee, summary total and Place Order total use en-US USD currency formatting with comma grouping and two decimals, matching server-rendered amounts. Calculations are unchanged.
