@@ -243,3 +243,6 @@ Baseline: a79de49. Homepage product image containers use an 18px corner radius i
 
 ### 2026-10-08 — simplify listing price typography
 Baseline: cca4ef3. Removed “From” from active homepage listing prices across all card types and changed price weight from 650 to 400. Historical prices retain their “Last recorded” label. Template parsing and diff checks pass.
+
+### 2026-10-08 — restore consistent price font weight
+Baseline: af837e9. Restored the previous 650 weight for all homepage listing prices at user request; the removal of “From” remains. Diff check passes; local preview stylesheet updated.

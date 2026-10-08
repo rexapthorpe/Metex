@@ -150,7 +150,7 @@ main.container:has(.lp-hero) { position: relative; isolation: isolate; }
 .lp-curve--blue { width:200px; height:260px; right:-145px; top:200px; background:#e5f1fc; }
 .lp-hero-art::before { width:290px; height:290px; left:-185px; top:-90px; background:#edf5fc; }
 .lp-hero-art::after { width:180px; height:230px; left:-140px; top:250px; background:#e5f1fc; }
-.lp-catalog .price { font-size:18px; font-weight:400; }
+.lp-catalog .price { font-size:18px; font-weight:650; }
 @media(max-width:600px) {
   .lp-hero .lp-market-message { font-size:15px; }
   .lp-how-it-works ol { flex-direction:column; align-items:center; gap:10px; }
