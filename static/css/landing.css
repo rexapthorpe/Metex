@@ -163,6 +163,6 @@ main.container:has(.lp-hero) { position: relative; isolation: isolate; }
   .lp-hero-art::after { left:-120px; }
 }
 
-/* Give selling the same visual weight as browsing. */
-.lp-hero .lp-cta-btn--outline { color:#fff; background:#1458c7; border-color:#1458c7; }
-.lp-hero .lp-cta-btn--outline:hover { color:#fff; background:#104baa; border-color:#104baa; }
+/* Distinguish selling with a light blue fill. */
+.lp-hero .lp-cta-btn--outline { color:#123d65; background:#a9d9ff; border-color:#a9d9ff; }
+.lp-hero .lp-cta-btn--outline:hover { color:#123d65; background:#8dcbfb; border-color:#8dcbfb; }

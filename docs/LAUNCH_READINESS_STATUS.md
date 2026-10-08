@@ -213,3 +213,6 @@ Baseline: 3d9fc20. Updated hero to “Buy and sell bullion. Set your price.” w
 
 ### 2026-10-07 — prominent selling action
 Baseline: 993d109. Sell Bullion now uses solid blue with white text/icon and a darker hover state, matching Browse visual weight. Verified in local browser; diff check passes.
+
+### 2026-10-07 — light blue selling action
+Baseline: fc576de. Sell Bullion uses a light blue fill and dark blue label/icon with a slightly deeper hover fill. Local browser visual verification and diff check pass.
