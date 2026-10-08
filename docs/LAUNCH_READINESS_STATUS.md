@@ -222,3 +222,6 @@ Baseline: 32e75af. Expanded buying guide uses a semantic ordered list, numbered 
 
 ### 2026-10-07 — smooth buying guide expansion
 Baseline: 14ff248. Native buying disclosure opens with a 280ms height animation, moving following content down smoothly. Cancels previous animation on toggles; reduced-motion preferences skip animation. Browser expansion check showed complete content and no page errors; JavaScript syntax and diff checks pass.
+
+### 2026-10-07 — animated guide closure
+Baseline: 1cf9813. Buying guide animates both directions, preserving content until closing finishes and reversing from its current height on quick toggles. Reduced-motion skips animation. Local browser opening/closing showed no errors; lifecycle check confirmed closure waits for animation completion. Syntax and diff checks pass.
