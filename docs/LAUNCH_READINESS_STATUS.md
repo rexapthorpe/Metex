@@ -249,3 +249,6 @@ Baseline: af837e9. Restored the previous 650 weight for all homepage listing pri
 
 ### 2026-10-08 — grouped checkout currency display
 Baseline: f2e613f. Dynamic checkout tax, processing fee, summary total and Place Order total use en-US USD currency formatting with comma grouping and two decimals, matching server-rendered amounts. Calculations are unchanged.
+
+### 2026-10-08 — center compressed account empty states
+Baseline: 2c3540e. Shared account empty states use border-box sizing, full parent width, centered text/items and narrow-screen padding. Cart columns stretch when the layout stacks below 900px, removing the shrink-to-content column that shifted the empty panel left. Covers standard tab, filter-empty and ratings states. Diff check passes.
