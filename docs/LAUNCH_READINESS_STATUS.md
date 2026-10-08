@@ -216,3 +216,6 @@ Baseline: 993d109. Sell Bullion now uses solid blue with white text/icon and a d
 
 ### 2026-10-07 — light blue selling action
 Baseline: fc576de. Sell Bullion uses a light blue fill and dark blue label/icon with a slightly deeper hover fill. Local browser visual verification and diff check pass.
+
+### 2026-10-07 — numbered buying timeline
+Baseline: 32e75af. Expanded buying guide uses a semantic ordered list, numbered circular markers, a vertical connector and separate headings. Existing disclosure and explanatory copy remain. Browser verified expanded content and visual timeline; diff check passes.

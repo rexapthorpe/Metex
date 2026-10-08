@@ -166,3 +166,13 @@ main.container:has(.lp-hero) { position: relative; isolation: isolate; }
 /* Distinguish selling with a light blue fill. */
 .lp-hero .lp-cta-btn--outline { color:#123d65; background:#a9d9ff; border-color:#a9d9ff; }
 .lp-hero .lp-cta-btn--outline:hover { color:#123d65; background:#8dcbfb; border-color:#8dcbfb; }
+
+/* Numbered buying guide, connected vertically. */
+.lp-buying-details .lp-buying-timeline { display:block; margin:0; padding:0; list-style:none; text-align:left; }
+.lp-buying-details .lp-buying-timeline li { display:grid; grid-template-columns:32px minmax(0,1fr); gap:16px; position:relative; padding:0 0 24px; align-items:start; }
+.lp-buying-details .lp-buying-timeline li:last-child { padding-bottom:0; }
+.lp-buying-timeline li:not(:last-child)::before { content:""; position:absolute; width:1px; background:#ccdced; left:15.5px; top:32px; bottom:0; }
+.lp-buying-details .lp-step-number { display:flex; align-items:center; justify-content:center; box-sizing:border-box; width:32px; height:32px; border:1px solid #b8d3ee; border-radius:50%; background:#edf6ff; color:#1458c7; font-size:13px; font-weight:600; }
+.lp-buying-timeline h3 { margin:4px 0 5px; font-size:14px; font-weight:600; color:#24344b; }
+.lp-buying-timeline p { margin:0; font-size:13px; line-height:1.65; }
+@media(max-width:600px) { .lp-buying-details { padding:20px 16px; } .lp-buying-details .lp-buying-timeline li { gap:12px; } }
